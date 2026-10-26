@@ -401,6 +401,17 @@ A dev build is needed anyway (iOS push, widgets), so modules that require one ar
 ### Cost
 Muse Spark 1.3 costs $1.25 per million input tokens ($0.15 cached) and $4.25 per million output tokens. Muse Image is about $0.01 an image. Hackathon credits are reportedly $150 **(verify)**. The rate limiter and a daily budget per family (config) keep the demo within that.
 
+### Smoke test results (Oct 26, `npm run smoke:meta`)
+| Test | Result | What the adapters must do |
+|---|---|---|
+| Chat (`/v1/chat/completions`, `muse-spark-1.3`) | ✅ ~1 s | **It's a reasoning model:** hidden reasoning counts against `max_tokens`. Use a generous `max_tokens` and `reasoning_effort: "low"` for quick calls (judge, writer); 10 tokens returned an empty reply |
+| Tool calling | ✅ ~0.8 s | OpenAI-style `tools` / `tool_calls`; arguments arrive as a JSON string |
+| JSON-schema output | ✅ ~1.8 s | `response_format: { type: "json_schema", json_schema: { strict: true } }` works |
+| Web search (`/v1/responses`, `tools: [{ type: "web_search" }]`) | ✅ ~4 s | Sources are in each `web_search_call.action.sources` (ask with `include: ["web_search_call.action.sources"]`); inline `annotations` came back empty. Messages with `phase: "commentary"` are interim narration, not the answer |
+| Transcribe (`POST /v1/asr/transcribe`) | ✅ ~1.5 s for 3.6 s of audio | Multipart: a JSON `request` part (`{ model: "muse-voice-transcribe-1.0", audioEncoding: "WAV" }`) plus an `audio` part. Returns `transcript`, `audioDurationMs`, `turns`. Heard "Hey Zap" correctly; vocabulary biasing is available for MEGA names. Realtime: `wss://api.meta.ai/v1/asr/realtime`, auth in the handshake frame |
+| Muse Image | not run | Needs your go-ahead to spend |
+| Rate limits | not hit | Watch in G2 |
+
 ### Day-1 smoke tests (before building on them)
 1. Muse Spark tool calls and JSON-schema output through the OpenAI SDK.
 2. `web_search` with citations.
@@ -479,7 +490,7 @@ Nothing is animated by generating new images. Only two things move:
 
 ## Open items
 - [x] "World" tab is named **HQ** (Oct 24)
-- [~] Speech to text: Muse Voice Transcribe, pending the day-1 smoke test (Oct 25)
+- [x] Speech to text: Muse Voice Transcribe file endpoint works (Oct 26)
 - [x] Start all-Meta: no embeddings, Tavily off (Oct 25)
 - [x] Sign-in: Better Auth with Apple and Google (Oct 25)
 - [x] Kids get web search with a child filter (Oct 25)
@@ -489,4 +500,4 @@ Nothing is animated by generating new images. Only two things move:
 - [ ] Kid sign-in mechanism in Better Auth (anonymous plugin or custom endpoint)
 - [ ] Does Muse `web_search` have a safe-search option?
 - [ ] Hackathon rule on code written before the start
-- [ ] **Meta API billing:** chat calls return 402 `billing_not_configured` until billing is set up at dev.meta.ai/billing (Oct 26). Model ids confirmed: `muse-spark-1.3`, `muse-image-1.0`, `muse-voice-transcribe-1.0`, `sam-3.1`, `muse-wonder-1.0`
+- [x] **Meta API billing** set up (Oct 26). Model ids confirmed: `muse-spark-1.3`, `muse-image-1.0`, `muse-voice-transcribe-1.0`, `sam-3.1`, `muse-wonder-1.0`

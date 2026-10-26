@@ -1,6 +1,6 @@
 # MEGA — Frontend ↔ Backend Contract
 
-**Status: v0.3. v0.2 approved Oct 26; the v0.3 changes are waiting for approval. **
+**Status: v0.3, approved Oct 26.**
 
 This is the agreement both build tracks follow. The backend owns `convex/`, the frontend owns `app/` + `src/`, and this contract (which becomes `shared/`) is owned by both.
 
@@ -8,7 +8,7 @@ This is the agreement both build tracks follow. The backend owns `convex/`, the 
 | Version | Date | Change |
 |---|---|---|
 | 0.1 | Oct 26 | First draft for review |
-| 0.3 | Oct 26 | G0 build: optional fields where a value can't exist yet (`families.adminId`, `createdBy`/`addedBy` on seeded or imported rows, `notifications.candidateId`/`messageId`/`sentAt`); index names now all start with the family; `ShareLevel` enum named; scope keys use the family's id; §4 is machine-readable in `shared/domain/api.ts` (pending your OK) |
+| 0.3 | Oct 26 | G0 build: optional fields where a value can't exist yet (`families.adminId`, `createdBy`/`addedBy` on seeded or imported rows, `notifications.candidateId`/`messageId`/`sentAt`); index names now all start with the family; `ShareLevel` enum named; scope keys use the family's id; §4 is machine-readable in `shared/domain/api.ts` |
 | 0.2 | Oct 26 | Spoken MEGA names (`SpokenMention`, detection in `talk.transcribe` and `chat.send`); open questions decided |
 
 ## Rules
