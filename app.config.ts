@@ -32,6 +32,8 @@ const config: ExpoConfig = {
     icon: './assets/expo.icon',
     bundleIdentifier: IDENTITY.bundleId,
     usesAppleSignIn: true,
+    // Only standard encryption (HTTPS/TLS, Keychain via expo-secure-store): exempt from export rules.
+    config: { usesNonExemptEncryption: false },
   },
   android: {
     package: IDENTITY.bundleId,
