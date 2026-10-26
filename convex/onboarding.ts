@@ -12,6 +12,18 @@ import { clock } from './ports/clock';
 
 const emptyProactive = { sent: 0, answered: 0, ignored: 0, up: 0, down: 0 };
 
+/** `shared/time.ts`'s helpers (and every event/reminder/clock computation downstream) call
+ * `Intl.DateTimeFormat` with a family's stored timezone; an invalid IANA zone name throws a bare
+ * `RangeError` wherever that later runs, not a `ConvexError` — so it's rejected once, here, at the door. */
+function isValidTimeZone(tz: string): boolean {
+  try {
+    Intl.DateTimeFormat(undefined, { timeZone: tz });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export const start = mutation({
   ...pick(API.onboarding.start),
   handler: async (ctx, args) => {
@@ -22,6 +34,7 @@ export const start = mutation({
       .withIndex('by_authId', (q) => q.eq('authId', identity.subject))
       .unique();
     if (already) fail('VALIDATION', 'already a member of a family');
+    if (!isValidTimeZone(args.timezone)) fail('VALIDATION', 'invalid timezone');
 
     const now = clock.bootstrap(); // the one wall-clock read outside ports/clock.ts's own adapter (see its docstring)
     const familyId = await ctx.db.insert('families', {

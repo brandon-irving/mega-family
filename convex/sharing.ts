@@ -1,7 +1,9 @@
-// CONTRACT §4 `sharing.get` / `.set`. Kids have no `sharing` row by default (seed.ts), so `.get` reports
-// `null` for them rather than inventing defaults, and `.set` upserts.
+// CONTRACT §4 `sharing.get` / `.set`. Kids have no `sharing` row (seed.ts never creates one for them —
+// their equivalent is `kidControls`, parent-set), so `.get` reports `null` for them rather than inventing
+// defaults, and `.set` refuses kids outright so that invariant can never be bypassed by calling it.
 import { API } from '../shared/domain/api';
 import { mutation, query } from './_generated/server';
+import { fail } from './model/errors';
 import { pick } from './model/define';
 import { requireViewer } from './model/viewer';
 
@@ -21,6 +23,7 @@ export const set = mutation({
   ...pick(API.sharing.set),
   handler: async (ctx, args) => {
     const viewer = await requireViewer(ctx);
+    if (viewer.member.role === 'kid') fail('FORBIDDEN', "kids don't have sharing settings — see kidControls");
     const row = await ctx.db
       .query('sharing')
       .withIndex('by_family_member', (q) => q.eq('familyId', viewer.member.familyId).eq('memberId', viewer.member._id))
