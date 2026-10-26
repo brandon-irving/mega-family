@@ -115,6 +115,25 @@ export const NOTIFICATION_FIXTURE: Infer<typeof notificationDoc> = {
   sentAt: Date.now(),
 };
 
+/** G3 scope: "kid: held for quiet hours" (design board Push.template.html, "Saved from 9:10 PM · quiet
+ * hours"). `heldUntil` set, same shape otherwise — this is a kid's reminder sent overnight and held. */
+export const NOTIFICATION_HELD_FIXTURE: Infer<typeof notificationDoc> = {
+  _id: id('notifications', '2'),
+  _creationTime: new Date('2026-10-25T21:10:00').getTime(),
+  familyId: FIXTURE_IDS.family,
+  recipientId: FIXTURE_IDS.twin1,
+  kind: 'reminder',
+  loudness: 'timeSensitive',
+  title: 'Teal reminds you',
+  body: 'Bring your library book today.',
+  megaId: FIXTURE_IDS.teal,
+  buttons: [
+    { id: 'on_my_way', label: 'On my way' },
+    { id: 'snooze_5', label: 'Snooze 5 min' },
+  ],
+  heldUntil: new Date('2026-10-26T07:00:00').getTime(),
+};
+
 export const MEMBER_CARD_FIXTURE: Infer<typeof memberCard> = {
   member: {
     _id: FIXTURE_IDS.admin,
