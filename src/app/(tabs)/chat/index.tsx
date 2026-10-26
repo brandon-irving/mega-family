@@ -1,7 +1,7 @@
 // Chat screen (PLAN §1). Header with animated badge/name/status + Today button; thread via
 // usePaginatedQuery(chat.thread); composer with + / text+@ / mic. Reads data only through the
 // small hooks in src/data/.
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { router, useLocalSearchParams } from 'expo-router';
 import { KeyboardAvoidingView, Platform, View } from 'react-native';
 import { ROLES_CONFIG } from '@shared/config/roles';
@@ -44,11 +44,10 @@ export default function ChatRoute() {
 
   // The reply message appears in chat.thread once it's persisted; until then (or if the backend's
   // persistent-text-streaming wiring isn't live yet) this shows the partial text from streamBody.
-  useEffect(() => {
-    if (stream?.status === 'done' || stream?.status === 'error' || stream?.status === 'timeout') setPendingStreamId(null);
-  }, [stream?.status]);
+  // The next onSend sets a fresh streamId, so there's no need to clear this one when it settles.
+  const showStreamBanner = pendingStreamId !== null && stream !== undefined && stream.status !== 'done' && stream.status !== 'error' && stream.status !== 'timeout';
 
-  const mega = useMemo(() => (viewer?.mega ? megaInfo(viewer.mega) : null), [viewer?.mega]);
+  const mega = useMemo(() => (viewer?.mega ? megaInfo(viewer.mega) : null), [viewer]);
 
   if (viewer === undefined || thread.status === 'LoadingFirstPage') return <LoadingScreen label="Opening chat…" />;
   if (!viewer || !mega) {
@@ -84,7 +83,7 @@ export default function ChatRoute() {
             onForgetMemory={(memoryId) => forgetMemory({ memoryId })}
           />
         </View>
-        {pendingStreamId && stream && stream.status !== 'done' && (
+        {showStreamBanner && stream && (
           <Text variant="caption" color="muted" style={{ paddingHorizontal: 16, paddingBottom: 4 }} accessibilityLiveRegion="polite">
             {mega.name}: {stream.text || '…'}
           </Text>

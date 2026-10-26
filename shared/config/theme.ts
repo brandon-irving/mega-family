@@ -1,5 +1,6 @@
 // Theme presets. The app's design tokens build on these; the mockups shared the same values (themes.js).
 import type { ThemeName } from '../domain/enums';
+import type { WALLPAPER_PRESET_IDS } from './ids';
 
 export type ThemeTokens = { label: string; accent: string; bg: string; surface: string; line: string; text: string; muted: string };
 
@@ -11,8 +12,6 @@ export const THEMES: Record<ThemeName, ThemeTokens> = {
 export const DEFAULT_THEME: ThemeName = 'midnight';
 
 /** Wallpaper presets drawn in code. */
-import type { WALLPAPER_PRESET_IDS } from './ids';
-
 export const WALLPAPER_PRESETS: readonly { id: (typeof WALLPAPER_PRESET_IDS)[number]; label: string }[] = [
   { id: 'glow', label: 'MEGA glow' },
   { id: 'night', label: 'Night' },

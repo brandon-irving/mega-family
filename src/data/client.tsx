@@ -6,7 +6,6 @@ import type { ReactNode } from 'react';
 const url = process.env.EXPO_PUBLIC_CONVEX_URL;
 
 if (!url && __DEV__) {
-  // eslint-disable-next-line no-console
   console.warn('EXPO_PUBLIC_CONVEX_URL is not set — queries will fail until the backend lands and .env is configured.');
 }
 

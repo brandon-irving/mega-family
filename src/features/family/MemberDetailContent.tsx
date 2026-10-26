@@ -64,7 +64,7 @@ export function MemberDetailContent({ detail, onMessage, onVisitRoom, onChangeKi
 
       {isKid && !kidControls && canReadChat && (
         <Text color="muted" style={{ marginBottom: tokens.spacing.lg }}>
-          Only this kid's parents can change their controls.
+          Only this kid&rsquo;s parents can change their controls.
         </Text>
       )}
     </>

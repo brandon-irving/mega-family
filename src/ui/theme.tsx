@@ -1,7 +1,7 @@
 // The design-system context: resolves THEMES + resolveAccent + resolveSizing (shared/config/theme.ts)
 // into one object every primitive reads from. No component hardcodes a color, size or duration —
 // they all come from here, so a config edit (new theme, new role sizing) changes every screen at once.
-import { createContext, type ReactNode, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, type ReactNode, useContext, useMemo, useState } from 'react';
 import { DEFAULT_THEME, DURATIONS, RADII, resolveAccent, resolveSizing, SPACING, THEMES, type ThemeTokens } from '@shared/config/theme';
 import type { Role, ThemeName } from '@shared/domain/enums';
 import { ROLES_CONFIG } from '@shared/config/roles';
@@ -43,16 +43,14 @@ export function ThemeProvider({
   accent?: 'theme' | 'mega' | { hex: string };
   megaHex?: string;
 }) {
-  const [themeName, setThemeName] = useState(initialTheme);
-  const [role, setRole] = useState(initialRole);
-
-  // initialTheme/initialRole only seed useState; the viewer query resolves asynchronously (after
-  // first render), so this syncs state whenever the resolved value changes. A local preview (the
-  // Settings theme sheet) stays stable in between, since these props only change after a save.
-  useEffect(() => {
-    setThemeName(initialTheme);
-    setRole(initialRole);
-  }, [initialTheme, initialRole]);
+  // initialTheme/initialRole come from the viewer query, which resolves asynchronously and can
+  // change after a settings save; themeName/role track it directly rather than mirroring it into
+  // state (which would need an effect to stay in sync). A local override layers on top for the
+  // Settings theme sheet's live preview, independent of the prop and cleared by passing `null`.
+  const [themeOverride, setThemeOverride] = useState<ThemeName | null>(null);
+  const [roleOverride, setRoleOverride] = useState<Role | null>(null);
+  const themeName = themeOverride ?? initialTheme;
+  const role = roleOverride ?? initialRole;
 
   const tokens = useMemo<Tokens>(() => {
     const base = THEMES[themeName];
@@ -69,7 +67,7 @@ export function ThemeProvider({
     };
   }, [themeName, role, accent, megaHex]);
 
-  return <Ctx.Provider value={{ themeName, setThemeName, role, setRole, tokens }}>{children}</Ctx.Provider>;
+  return <Ctx.Provider value={{ themeName, setThemeName: setThemeOverride, role, setRole: setRoleOverride, tokens }}>{children}</Ctx.Provider>;
 }
 
 export function useTheme(): ThemeCtx {

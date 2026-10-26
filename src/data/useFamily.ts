@@ -20,8 +20,8 @@ export function useComingUp() {
   return useQuery(api.family.comingUp, {});
 }
 
-export function useCalendarRange(from: number, to: number) {
-  return useQuery(api.calendar.range, { from, to });
+export function useCalendarRange(from: number | null, to: number | null) {
+  return useQuery(api.calendar.range, from !== null && to !== null ? { from, to } : 'skip');
 }
 
 export function useSetKidControls() {

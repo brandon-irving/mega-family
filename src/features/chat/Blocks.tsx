@@ -4,9 +4,8 @@
 import { useState } from 'react';
 import { Switch, TextInput, View } from 'react-native';
 import type { BlockAnswer, UIBlock } from '@shared/domain/messages';
-import { COLORS, PERSONALITIES } from '@shared/config/looks';
+import { COLORS, HEX_RE, PERSONALITIES } from '@shared/config/looks';
 import { STICKERS } from '@shared/config/ids';
-import { HEX_RE } from '@shared/config/looks';
 import type { Personality } from '@shared/domain/enums';
 import { Button } from '@/ui/Button';
 import { Card } from '@/ui/Card';
@@ -262,8 +261,7 @@ function LookBlock({ block, onAnswer }: { block: Extract<UIBlock, { kind: 'look'
   );
 }
 
-function SwatchButton({ hex, selected, onPress, label }: { hex: string; selected: boolean; onPress: () => void; label: string }) {
-  const tokens = useTokens();
+function SwatchButton({ hex: _hex, selected, onPress, label }: { hex: string; selected: boolean; onPress: () => void; label: string }) {
   return (
     <Chip label={selected ? `${label} ✓` : label} selected={selected} onPress={onPress} accessibilityLabel={`${label} color${selected ? ', selected' : ''}`} />
   );
@@ -301,7 +299,7 @@ function InviteBlock({ block: _block }: { block: Extract<UIBlock, { kind: 'invit
       <Text variant="label" style={{ marginBottom: tokens.spacing.sm }}>
         Invite sent
       </Text>
-      <Text color="muted">A QR code and link are ready to share — open the member's row in Family to view them.</Text>
+      <Text color="muted">A QR code and link are ready to share — open the member&rsquo;s row in Family to view them.</Text>
       <View style={{ height: 96, borderRadius: tokens.radii.sm, borderWidth: 1, borderColor: tokens.line, marginTop: tokens.spacing.sm, alignItems: 'center', justifyContent: 'center' }}>
         <Text color="muted">QR code</Text>
       </View>

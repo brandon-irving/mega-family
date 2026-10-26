@@ -1,6 +1,6 @@
 // Chat header (PLAN §1): the animated badge, the MEGA's name, a live status line from the same job
 // event that drives HQ, and a Today button with a count of things waiting on you.
-import { useEffect, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import { Animated, Pressable, View } from 'react-native';
 import { MegaBadge } from '@/ui/MegaBadge';
 import { Text } from '@/ui/Text';
@@ -11,7 +11,9 @@ export type ChatHeaderProps = { mega: MegaInfo; statusLine: string; todayCount: 
 
 export function ChatHeader({ mega, statusLine, todayCount, onOpenProfile, onOpenToday }: ChatHeaderProps) {
   const tokens = useTokens();
-  const pulse = useRef(new Animated.Value(1)).current;
+  // A lazy useState initializer (not useRef().current) keeps this Animated.Value stable across
+  // renders without reading a ref during render (react-hooks/refs).
+  const [pulse] = useState(() => new Animated.Value(1));
 
   useEffect(() => {
     const loop = Animated.loop(
