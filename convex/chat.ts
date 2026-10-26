@@ -1,14 +1,14 @@
-// CONTRACT §4 "Chat and talk". `chat.send`/`chat.stream`/`chat.answerBlock` are day-1 stubs: `send` inserts
-// the user's message plus a placeholder MEGA reply and creates a real persistent-text-streaming stream;
-// the actual (canned) reply text is generated when the app opens the `/chat-stream` HTTP route, exactly
-// the shape the component expects — there's no model wired up yet, only the plumbing.
+// CONTRACT §4 "Chat and talk". `chat.send`/`chat.answerBlock` are day-1 stubs: `send` inserts the user's
+// message plus an empty MEGA reply with a persistent-text-streaming stream, then schedules `generateReply`.
+// The reply is server-driven: the action writes chunks with the component's addChunk mutation and every
+// open client sees them through `chat.streamBody` (a reactive query). Nothing depends on the app staying
+// open, which the proactive engine and push need anyway. G1 writes a canned reply; G2 swaps in the agent.
 import { v } from 'convex/values';
 import { PersistentTextStreaming, type StreamId } from '@convex-dev/persistent-text-streaming';
 import { API } from '../shared/domain/api';
 import { components, internal } from './_generated/api';
-import { httpAction, internalQuery, mutation, query } from './_generated/server';
+import { internalAction, internalMutation, mutation, query } from './_generated/server';
 import { requireReadableStream } from './model/chat';
-import { withCors } from './model/cors';
 import { pick } from './model/define';
 import { fail } from './model/errors';
 import { detectSpokenMentions } from './model/mentions';
@@ -96,6 +96,7 @@ export const send = mutation({
       chips: [],
     });
     await ctx.db.patch(thread._id, { lastAt: now + 1 });
+    await ctx.scheduler.runAfter(0, internal.chat.generateReply, { streamId, replyMessageId });
 
     return { messageId, replyMessageId, streamId };
   },
@@ -148,33 +149,28 @@ export const react = mutation({
   },
 });
 
-/** httpAction ctx has no `ctx.db` (only `runQuery`/`runMutation`/`runAction`), so the ownership check
- * (`requireReadableStream`) has to live behind a query `streamChat` can call — this is that query, not a
- * public API entry (nothing else needs it; `chat.streamBody` runs the same check directly against its
- * own query ctx). Throws the same codes `requireReadableStream`/`requireViewer` would. */
-export const canReadStream = internalQuery({
-  args: { streamId: v.string() },
+/** Writes the reply into its stream, then stores the final text on the message so the thread still reads
+ * correctly after the component cleans up old streams. G2 replaces the canned text with the agent loop. */
+export const generateReply = internalAction({
+  args: { streamId: v.string(), replyMessageId: v.id('messages') },
   returns: v.null(),
   handler: async (ctx, args) => {
-    const viewer = await requireViewer(ctx);
-    await requireReadableStream(ctx, viewer, args.streamId);
+    const words = CANNED_REPLY.split(' ');
+    for (const [i, word] of words.entries()) {
+      const final = i === words.length - 1;
+      await ctx.runMutation(components.persistentTextStreaming.lib.addChunk, { streamId: args.streamId as StreamId, text: final ? word : `${word} `, final });
+    }
+    await ctx.runMutation(internal.chat.finishReply, { replyMessageId: args.replyMessageId, text: CANNED_REPLY });
     return null;
   },
 });
 
-/** CONTRACT §4 `chat.stream` (`POST /chat-stream { streamId }`). Routed from `convex/http.ts`. G1 fix:
- * this used to stream to anyone who knew a `streamId` — no auth, no ownership check — with CORS wide
- * open (`Access-Control-Allow-Origin: *`). Now requires the same identity + ownership/parent check as
- * `chat.streamBody`, and the same trustedOrigins-based CORS as the auth routes (convex/model/cors.ts). */
-export const streamChat = httpAction(async (ctx, request) => {
-  const { streamId } = (await request.json()) as { streamId: string };
-  try {
-    await ctx.runQuery(internal.chat.canReadStream, { streamId });
-  } catch {
-    return withCors(request, new Response(null, { status: 403 }));
-  }
-  const response = await streaming.stream(ctx, request, streamId as StreamId, async (_ctx, _request, _id, append) => {
-    for (const word of CANNED_REPLY.split(' ')) await append(`${word} `);
-  });
-  return withCors(request, response);
+export const finishReply = internalMutation({
+  args: { replyMessageId: v.id('messages'), text: v.string() },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const message = await ctx.db.get(args.replyMessageId);
+    if (message?.body.type === 'text') await ctx.db.patch(message._id, { body: { ...message.body, text: args.text } });
+    return null;
+  },
 });
