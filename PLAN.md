@@ -76,6 +76,14 @@ Every member gets the same screens; higher levels add controls. What each level 
 - **Chat wallpaper:** a device photo or a preset, with an adjustable dark overlay so messages stay readable.
 - **The MEGA is the code-drawn sprite everywhere:** the badge (head on a white tile) in headers and messages, and the full sprite in HQ.
 
+### UX quality bar (owner priority, Oct 26)
+The frontend is the product: it must feel **smooth, responsive and intuitive**. Every gate checks:
+- **Keyboard:** inputs (composer, blocks, sheets) stay above the keyboard with interactive dismiss; the thread keeps the newest message in view.
+- **Transitions:** Reanimated entering/exiting/layout animations for messages, blocks collapsing into answers, sheets and talk-mode states; timings from theme duration tokens; reduced motion respected.
+- **No flicker:** keep the last data while queries refetch, skeletons shaped like the content, no flash of loading/welcome screens, stable keys, optimistic sends replaced in place, streaming text grows without re-laying-out the list.
+- **Responsive:** instant press feedback (pressed state, haptics), 60fps lists, fixed sizes so nothing shifts when images or sprites load.
+- **Checked by:** a dedicated UX reviewer at every gate (web recordings checked frame by frame for flashes and layout jumps, plus a device pass by the owner).
+
 ### Screen order
 1. Chat (+ talk mode) 2. HQ 3. MEGA profile 4. Family 5. Create a MEGA / first launch 6. Push notification → app 7. Settings (theme, wallpaper) 8. Widgets
 
