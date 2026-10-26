@@ -1,7 +1,9 @@
 // Renders one thread message of any MessageBody type (CONTRACT §3): text, block, answer, card,
 // image, notice. MEGA and system messages render without a bubble (a MegaBadge sits beside them,
 // PLAN §1); only the viewer's own messages are bubbles.
+import { memo } from 'react';
 import { Image, View } from 'react-native';
+import Animated, { FadeIn, FadeInDown, LinearTransition, useReducedMotion } from 'react-native-reanimated';
 import type { Infer } from 'convex/values';
 import type { messageDoc } from '@shared/domain/api';
 import type { BlockAnswer } from '@shared/domain/messages';
@@ -29,9 +31,14 @@ export type MessageRowProps = {
   onRespondRequest?: (accept: boolean) => void;
   onAnswerNotification?: (buttonId: string) => void;
   notification?: NotificationDoc;
+  /** Kids' save chips are read-only (PLAN "MEGA profile": no sharing/memory controls for kids). */
+  chipsReadOnly?: boolean;
 };
 
-export function MessageRow({
+/** Memoized (React.memo): MessageList re-renders on every new message, but a row's own props only
+ * change when its message/callbacks actually do — un-memoized, the whole visible page would re-render
+ * (and replay a layout pass) on each new arrival, the opposite of a 60fps chat list. */
+export const MessageRow = memo(function MessageRow({
   message,
   isMine,
   mega,
@@ -41,13 +48,18 @@ export function MessageRow({
   onRespondRequest,
   onAnswerNotification,
   notification,
+  chipsReadOnly = false,
 }: MessageRowProps) {
   const tokens = useTokens();
+  const reducedMotion = useReducedMotion();
   const showBadge = message.author.kind === 'mega';
   const content = <Body message={message} isMine={isMine} onAnswerBlock={onAnswerBlock} onRespondRequest={onRespondRequest} onAnswerNotification={onAnswerNotification} notification={notification} />;
 
   return (
-    <View style={{ marginBottom: tokens.spacing.md }}>
+    // A new row mounts once per message (FlatList keeps existing rows mounted as more load in), so
+    // `entering` plays exactly once, the moment this message first appears — not on every re-render —
+    // which is what makes a freshly sent/received message slide in without replaying for the whole list.
+    <Animated.View entering={reducedMotion ? undefined : FadeInDown.duration(tokens.durations.base).springify().damping(18)} style={{ marginBottom: tokens.spacing.md }}>
       <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: tokens.spacing.sm, justifyContent: isMine ? 'flex-end' : 'flex-start' }}>
         {showBadge && mega && <MegaBadge hex={mega.hex} sticker={mega.sticker} face={mega.face} size={32} accessibilityLabel={mega.name} />}
         <View style={{ flex: showBadge ? 1 : undefined, maxWidth: showBadge ? '82%' : undefined }}>
@@ -67,13 +79,14 @@ export function MessageRow({
               chip={chip}
               onChangeScope={(scope) => onChangeMemoryScope(chip.memoryId, scope)}
               onForget={() => onForgetMemory(chip.memoryId)}
+              readOnly={chipsReadOnly}
             />
           ))}
         </View>
       )}
-    </View>
+    </Animated.View>
   );
-}
+});
 
 function Body({
   message,
@@ -91,12 +104,21 @@ function Body({
   notification?: NotificationDoc;
 }) {
   const tokens = useTokens();
+  const reducedMotion = useReducedMotion();
   const body = message.body;
   switch (body.type) {
     case 'text':
       return <Text style={isMine ? { color: tokens.onAccent } : undefined}>{body.text}</Text>;
-    case 'block':
-      return body.answeredWith ? <AnsweredBlock block={body.block} answer={body.answeredWith} /> : <Block block={body.block} onAnswer={onAnswerBlock} />;
+    case 'block': {
+      // "Answering any UIBlock collapses it into the answer bubble" (G2 scope) — keyed so Reanimated
+      // treats the pending -> answered swap as a mount transition (crossfade) rather than an in-place
+      // prop change, with `layout` smoothing the card's height change as it shrinks to the answer line.
+      return (
+        <Animated.View key={body.answeredWith ? 'answered' : 'pending'} layout={reducedMotion ? undefined : LinearTransition.duration(tokens.durations.base)} entering={reducedMotion ? undefined : FadeIn.duration(tokens.durations.base)}>
+          {body.answeredWith ? <AnsweredBlock block={body.block} answer={body.answeredWith} /> : <Block block={body.block} onAnswer={onAnswerBlock} />}
+        </Animated.View>
+      );
+    }
     case 'answer':
       return (
         <Bubble mine={isMine}>

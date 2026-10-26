@@ -1,3 +1,4 @@
+export * from './copy';
 export * from './demo';
 export * from './identity';
 export * from './kidSafety';
@@ -8,4 +9,6 @@ export * from './models';
 export * from './notifications';
 export * from './roles';
 export * from './rooms';
+export * from './speaker';
+export * from './talk';
 export * from './theme';

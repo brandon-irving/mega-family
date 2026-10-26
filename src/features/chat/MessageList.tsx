@@ -37,6 +37,9 @@ export type MessageListProps = {
   /** notificationId -> its resolved doc (see `@/data/useNotifications`), so a `{ kind: 'notification' }`
    * card can render real content instead of just the word "Notification" (G1 fix). */
   notificationsById?: Record<string, NotificationDoc>;
+  /** Kids' save chips are read-only (PLAN "MEGA profile") — also true for KidThreadView, where a parent
+   * is only ever reading, never editing a kid's memories. */
+  chipsReadOnly?: boolean;
   emptyLabel?: string;
 };
 
@@ -52,6 +55,7 @@ export function MessageList({
   onRespondRequest,
   onAnswerNotification,
   notificationsById,
+  chipsReadOnly = false,
   emptyLabel = 'No messages yet.',
 }: MessageListProps) {
   const tokens = useTokens();
@@ -89,6 +93,7 @@ export function MessageList({
             onRespondRequest={requestId ? (accept) => onRespondRequest?.(requestId, accept) : undefined}
             onAnswerNotification={notificationId ? (buttonId) => onAnswerNotification?.(notificationId, buttonId) : undefined}
             notification={notificationId ? notificationsById?.[notificationId] : undefined}
+            chipsReadOnly={chipsReadOnly}
           />
         );
       }}

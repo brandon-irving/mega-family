@@ -5,7 +5,7 @@
 // inverted FlatList) — "mine" here means the signed-in viewer's own authored messages.
 import type { Id } from '@shared/domain/validators';
 import type { BlockAnswer, SaveChip } from '@shared/domain/messages';
-import type { Reaction, Scope } from '@shared/domain/enums';
+import type { Reaction, Role, Scope } from '@shared/domain/enums';
 import type { MegaInfo } from '@/features/shell/megaInfo';
 import type { NotificationDoc } from '@/data/useNotifications';
 import { MessageList, type MessageDoc } from './MessageList';
@@ -13,6 +13,9 @@ import { MessageList, type MessageDoc } from './MessageList';
 export type ChatThreadProps = {
   messages: MessageDoc[];
   viewerMemberId: Id<'members'>;
+  /** Kids' save chips are read-only (PLAN "MEGA profile") — defaults to 'adult' so existing callers/tests
+   * that don't care about this still render the normal, interactive chip. */
+  viewerRole?: Role;
   megaById: Record<string, MegaInfo>;
   onLoadMore?: () => void;
   onAnswerBlock: (messageId: Id<'messages'>, answer: BlockAnswer) => void;
@@ -27,6 +30,7 @@ export type ChatThreadProps = {
 export function ChatThread({
   messages,
   viewerMemberId,
+  viewerRole = 'adult',
   megaById,
   onLoadMore,
   onAnswerBlock,
@@ -50,6 +54,7 @@ export function ChatThread({
       onRespondRequest={onRespondRequest}
       onAnswerNotification={onAnswerNotification}
       notificationsById={notificationsById}
+      chipsReadOnly={viewerRole === 'kid'}
       emptyLabel="No messages yet. Say hello."
     />
   );

@@ -1,16 +1,50 @@
 // Chat screen data: the thread, sending, the streamed reply, answering a block, and reactions.
-import { useMutation, usePaginatedQuery, useQuery } from 'convex/react';
+import { insertAtTop, useMutation, usePaginatedQuery, useQuery } from 'convex/react';
+import type { Infer } from 'convex/values';
 import type { Id } from '@shared/domain/validators';
 import type { BlockAnswer } from '@shared/domain/messages';
 import type { Via } from '@shared/domain/enums';
+import type { messageDoc, viewer as viewerValidator } from '@shared/domain/api';
 import { api } from './api';
+import { useViewer } from './useViewer';
 
 export function useChatThread() {
   return usePaginatedQuery(api.chat.thread, {}, { initialNumItems: 30 });
 }
 
+type Viewer = Infer<typeof viewerValidator>;
+type MessageDoc = Infer<typeof messageDoc>;
+type SendArgs = { text: string; mentions?: Id<'megas'>[]; via: Via };
+
+/** A plain (non-hook, non-component) function on purpose: React Compiler's purity rule forbids
+ * `Date.now()`/`Math.random()` inside a component/hook body (even in a nested callback), since it can't
+ * prove the callback never runs during render — moving the actual impure work into an ordinary helper
+ * outside that scope is the documented way out, and it's independently unit-testable besides. */
+export function buildOptimisticMessage(viewer: Viewer, args: SendArgs): MessageDoc {
+  const now = Date.now();
+  return {
+    _id: `optimistic:${now}:${Math.random().toString(36).slice(2)}` as Id<'messages'>,
+    _creationTime: now,
+    familyId: viewer.family._id,
+    threadId: 'optimistic' as Id<'threads'>, // never read: swapped out once the real row arrives
+    at: now,
+    author: { kind: 'member', id: viewer.member._id },
+    via: args.via,
+    body: { type: 'text', text: args.text, mentions: args.mentions },
+    chips: [],
+  };
+}
+
+/** No-flicker rule: the viewer's own message appears the instant they hit send, in the same row it'll
+ * occupy once the server confirms it (same shape as `chat.thread`'s `messageDoc`, Convex's optimistic
+ * update swaps the temporary row for the real one when the authoritative result lands — no second pop-in,
+ * no layout jump) rather than waiting on a round trip to show anything. */
 export function useSendMessage() {
-  return useMutation(api.chat.send);
+  const viewer = useViewer();
+  return useMutation(api.chat.send).withOptimisticUpdate((localStore, args) => {
+    if (!viewer) return;
+    insertAtTop({ paginatedQuery: api.chat.thread, localQueryStore: localStore, item: buildOptimisticMessage(viewer, args) });
+  });
 }
 
 /** Polls/subscribes the streamed reply text for a messageId's streamId (persistent-text-streaming wiring lands later). */
