@@ -134,7 +134,8 @@ export const API = {
     thread: fn({ kind: 'query', day1: 'real', args: { paginationOpts: paginationOptsValidator }, returns: paginationResultValidator(messageDoc) }),
     send: fn({
       kind: 'mutation',
-      day1: 'stub',
+      day1: 'real', // G2: runs the real agent loop (convex/agent/loop.ts), not a canned reply
+
       args: { text: v.string(), mentions: v.optional(v.array(v.id('megas'))), via: v.union(v.literal('text'), v.literal('voice')), attachments: v.optional(v.array(v.id('_storage'))) },
       returns: v.object({ messageId: v.id('messages'), replyMessageId: v.id('messages'), streamId: v.string() }),
     }),
@@ -144,14 +145,23 @@ export const API = {
       args: { streamId: v.string() },
       returns: v.object({ text: v.string(), status: v.union(v.literal('pending'), v.literal('streaming'), v.literal('done'), v.literal('error'), v.literal('timeout')) }),
     }),
-    answerBlock: fn({ kind: 'mutation', day1: 'stub', args: { messageId: v.id('messages'), answer: blockAnswer, via }, returns: v.object({ answerMessageId: v.id('messages') }) }),
+    // CONTRACT.md v0.8 (additive, pending approval): `streamId` — when answering the block feeds the
+    // answer back into the agent loop and the MEGA replies (same MEGA that asked), this is that reply's
+    // persistent-text-streaming stream id, so talk mode can caption it exactly like a normal `chat.send`
+    // reply. `undefined` when there was no MEGA to reply as.
+    answerBlock: fn({
+      kind: 'mutation',
+      day1: 'real',
+      args: { messageId: v.id('messages'), answer: blockAnswer, via },
+      returns: v.object({ answerMessageId: v.id('messages'), streamId: v.optional(v.string()) }),
+    }),
     react: fn({ kind: 'mutation', day1: 'real', args: { messageId: v.id('messages'), reaction: v.union(reaction, v.null()) }, returns: v.null() }),
   },
   files: {
     uploadUrl: fn({ kind: 'mutation', day1: 'real', args: {}, returns: v.string() }),
   },
   talk: {
-    transcribe: fn({ kind: 'action', day1: 'stub', args: { storageId: v.id('_storage') }, returns: v.object({ text: v.string(), mentions: v.array(spokenMention) }) }),
+    transcribe: fn({ kind: 'action', day1: 'real', args: { storageId: v.id('_storage') }, returns: v.object({ text: v.string(), mentions: v.array(spokenMention) }) }), // G2: real Transcriber + ChatModel
   },
   today: {
     get: fn({

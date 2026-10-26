@@ -7,6 +7,7 @@ export * from './limits';
 export * from './looks';
 export * from './models';
 export * from './notifications';
+export * from './pricing';
 export * from './roles';
 export * from './rooms';
 export * from './speaker';

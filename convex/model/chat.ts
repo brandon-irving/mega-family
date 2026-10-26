@@ -5,6 +5,7 @@
 // used to skip this check entirely).
 import type { Doc } from '../_generated/dataModel';
 import type { Viewer } from '../../shared/domain/api';
+import type { BlockAnswer, UIBlock } from '../../shared/domain/messages';
 import type { MutationCtx, QueryCtx } from '../_generated/server';
 import { fail } from './errors';
 
@@ -27,4 +28,22 @@ export async function requireReadableStream(ctx: Ctx, viewer: Viewer, streamId: 
     if (controls?.parentsCanReadChat) return message;
   }
   fail('FORBIDDEN');
+}
+
+/** Turns a block + its answer into plain text, so `chat.answerBlock` can feed the answer back into the
+ * agent loop as an ordinary user turn (task brief: "chat.answerBlock should feed the answer back into the
+ * loop") — the loop sees the same block/answer in its recent-thread context either way. */
+export function describeBlockAnswer(block: UIBlock, answer: BlockAnswer): string {
+  // `invite`/`look`/`questions` blocks have no `prompt` field; the agent loop never emits them (convex/
+  // agent/tools.ts `validateUiBlock`) but the shared `UIBlock` union still includes them.
+  const prompt = 'prompt' in block ? block.prompt : block.kind;
+  if (answer.skipped) return `(skipped: "${prompt}")`;
+  if (answer.optionIds?.length && block.kind === 'choice') {
+    const labels = answer.optionIds.map((id) => block.options.find((o) => o.id === id)?.label ?? id);
+    const other = answer.other ? [...labels, answer.other] : labels;
+    return `Answered "${prompt}": ${other.join(', ')}`;
+  }
+  if (answer.fields) return `Answered "${prompt}": ${Object.entries(answer.fields).map(([k, v]) => `${k}=${v}`).join(', ')}`;
+  if (answer.value !== undefined) return `Answered "${prompt}": ${answer.value}`;
+  return `Answered "${prompt}".`;
 }
