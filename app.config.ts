@@ -50,6 +50,12 @@ const config: ExpoConfig = {
     'expo-apple-authentication',
     ...(googleSignInPlugin ? [googleSignInPlugin] : []),
     ['expo-splash-screen', { backgroundColor: THEMES.midnight.bg, image: './assets/images/splash-icon.png', imageWidth: 76 }],
+    // Native modules for later gates, included now so the phone's development build doesn't need rebuilding
+    // at each gate: push (G3), talk mode audio + spoken replies (G4), device calendar import (G5).
+    'expo-dev-client',
+    ['expo-notifications', { color: THEMES.midnight.accent, enableRemoteNotifications: true }],
+    ['expo-audio', { microphonePermission: `${IDENTITY.name} listens only while you hold the Talk button.`, enableBackgroundRecording: false }],
+    ['expo-calendar', { calendarPermission: `${IDENTITY.name} can add your calendars' events to the family calendar.` }],
   ],
   experiments: { typedRoutes: true, reactCompiler: true },
   extra: { eas: { projectId: IDENTITY.easProjectId } },
