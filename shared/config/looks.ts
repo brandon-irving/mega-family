@@ -27,3 +27,7 @@ export const PERSONALITIES: Record<Personality, { label: string; face: Face; blu
 };
 
 export const HEX_RE = /^#[0-9A-Fa-f]{6}$/;
+
+/** The family (coordinator) MEGA's look and name when a real family is created (`onboarding.start`). The
+ * sample family's seed uses its own literal values (CONTRACT §10); this is the production default. */
+export const FAMILY_MEGA_DEFAULTS = { name: 'Hub', hex: COLORS.sky, sticker: 'none' as const, personality: 'calm' as const };

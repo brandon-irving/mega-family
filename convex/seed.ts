@@ -1,6 +1,6 @@
 // Seeds the sample family (CONTRACT §10) so every screen has data from day 1. Internal only.
 import { v } from 'convex/values';
-import { KID_SAFETY, LIMITS, NOTIFICATION_KINDS_CONFIG } from '../shared/config';
+import { KID_SAFETY, LIMITS, NOTIFICATION_KINDS_CONFIG, ROOM_DEFAULTS } from '../shared/config';
 import { BUTTON_SETS } from '../shared/config/notifications';
 import { SAMPLE_FAMILY as S, type SampleKey } from '../shared/fixtures/sampleFamily';
 import { addDays, dayOfWeek, localDate, zonedInstant } from '../shared/time';
@@ -204,8 +204,8 @@ export const sampleFamily = internalMutation({
     });
 
     // rooms: HQ plus one per member (furniture comes from the room config in G5)
-    await ctx.db.insert('rooms', { familyId, size: { w: 12, h: 9 }, wallColor: '#2E343D', furniture: [] });
-    for (const x of S.members) await ctx.db.insert('rooms', { familyId, ownerId: m[x.key], size: { w: 8, h: 7 }, wallColor: '#2E343D', furniture: [] });
+    await ctx.db.insert('rooms', { familyId, ...ROOM_DEFAULTS.hq, furniture: [] });
+    for (const x of S.members) await ctx.db.insert('rooms', { familyId, ownerId: m[x.key], ...ROOM_DEFAULTS.member, furniture: [] });
 
     // the demo clock starts at the mockups' Sunday afternoon
     await ctx.db.insert('clocks', { familyId, mode: 'simulated', offsetMs: demoNow - realNow });
