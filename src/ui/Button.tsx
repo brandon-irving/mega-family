@@ -1,4 +1,5 @@
 import { ActivityIndicator, Pressable, type PressableProps, type StyleProp, type ViewStyle } from 'react-native';
+import { readableOn } from '@shared/config/theme';
 import { Text } from './Text';
 import { useTokens } from './theme';
 
@@ -15,6 +16,10 @@ export function Button({ label, variant = 'primary', loading, accessibilityLabel
   const tokens = useTokens();
   const isPrimary = variant === 'primary';
   const isGhost = variant === 'ghost';
+  // G2 contrast fix: tokens.onAccent is a per-theme constant (white), but a primary button's background
+  // is tokens.accent, which can resolve to a MEGA's custom hex ("Match my MEGA") — readableOn derives the
+  // actual WCAG-AA-passing text color for *that* background instead of assuming white always works.
+  const onAccentText = readableOn(tokens.accent);
   return (
     <Pressable
       accessibilityRole="button"
@@ -39,8 +44,8 @@ export function Button({ label, variant = 'primary', loading, accessibilityLabel
       ]}
       {...rest}
     >
-      {loading && <ActivityIndicator color={isPrimary ? tokens.onAccent : tokens.accent} />}
-      <Text variant="label" style={{ color: isPrimary ? tokens.onAccent : isGhost ? tokens.accent : tokens.text }}>
+      {loading && <ActivityIndicator color={isPrimary ? onAccentText : tokens.accent} />}
+      <Text variant="label" style={{ color: isPrimary ? onAccentText : isGhost ? tokens.accent : tokens.text }}>
         {label}
       </Text>
     </Pressable>

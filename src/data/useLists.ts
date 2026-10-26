@@ -1,7 +1,8 @@
 // Lists shared by the Today sheet and the Family tab.
-import { useMutation, useQuery } from 'convex/react';
+import { useMutation } from 'convex/react';
 import type { Id } from '@shared/domain/validators';
 import { api } from './api';
+import { useQuery } from './useQuery';
 
 export function useLists() {
   return useQuery(api.lists.all, {});

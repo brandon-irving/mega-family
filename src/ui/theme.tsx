@@ -1,7 +1,9 @@
 // The design-system context: resolves THEMES + resolveAccent + resolveSizing (shared/config/theme.ts)
 // into one object every primitive reads from. No component hardcodes a color, size or duration —
 // they all come from here, so a config edit (new theme, new role sizing) changes every screen at once.
-import { createContext, type ReactNode, useContext, useMemo, useState } from 'react';
+import { createContext, type ReactNode, useContext, useEffect, useMemo, useState } from 'react';
+import { Platform } from 'react-native';
+import * as SystemUI from 'expo-system-ui';
 import { DEFAULT_THEME, DURATIONS, RADII, resolveAccent, resolveSizing, SPACING, THEMES, type ThemeTokens } from '@shared/config/theme';
 import type { Role, ThemeName } from '@shared/domain/enums';
 import { ROLES_CONFIG } from '@shared/config/roles';
@@ -12,6 +14,10 @@ export type Tokens = ThemeTokens & {
   durations: typeof DURATIONS;
   type: ReturnType<typeof resolveSizing>['type'];
   touchTarget: number;
+  /** Extra tappable margin past `touchTarget` on every side (RN `hitSlop`) — G2 polish fix: the composer's
+   * attach/mic buttons and the tab bar sit right at the 44pt floor; this pads the *hit area* without
+   * changing layout. See shared/config/theme.ts HIT_SLOP. */
+  hitSlop: number;
   bigTargets: boolean;
   accent: string;
 };
@@ -63,9 +69,22 @@ export function ThemeProvider({
       durations: DURATIONS,
       type: sizing.type,
       touchTarget: sizing.touchTarget,
+      hitSlop: sizing.hitSlop,
       bigTargets: ROLES_CONFIG[role].bigTargets,
     };
   }, [themeName, role, accent, megaHex]);
+
+  // G2 BLOCKER fix (white flash): app.config.ts bakes THEMES.midnight.bg into the native root view's
+  // background (and the splash screen / Android adaptive icon) so the very first paint before any JS
+  // runs is already dark — but that's a build-time default, fixed at the DEFAULT_THEME. Once the real
+  // viewer's theme resolves (e.g. "Light"), the OS-level root view behind every screen needs updating too,
+  // or a transition/sheet that momentarily shows raw native canvas (not yet covered by a Screen/contentStyle)
+  // would flash the stale default instead of the current theme. Web has no such native root view (the
+  // `+html.tsx` / Screen backgrounds already cover it) and expo-system-ui has no web implementation.
+  useEffect(() => {
+    if (Platform.OS === 'web') return;
+    SystemUI.setBackgroundColorAsync(tokens.bg).catch(() => {});
+  }, [tokens.bg]);
 
   return <Ctx.Provider value={{ themeName, setThemeName: setThemeOverride, role, setRole: setRoleOverride, tokens }}>{children}</Ctx.Provider>;
 }

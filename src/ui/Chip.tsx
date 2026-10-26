@@ -1,5 +1,5 @@
 import { Pressable } from 'react-native';
-import { CONTRAST_TEXT } from '@shared/config/theme';
+import { readableOn } from '@shared/config/theme';
 import { Text } from './Text';
 import { useTokens } from './theme';
 
@@ -36,16 +36,9 @@ export function Chip({ label, selected = false, onPress, accessibilityLabel, tes
         alignSelf: 'flex-start',
       }}
     >
-      <Text variant="label" color={selected ? undefined : 'text'} style={selected ? { color: contrastOn(tokens.accent) } : undefined}>
+      <Text variant="label" color={selected ? undefined : 'text'} style={selected ? { color: readableOn(tokens.accent) } : undefined}>
         {label}
       </Text>
     </Pressable>
   );
-}
-
-/** Cheap luminance check so chip labels stay legible on any accent color. */
-function contrastOn(hex: string): string {
-  const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
-  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-  return luminance > 0.6 ? CONTRAST_TEXT.dark : CONTRAST_TEXT.light;
 }

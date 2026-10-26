@@ -28,10 +28,18 @@ const config: ExpoConfig = {
   icon: './assets/images/icon.png',
   scheme: IDENTITY.scheme,
   userInterfaceStyle: 'automatic',
+  // G2 BLOCKER fix (white flash): the native root view's background, read by expo-system-ui's config
+  // plugin (below) at build time — so it's already dark before the splash screen hands off to the app's
+  // first frame, not just during the splash itself (app.config.ts's expo-splash-screen plugin covers
+  // that part already). Same THEMES.midnight.bg token the splash screen and Android adaptive icon use;
+  // src/ui/theme.tsx's ThemeProvider calls expo-system-ui again at runtime once the viewer's real theme
+  // resolves, for a member on the Light theme.
+  backgroundColor: THEMES.midnight.bg,
   ios: {
     icon: './assets/expo.icon',
     bundleIdentifier: IDENTITY.bundleId,
     usesAppleSignIn: true,
+    backgroundColor: THEMES.midnight.bg,
     // Only standard encryption (HTTPS/TLS, Keychain via expo-secure-store): exempt from export rules.
     config: { usesNonExemptEncryption: false },
   },
@@ -50,6 +58,10 @@ const config: ExpoConfig = {
     'expo-router',
     'expo-secure-store',
     'expo-apple-authentication',
+    // Config plugin only (the `backgroundColor`/`ios.backgroundColor` above are what it reads) — the
+    // runtime API (expo-system-ui's own `SystemUI.setBackgroundColorAsync`) is called from
+    // src/ui/theme.tsx once the signed-in viewer's real theme is known.
+    'expo-system-ui',
     ...(googleSignInPlugin ? [googleSignInPlugin] : []),
     ['expo-splash-screen', { backgroundColor: THEMES.midnight.bg, image: './assets/images/splash-icon.png', imageWidth: 76 }],
     // Native modules for later gates, included now so the phone's development build doesn't need rebuilding

@@ -25,6 +25,10 @@ export function Composer({ megaName, bigTalkButton = false, onSend, onOpenTalk, 
     setText('');
   };
 
+  // G2 polish fix: pad the tappable area past the 44pt-floor visual size (tokens.hitSlop) instead of
+  // growing these icon buttons — kids get the bigger hitSlop too, via ROLES_CONFIG[role].bigTargets.
+  const hitSlop = { top: tokens.hitSlop, bottom: tokens.hitSlop, left: tokens.hitSlop, right: tokens.hitSlop };
+
   if (bigTalkButton && !showKeyboard) {
     return (
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: tokens.spacing.sm, padding: tokens.spacing.md }}>
@@ -33,6 +37,7 @@ export function Composer({ megaName, bigTalkButton = false, onSend, onOpenTalk, 
           onPress={() => setShowKeyboard(true)}
           accessibilityRole="button"
           accessibilityLabel="Use keyboard instead"
+          hitSlop={hitSlop}
           style={{ width: tokens.touchTarget, height: tokens.touchTarget, alignItems: 'center', justifyContent: 'center' }}
         >
           <Text variant="title">⌨</Text>
@@ -57,6 +62,7 @@ export function Composer({ megaName, bigTalkButton = false, onSend, onOpenTalk, 
         onPress={onAttach}
         accessibilityRole="button"
         accessibilityLabel="Attach"
+        hitSlop={hitSlop}
         style={{ width: tokens.touchTarget, height: tokens.touchTarget, alignItems: 'center', justifyContent: 'center' }}
       >
         <Text variant="title">+</Text>
@@ -74,6 +80,7 @@ export function Composer({ megaName, bigTalkButton = false, onSend, onOpenTalk, 
         onPress={onOpenTalk}
         accessibilityRole="button"
         accessibilityLabel="Talk"
+        hitSlop={hitSlop}
         style={{ width: tokens.touchTarget, height: tokens.touchTarget, alignItems: 'center', justifyContent: 'center' }}
       >
         <Text variant="title">🎙</Text>

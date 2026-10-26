@@ -2,6 +2,7 @@ import { KeyboardProvider } from 'react-native-keyboard-controller';
 import { DataProvider } from '@/data/client';
 import { AppThemeProvider } from '@/features/shell/AppThemeProvider';
 import { AuthGate } from '@/features/shell/AuthGate';
+import { NavigationThemeBridge } from '@/features/shell/NavigationThemeBridge';
 
 export default function RootLayout() {
   return (
@@ -13,7 +14,9 @@ export default function RootLayout() {
     <KeyboardProvider>
       <DataProvider>
         <AppThemeProvider>
-          <AuthGate />
+          <NavigationThemeBridge>
+            <AuthGate />
+          </NavigationThemeBridge>
         </AppThemeProvider>
       </DataProvider>
     </KeyboardProvider>

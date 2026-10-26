@@ -1,15 +1,17 @@
 // Chat screen data: the thread, sending, the streamed reply, answering a block, and reactions.
-import { insertAtTop, useMutation, usePaginatedQuery, useQuery } from 'convex/react';
+import { insertAtTop, useMutation, usePaginatedQuery } from 'convex/react';
 import type { Infer } from 'convex/values';
 import type { Id } from '@shared/domain/validators';
 import type { BlockAnswer } from '@shared/domain/messages';
 import type { Via } from '@shared/domain/enums';
 import type { messageDoc, viewer as viewerValidator } from '@shared/domain/api';
 import { api } from './api';
+import { useQuery } from './useQuery';
+import { useStablePaginatedQuery } from './useStableQuery';
 import { useViewer } from './useViewer';
 
 export function useChatThread() {
-  return usePaginatedQuery(api.chat.thread, {}, { initialNumItems: 30 });
+  return useStablePaginatedQuery(usePaginatedQuery(api.chat.thread, {}, { initialNumItems: 30 }));
 }
 
 type Viewer = Infer<typeof viewerValidator>;

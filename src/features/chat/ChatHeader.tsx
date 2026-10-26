@@ -2,6 +2,7 @@
 // event that drives HQ, and a Today button with a count of things waiting on you.
 import { useEffect, useState } from 'react';
 import { Animated, Pressable, View } from 'react-native';
+import { readableOn } from '@shared/config/theme';
 import { MegaBadge } from '@/ui/MegaBadge';
 import { Text } from '@/ui/Text';
 import { useTokens } from '@/ui/theme';
@@ -68,7 +69,7 @@ export function ChatHeader({ mega, statusLine, todayCount, onOpenProfile, onOpen
         <Text variant="label">Today</Text>
         {todayCount > 0 && (
           <View style={{ backgroundColor: tokens.accent, borderRadius: tokens.radii.pill, minWidth: 20, height: 20, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4 }}>
-            <Text variant="caption" style={{ color: tokens.onAccent }}>
+            <Text variant="caption" style={{ color: readableOn(tokens.accent) }}>
               {todayCount}
             </Text>
           </View>

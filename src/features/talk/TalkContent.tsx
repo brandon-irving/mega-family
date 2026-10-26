@@ -8,6 +8,7 @@ import { type GestureResponderEvent, Pressable, View } from 'react-native';
 import Animated, { FadeIn, FadeOut, useReducedMotion } from 'react-native-reanimated';
 import type { SpokenMention } from '@shared/domain/messages';
 import { TALK_CONFIG } from '@shared/config/talk';
+import { readableOn } from '@shared/config/theme';
 import type { TalkPhase } from './talkMachine';
 import { MegaSprite } from '@/ui/MegaSprite';
 import { Text } from '@/ui/Text';
@@ -177,7 +178,7 @@ export function TalkContent({ mega, phase, caption, mentions, reply, error, onHo
           opacity: micDisabled ? 0.5 : 1,
         }}
       >
-        <Text variant="title" style={held || pressed ? { color: tokens.onAccent } : undefined}>
+        <Text variant="title" style={held || pressed ? { color: readableOn(tokens.accent) } : undefined}>
           {phase === 'locked' || phase === 'review' ? '➤' : '🎙'}
         </Text>
       </View>

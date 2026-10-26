@@ -3,10 +3,8 @@
 // never a literal hex in a component. Greps the real src/ tree so a new hardcoded color fails CI instead
 // of silently reintroducing the duplication the G1 review found (`#FFFFFF` text-on-accent and
 // `#00000088` scrim copy-pasted across 9 files).
-import { readdirSync, readFileSync, statSync } from 'node:fs';
-import { join, relative } from 'node:path';
+import { collectSourceFiles, readSourceFile, relativeToSrc } from './sourceFiles';
 
-const SRC_ROOT = join(__dirname, '..'); // src/
 const HEX_RE = /#[0-9a-fA-F]{3,8}\b/g;
 
 /** The only allowed exceptions: the token definitions themselves (src/ui/theme*, which read
@@ -20,22 +18,13 @@ function isExcluded(relPath: string): boolean {
   return false;
 }
 
-function collectSourceFiles(dir: string, out: string[] = []): string[] {
-  for (const entry of readdirSync(dir)) {
-    const full = join(dir, entry);
-    if (statSync(full).isDirectory()) collectSourceFiles(full, out);
-    else if (/\.(ts|tsx)$/.test(entry)) out.push(full);
-  }
-  return out;
-}
-
 describe('no hardcoded hex colors outside shared/config and src/ui/theme*', () => {
   test('every src/ file is free of literal hex colors', () => {
     const violations: string[] = [];
-    for (const file of collectSourceFiles(SRC_ROOT)) {
-      const relPath = relative(SRC_ROOT, file);
+    for (const file of collectSourceFiles()) {
+      const relPath = relativeToSrc(file);
       if (isExcluded(relPath)) continue;
-      const matches = readFileSync(file, 'utf8').match(HEX_RE);
+      const matches = readSourceFile(file).match(HEX_RE);
       if (matches) violations.push(`${relPath}: ${matches.join(', ')}`);
     }
     // jest's expect() (unlike vitest's) takes no custom-message argument, so the violations themselves

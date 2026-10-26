@@ -3,6 +3,7 @@
 // callbacks, so it can be driven by usePaginatedQuery in the route or by fixtures in tests. Just wires
 // ChatThread's own callbacks into the shared MessageList renderer (see its docstring for *why* it's an
 // inverted FlatList) — "mine" here means the signed-in viewer's own authored messages.
+import { useCallback } from 'react';
 import type { Id } from '@shared/domain/validators';
 import type { BlockAnswer, SaveChip } from '@shared/domain/messages';
 import type { Reaction, Role, Scope } from '@shared/domain/enums';
@@ -41,10 +42,13 @@ export function ChatThread({
   onAnswerNotification,
   notificationsById,
 }: ChatThreadProps) {
+  // G2 fix item 4: a stable identity (not a fresh closure every render) so MessageList's own renderItem
+  // useCallback deps don't change on every ChatThread re-render — see MessageList.tsx's docstring.
+  const isMine = useCallback((m: MessageDoc) => m.author.kind === 'member' && m.author.id === viewerMemberId, [viewerMemberId]);
   return (
     <MessageList
       messages={messages}
-      isMine={(m) => m.author.kind === 'member' && m.author.id === viewerMemberId}
+      isMine={isMine}
       megaById={megaById}
       onLoadMore={onLoadMore}
       onAnswerBlock={onAnswerBlock}

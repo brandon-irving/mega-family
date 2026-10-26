@@ -8,6 +8,7 @@ import type { Infer } from 'convex/values';
 import type { messageDoc } from '@shared/domain/api';
 import type { BlockAnswer } from '@shared/domain/messages';
 import type { Reaction, Scope } from '@shared/domain/enums';
+import { readableOn } from '@shared/config/theme';
 import { Bubble } from '@/ui/Bubble';
 import { MegaBadge } from '@/ui/MegaBadge';
 import { Text } from '@/ui/Text';
@@ -106,9 +107,14 @@ function Body({
   const tokens = useTokens();
   const reducedMotion = useReducedMotion();
   const body = message.body;
+  // G2 contrast fix ("own message bubble white on the Midnight theme's own teal accent is 2.44:1"): the
+  // bubble's background is tokens.accent (Bubble.tsx), which can be the theme's own accent *or* a MEGA's
+  // custom shell color — tokens.onAccent alone assumed white always reads on it, which fails WCAG AA for
+  // that default teal. readableOn derives the actual passing color per background.
+  const onAccentText = readableOn(tokens.accent);
   switch (body.type) {
     case 'text':
-      return <Text style={isMine ? { color: tokens.onAccent } : undefined}>{body.text}</Text>;
+      return <Text style={isMine ? { color: onAccentText } : undefined}>{body.text}</Text>;
     case 'block': {
       // "Answering any UIBlock collapses it into the answer bubble" (G2 scope) — keyed so Reanimated
       // treats the pending -> answered swap as a mount transition (crossfade) rather than an in-place
@@ -122,7 +128,7 @@ function Body({
     case 'answer':
       return (
         <Bubble mine={isMine}>
-          <Text style={isMine ? { color: tokens.onAccent } : undefined}>{body.label}</Text>
+          <Text style={isMine ? { color: onAccentText } : undefined}>{body.label}</Text>
         </Bubble>
       );
     case 'card':

@@ -1,8 +1,10 @@
 // Family tab data: members, a member's detail sheet, their (read-only) kid thread, kid controls,
 // coming-up events and the full calendar range.
-import { useMutation, usePaginatedQuery, useQuery } from 'convex/react';
+import { useMutation, usePaginatedQuery } from 'convex/react';
 import type { Id } from '@shared/domain/validators';
 import { api } from './api';
+import { useQuery } from './useQuery';
+import { useStablePaginatedQuery } from './useStableQuery';
 
 export function useFamilyMembers() {
   return useQuery(api.family.members, {});
@@ -13,7 +15,7 @@ export function useMemberDetail(memberId: Id<'members'> | null) {
 }
 
 export function useKidThread(memberId: Id<'members'> | null) {
-  return usePaginatedQuery(api.family.kidThread, memberId ? { memberId } : 'skip', { initialNumItems: 30 });
+  return useStablePaginatedQuery(usePaginatedQuery(api.family.kidThread, memberId ? { memberId } : 'skip', { initialNumItems: 30 }));
 }
 
 export function useComingUp() {

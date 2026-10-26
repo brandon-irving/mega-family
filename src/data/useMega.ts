@@ -1,9 +1,11 @@
 // MEGA profile sheet data: the member's own MEGA, updating its look/personality/name, what it
 // shares, and (admin) its remembered memories.
-import { useMutation, usePaginatedQuery, useQuery } from 'convex/react';
+import { useMutation, usePaginatedQuery } from 'convex/react';
 import type { Id } from '@shared/domain/validators';
 import type { Scope } from '@shared/domain/enums';
 import { api } from './api';
+import { useQuery } from './useQuery';
+import { useStablePaginatedQuery } from './useStableQuery';
 
 export function useMyMega() {
   return useQuery(api.megas.mine, {});
@@ -28,7 +30,7 @@ export function useSetSharing() {
 }
 
 export function useMemories(search: string | undefined, scope?: Scope) {
-  return usePaginatedQuery(api.memories.list, { search, scope }, { initialNumItems: 20 });
+  return useStablePaginatedQuery(usePaginatedQuery(api.memories.list, { search, scope }, { initialNumItems: 20 }));
 }
 
 export function useForgetMemory() {

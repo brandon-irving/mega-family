@@ -6,10 +6,12 @@ import { Stack } from 'expo-router';
 import { useViewer } from '@/data/useViewer';
 import { useAuthState } from '@/services/auth';
 import { LoadingScreen } from '@/ui/LoadingScreen';
+import { useThemedStackOptions } from '@/features/shell/stackOptions';
 
 export function AuthGate() {
   const authState = useAuthState();
   const viewer = useViewer();
+  const screenOptions = useThemedStackOptions();
 
   if (authState.status === 'loading') return <LoadingScreen />;
   if (authState.status === 'signedIn' && viewer === undefined) return <LoadingScreen label="Loading your family…" />;
@@ -19,7 +21,7 @@ export function AuthGate() {
   const inFamily = authState.status === 'signedIn' && viewer != null;
 
   return (
-    <Stack screenOptions={{ headerShown: false }}>
+    <Stack screenOptions={screenOptions}>
       <Stack.Protected guard={signedOut}>
         <Stack.Screen name="welcome" />
       </Stack.Protected>

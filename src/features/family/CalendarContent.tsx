@@ -3,6 +3,7 @@ import { useMemo, useState } from 'react';
 import { Pressable, View } from 'react-native';
 import type { Infer } from 'convex/values';
 import type { eventDoc } from '@shared/domain/api';
+import { readableOn } from '@shared/config/theme';
 import { Card } from '@/ui/Card';
 import { Text } from '@/ui/Text';
 import { useTokens } from '@/ui/theme';
@@ -19,6 +20,9 @@ export function CalendarContent({ weekStart, events, members }: CalendarContentP
   const [selectedDay, setSelectedDay] = useState(0);
   const days = useMemo(() => Array.from({ length: 7 }, (_, i) => weekStart + i * DAY_MS), [weekStart]);
   const colorFor = (memberId: string) => members.find((m) => m._id === memberId)?.hex ?? tokens.muted;
+  // G2 contrast fix: the selected day's background is tokens.accent, which — like the chat bubble — can
+  // be a MEGA's custom hex, not just the theme's own accent.
+  const onAccentText = readableOn(tokens.accent);
 
   const dayEvents = events
     .filter((e) => e.start >= days[selectedDay] && e.start < days[selectedDay] + DAY_MS)
@@ -42,10 +46,10 @@ export function CalendarContent({ weekStart, events, members }: CalendarContentP
               backgroundColor: i === selectedDay ? tokens.accent : 'transparent',
             }}
           >
-            <Text variant="caption" style={i === selectedDay ? { color: tokens.onAccent } : undefined}>
+            <Text variant="caption" style={i === selectedDay ? { color: onAccentText } : undefined}>
               {new Date(d).toLocaleDateString(undefined, { weekday: 'short' }).slice(0, 2)}
             </Text>
-            <Text variant="label" style={i === selectedDay ? { color: tokens.onAccent } : undefined}>
+            <Text variant="label" style={i === selectedDay ? { color: onAccentText } : undefined}>
               {new Date(d).getDate()}
             </Text>
           </Pressable>
