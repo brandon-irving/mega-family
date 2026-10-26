@@ -7,7 +7,7 @@ import { IDENTITY } from '../config/identity';
 import { notificationKind, personality, platform, reaction, scope, shareLevel, station, themeName, via } from './enums';
 import { blockAnswer, spokenMention } from './messages';
 import * as T from './tables';
-import { withSystemFields } from './validators';
+import { literals, withSystemFields } from './validators';
 
 // ---------- documents as returned to the app ----------
 
@@ -241,6 +241,12 @@ export const API = {
   clock: {
     get: fn({ kind: 'query', day1: 'real', args: {}, returns: v.object({ now: v.number(), mode: T.clocks.mode }) }),
     jump: fn({ kind: 'mutation', day1: 'real', adminOnly: true, args: { to: v.number() }, returns: v.null() }),
+  },
+  demo: {
+    // Replaces the old ad hoc `/demo-signin` HTTP route (Milestone G1 contract change, v0.4 pending
+    // approval — see CONTRACT.md's changelog). Requires an authenticated identity (an anonymous Better
+    // Auth session is fine), FORBIDDEN unless DEMO_MODE==='true', and relinks the chosen sample member.
+    signInAs: fn({ kind: 'mutation', day1: 'real', args: { as: literals(['admin', 'partner', 'twin1', 'twin2']) }, returns: v.null() }),
   },
 } as const;
 

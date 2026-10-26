@@ -7,7 +7,7 @@ This is the agreement both build tracks follow. The backend owns `convex/`, the 
 ## Changelog
 | Version | Date | Change |
 |---|---|---|
-| 0.4 | Oct 26 | **Pending approval.** Additive: new query `sharing.get` (§4, "MEGA profile, memory and learnings") — the viewer's own `sharing` row, or `null` for kids (who have none). Requested by the frontend track; backend implemented it as `real` and covered it in the privacy grid. |
+| 0.4 | Oct 26 | **Pending approval.** Additive: new query `sharing.get` (§4, "MEGA profile, memory and learnings") — the viewer's own `sharing` row, or `null` for kids (who have none). Requested by the frontend track; backend implemented it as `real` and covered it in the privacy grid. Also additive: new mutation `demo.signInAs` (§4, new "Demo" row), replacing the ad hoc `/demo-signin` HTTP route it had before G1 — same DEMO_MODE gate, but now args/returns-checked and covered by the privacy grid like every other function. The route and its internal helper (`auth.linkSampleMember`) are removed. |
 | 0.1 | Oct 26 | First draft for review |
 | 0.3 | Oct 26 | G0 build: optional fields where a value can't exist yet (`families.adminId`, `createdBy`/`addedBy` on seeded or imported rows, `notifications.candidateId`/`messageId`/`sentAt`); index names now all start with the family; `ShareLevel` enum named; scope keys use the family's id; §4 is machine-readable in `shared/domain/api.ts` |
 | 0.2 | Oct 26 | Spoken MEGA names (`SpokenMention`, detection in `talk.transcribe` and `chat.send`); open questions decided |
@@ -248,6 +248,7 @@ This section is mirrored exactly by `shared/domain/api.ts`; `tests/contract.test
 |---|---|---|---|---|
 | `clock.get` | q | — | `{ now, mode }` | real |
 | `clock.jump` | m | `{ to: number }` (admin, demo flag on) | `null` (fires due jobs through the same code) | real |
+| `demo.signInAs` | m | `{ as: "admin" \| "partner" \| "twin1" \| "twin2" }` (requires a signed-in identity, anonymous is fine; demo flag on) | `null` (links the chosen sample member's authId to the caller, unlinking whichever member it was linked to before) | real |
 
 ---
 

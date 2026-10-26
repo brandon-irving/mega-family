@@ -12,6 +12,7 @@ import type * as auth from "../auth.js";
 import type * as calendar from "../calendar.js";
 import type * as chat from "../chat.js";
 import type * as clock from "../clock.js";
+import type * as demo from "../demo.js";
 import type * as events from "../events.js";
 import type * as family from "../family.js";
 import type * as files from "../files.js";
@@ -59,6 +60,7 @@ declare const fullApi: ApiFromModules<{
   calendar: typeof calendar;
   chat: typeof chat;
   clock: typeof clock;
+  demo: typeof demo;
   events: typeof events;
   family: typeof family;
   files: typeof files;

@@ -10,15 +10,14 @@
 import { createClient, type GenericCtx } from '@convex-dev/better-auth';
 import { convex } from '@convex-dev/better-auth/plugins';
 import { expo } from '@better-auth/expo';
-import { v } from 'convex/values';
 import { betterAuth } from 'better-auth/minimal';
 import { anonymous } from 'better-auth/plugins';
 import { importPKCS8, SignJWT } from 'jose';
+import { DEMO } from '../shared/config';
 import { IDENTITY } from '../shared/config/identity';
 import authConfig from './auth.config';
 import { components } from './_generated/api';
 import type { DataModel } from './_generated/dataModel';
-import { internalMutation } from './_generated/server';
 
 export const authComponent = createClient<DataModel>(components.betterAuth);
 
@@ -63,9 +62,20 @@ void generateAppleClientSecret()
   })
   .catch((e) => console.error('[auth] Apple client secret not generated:', (e as Error).message));
 
+/** `trustedOrigins` for both Better Auth itself (OAuth callback / cross-domain validation) and the HTTP
+ * router's CORS config (convex/http.ts): the native app's deep-link scheme and Apple's redirect always;
+ * `http://localhost:*` web dev origins only on a deployment that opted into DEMO_MODE (this repo's one
+ * existing flag for "this deployment is for local/demo use", not a separate one invented for this). A
+ * real production web deployment sets `SITE_URL` to its own domain and never gets the localhost origins. */
+export function trustedOrigins(): string[] {
+  const base = [`${IDENTITY.scheme}://`, 'https://appleid.apple.com', process.env.SITE_URL ?? ''].filter(Boolean);
+  if (process.env[DEMO.envVar] !== 'true') return base;
+  return [...base, 'http://localhost:8081', 'http://localhost:19006', 'http://127.0.0.1:8081'];
+}
+
 export const createAuth = (ctx: GenericCtx<DataModel>) =>
   betterAuth({
-    trustedOrigins: [`${IDENTITY.scheme}://`, 'https://appleid.apple.com'],
+    trustedOrigins: trustedOrigins(),
     database: authComponent.adapter(ctx),
     socialProviders: {
       google: {
@@ -80,20 +90,3 @@ export const createAuth = (ctx: GenericCtx<DataModel>) =>
     },
     plugins: [expo(), anonymous(), convex({ authConfig })],
   });
-
-/** Demo sign-in only (`convex/http.ts` → `/demo-signin`): relinks a freshly-created anonymous identity's
- * subject onto one of the seeded sample members' `authId`, so `members.by_authId` resolves the new
- * session to that member on the next request. Never reachable unless `DEMO_MODE==='true'` — enforced by
- * the HTTP route that calls this, not here, since this is an ordinary internal mutation. */
-export const linkSampleMember = internalMutation({
-  args: { key: v.string(), authId: v.string() },
-  returns: v.null(),
-  handler: async (ctx, args) => {
-    const member = await ctx.db
-      .query('members')
-      .withIndex('by_authId', (q) => q.eq('authId', `sample:${args.key}`))
-      .unique();
-    if (member) await ctx.db.patch(member._id, { authId: args.authId });
-    return null;
-  },
-});

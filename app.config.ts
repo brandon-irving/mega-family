@@ -3,6 +3,22 @@ import type { ExpoConfig } from 'expo/config';
 import { IDENTITY } from './shared/config/identity.ts';
 import { THEMES } from './shared/config/theme.ts';
 
+// PLAN.md → Sign-in: Google sign-in on iOS needs its reversed client id as a URL scheme
+// (`com.googleusercontent.apps.<id>`), the same value Google's GoogleService-Info.plist calls
+// REVERSED_CLIENT_ID. Derived here from EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID so it's never hand-copied
+// and out of sync; returns null (and the plugin is simply omitted) when the var isn't set yet, so
+// `npx expo start`/`expo export` still work before Google OAuth is configured.
+function googleIosUrlScheme(clientId: string | undefined): string | null {
+  const suffix = '.apps.googleusercontent.com';
+  if (!clientId || !clientId.endsWith(suffix)) return null;
+  return `com.googleusercontent.apps.${clientId.slice(0, -suffix.length)}`;
+}
+
+const googleIosScheme = googleIosUrlScheme(process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID);
+const googleSignInPlugin: [string, { iosUrlScheme: string }] | null = googleIosScheme
+  ? ['@react-native-google-signin/google-signin', { iosUrlScheme: googleIosScheme }]
+  : null;
+
 const config: ExpoConfig = {
   name: IDENTITY.name,
   slug: IDENTITY.slug,
@@ -30,6 +46,9 @@ const config: ExpoConfig = {
   web: { output: 'server', favicon: './assets/images/favicon.png' },
   plugins: [
     'expo-router',
+    'expo-secure-store',
+    'expo-apple-authentication',
+    ...(googleSignInPlugin ? [googleSignInPlugin] : []),
     ['expo-splash-screen', { backgroundColor: THEMES.midnight.bg, image: './assets/images/splash-icon.png', imageWidth: 76 }],
   ],
   experiments: { typedRoutes: true, reactCompiler: true },
