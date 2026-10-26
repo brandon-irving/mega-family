@@ -1,6 +1,9 @@
 // Limits and defaults. All tunable here.
 export const LIMITS = {
-  agent: { maxSteps: 6 },
+  // Muse Spark is a reasoning model: hidden reasoning tokens count against max_tokens (PLAN.md → Smoke test
+  // results), so these are generous even for "quick" structured calls, with reasoning_effort 'low' to keep
+  // them fast and cheap rather than relying on a tiny max_tokens (which can return an empty reply).
+  agent: { maxSteps: 6, maxTokensReply: 1200, maxTokensTool: 800, maxTokensStructured: 600 },
   push: { dailyCapAdult: 8, dailyCapKid: 4 },
   quietHours: { adult: { start: '22:00', end: '07:00' }, kid: { start: '20:30', end: '07:00' } },
   spend: { centsPerFamilyPerDay: 100, centsTotalUntilG6: 500 },
@@ -17,9 +20,10 @@ export const LIMITS = {
   maxParentCodeAttempts: 5,
   kidWallpaperMinAge: 13, // kids can't generate wallpapers for now; a future age threshold
   block: { maxOptionsAdult: 8, maxOptionsKid: 4 },
-  /** Spoken-MEGA-name matching (CONTRACT §4 "Spoken MEGA names"). Below this similarity the loose
-   * sound-alike match is dropped rather than guessed; there's no model call to escalate to yet (G1). */
-  mention: { minSimilarity: 0.72 },
+  /** Spoken-MEGA-name matching (CONTRACT §4 "Spoken MEGA names"). >= minSimilarity: confident loose match,
+   * no model call needed. Between escalateFloor and minSimilarity: "uncertain" — Muse Spark is asked to
+   * confirm or reject (G2). Below escalateFloor: too weak to bother the model with, dropped outright. */
+  mention: { minSimilarity: 0.72, escalateFloor: 0.5 },
   memories: {
     /** `memories.list`'s merge path (more than one scope key and/or a text search): one bounded `take`
      * per scope key, merged in memory — correct for a family's small memory set, but not a true

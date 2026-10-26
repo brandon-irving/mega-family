@@ -1,14 +1,15 @@
-// CONTRACT §4 "Chat and talk". `chat.send`/`chat.answerBlock` are day-1 stubs: `send` inserts the user's
-// message plus an empty MEGA reply with a persistent-text-streaming stream, then schedules `generateReply`.
-// The reply is server-driven: the action writes chunks with the component's addChunk mutation and every
-// open client sees them through `chat.streamBody` (a reactive query). Nothing depends on the app staying
-// open, which the proactive engine and push need anyway. G1 writes a canned reply; G2 swaps in the agent.
+// CONTRACT §4 "Chat and talk". `chat.send` inserts the user's message plus an empty MEGA reply with a
+// persistent-text-streaming stream, then schedules `generateReply`. The reply is server-driven: the action
+// writes chunks with the component's addChunk mutation and every open client sees them through
+// `chat.streamBody` (a reactive query). Nothing depends on the app staying open, which the proactive engine
+// and push need anyway. G2: `generateReply` runs the real agent loop (convex/agent/loop.ts) instead of a
+// canned reply, and schedules the memory writer (convex/agent/writer.ts) after.
 import { v } from 'convex/values';
 import { PersistentTextStreaming, type StreamId } from '@convex-dev/persistent-text-streaming';
 import { API } from '../shared/domain/api';
 import { components, internal } from './_generated/api';
 import { internalAction, internalMutation, mutation, query } from './_generated/server';
-import { requireReadableStream } from './model/chat';
+import { describeBlockAnswer, requireReadableStream } from './model/chat';
 import { pick } from './model/define';
 import { fail } from './model/errors';
 import { detectSpokenMentions } from './model/mentions';
@@ -16,10 +17,6 @@ import { clock } from './ports/clock';
 import { requireViewer } from './model/viewer';
 
 const streaming = new PersistentTextStreaming(components.persistentTextStreaming);
-
-/** A stub reply until the chat agent loop is built. Kept to one line so the point — the plumbing, not the
- * model — stays obvious in demos. */
-const CANNED_REPLY = "Got it — I'm still learning how to answer for real, but I've saved that.";
 
 export const thread = query({
   ...pick(API.chat.thread),
@@ -96,7 +93,17 @@ export const send = mutation({
       chips: [],
     });
     await ctx.db.patch(thread._id, { lastAt: now + 1 });
-    await ctx.scheduler.runAfter(0, internal.chat.generateReply, { streamId, replyMessageId });
+    await ctx.scheduler.runAfter(0, internal.chat.generateReply, {
+      streamId,
+      replyMessageId,
+      familyId,
+      memberId: viewer.member._id,
+      memberName: viewer.member.name,
+      role: viewer.member.role,
+      megaId: replyMegaId,
+      threadId: thread._id,
+      userText: args.text,
+    });
 
     return { messageId, replyMessageId, streamId };
   },
@@ -132,7 +139,40 @@ export const answerBlock = mutation({
       chips: [],
     });
     await ctx.db.patch(message._id, { body: { ...message.body, answeredWith: args.answer } });
-    return { answerMessageId };
+
+    // Feed the answer back into the agent loop (task brief: "chat.answerBlock should feed the answer back
+    // into the loop"), as an ordinary turn from the same MEGA that asked — the member sees a real reply,
+    // not a block that just silently collapses.
+    const replyMegaId = message.author.kind === 'mega' ? message.author.id : viewer.mega?._id;
+    let streamId: string | undefined;
+    if (replyMegaId) {
+      streamId = await streaming.createStream(ctx);
+      const replyMessageId = await ctx.db.insert('messages', {
+        familyId: viewer.member.familyId,
+        threadId: thread._id,
+        at: now + 1,
+        author: { kind: 'mega', id: replyMegaId },
+        via: 'text',
+        body: { type: 'text', text: '' },
+        streamId,
+        chips: [],
+      });
+      await ctx.db.patch(thread._id, { lastAt: now + 1 });
+      await ctx.scheduler.runAfter(0, internal.chat.generateReply, {
+        streamId,
+        replyMessageId,
+        familyId: viewer.member.familyId,
+        memberId: viewer.member._id,
+        memberName: viewer.member.name,
+        role: viewer.member.role,
+        megaId: replyMegaId,
+        threadId: thread._id,
+        userText: describeBlockAnswer(message.body.block, args.answer),
+      });
+    }
+    // CONTRACT.md v0.8 (additive, pending approval): the reply's streamId, so talk mode can caption the
+    // MEGA's follow-up reply the same way it captions a normal chat.send reply.
+    return { answerMessageId, streamId };
   },
 });
 
@@ -149,18 +189,50 @@ export const react = mutation({
   },
 });
 
-/** Writes the reply into its stream, then stores the final text on the message so the thread still reads
- * correctly after the component cleans up old streams. G2 replaces the canned text with the agent loop. */
+/** Runs the agent loop (convex/agent/loop.ts), writes the final text into the stream a word at a time so
+ * the UI still animates (no incremental model streaming yet — PLAN.md → "streaming if the API supports it;
+ * if not, chunk the final text"), stores it on the message, then schedules the memory writer. */
 export const generateReply = internalAction({
-  args: { streamId: v.string(), replyMessageId: v.id('messages') },
+  args: {
+    streamId: v.string(),
+    replyMessageId: v.id('messages'),
+    familyId: v.id('families'),
+    memberId: v.id('members'),
+    memberName: v.string(),
+    role: v.union(v.literal('admin'), v.literal('adult'), v.literal('kid')),
+    megaId: v.id('megas'),
+    threadId: v.id('threads'),
+    userText: v.string(),
+  },
   returns: v.null(),
   handler: async (ctx, args) => {
-    const words = CANNED_REPLY.split(' ');
+    const { text } = await ctx.runAction(internal.agent.loop.runTurn, {
+      familyId: args.familyId,
+      memberId: args.memberId,
+      role: args.role,
+      megaId: args.megaId,
+      threadId: args.threadId,
+      userText: args.userText,
+    });
+
+    const words = text.split(' ');
     for (const [i, word] of words.entries()) {
       const final = i === words.length - 1;
       await ctx.runMutation(components.persistentTextStreaming.lib.addChunk, { streamId: args.streamId as StreamId, text: final ? word : `${word} `, final });
     }
-    await ctx.runMutation(internal.chat.finishReply, { replyMessageId: args.replyMessageId, text: CANNED_REPLY });
+    await ctx.runMutation(internal.chat.finishReply, { replyMessageId: args.replyMessageId, text });
+
+    await ctx.scheduler.runAfter(0, internal.agent.writer.run, {
+      familyId: args.familyId,
+      memberId: args.memberId,
+      memberName: args.memberName,
+      role: args.role,
+      megaId: args.megaId,
+      threadId: args.threadId,
+      replyMessageId: args.replyMessageId,
+      userText: args.userText,
+      replyText: text,
+    });
     return null;
   },
 });

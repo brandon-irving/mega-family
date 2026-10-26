@@ -7,6 +7,7 @@ This is the agreement both build tracks follow. The backend owns `convex/`, the 
 ## Changelog
 | Version | Date | Change |
 |---|---|---|
+| 0.8 | Oct 26 | **Pending approval.** G2 backend build. Additive: `chat.answerBlock` returns gain `streamId?: string` — when answering a block feeds the answer back into the agent loop and the same MEGA replies (G2: the loop is real now), this is that reply's persistent-text-streaming stream id, so talk mode can caption it exactly like a normal `chat.send` reply; `undefined` when there was no MEGA to reply as. Day-1 status corrected (not a shape change): `chat.send`, `chat.answerBlock` and `talk.transcribe` move from `stub` to `real` — the agent loop, memory writer and a real Transcriber/ChatModel call are wired in (convex/agent/*, convex/adapters/*). `talk.transcribe` also now validates the uploaded recording's format: the frontend records AAC `.m4a` (iOS/Android) or `audio/webm` (web) since `expo-audio` can't record WAV cross-platform, but Meta's `/v1/asr/transcribe` only accepts WAV (mono 16-bit PCM, 16/24 kHz, checked against the Voice API reference Oct 26) — a non-WAV upload is refused with `VALIDATION` rather than transcoded or silently sent wrong. |
 | 0.7 | Oct 26 | Removed the `chat.stream` HTTP route: replies are server-driven (`chat.send` schedules the reply; clients watch `chat.streamBody`). Found in the G1 browser check: the client-driven route never ran, so replies stuck at "…" (pending approval) |
 | 0.6 | Oct 26 | **Pending approval.** G1 fixes: additive query `notifications.get` (§4, "Settings and push") — returns the full `notificationDoc` so the chat thread's `{ kind: 'notification', notificationId }` card (§3) can render real content (MEGA name, title, body, buttons) instead of the word "Notification"; only the notification's recipient may read it, same `NOT_FOUND`/`FORBIDDEN` rule as `notifications.answer`. Not a function change, but worth noting here: `today.get`'s `waitingOnYou` no longer double-lists a request and its own linked notification (a notification with `requests.notificationId` pointing to it is omitted once its request is listed). |
 | 0.5 | Oct 26 | **Pending approval.** G1 security fix: `invites.redeem` changed from a mutation (`m`) to an action (`a`) — **not additive**, both tracks must update their call site (frontend: `useAction` instead of `useMutation`). Needed so a wrong parent-code guess can still bump `invites.failedAttempts` (see 0.4 below) even though the call itself reports `WRONG_PARENT_CODE`: Convex mutations are atomic (a write made earlier in a mutation handler is rolled back if that handler later throws, and this holds even for a mutation nested via `ctx.runMutation`, since it's only a sub-transaction of the same top-level call), so only an action's independently-committed `ctx.runMutation` calls can commit the counter and still fail the overall call. |
@@ -183,12 +184,12 @@ This section is mirrored exactly by `shared/domain/api.ts`; `tests/contract.test
 | Function | Type | Args | Returns | Day 1 |
 |---|---|---|---|---|
 | `chat.thread` | q | `{ paginationOpts }` | page of `Message` (newest first) | real |
-| `chat.send` | m | `{ text, mentions?: id(megas)[], via: "text" \| "voice", attachments?: storageId[] }` | `{ messageId, replyMessageId, streamId }` | stub (canned streamed reply) |
+| `chat.send` | m | `{ text, mentions?: id(megas)[], via: "text" \| "voice", attachments?: storageId[] }` | `{ messageId, replyMessageId, streamId }` | real (G2: runs the agent loop) |
 | `chat.streamBody` | q | `{ streamId }` | `{ text, status }` | real (component) |
-| `chat.answerBlock` | m | `{ messageId, answer: BlockAnswer, via: Via }` | `{ answerMessageId }` | stub effects |
+| `chat.answerBlock` | m | `{ messageId, answer: BlockAnswer, via: Via }` | `{ answerMessageId, streamId?: string }` (v0.8: `streamId` of the MEGA's follow-up reply, when there is one) | real (G2: feeds the answer back into the agent loop) |
 | `chat.react` | m | `{ messageId, reaction: Reaction \| null }` | `null` | real |
 | `files.uploadUrl` | m | — | `string` | real |
-| `talk.transcribe` | a | `{ storageId }` | `{ text, mentions: SpokenMention[] }` (batch; realtime is decided by the day-1 smoke test) | stub |
+| `talk.transcribe` | a | `{ storageId }` | `{ text, mentions: SpokenMention[] }` (batch; realtime is decided by the day-1 smoke test) | real (G2: a real Transcriber call; throws `VALIDATION` if the upload isn't WAV — see changelog v0.8) |
 
 **Spoken MEGA names (added v0.2):**
 - `SpokenMention = { megaId, heard: string, start: number, end: number, confidence: number }`. `start`/`end` are character positions in `text`.
