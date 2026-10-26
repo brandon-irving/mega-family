@@ -53,11 +53,13 @@ const config: ExpoConfig = {
     ...(googleSignInPlugin ? [googleSignInPlugin] : []),
     ['expo-splash-screen', { backgroundColor: THEMES.midnight.bg, image: './assets/images/splash-icon.png', imageWidth: 76 }],
     // Native modules for later gates, included now so the phone's development build doesn't need rebuilding
-    // at each gate: push (G3), talk mode audio + spoken replies (G4), device calendar import (G5).
+    // at each gate: push (G3), talk mode audio + spoken replies (G4), device calendar import (G5), photos (G5).
+    // react-native-keyboard-controller and expo-haptics need no plugin entry; widgets (G8) will need one more build.
     'expo-dev-client',
     ['expo-notifications', { color: THEMES.midnight.accent, enableRemoteNotifications: true }],
     ['expo-audio', { microphonePermission: `${IDENTITY.name} listens only while you hold the Talk button.`, enableBackgroundRecording: false }],
     ['expo-calendar', { calendarPermission: `${IDENTITY.name} can add your calendars' events to the family calendar.` }],
+    ['expo-image-picker', { photosPermission: `${IDENTITY.name} uses the photos you pick for chat and wallpapers.`, cameraPermission: `${IDENTITY.name} uses the camera when you take a photo to share.` }],
   ],
   experiments: { typedRoutes: true, reactCompiler: true },
   extra: { eas: { projectId: IDENTITY.easProjectId } },
