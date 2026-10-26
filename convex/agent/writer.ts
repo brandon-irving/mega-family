@@ -104,7 +104,7 @@ export const run = internalAction({
 
     try {
       await ctx.runMutation(internal.spend.requireBudget, { familyId: args.familyId, estimatedCents: estimateChatCostCents(args.userText.length + args.replyText.length, maxTokens) });
-      const result = await model.chat({ messages, schema: { name: 'learnings', schema: OPERATIONS_SCHEMA, strict: true }, maxTokens, effort: 'low' });
+      const result = await model.chat({ messages, schema: { name: 'learnings', schema: OPERATIONS_SCHEMA, strict: true }, maxTokens, effort: LIMITS.agent.effort });
       await ctx.runMutation(internal.spend.recordUsage, {
         familyId: args.familyId,
         tokensIn: result.usage.tokensIn,

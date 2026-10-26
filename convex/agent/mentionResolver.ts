@@ -42,7 +42,7 @@ export async function resolveSpokenMentions(model: ChatModel, text: string, mega
         ],
         schema: { name: 'mention_check', schema: CONFIRM_SCHEMA, strict: true },
         maxTokens: LIMITS.agent.maxTokensStructured,
-        effort: 'low',
+        effort: LIMITS.agent.effort,
       });
       const parsed = result.text ? JSON.parse(result.text) : null;
       if (parsed?.isMegaName) escalated.push({ megaId: c.best!.megaId, heard: c.token, start: c.start, end: c.end, confidence: c.best!.score });

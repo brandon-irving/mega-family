@@ -223,3 +223,38 @@ describe('memory writer: ask-before-sharing produces a choice block', () => {
     expect(memories.some((m) => m.text.includes('running 10 minutes late'))).toBe(false);
   });
 });
+
+describe('reasoning that runs out of room (G2 live check)', () => {
+  test('an empty reply cut off by the token limit is retried once with more room, not answered with nothing', async () => {
+    const { t } = await seeded();
+    const maxTokensSeen: number[] = [];
+    __setChatModelForTests(
+      makeFakeChatModel((req) => {
+        if (req.schema) return jsonReply({ operations: [] });
+        maxTokensSeen.push(req.maxTokens ?? 0);
+        if (maxTokensSeen.length === 1) return { text: null, toolCalls: [], usage: { tokensIn: 10, tokensOut: req.maxTokens ?? 0 }, finishReason: 'length' };
+        return textReply('Here is the week.');
+      }),
+    );
+    const asAdmin = t.withIdentity({ subject: 'sample:admin' });
+    const { streamId } = await asAdmin.mutation(api.chat.send, { text: "What's on this week?", via: 'text' });
+    await t.finishAllScheduledFunctions(vi.runAllTimers);
+    expect((await asAdmin.query(api.chat.streamBody, { streamId })).text).toBe('Here is the week.');
+    expect(maxTokensSeen[1]).toBe(maxTokensSeen[0] * 2);
+  });
+
+  test('every agent call uses the configured reasoning effort', async () => {
+    const { t } = await seeded();
+    const efforts: (string | undefined)[] = [];
+    __setChatModelForTests(
+      makeFakeChatModel((req) => {
+        efforts.push(req.effort);
+        return req.schema ? jsonReply({ operations: [] }) : textReply('ok');
+      }),
+    );
+    await t.withIdentity({ subject: 'sample:admin' }).mutation(api.chat.send, { text: 'hi', via: 'text' });
+    await t.finishAllScheduledFunctions(vi.runAllTimers);
+    expect(efforts.length).toBeGreaterThan(0);
+    expect(new Set(efforts)).toEqual(new Set(['low']));
+  });
+});

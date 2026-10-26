@@ -3,7 +3,9 @@ export const LIMITS = {
   // Muse Spark is a reasoning model: hidden reasoning tokens count against max_tokens (PLAN.md → Smoke test
   // results), so these are generous even for "quick" structured calls, with reasoning_effort 'low' to keep
   // them fast and cheap rather than relying on a tiny max_tokens (which can return an empty reply).
-  agent: { maxSteps: 6, maxTokensReply: 1200, maxTokensTool: 800, maxTokensStructured: 600 },
+  // Muse Spark is a reasoning model: hidden reasoning counts against max tokens, so limits leave room for it
+  // and `effort` stays low (G2 live check: default effort spent all 1,200 tokens reasoning and replied with nothing).
+  agent: { maxSteps: 6, maxTokensReply: 4000, maxTokensTool: 800, maxTokensStructured: 1500, effort: 'low' as const },
   push: { dailyCapAdult: 8, dailyCapKid: 4 },
   quietHours: { adult: { start: '22:00', end: '07:00' }, kid: { start: '20:30', end: '07:00' } },
   spend: { centsPerFamilyPerDay: 100, centsTotalUntilG6: 500 },

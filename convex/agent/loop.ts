@@ -71,7 +71,8 @@ export const runTurn = internalAction({
     const model = getChatModel();
     const tools = toolsForRole(args.role);
     const messages: ChatMessage[] = [{ role: 'system', content: buildSystemPrompt(data) }, ...data.recentThread, { role: 'user', content: args.userText }];
-    const maxTokens = LIMITS.agent.maxTokensReply;
+    let maxTokens: number = LIMITS.agent.maxTokensReply;
+    let retriedForLength = false;
 
     let finalText: string | null = null;
     for (let step = 0; step < LIMITS.agent.maxSteps; step++) {
@@ -80,7 +81,7 @@ export const runTurn = internalAction({
 
       let result;
       try {
-        result = await model.chat({ messages, tools, maxTokens, effort: step === 0 ? undefined : 'low' });
+        result = await model.chat({ messages, tools, maxTokens, effort: LIMITS.agent.effort });
       } catch (e) {
         if (e instanceof ChatModelError) {
           finalText = "Sorry — I'm having trouble reaching my brain right now. Try again in a moment.";
@@ -95,6 +96,15 @@ export const runTurn = internalAction({
         tokensOut: result.usage.tokensOut,
         cents: chatCostCents(result.usage.tokensIn, result.usage.tokensOut, result.usage.cachedTokensIn ?? 0),
       });
+
+      // Ran out of room while still reasoning (nothing to say, no tool to call): retry once with double the
+      // room rather than replying with nothing. Seen live in G2 before effort was lowered.
+      if (!result.toolCalls.length && !result.text?.trim() && result.finishReason === 'length' && !retriedForLength) {
+        retriedForLength = true;
+        maxTokens *= 2;
+        step--;
+        continue;
+      }
 
       if (!result.toolCalls.length) {
         finalText = result.text ?? '';
@@ -118,7 +128,7 @@ export const runTurn = internalAction({
       if (step === LIMITS.agent.maxSteps - 1) {
         messages.push({ role: 'system', content: "You're out of steps for this turn. Summarize what you did (or didn't manage to do) in one short reply." });
         await ctx.runMutation(internal.spend.requireBudget, { familyId: args.familyId, estimatedCents: estimateChatCostCents(promptChars, maxTokens) });
-        const wrapUp = await model.chat({ messages, maxTokens, effort: 'low' });
+        const wrapUp = await model.chat({ messages, maxTokens, effort: LIMITS.agent.effort });
         await ctx.runMutation(internal.spend.recordUsage, {
           familyId: args.familyId,
           tokensIn: wrapUp.usage.tokensIn,
