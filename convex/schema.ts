@@ -1,0 +1,49 @@
+// Fields come from shared/domain/tables (the contract). This file only adds indexes.
+// Every index starts with familyId, except the two lookups that happen before the family is known:
+// members.by_authId (sign-in) and invites.by_tokenHash (joining).
+// Query notes for G1:
+// - grants: "grants I'm a grantee of" reads the family's grants through by_family_owner (prefix on familyId) and
+//   filters granteeIds; arrays can't be indexed, and a family has only a handful of grants.
+// - events: by_family_start serves range queries; calendar.range must start the scan LIMITS.maxEventHours
+//   before `from` so events that began earlier but are still running are included.
+import { defineSchema, defineTable } from 'convex/server';
+import * as T from '../shared/domain/tables';
+
+export default defineSchema({
+  families: defineTable(T.families),
+  members: defineTable(T.members).index('by_family', ['familyId']).index('by_authId', ['authId']),
+  relationships: defineTable(T.relationships).index('by_family_from', ['familyId', 'from']),
+  megas: defineTable(T.megas).index('by_family_owner', ['familyId', 'ownerId']), // prefix on familyId lists a family's MEGAs
+  invites: defineTable(T.invites).index('by_tokenHash', ['tokenHash']).index('by_family_member', ['familyId', 'memberId']),
+  grants: defineTable(T.grants).index('by_family_owner', ['familyId', 'ownerId']),
+  sharing: defineTable(T.sharing).index('by_family_member', ['familyId', 'memberId']),
+  kidControls: defineTable(T.kidControls).index('by_family_member', ['familyId', 'memberId']),
+  settings: defineTable(T.settings).index('by_family_member', ['familyId', 'memberId']),
+
+  threads: defineTable(T.threads).index('by_family_owner', ['familyId', 'ownerId']),
+  messages: defineTable(T.messages).index('by_family_thread_at', ['familyId', 'threadId', 'at']),
+
+  memories: defineTable(T.memories)
+    .index('by_family_scopeKey', ['familyId', 'scopeKey'])
+    .index('by_family_kind', ['familyId', 'kind'])
+    .searchIndex('search_text', { searchField: 'text', filterFields: ['familyId', 'scopeKey'] }),
+  profiles: defineTable(T.profiles).index('by_family_member', ['familyId', 'memberId']),
+
+  events: defineTable(T.events).index('by_family_start', ['familyId', 'start']),
+  reminders: defineTable(T.reminders).index('by_family_member_due', ['familyId', 'forMemberId', 'dueAt']),
+  lists: defineTable(T.lists).index('by_family', ['familyId']),
+  listItems: defineTable(T.listItems).index('by_family_list', ['familyId', 'listId']),
+
+  familyEvents: defineTable(T.familyEvents).index('by_family_at', ['familyId', 'at']),
+  candidates: defineTable(T.candidates)
+    .index('by_family_dedupeKey', ['familyId', 'dedupeKey'])
+    .index('by_family_status', ['familyId', 'status']),
+  notifications: defineTable(T.notifications).index('by_family_recipient', ['familyId', 'recipientId', 'sentAt']), // ordered by send time, held ones (no sentAt) first
+  requests: defineTable(T.requests).index('by_family_to', ['familyId', 'toMemberId']),
+
+  rooms: defineTable(T.rooms).index('by_family_owner', ['familyId', 'ownerId']),
+  images: defineTable(T.images).index('by_family', ['familyId']),
+  integrations: defineTable(T.integrations).index('by_family', ['familyId']),
+  usage: defineTable(T.usage).index('by_family_day', ['familyId', 'day']),
+  clocks: defineTable(T.clocks).index('by_family', ['familyId']),
+});
