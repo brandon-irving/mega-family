@@ -1,0 +1,243 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Settings</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#0C0E11}
+button{font-family:inherit;cursor:pointer}
+a{color:inherit;text-decoration:none}
+</style>
+</helmet>
+<div style="position: relative; width: 390px; height: 844px; box-sizing: border-box; background: #0C0E11; color: #EDEFF2; font-family: Inter, system-ui, sans-serif; display: flex; flex-direction: column; overflow: hidden">
+  <header style="display: flex; align-items: center; gap: 12px; padding: 16px 16px 10px; flex-shrink: 0">
+    <h1 style="flex: 1; margin: 0; font-size: 26px; font-weight: 800">Settings</h1>
+    <span style="position: relative; width: 48px; height: 41px; flex-shrink: 0; border-radius: 10px; overflow: hidden; background: #FFFFFF">
+      <sc-for list="{{head.rects}}" as="r" hint-placeholder-count="150">
+        <span style="position: absolute; left: {{r.l}}px; top: {{r.t}}px; width: {{r.w}}px; height: {{r.h}}px; background: {{r.c}}"></span>
+      </sc-for>
+    </span>
+  </header>
+
+  <div style="flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 22px; padding: 6px 16px 28px">
+    <sc-for list="{{sections}}" as="sec" hint-placeholder-count="4">
+      <section style="display: flex; flex-direction: column; gap: 6px">
+        <h2 style="margin: 0 4px; font-size: 13px; font-weight: 700; letter-spacing: 0.6px; text-transform: uppercase; color: #9AA1AB">{{sec.title}}</h2>
+        <div style="background: #16191E; border: 1px solid #22262D; border-radius: 16px; overflow: hidden">
+          <sc-for list="{{sec.rows}}" as="row" hint-placeholder-count="3">
+            <sc-if value="{{row.isLink}}" hint-placeholder-val="{{ true }}">
+              <button type="button" onClick="{{row.tap}}" style="width: 100%; display: flex; align-items: center; gap: 12px; min-height: {{rowH}}px; padding: 10px 14px; border: none; border-top: {{row.divider}}; background: transparent; color: #EDEFF2; text-align: left">
+                <span style="flex: 1; display: flex; flex-direction: column; gap: 2px; min-width: 0">
+                  <span style="font-size: {{rowFont}}px; font-weight: 500">{{row.label}}</span>
+                  <sc-if value="{{row.hasHint}}" hint-placeholder-val="{{ false }}"><span style="font-size: 13px; color: #9AA1AB">{{row.hint}}</span></sc-if>
+                </span>
+                <sc-if value="{{row.hasSwatch}}" hint-placeholder-val="{{ false }}"><span aria-hidden="true" style="width: 18px; height: 18px; border-radius: 9px; background: {{accent}}"></span></sc-if>
+                <span style="font-size: 14px; color: #9AA1AB; text-align: right">{{row.value}}</span>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B727D" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"></path></svg>
+              </button>
+            </sc-if>
+            <sc-if value="{{row.isLocked}}" hint-placeholder-val="{{ false }}">
+              <div style="display: flex; align-items: center; gap: 12px; min-height: {{rowH}}px; padding: 10px 14px; border-top: {{row.divider}}">
+                <span style="flex: 1; display: flex; flex-direction: column; gap: 2px">
+                  <span style="font-size: {{rowFont}}px; font-weight: 500">{{row.label}}</span>
+                  <span style="font-size: 13px; color: #9AA1AB; display: flex; align-items: center; gap: 5px"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"></rect><path d="M8 11V8a4 4 0 0 1 8 0v3"></path></svg>{{row.hint}}</span>
+                </span>
+                <span style="font-size: 14px; color: #9AA1AB">{{row.value}}</span>
+              </div>
+            </sc-if>
+            <sc-if value="{{row.isCode}}" hint-placeholder-val="{{ false }}">
+              <div style="display: flex; align-items: center; gap: 12px; min-height: {{rowH}}px; padding: 10px 14px; border-top: {{row.divider}}">
+                <span style="flex: 1; display: flex; flex-direction: column; gap: 2px">
+                  <span style="font-size: {{rowFont}}px; font-weight: 500">{{row.label}}</span>
+                  <span style="font-size: 13px; color: #9AA1AB">{{row.hint}}</span>
+                </span>
+                <span style="font-size: 17px; font-weight: 700; letter-spacing: 2px; font-variant-numeric: tabular-nums">{{codeShown}}</span>
+                <button type="button" onClick="{{toggleCode}}" style="height: 34px; padding: 0 12px; border-radius: 17px; border: 1px solid #2E343D; background: transparent; color: #EDEFF2; font-size: 13px">{{codeToggle}}</button>
+              </div>
+            </sc-if>
+          </sc-for>
+        </div>
+        <sc-if value="{{sec.hasNote}}" hint-placeholder-val="{{ false }}"><div style="margin: 2px 4px 0; font-size: 13px; color: #9AA1AB; line-height: 18px">{{sec.note}}</div></sc-if>
+      </section>
+    </sc-for>
+  </div>
+
+  <sc-if value="{{sheetOpen}}" hint-placeholder-val="{{ false }}">
+    <button type="button" onClick="{{closeSheet}}" aria-label="Close" style="position: absolute; inset: 0; border: none; background: rgba(6,7,9,0.6)"></button>
+    <section aria-label="{{sheetTitle}}" style="position: absolute; left: 0; right: 0; bottom: 0; max-height: 760px; background: #16191E; border-radius: 24px 24px 0 0; border-top: 1px solid #2E343D; padding: 10px 16px 28px; display: flex; flex-direction: column; gap: 16px; overflow-y: auto">
+      <div aria-hidden="true" style="align-self: center; width: 36px; height: 4px; border-radius: 2px; background: #3A414B"></div>
+      <div style="display: flex; align-items: center">
+        <h2 style="flex: 1; margin: 0; font-size: 20px; font-weight: 800">{{sheetTitle}}</h2>
+        <button type="button" onClick="{{closeSheet}}" style="height: 36px; padding: 0 16px; border-radius: 18px; border: none; background: {{accent}}; color: {{accentInk}}; font-size: 15px; font-weight: 700">Done</button>
+      </div>
+
+      <sc-if value="{{isTheme}}" hint-placeholder-val="{{ true }}">
+        <div aria-label="Preview" style="border-radius: 18px; border: 1px solid {{pv.line}}; background: {{pv.bg}}; padding: 14px; display: flex; flex-direction: column; gap: 10px">
+          <div style="display: flex; align-items: center; gap: 8px">
+            <span style="position: relative; width: 32px; height: 27px; border-radius: 7px; overflow: hidden; background: #FFFFFF">
+              <sc-for list="{{smallHead.rects}}" as="r" hint-placeholder-count="150">
+                <span style="position: absolute; left: {{r.l}}px; top: {{r.t}}px; width: {{r.w}}px; height: {{r.h}}px; background: {{r.c}}"></span>
+              </sc-for>
+            </span>
+            <span style="font-size: 15px; font-weight: 600; color: {{pv.text}}">{{mega}}</span>
+            <span style="margin-left: auto; font-size: 12px; color: {{pv.muted}}">Preview</span>
+          </div>
+          <div style="font-size: 15px; line-height: 21px; color: {{pv.text}}">{{sample}}</div>
+          <div style="align-self: flex-end; padding: 8px 13px; border-radius: 16px 16px 4px 16px; background: {{pv.bubble}}; color: {{pv.text}}; font-size: 15px">Sounds good</div>
+          <div style="display: flex; gap: 8px">
+            <span style="height: 36px; padding: 0 14px; border-radius: 18px; background: {{accent}}; color: {{accentInk}}; font-size: 14px; font-weight: 700; display: flex; align-items: center">Yes</span>
+            <span style="height: 36px; padding: 0 14px; border-radius: 18px; border: 1px solid {{pv.line}}; color: {{pv.text}}; font-size: 14px; display: flex; align-items: center">Later</span>
+            <span aria-hidden="true" style="margin-left: auto; width: 46px; height: 26px; border-radius: 13px; background: {{accent}}; position: relative; align-self: center"><span style="position: absolute; top: 3px; right: 3px; width: 20px; height: 20px; border-radius: 10px; background: #FFFFFF"></span></span>
+          </div>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 8px">
+          <div style="font-size: 14px; font-weight: 600; color: #B4BAC3">Theme</div>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px">
+            <sc-for list="{{themes}}" as="t" hint-placeholder-count="2">
+              <button type="button" onClick="{{t.pick}}" aria-pressed="{{t.on}}" style="height: 56px; border-radius: 14px; border: {{t.ring}}; background: {{t.bg}}; color: {{t.fg}}; font-size: 15px; font-weight: 700">{{t.label}}</button>
+            </sc-for>
+          </div>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 8px">
+          <div style="font-size: 14px; font-weight: 600; color: #B4BAC3">Accent color</div>
+          <button type="button" onClick="{{pickMega}}" aria-pressed="{{megaOn}}" style="display: flex; align-items: center; gap: 12px; min-height: 56px; padding: 8px 12px; border-radius: 14px; border: {{megaRing}}; background: #0C0E11; color: #EDEFF2; text-align: left">
+            <span aria-hidden="true" style="width: 28px; height: 28px; border-radius: 14px; background: {{megaHex}}"></span>
+            <span style="flex: 1; display: flex; flex-direction: column; gap: 1px"><span style="font-size: 15px; font-weight: 600">Match {{mega}}</span><span style="font-size: 12px; color: #9AA1AB">Changes when {{mega}}’s color changes</span></span>
+          </button>
+          <div style="display: flex; flex-wrap: wrap; gap: 10px">
+            <sc-for list="{{accents}}" as="a" hint-placeholder-count="7">
+              <button type="button" onClick="{{a.pick}}" aria-label="{{a.label}}" aria-pressed="{{a.on}}" style="width: 44px; height: 44px; border-radius: 22px; border: {{a.ring}}; background: {{a.hex}}; box-shadow: inset 0 0 0 2px #16191E"></button>
+            </sc-for>
+          </div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{isWallpaper}}" hint-placeholder-val="{{ false }}">
+        <div style="display: flex; gap: 14px; align-items: center">
+          <div aria-label="Current wallpaper" style="position: relative; width: 104px; height: 200px; flex-shrink: 0; border-radius: 18px; overflow: hidden; border: 1px solid #2E343D; background: {{current.css}}">
+            <sc-if value="{{current.hasImage}}" hint-placeholder-val="{{ false }}"><img src="{{current.src}}" alt="" style="position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; image-rendering: pixelated"></sc-if>
+            <div style="position: absolute; left: 0; right: 0; top: 22px; text-align: center; font-size: 30px; font-weight: 700; color: #FFFFFF; text-shadow: 0 1px 6px rgba(0,0,0,0.5)">4:40</div>
+          </div>
+          <div style="flex: 1; display: flex; flex-direction: column; gap: 6px">
+            <div style="font-size: 17px; font-weight: 700">{{current.label}}</div>
+            <div style="font-size: 13px; color: #9AA1AB; line-height: 18px">Used on your lock screen and behind your chat.</div>
+          </div>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 8px">
+          <div style="font-size: 14px; font-weight: 600; color: #B4BAC3">Presets</div>
+          <div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px">
+            <sc-for list="{{presets}}" as="p" hint-placeholder-count="4">
+              <button type="button" onClick="{{p.pick}}" aria-label="{{p.label}}" aria-pressed="{{p.on}}" style="position: relative; height: 112px; border-radius: 14px; border: {{p.ring}}; padding: 0; overflow: hidden; background: {{p.css}}">
+                <sc-if value="{{p.hasImage}}" hint-placeholder-val="{{ false }}"><img src="{{p.src}}" alt="" style="position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; image-rendering: pixelated"></sc-if>
+                <span style="position: absolute; left: 0; right: 0; bottom: 0; padding: 4px; font-size: 11px; font-weight: 600; color: #FFFFFF; background: rgba(0,0,0,0.45)">{{p.label}}</span>
+              </button>
+            </sc-for>
+          </div>
+        </div>
+        <div style="display: grid; grid-template-columns: {{sourceCols}}; gap: 8px">
+          <button type="button" style="min-height: 64px; border-radius: 14px; border: 1px solid #2E343D; background: #0C0E11; color: #EDEFF2; display: flex; align-items: center; gap: 10px; padding: 0 12px; font-size: 15px; font-weight: 600; text-align: left">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"></rect><circle cx="9" cy="10" r="2"></circle><path d="M21 16l-5-5-8 8"></path></svg>Family photo
+          </button>
+          <sc-if value="{{canGenerate}}" hint-placeholder-val="{{ true }}">
+            <a href="Main.dc.html" style="min-height: 64px; border-radius: 14px; border: 1px solid {{accent}}; background: #0C0E11; color: #EDEFF2; display: flex; align-items: center; gap: 10px; padding: 0 12px; font-size: 15px; font-weight: 600">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="{{accent}}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.8 4.7L18.5 9.5l-4.7 1.8L12 16l-1.8-4.7L5.5 9.5l4.7-1.8z"></path><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"></path></svg>
+              <span style="display: flex; flex-direction: column; gap: 1px"><span>Make one</span><span style="font-size: 12px; font-weight: 400; color: #9AA1AB">Tell {{mega}} what to draw</span></span>
+            </a>
+          </sc-if>
+        </div>
+        <sc-if value="{{kidNote}}" hint-placeholder-val="{{ false }}"><div style="font-size: 13px; color: #9AA1AB; line-height: 18px">Want a new picture? Ask a parent to add one.</div></sc-if>
+      </sc-if>
+    </section>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"who":{"editor":"enum","options":["admin","adult","kid"],"default":"admin"},"sheet":{"editor":"enum","options":["none","theme","wallpaper"],"default":"none"},"$preview":{"width":390,"height":844}}'>
+// Generated from prototypes/megasprite (mega-template.mjs, pixel-paint.mjs, export-looks.mjs).
+__SPRITE_LIVE__
+__THEMES__
+
+// Sample viewers: each sees their own MEGA. People are labelled by role only.
+const VIEWERS = {
+  admin: { mega: 'Teal', hex: '#2FB8B0', face: 'open', accent: 'theme', wallpaper: 'glow', notify: true, family: true },
+  adult: { mega: 'Coral', hex: '#F2766B', face: 'happy', accent: 'mega', wallpaper: 'glow', notify: true },
+  kid: { mega: 'Zap', hex: '#8E6CE0', face: 'happy', accent: 'mega', wallpaper: 'room', kid: true },
+};
+const PARENT_CODE = '48217';
+const ROOM_ART = '/_blob/cf355e3cbfaf6b0dfd180a0e74427825';
+// Wallpaper presets are drawn in code (gradients from the MEGA colour) or are the MEGA's own room.
+const PRESETS = [
+  { id: 'glow', label: 'MEGA glow', css: (hex, dark) => 'linear-gradient(165deg, ' + dark + ' 0%, #12151A 55%, #0C0E11 100%)' },
+  { id: 'night', label: 'Night', css: () => 'radial-gradient(circle at 70% 20%, #2A3350 0%, #0C0E11 70%)' },
+  { id: 'dawn', label: 'Dawn', css: () => 'linear-gradient(180deg, #3B2A4F 0%, #B5655A 100%)' },
+  { id: 'room', label: 'My room', css: () => '#1B1F25', src: ROOM_ART },
+];
+
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    const v = VIEWERS[props.who] ?? VIEWERS.admin;
+    this.state = { sheet: props.sheet && props.sheet !== 'none' ? props.sheet : null, theme: 'midnight', accent: v.accent, wallpaper: v.wallpaper, codeShown: false };
+  }
+  renderVals() {
+    const v = VIEWERS[this.props.who] ?? VIEWERS.admin, s = this.state;
+    const accent = themeAccent(s.theme, s.accent, v.hex), { dark } = shades(v.hex), t = THEMES[s.theme];
+    const open = (sheet) => () => this.setState({ sheet });
+    const preset = PRESETS.find((p) => p.id === s.wallpaper);
+    const wall = (p) => ({ label: p.label, css: p.css(v.hex, dark), hasImage: !!p.src, src: p.src || '' });
+    const accentLabel = s.accent === 'mega' ? 'Matches ' + v.mega : s.accent === 'theme' ? 'Default color' : 'Custom color';
+    const sections = [
+      { title: 'Look', rows: [
+        { kind: 'link', label: 'Theme', value: t.label + ' · ' + accentLabel, swatch: true, tap: open('theme') },
+        { kind: 'link', label: 'Wallpaper', value: preset.label, tap: open('wallpaper') },
+      ] },
+      v.kid
+        ? { title: 'Notifications', note: 'A parent sets these. Your MEGA only sends reminders.', rows: [
+            { kind: 'locked', label: 'Quiet hours', hint: 'Set by a parent', value: '8:00 PM – 7:00 AM' },
+            { kind: 'locked', label: 'Daily time limit', hint: 'Set by a parent', value: '1 hour' },
+          ] }
+        : { title: 'Notifications', rows: [
+            { kind: 'link', label: 'What wakes my phone', hint: 'The rest arrive quietly', value: 'Reminders, requests' },
+            { kind: 'link', label: 'Quiet hours', value: '10:00 PM – 7:00 AM' },
+            { kind: 'link', label: 'Daily limit', value: '6 a day' },
+          ] },
+      ...(v.family ? [{ title: 'Family', note: 'Only you see this section.', rows: [
+        { kind: 'link', label: 'Members and MEGAs', value: '5 people', tap: () => {} },
+        { kind: 'code', label: 'Parent code', hint: 'Kids need it to join' },
+        { kind: 'link', label: 'Invite someone', value: 'QR or link' },
+        { kind: 'link', label: 'Default kid controls', hint: 'Used when you add a kid', value: '' },
+      ] }] : []),
+      { title: 'Account', rows: v.kid
+        ? [{ kind: 'link', label: 'Switch person', value: '' }]
+        : [{ kind: 'link', label: 'Signed in', value: 'Apple ID' }, { kind: 'link', label: 'Sign out', value: '' }] },
+    ].map((sec) => ({ ...sec, hasNote: !!sec.note, note: sec.note || '',
+      rows: sec.rows.map((r, i) => ({ ...r, isLink: r.kind === 'link', isLocked: r.kind === 'locked', isCode: r.kind === 'code', hasHint: !!r.hint, hint: r.hint || '', hasSwatch: !!r.swatch,
+        divider: i ? '1px solid #22262D' : 'none', tap: r.tap || (() => {}) })) }));
+    const ring = (on) => (on ? '3px solid ' + accent : '1px solid #2E343D');
+    return {
+      head: sprite(v.hex, v.face, 'none', 1.5, 27), smallHead: sprite(v.hex, v.face, 'none', 1, 27), mega: v.mega, megaHex: v.hex,
+      sample: LOOKS.personalities[{ open: 'brief', happy: 'cheerful' }[v.face] || 'brief'].sample,
+      accent, accentInk: inkOn(accent), sections,
+      rowH: v.kid ? 60 : 52, rowFont: v.kid ? 17 : 16,
+      codeShown: s.codeShown ? PARENT_CODE.split('').join(' ') : '• • • • •', codeToggle: s.codeShown ? 'Hide' : 'Show', toggleCode: () => this.setState({ codeShown: !s.codeShown }),
+      sheetOpen: !!s.sheet, isTheme: s.sheet === 'theme', isWallpaper: s.sheet === 'wallpaper', closeSheet: () => this.setState({ sheet: null }),
+      sheetTitle: s.sheet === 'theme' ? 'Theme' : 'Wallpaper',
+      pv: { ...t, bubble: accent + '33' },
+      themes: Object.keys(THEMES).map((id) => ({ label: THEMES[id].label, on: id === s.theme ? 'true' : 'false', ring: ring(id === s.theme), bg: THEMES[id].bg, fg: THEMES[id].text, pick: () => this.setState({ theme: id }) })),
+      megaOn: s.accent === 'mega' ? 'true' : 'false', megaRing: ring(s.accent === 'mega'), pickMega: () => this.setState({ accent: 'mega' }),
+      accents: [['theme', 'Default', THEMES[s.theme].accent], ...Object.entries(LOOKS.colors).filter(([, hex]) => hex !== THEMES.midnight.accent).map(([id, hex]) => [hex, id[0].toUpperCase() + id.slice(1), hex])].map(([val, label, hex]) => ({
+        label, hex, on: s.accent === val ? 'true' : 'false', ring: s.accent === val ? '3px solid #FFFFFF' : '3px solid transparent', pick: () => this.setState({ accent: val }) })),
+      current: wall(preset),
+      presets: PRESETS.map((p) => ({ ...wall(p), on: p.id === s.wallpaper ? 'true' : 'false', ring: ring(p.id === s.wallpaper), pick: () => this.setState({ wallpaper: p.id }) })),
+      canGenerate: !v.kid, kidNote: !!v.kid, sourceCols: v.kid ? '1fr' : '1fr 1fr',
+    };
+  }
+}
+</script>
+</body>
+</html>

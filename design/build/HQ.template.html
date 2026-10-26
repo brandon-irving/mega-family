@@ -1,0 +1,251 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>HQ</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Pixelify+Sans:wght@400;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#0C0E11}
+a{color:#EDEFF2;text-decoration:none}
+button{font-family:inherit}
+@keyframes blink{0%,49%{opacity:1}50%,100%{opacity:0}}
+.more{animation:blink 1s steps(1) infinite}
+@keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}
+.emote{animation:bob .8s ease-in-out infinite}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; box-sizing: border-box; background: #0C0E11; color: #EDEFF2; font-family: Inter, system-ui, sans-serif; display: flex; flex-direction: column; overflow: hidden">
+  <header style="display: flex; align-items: center; gap: 12px; height: 64px; padding: 0 16px; flex-shrink: 0">
+    <div style="display: flex; flex-direction: column; gap: 1px; flex: 1">
+      <h1 style="margin: 0; font-size: 22px; font-weight: 700">HQ</h1>
+      <div style="font-size: 13px; color: #9AA1AB">3 MEGAs at work · 4:42 PM</div>
+    </div>
+    <button type="button" onClick="{{openMyRoom}}" style="display: flex; align-items: center; gap: 8px; height: 44px; padding: 0 14px 0 6px; border-radius: 22px; border: 1px solid #2E343D; background: #16191E; color: #EDEFF2; font-size: 15px; font-weight: 600">
+      <span style="width: 34px; height: 29px; border-radius: 8px; overflow: hidden; display: block"><img src="/_blob/4e65e4e0767e20ffbb714514eea3f8b4" alt="" style="width: 34px; height: 29px; display: block"></span>
+      My room
+    </button>
+  </header>
+
+  <div style="position: relative; width: 384px; height: 499px; margin: 0 3px; flex-shrink: 0">
+    <img src="/_blob/__ROOM__" alt="The family HQ room" style="position: absolute; left: 0; top: 0; width: 384px; height: 499px; image-rendering: pixelated; display: block">
+    <sc-for list="{{spots}}" as="s" hint-placeholder-count="11">
+      <button type="button" aria-label="{{s.label}}" onClick="{{s.tap}}" style="position: absolute; left: {{s.left}}px; top: {{s.top}}px; width: {{s.w}}px; height: {{s.h}}px; padding: 0; border: none; border-radius: 6px; background: {{s.bg}}; z-index: 1"></button>
+    </sc-for>
+    <sc-for list="{{megas}}" as="m" hint-placeholder-count="3">
+      <button type="button" aria-label="{{m.label}}" onClick="{{m.tap}}" style="position: absolute; left: {{m.left}}px; top: {{m.top}}px; width: 38px; height: 48px; padding: 0; border: none; background: transparent; z-index: {{m.z}}">
+        <img src="{{m.src}}" alt="" style="width: 38.4px; height: 48px; display: block; image-rendering: pixelated">
+        <sc-if value="{{m.hasEmote}}" hint-placeholder-val="{{ false }}">
+          <span class="emote" style="position: absolute; left: 6px; top: -26px; min-width: 26px; height: 22px; box-sizing: border-box; padding: 0 5px; border: 2px solid #1B1A3A; border-radius: 6px; background: #FFFFFF; color: #1B1A3A; font-family: 'Pixelify Sans', monospace; font-size: 15px; font-weight: 600; line-height: 18px; text-align: center">{{m.emote}}</span>
+        </sc-if>
+        <sc-if value="{{m.selected}}" hint-placeholder-val="{{ false }}">
+          <svg class="emote" style="position: absolute; left: 11px; top: -20px" width="16" height="12" viewBox="0 0 16 12" aria-hidden="true"><path d="M0 0h16L8 12z" fill="#FFFFFF" stroke="#1B1A3A" stroke-width="2"></path></svg>
+        </sc-if>
+      </button>
+    </sc-for>
+  </div>
+
+  <section aria-live="polite" style="flex: 1; display: flex; flex-direction: column; justify-content: center; padding: 10px 12px">
+    <div style="position: relative; min-height: 112px; box-sizing: border-box; border: 4px solid #1B1A3A; border-radius: 10px; background: #FFFFFF; box-shadow: inset 0 0 0 3px #B9C3E0; padding: 14px 16px; color: #1B1A3A; font-family: 'Pixelify Sans', monospace; display: flex; flex-direction: column; gap: 10px">
+      <sc-if value="{{showNarrate}}" hint-placeholder-val="{{ true }}">
+        <div style="font-size: 19px; line-height: 26px; padding-right: 10px">{{narration}}</div>
+        <svg class="more" style="position: absolute; right: 14px; bottom: 12px" width="14" height="10" viewBox="0 0 14 10" aria-hidden="true"><path d="M0 0h14L7 10z" fill="#1B1A3A"></path></svg>
+      </sc-if>
+      <sc-if value="{{showMega}}" hint-placeholder-val="{{ false }}">
+        <div style="display: flex; align-items: center; gap: 10px">
+          <span style="width: 40px; height: 34px; border-radius: 8px; overflow: hidden; display: block; flex-shrink: 0; box-shadow: 0 0 0 2px #1B1A3A"><img src="{{mega.badge}}" alt="" style="width: 40px; height: 34px; display: block"></span>
+          <div style="display: flex; flex-direction: column; flex: 1">
+            <div style="font-size: 20px; font-weight: 600">{{mega.name}}</div>
+            <div style="font-size: 16px; color: #4A4F6A">{{mega.status}}</div>
+          </div>
+          <button type="button" aria-label="Close" onClick="{{close}}" style="width: 40px; height: 40px; border: none; background: transparent; color: #1B1A3A; display: flex; align-items: center; justify-content: center"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"></path></svg></button>
+        </div>
+        <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; font-family: Inter, system-ui, sans-serif">
+          <a href="{{mega.talkHref}}" style="height: 44px; border-radius: 22px; background: #1B1A3A; color: #FFFFFF; font-size: 15px; font-weight: 600; display: flex; align-items: center; justify-content: center">Talk</a>
+          <sc-if value="{{mega.mine}}" hint-placeholder-val="{{ true }}">
+            <a href="Profile.dc.html" style="height: 44px; box-sizing: border-box; border-radius: 22px; border: 2px solid #1B1A3A; background: #FFFFFF; color: #1B1A3A; font-size: 15px; font-weight: 600; display: flex; align-items: center; justify-content: center">Details</a>
+          </sc-if>
+          <sc-if value="{{mega.notMine}}" hint-placeholder-val="{{ false }}">
+            <a href="Room.dc.html" style="height: 44px; box-sizing: border-box; border-radius: 22px; border: 2px solid #1B1A3A; background: #FFFFFF; color: #1B1A3A; font-size: 15px; font-weight: 600; display: flex; align-items: center; justify-content: center">Visit room</a>
+          </sc-if>
+        </div>
+      </sc-if>
+      <sc-if value="{{showPlace}}" hint-placeholder-val="{{ false }}">
+        <div style="display: flex; align-items: flex-start; gap: 10px">
+          <div style="display: flex; flex-direction: column; gap: 4px; flex: 1">
+            <div style="font-size: 20px; font-weight: 600">{{place.title}}</div>
+            <div style="font-size: 16px; line-height: 22px; color: #4A4F6A">{{place.text}}</div>
+          </div>
+          <button type="button" aria-label="Close" onClick="{{close}}" style="width: 40px; height: 40px; flex-shrink: 0; border: none; background: transparent; color: #1B1A3A; display: flex; align-items: center; justify-content: center"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"></path></svg></button>
+        </div>
+        <sc-if value="{{place.hasLink}}" hint-placeholder-val="{{ true }}">
+          <a href="{{place.href}}" style="height: 44px; border-radius: 22px; background: #1B1A3A; color: #FFFFFF; font-family: Inter, system-ui, sans-serif; font-size: 15px; font-weight: 600; display: flex; align-items: center; justify-content: center">{{place.action}}</a>
+        </sc-if>
+        <sc-if value="{{place.hasButton}}" hint-placeholder-val="{{ false }}">
+          <button type="button" style="height: 44px; border-radius: 22px; border: none; background: #1B1A3A; color: #FFFFFF; font-family: Inter, system-ui, sans-serif; font-size: 15px; font-weight: 600">{{place.action}}</button>
+        </sc-if>
+      </sc-if>
+    </div>
+  </section>
+
+  <nav aria-label="Main" style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); height: 64px; flex-shrink: 0; border-top: 1px solid #22262D; background: #0F1114">
+    <a href="Main.dc.html" style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; color: #9AA1AB; font-size: 12px">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20.5l1.4-4.9A8 8 0 1 1 21 12z"></path></svg>
+      Chat
+    </a>
+    <a href="HQ.dc.html" aria-current="page" style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; color: #2FB8B0; font-size: 12px; font-weight: 600">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"></path></svg>
+      HQ
+    </a>
+    <a href="Family.dc.html" style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; color: #9AA1AB; font-size: 12px">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+      Family
+    </a>
+  </nav>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+// Generated from prototypes/megasprite (hq-template.mjs + export-hq.mjs).
+const SPRITES = __SPRITES__;
+const LAYOUT = __LAYOUT__;
+const S = 1.2, T = LAYOUT.tile, STEP = 4, TICK = 40;
+
+const MEGAS = [
+  { id: 'teal', name: 'Teal', badge: '/_blob/4e65e4e0767e20ffbb714514eea3f8b4', mine: true, delay: 3000, script: [
+    { at: 'desk', wait: 7000, emote: '…', status: 'At the desk · Math homework', say: 'Teal is at the desk, helping with math homework.' },
+    { at: 'fridge', wait: 3000, emote: '!', status: 'At the fridge · Groceries', say: 'Teal added oranges to the grocery list.' },
+  ] },
+  { id: 'coral', name: 'Coral', badge: '/_blob/c3cf0f234f346c3c5acff6ecdd29f0b2', delay: 1500, script: [
+    { at: 'calendar', wait: 6000, emote: '…', status: 'At the calendar · Busy', say: 'Coral is at the calendar.' },
+    { at: 'mailbox', wait: 3500, emote: '!', status: 'At the mailbox · Busy', say: 'Coral is at the mailbox.' },
+  ] },
+  { id: 'violet', name: 'Zap', badge: '/_blob/2ced697339f3eaeba3c99e1065a0e908', delay: 5000, script: [
+    { at: 'rug', wait: 6500, emote: '♪', happy: true, status: 'On the toy rug · Playing', say: 'Zap is playing on the toy rug.' },
+    { at: 'bookshelf', wait: 4000, emote: '…', status: 'At the bookshelf · Reading', say: 'Zap is at the bookshelf.' },
+  ] },
+];
+
+const PLACES = {
+  desk: { title: 'Desk', text: 'Homework and work happen here. Teal: math homework, 3 of 5 done.', action: 'Open chat', href: 'Main.dc.html' },
+  calendar: { title: 'Calendar', text: '4 events today. Coral asked if you can drive Sunday.', action: 'Open Today', href: 'Today.dc.html' },
+  fridge: { title: 'Fridge', text: 'Groceries: 7 items. Oranges were just added.', action: 'Open list', href: 'Today.dc.html' },
+  mailbox: { title: 'Mailbox', text: 'MEGAs pass messages here. 1 is waiting for you.', action: 'Open chat', href: 'Main.dc.html' },
+  bookshelf: { title: 'Bookshelf', text: 'Where MEGAs look things up.' },
+  charger: { title: 'Charger', text: 'MEGAs rest here when they are idle and at night.' },
+  rug: { title: 'Toy rug', text: 'Kid games and activities happen here.' },
+  frontDoor: { title: 'Front door', text: 'MEGAs head out here for errands. Everyone is home.' },
+};
+
+__WALKER__
+const open = (x, y) => x >= 0 && y >= 0 && x < LAYOUT.cols && y < LAYOUT.rows && LAYOUT.walkable[y][x] === '1';
+
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    const now = Date.now();
+    const megas = MEGAS.map((def) => {
+      const step = def.script[0], st = LAYOUT.stations[step.at];
+      return { id: def.id, x: st.tile[0] * T, y: st.tile[1] * T, face: st.face, path: [], walked: 0, tiles: 0, stepIdx: 0, until: now + def.delay, emote: step.emote, status: step.status, happy: !!step.happy };
+    });
+    this.state = { megas, log: MEGAS[0].script[0].say, box: { kind: 'narrate' }, selected: null };
+  }
+  componentDidMount() { this.timer = setInterval(this.tick, TICK); }
+  componentWillUnmount() { clearInterval(this.timer); }
+
+  tick = () => {
+    const now = Date.now();
+    let log = this.state.log;
+    const arrive = (m, def) => {
+      const step = def.script[m.stepIdx];
+      m.face = LAYOUT.stations[step.at].face;
+      m.emote = step.emote; m.status = step.status; m.happy = !!step.happy;
+      m.until = now + step.wait; m.walked = 0;
+      log = step.say;
+    };
+    const megas = this.state.megas.map((old, i) => {
+      const m = { ...old }, def = MEGAS[i];
+      if (m.id === this.state.selected) return m;
+      if (m.path.length) {
+        if (walk(m, T, STEP)) arrive(m, def);
+      } else if (now >= m.until) {
+        m.stepIdx = (m.stepIdx + 1) % def.script.length;
+        const target = LAYOUT.stations[def.script[m.stepIdx].at].tile;
+        m.path = route([m.x / T, m.y / T], target, open) || [];
+        m.emote = ''; m.happy = false;
+        m.status = 'Walking to the ' + LAYOUT.stations[def.script[m.stepIdx].at].label.toLowerCase();
+        if (!m.path.length) arrive(m, def);
+      }
+      return m;
+    });
+    this.setState({ megas, log });
+  };
+
+  select = (id) => this.setState({ selected: id, box: { kind: 'mega', id } });
+  showPlace = (id) => this.setState({ selected: null, box: { kind: 'place', id } });
+  showDoor = (id) => this.setState({ selected: null, box: { kind: 'door', id } });
+  close = () => this.setState({ selected: null, box: { kind: 'narrate' } });
+
+  renderVals() {
+    const { megas, box, selected, log } = this.state;
+    const sprites = megas.map((m, i) => {
+      const def = MEGAS[i], isSel = m.id === selected, walking = m.path.length > 0;
+      const frame = walkFrame(m, T);
+      const face = isSel ? 'front' : m.face;
+      const name = !walking && !isSel && m.happy && face === 'front' ? m.id + '_front_happy' : m.id + '_' + face + '_' + frame;
+      return {
+        y: m.y,
+        src: '/_blob/' + SPRITES[name],
+        left: (m.x * S).toFixed(1), top: ((m.y - 7) * S).toFixed(1), z: 10 + Math.round(m.y),
+        emote: m.emote, hasEmote: !!m.emote && !walking && !isSel, selected: isSel,
+        label: def.name + ', ' + m.status,
+        tap: () => this.select(m.id),
+      };
+    }).sort((a, b) => a.y - b.y);
+
+    const tileBox = (x, y, w, h) => ({ left: (x * T * S).toFixed(1), top: (y * T * S).toFixed(1), w: (w * T * S).toFixed(1), h: (h * T * S).toFixed(1) });
+    const spots = [
+      ...Object.keys(LAYOUT.stations).map((id) => {
+        const [x, y, w, h] = LAYOUT.stations[id].hit;
+        const on = box.kind === 'place' && box.id === id;
+        return { ...tileBox(x, y, w, h), label: PLACES[id].title, bg: on ? 'rgba(255,255,255,0.28)' : 'transparent', tap: () => this.showPlace(id) };
+      }),
+      ...LAYOUT.doors.map((d) => {
+        const def = MEGAS.find((m) => m.id === d.id);
+        const on = box.kind === 'door' && box.id === d.id;
+        return { ...tileBox(d.tile[0], d.tile[1], 1, 1), label: def.mine ? 'Your room' : def.name + '’s room', bg: on ? 'rgba(255,255,255,0.28)' : 'transparent', tap: () => this.showDoor(d.id) };
+      }),
+    ];
+
+    let mega = {}, place = {};
+    if (box.kind === 'mega') {
+      const i = MEGAS.findIndex((m) => m.id === box.id), def = MEGAS[i];
+      mega = { name: def.name, badge: def.badge, status: megas[i].status, talkHref: def.mine ? 'Talk.dc.html' : 'Main.dc.html', mine: !!def.mine, notMine: !def.mine };
+    }
+    if (box.kind === 'place') {
+      const p = PLACES[box.id];
+      place = { title: p.title, text: p.text, action: p.action, href: p.href, hasLink: !!p.href, hasButton: false };
+    }
+    if (box.kind === 'door') {
+      const def = MEGAS.find((m) => m.id === box.id);
+      place = def.mine
+        ? { title: 'Your room', text: 'Decorate it your way and see Teal at home.', action: 'Go in', href: 'Room.dc.html', hasLink: true, hasButton: false }
+        : { title: def.name + '’s room', text: 'Rooms are open to the family.', action: 'Go in', href: 'Room.dc.html', hasLink: true, hasButton: false };
+    }
+
+    return {
+      megas: sprites, spots,
+      showNarrate: box.kind === 'narrate', narration: log,
+      showMega: box.kind === 'mega', mega,
+      showPlace: box.kind === 'place' || box.kind === 'door', place,
+      close: this.close,
+      openMyRoom: () => this.showDoor('teal'),
+    };
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,345 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>MEGA profile</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;family=Pixelify+Sans:wght@400;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#0C0E11}
+a{color:#EDEFF2;text-decoration:none}
+button,input,select,textarea{font-family:inherit}
+@keyframes cheer{0%{transform:translateY(0) scale(1)}35%{transform:translateY(-16px) scale(1.06)}70%{transform:translateY(0) scale(.97)}100%{transform:translateY(0) scale(1)}}
+.cheer{animation:cheer .6s ease-in-out 2}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; box-sizing: border-box; background: #0C0E11; color: #EDEFF2; font-family: Inter, system-ui, sans-serif; display: flex; flex-direction: column; overflow: hidden">
+
+  <sc-if value="{{onProfile}}" hint-placeholder-val="{{ true }}">
+    <header style="display: flex; align-items: center; height: 56px; padding: 0 8px; flex-shrink: 0">
+      <a href="{{closeHref}}" aria-label="Close profile" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"></path></svg></a>
+    </header>
+    <div style="flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 22px; padding: 0 16px 24px">
+      <div style="display: flex; flex-direction: column; align-items: center; gap: 12px">
+        <div style="width: 240px; height: 176px; border-radius: 24px; background: {{stageBg}}; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 8px; box-sizing: border-box">
+          <div class="{{heroClass}}" style="position: relative; width: 128px; height: 160px">
+            <sc-for list="{{hero.rects}}" as="r" hint-placeholder-count="240">
+              <span style="position: absolute; left: {{r.l}}px; top: {{r.t}}px; width: {{r.w}}px; height: {{r.h}}px; background: {{r.c}}"></span>
+            </sc-for>
+            <sc-if value="{{hero.hasSticker}}" hint-placeholder-val="{{ true }}">
+              <img src="{{hero.sticker}}" alt="" style="position: absolute; inset: 0; width: 128px; height: 160px; image-rendering: pixelated">
+            </sc-if>
+          </div>
+        </div>
+        <sc-if value="{{notRenaming}}" hint-placeholder-val="{{ true }}">
+          <div style="display: flex; align-items: center; gap: 6px">
+            <h1 style="margin: 0; font-size: 28px; font-weight: 800">{{name}}</h1>
+            <sc-if value="{{canRename}}" hint-placeholder-val="{{ true }}">
+              <button type="button" onClick="{{startRename}}" aria-label="Rename {{name}}" style="width: 40px; height: 40px; border-radius: 20px; border: none; background: transparent; color: #9AA1AB; display: flex; align-items: center; justify-content: center"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"></path><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"></path></svg></button>
+            </sc-if>
+          </div>
+        </sc-if>
+        <sc-if value="{{renaming}}" hint-placeholder-val="{{ false }}">
+          <div style="display: flex; gap: 8px; width: 100%">
+            <label for="mega-name" style="position: absolute; left: -9999px">Name</label>
+            <input id="mega-name" type="text" value="{{draftName}}" onInput="{{typeName}}" style="flex: 1; height: 48px; box-sizing: border-box; border-radius: 14px; border: 1px solid #2E343D; background: #16191E; color: #EDEFF2; padding: 0 14px; font-size: 18px; font-weight: 700">
+            <button type="button" onClick="{{saveName}}" style="height: 48px; padding: 0 18px; border-radius: 24px; border: none; background: {{accent}}; color: {{accentInk}}; font-size: 15px; font-weight: 700">Save</button>
+          </div>
+        </sc-if>
+        <div style="display: flex; align-items: center; gap: 6px; font-size: 14px; color: #9AA1AB">
+          <span style="width: 7px; height: 7px; border-radius: 4px; background: {{accent}}"></span>{{status}}
+        </div>
+      </div>
+
+      <button type="button" onClick="{{openStyle}}" style="display: flex; align-items: center; gap: 14px; min-height: 76px; padding: 12px 14px; border-radius: 18px; border: 1px solid #2A3038; background: #16191E; color: #EDEFF2; text-align: left">
+        <span style="position: relative; width: 48px; height: 40px; overflow: hidden; flex-shrink: 0; border-radius: 10px; background: #FFFFFF">
+          <sc-for list="{{thumb.rects}}" as="r" hint-placeholder-count="200">
+            <span style="position: absolute; left: {{r.l}}px; top: {{r.t}}px; width: {{r.w}}px; height: {{r.h}}px; background: {{r.c}}"></span>
+          </sc-for>
+          <sc-if value="{{thumb.hasSticker}}" hint-placeholder-val="{{ true }}">
+            <img src="{{thumb.sticker}}" alt="" style="position: absolute; left: 0; top: 0; width: 48px; height: 60px; image-rendering: pixelated">
+          </sc-if>
+        </span>
+        <span style="display: flex; flex-direction: column; gap: 3px; flex: 1">
+          <span style="font-size: 17px; font-weight: 700">{{styleTitle}}</span>
+          <span style="font-size: 14px; color: #9AA1AB">{{styleSummary}}</span>
+        </span>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#9AA1AB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"></path></svg>
+      </button>
+
+      <sc-if value="{{showShares}}" hint-placeholder-val="{{ true }}">
+        <section style="display: flex; flex-direction: column; gap: 4px">
+          <h2 style="margin: 0 0 6px; font-size: 13px; font-weight: 600; color: #9AA1AB; letter-spacing: .04em; text-transform: uppercase">What {{name}} shares</h2>
+          <sc-for list="{{shares}}" as="s" hint-placeholder-count="3">
+            <div style="display: flex; align-items: center; gap: 12px; min-height: 56px; border-bottom: 1px solid #22262D">
+              <label for="{{s.id}}" style="flex: 1; display: flex; flex-direction: column; gap: 2px">
+                <span style="font-size: 16px; font-weight: 500">{{s.label}}</span>
+                <span style="font-size: 13px; color: #8A919B">{{s.hint}}</span>
+              </label>
+              <select id="{{s.id}}" style="height: 40px; border-radius: 12px; border: 1px solid #2E343D; background: #16191E; color: #EDEFF2; padding: 0 10px; font-size: 15px">
+                <sc-for list="{{s.options}}" as="o" hint-placeholder-count="3">
+                  <option value="{{o.value}}" selected="{{o.selected}}">{{o.value}}</option>
+                </sc-for>
+              </select>
+            </div>
+          </sc-for>
+        </section>
+      </sc-if>
+
+      <sc-if value="{{showAdmin}}" hint-placeholder-val="{{ true }}">
+        <section style="display: flex; flex-direction: column; gap: 4px">
+          <h2 style="margin: 0 0 6px; font-size: 13px; font-weight: 600; color: #9AA1AB; letter-spacing: .04em; text-transform: uppercase">Admin</h2>
+          <sc-for list="{{adminRows}}" as="r" hint-placeholder-count="3">
+            <button type="button" style="display: flex; align-items: center; gap: 12px; min-height: 56px; padding: 0; border: none; border-bottom: 1px solid #22262D; background: transparent; color: #EDEFF2; text-align: left">
+              <span style="flex: 1; display: flex; flex-direction: column; gap: 2px">
+                <span style="font-size: 16px; font-weight: 500">{{r.label}}</span>
+                <span style="font-size: 13px; color: #8A919B">{{r.hint}}</span>
+              </span>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#9AA1AB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"></path></svg>
+            </button>
+          </sc-for>
+        </section>
+      </sc-if>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{onStyle}}" hint-placeholder-val="{{ false }}">
+    <header style="display: grid; grid-template-columns: 80px 1fr 80px; align-items: center; height: 56px; padding: 0 8px; flex-shrink: 0">
+      <button type="button" onClick="{{backToProfile}}" aria-label="Back to profile" style="width: 44px; height: 44px; border: none; background: transparent; color: #EDEFF2; display: flex; align-items: center; justify-content: center"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"></path></svg></button>
+      <h1 style="margin: 0; text-align: center; font-size: 17px; font-weight: 700">{{styleTitle}}</h1>
+      <button type="button" onClick="{{backToProfile}}" style="justify-self: end; height: 40px; padding: 0 16px; border-radius: 20px; border: none; background: {{accent}}; color: {{accentInk}}; font-size: 15px; font-weight: 700">Done</button>
+    </header>
+    <div style="flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 22px; padding: 4px 16px 24px">
+      <div style="display: flex; align-items: center; gap: 14px; min-height: 176px; padding: 12px 14px; border-radius: 24px; background: {{stageBg}}; box-sizing: border-box">
+        <div class="{{heroClass}}" style="position: relative; width: {{preview.w}}px; height: {{preview.h}}px; flex-shrink: 0">
+          <sc-for list="{{preview.rects}}" as="r" hint-placeholder-count="240">
+            <span style="position: absolute; left: {{r.l}}px; top: {{r.t}}px; width: {{r.w}}px; height: {{r.h}}px; background: {{r.c}}"></span>
+          </sc-for>
+          <sc-if value="{{preview.hasSticker}}" hint-placeholder-val="{{ true }}">
+            <img src="{{preview.sticker}}" alt="" style="position: absolute; inset: 0; width: 100%; height: 100%; image-rendering: pixelated">
+          </sc-if>
+        </div>
+        <sc-if value="{{showPersonality}}" hint-placeholder-val="{{ true }}">
+          <div style="flex: 1; border: 3px solid #1B1A3A; border-radius: 10px; background: #FFFFFF; box-shadow: inset 0 0 0 2px #B9C3E0; padding: 10px 12px; color: #1B1A3A; font-family: 'Pixelify Sans', monospace; font-size: 16px; line-height: 21px">{{sample}}</div>
+        </sc-if>
+      </div>
+
+      <section style="display: flex; flex-direction: column; gap: 10px">
+        <h2 style="margin: 0; font-size: 13px; font-weight: 600; color: #9AA1AB; letter-spacing: .04em; text-transform: uppercase">Color</h2>
+        <div style="display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 8px">
+          <sc-for list="{{colors}}" as="c" hint-placeholder-count="6">
+            <button type="button" aria-label="{{c.label}}" aria-pressed="{{c.on}}" onClick="{{c.pick}}" style="height: {{swatch}}px; border-radius: 50%; border: {{c.ring}}; background: {{c.hex}}; box-shadow: inset 0 0 0 2px rgba(0,0,0,0.25)"></button>
+          </sc-for>
+          <button type="button" aria-label="Custom color" aria-expanded="{{customOpenStr}}" onClick="{{toggleCustom}}" style="height: {{swatch}}px; border-radius: 50%; border: {{customRing}}; background: conic-gradient(#F2766B, #F2B33D, #5BBF6A, #2FB8B0, #5B8DEF, #8E6CE0, #F2766B); display: flex; align-items: center; justify-content: center; color: #FFFFFF"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg></button>
+        </div>
+        <sc-if value="{{customOpen}}" hint-placeholder-val="{{ false }}">
+          <div style="display: flex; align-items: center; gap: 10px; padding: 10px; border-radius: 16px; background: #16191E; border: 1px solid #2A3038">
+            <label for="custom-color" style="position: absolute; left: -9999px">Pick a color</label>
+            <input id="custom-color" type="color" value="{{hex}}" onInput="{{pickCustom}}" style="width: 52px; height: 44px; padding: 0; border: none; border-radius: 10px; background: transparent">
+            <label for="custom-hex" style="font-size: 14px; color: #9AA1AB">Hex</label>
+            <input id="custom-hex" type="text" value="{{draftHex}}" onInput="{{typeHex}}" maxlength="7" style="flex: 1; min-width: 0; height: 44px; box-sizing: border-box; border-radius: 12px; border: 1px solid {{hexBorder}}; background: #0C0E11; color: #EDEFF2; padding: 0 12px; font-size: 16px; font-family: ui-monospace, monospace; text-transform: uppercase">
+          </div>
+        </sc-if>
+      </section>
+
+      <section style="display: flex; flex-direction: column; gap: 10px">
+        <h2 style="margin: 0; font-size: 13px; font-weight: 600; color: #9AA1AB; letter-spacing: .04em; text-transform: uppercase">Sticker</h2>
+        <div style="display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px">
+          <sc-for list="{{stickers}}" as="d" hint-placeholder-count="5">
+            <button type="button" aria-label="{{d.label}}" aria-pressed="{{d.on}}" onClick="{{d.pick}}" style="position: relative; height: {{swatch}}px; border-radius: 14px; border: {{d.ring}}; background: #16191E; color: #EDEFF2; overflow: hidden; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600">
+              <sc-if value="{{d.hasImage}}" hint-placeholder-val="{{ true }}">
+                <span aria-hidden="true" style="position: relative; width: 36px; height: 36px; overflow: hidden">
+                  <img src="{{d.src}}" alt="" style="position: absolute; left: -60px; top: -9px; width: 96px; height: 120px; image-rendering: pixelated">
+                </span>
+              </sc-if>
+              <sc-if value="{{d.isNone}}" hint-placeholder-val="{{ false }}">None</sc-if>
+            </button>
+          </sc-for>
+        </div>
+      </section>
+
+      <sc-if value="{{showPersonality}}" hint-placeholder-val="{{ true }}">
+        <section style="display: flex; flex-direction: column; gap: 10px">
+          <h2 style="margin: 0; font-size: 13px; font-weight: 600; color: #9AA1AB; letter-spacing: .04em; text-transform: uppercase">Personality</h2>
+          <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px">
+            <sc-for list="{{personalities}}" as="p" hint-placeholder-count="4">
+              <button type="button" aria-pressed="{{p.on}}" onClick="{{p.pick}}" style="display: flex; align-items: center; gap: 10px; min-height: 76px; padding: 10px; border-radius: 16px; border: {{p.ring}}; background: #16191E; color: #EDEFF2; text-align: left">
+                <span style="position: relative; width: 48px; height: 40px; overflow: hidden; flex-shrink: 0; border-radius: 10px; background: #FFFFFF">
+                  <sc-for list="{{p.face.rects}}" as="r" hint-placeholder-count="200">
+                    <span style="position: absolute; left: {{r.l}}px; top: {{r.t}}px; width: {{r.w}}px; height: {{r.h}}px; background: {{r.c}}"></span>
+                  </sc-for>
+                </span>
+                <span style="display: flex; flex-direction: column; gap: 2px">
+                  <span style="font-size: 16px; font-weight: 700">{{p.label}}</span>
+                  <span style="font-size: 12px; line-height: 16px; color: #9AA1AB">{{p.blurb}}</span>
+                </span>
+              </button>
+            </sc-for>
+          </div>
+        </section>
+      </sc-if>
+    </div>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"level":{"editor":"enum","options":["admin","adult","kid"],"default":"admin"},"start":{"editor":"enum","options":["profile","style"],"default":"profile"},"$preview":{"width":390,"height":844}}'>
+// Generated from prototypes/megasprite (mega-template.mjs, pixel-paint.mjs, export-looks.mjs).
+// The MEGA is drawn live from the template's pixel data, so any hex colour works.
+const COLOR_LABELS = { teal: 'Teal', coral: 'Coral', violet: 'Violet', sun: 'Sun', sky: 'Sky', leaf: 'Leaf' };
+const STICKER_LABELS = { star: 'Star', heart: 'Heart', leaf: 'Leaf', bolt: 'Bolt', none: 'No sticker' };
+const BLINK_EVERY = 3400, BLINK_FOR = 150;
+const HEX = /^#[0-9a-fA-F]{6}$/;
+
+// Who is looking, by level. Config in the app; sample members here.
+const MEMBERS = {
+  admin: { name: 'Teal', hex: '#2FB8B0', sticker: 'star', personality: 'brief', status: 'At the desk · Math homework', close: 'Main.dc.html' },
+  adult: { name: 'Coral', hex: '#F2766B', sticker: 'heart', personality: 'cheerful', status: 'At the calendar', close: 'Main.dc.html' },
+  kid: { name: 'Zap', hex: '#8E6CE0', sticker: 'bolt', personality: 'cheerful', status: 'Ready to play', close: 'Kid.dc.html' },
+};
+
+const LOOKS = {"grid":[32,40],"body":[[15,0,2,"outline"],[14,1,1,"outline"],[15,1,2,"tipLight"],[17,1,1,"outline"],[13,2,1,"outline"],[14,2,1,"tipLight"],[15,2,2,"tip"],[17,2,1,"tipLight"],[18,2,1,"outline"],[14,3,1,"outline"],[15,3,2,"tipDark"],[17,3,1,"outline"],[14,4,4,"outline"],[14,5,1,"outline"],[15,5,2,"silver"],[17,5,1,"outline"],[14,6,1,"outline"],[15,6,2,"silver"],[17,6,1,"outline"],[6,7,20,"outline"],[5,8,1,"outline"],[6,8,20,"shellLight"],[26,8,1,"outline"],[4,9,1,"outline"],[5,9,1,"shellLight"],[6,9,20,"shell"],[26,9,1,"shellLight"],[27,9,1,"outline"],[3,10,1,"outline"],[4,10,1,"shellLight"],[5,10,22,"shell"],[27,10,1,"shellLight"],[28,10,1,"outline"],[3,11,1,"outline"],[4,11,4,"shell"],[8,11,16,"visor"],[24,11,4,"shell"],[28,11,1,"outline"],[2,12,2,"outline"],[4,12,3,"shell"],[7,12,3,"visor"],[10,12,3,"glare"],[13,12,12,"visor"],[25,12,3,"shell"],[28,12,2,"outline"],[1,13,1,"outline"],[2,13,1,"shellLight"],[3,13,1,"outline"],[4,13,3,"shell"],[7,13,2,"visor"],[9,13,1,"glare"],[10,13,15,"visor"],[25,13,3,"shell"],[28,13,1,"outline"],[29,13,1,"shellLight"],[30,13,1,"outline"],[0,14,1,"outline"],[1,14,1,"shellLight"],[2,14,1,"shell"],[3,14,1,"outline"],[4,14,3,"shell"],[7,14,2,"visor"],[9,14,1,"glare"],[10,14,15,"visor"],[25,14,3,"shell"],[28,14,1,"outline"],[29,14,1,"shell"],[30,14,1,"shellLight"],[31,14,1,"outline"],[0,15,1,"outline"],[1,15,2,"shell"],[3,15,1,"outline"],[4,15,3,"shell"],[7,15,18,"visor"],[25,15,3,"shell"],[28,15,1,"outline"],[29,15,2,"shell"],[31,15,1,"outline"],[0,16,1,"outline"],[1,16,2,"shell"],[3,16,1,"outline"],[4,16,3,"shell"],[7,16,18,"visor"],[25,16,3,"shell"],[28,16,1,"outline"],[29,16,2,"shell"],[31,16,1,"outline"],[0,17,1,"outline"],[1,17,2,"shell"],[3,17,1,"outline"],[4,17,3,"shell"],[7,17,18,"visor"],[25,17,3,"shell"],[28,17,1,"outline"],[29,17,2,"shell"],[31,17,1,"outline"],[0,18,1,"outline"],[1,18,1,"shellDark"],[2,18,1,"shell"],[3,18,1,"outline"],[4,18,3,"shell"],[7,18,18,"visor"],[25,18,3,"shell"],[28,18,1,"outline"],[29,18,1,"shell"],[30,18,1,"shellDark"],[31,18,1,"outline"],[1,19,1,"outline"],[2,19,1,"shellDark"],[3,19,1,"outline"],[4,19,3,"shell"],[7,19,18,"visor"],[25,19,3,"shell"],[28,19,1,"outline"],[29,19,1,"shellDark"],[30,19,1,"outline"],[2,20,2,"outline"],[4,20,3,"shell"],[7,20,18,"visor"],[25,20,3,"shell"],[28,20,2,"outline"],[3,21,1,"outline"],[4,21,3,"shell"],[7,21,18,"visor"],[25,21,3,"shell"],[28,21,1,"outline"],[3,22,1,"outline"],[4,22,4,"shell"],[8,22,16,"visor"],[24,22,4,"shell"],[28,22,1,"outline"],[3,23,1,"outline"],[4,23,1,"shellDark"],[5,23,22,"shell"],[27,23,1,"shellDark"],[28,23,1,"outline"],[4,24,1,"outline"],[5,24,1,"shellDark"],[6,24,20,"shell"],[26,24,1,"shellDark"],[27,24,1,"outline"],[5,25,1,"outline"],[6,25,20,"shellDark"],[26,25,1,"outline"],[5,26,22,"outline"],[4,27,1,"outline"],[5,27,2,"whiteLight"],[7,27,1,"outline"],[8,27,1,"shellLight"],[9,27,1,"outline"],[10,27,1,"shellLight"],[11,27,2,"shell"],[13,27,6,"outline"],[19,27,2,"shell"],[21,27,1,"shellLight"],[22,27,1,"outline"],[23,27,1,"shellLight"],[24,27,1,"outline"],[25,27,2,"whiteLight"],[27,27,1,"outline"],[3,28,1,"outline"],[4,28,1,"whiteLight"],[5,28,2,"white"],[7,28,1,"whiteLight"],[8,28,2,"outline"],[10,28,2,"shell"],[12,28,1,"outline"],[13,28,6,"whiteLight"],[19,28,1,"outline"],[20,28,2,"shell"],[22,28,2,"outline"],[24,28,1,"whiteLight"],[25,28,2,"white"],[27,28,1,"whiteLight"],[28,28,1,"outline"],[3,29,1,"outline"],[4,29,1,"whiteDark"],[5,29,2,"white"],[7,29,1,"whiteDark"],[8,29,2,"outline"],[10,29,2,"shell"],[12,29,1,"outline"],[13,29,6,"whiteDark"],[19,29,1,"outline"],[20,29,2,"shell"],[22,29,2,"outline"],[24,29,1,"whiteDark"],[25,29,2,"white"],[27,29,1,"whiteDark"],[28,29,1,"outline"],[4,30,1,"outline"],[5,30,2,"whiteDark"],[7,30,1,"outline"],[9,30,1,"outline"],[10,30,1,"shellDark"],[11,30,2,"shell"],[13,30,6,"outline"],[19,30,2,"shell"],[21,30,1,"shellDark"],[22,30,1,"outline"],[24,30,1,"outline"],[25,30,2,"whiteDark"],[27,30,1,"outline"],[5,31,2,"outline"],[10,31,1,"outline"],[11,31,10,"shellDark"],[21,31,1,"outline"],[25,31,2,"outline"],[11,32,10,"outline"],[11,33,1,"outline"],[12,33,2,"shell"],[14,33,1,"outline"],[17,33,1,"outline"],[18,33,2,"shell"],[20,33,1,"outline"],[11,34,4,"outline"],[17,34,4,"outline"],[10,35,1,"outline"],[11,35,3,"whiteLight"],[14,35,1,"outline"],[17,35,1,"outline"],[18,35,3,"whiteLight"],[21,35,1,"outline"],[9,36,1,"outline"],[10,36,1,"whiteLight"],[11,36,3,"white"],[14,36,1,"whiteLight"],[15,36,2,"outline"],[17,36,1,"whiteLight"],[18,36,3,"white"],[21,36,1,"whiteLight"],[22,36,1,"outline"],[10,37,1,"outline"],[11,37,3,"whiteDark"],[14,37,1,"outline"],[17,37,1,"outline"],[18,37,3,"whiteDark"],[21,37,1,"outline"],[11,38,3,"outline"],[18,38,3,"outline"]],"faces":{"calm":[[11,16,2,"eye"],[19,16,2,"eye"],[11,17,2,"eye"],[19,17,2,"eye"]],"happy":[[11,16,2,"eye"],[19,16,2,"eye"],[10,17,1,"eye"],[13,17,1,"eye"],[18,17,1,"eye"],[21,17,1,"eye"],[8,19,2,"blush"],[22,19,2,"blush"]],"wink":[[11,15,2,"eye"],[11,16,2,"eye"],[19,16,2,"eye"],[11,17,2,"eye"],[18,17,1,"eye"],[21,17,1,"eye"]],"open":[[11,15,2,"eye"],[19,15,2,"eye"],[11,16,2,"eye"],[19,16,2,"eye"],[11,17,2,"eye"],[19,17,2,"eye"]],"closed":[[10,17,4,"eye"],[18,17,4,"eye"]]},"fixed":{"outline":"#1B1A3A","visor":"#17143A","glare":"#BFEAF7","white":"#F4F6FB","whiteLight":"#FFFFFF","whiteDark":"#AEB3CC","silver":"#C9CFDB","silverLight":"#E8EBF2","silverDark":"#8E95AB","tip":"#9FF0F7","tipLight":"#F0FFFF","tipDark":"#5FCFE0","eye":"#E8FFFF","blush":"#FF9AB2"},"colors":{"teal":"#2FB8B0","coral":"#F2766B","violet":"#8E6CE0","sun":"#F2B33D","sky":"#5B8DEF","leaf":"#5BBF6A"},"stickers":["star","heart","leaf","bolt"],"personalities":{"calm":{"label":"Calm","face":"calm","blurb":"Gentle and unhurried","sample":"No rush. Practice is at 5:30, and I'll remind you at 4:50."},"cheerful":{"label":"Cheerful","face":"happy","blurb":"Upbeat and encouraging","sample":"Good news! Practice is at 5:30. Want a reminder at 4:50?"},"funny":{"label":"Funny","face":"wink","blurb":"Light jokes, still useful","sample":"Practice at 5:30. I'll ping you at 4:50, before traffic does."},"brief":{"label":"Brief","face":"open","blurb":"Short and to the point","sample":"Practice 5:30. Reminder at 4:50?"}}};
+const STICKER_ART = {"star":"a509b7da6f93811f29bf9e84560af70f","heart":"ef08bdd73525cdfac56fe3c437a18b9c","leaf":"6729bb22fb50e334dd97a073fa44e53a","bolt":"f4bb0c6f1f0fcae62475f582a31df06e"};
+function hexToHsl(hex) {
+  const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255);
+  const max = Math.max(r, g, b), min = Math.min(r, g, b), l = (max + min) / 2;
+  if (max === min) return [0, 0, l];
+  const d = max - min, s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+  const h = max === r ? (g - b) / d + (g < b ? 6 : 0) : max === g ? (b - r) / d + 2 : (r - g) / d + 4;
+  return [h * 60, s, l];
+}
+
+function hslToHex(h, s, l) {
+  const k = (n) => (n + h / 30) % 12, a = s * Math.min(l, 1 - l);
+  const f = (n) => l - a * Math.max(-1, Math.min(k(n) - 3, 9 - k(n), 1));
+  return "#" + [0, 8, 4].map((n) => Math.round(f(n) * 255).toString(16).padStart(2, "0")).join("");
+}
+
+const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
+
+/** Light and dark shades of one colour, with a slight hue shift like hand-pixelled art. */
+function shades(hex) {
+  const [h, s, l] = hexToHsl(hex);
+  return {
+    light: hslToHex((h + 356) % 360, s, clamp(l + 0.13, 0, 0.92)),
+    dark: hslToHex((h + 8) % 360, s, clamp(l - 0.16, 0.08, 1)),
+  };
+}
+
+
+// Shared by boards that draw MEGAs live from template data (LOOKS, STICKER_ART, shades()).
+function paletteFor(hex) {
+  const { light, dark } = shades(hex);
+  return { ...LOOKS.fixed, shell: hex, shellLight: light, shellDark: dark };
+}
+// Pixel runs -> positioned boxes at `scale`, optionally only rows above `maxRow` (head crops).
+function draw(hex, face, scale, maxRow) {
+  const pal = paletteFor(hex);
+  const runs = [...LOOKS.body, ...(LOOKS.faces[face] || [])].filter((r) => maxRow === undefined || r[1] < maxRow);
+  return runs.map(([x, y, w, k]) => ({ l: x * scale, t: y * scale, w: w * scale, h: scale, c: pal[k] }));
+}
+function sprite(hex, face, sticker, scale, maxRow) {
+  const [gw, gh] = LOOKS.grid;
+  return { rects: draw(hex, face, scale, maxRow), hasSticker: sticker !== 'none', sticker: sticker === 'none' ? '' : '/_blob/' + STICKER_ART[sticker], w: gw * scale, h: gh * scale };
+}
+// Dark or light text on a coloured button, whichever reads better.
+function inkOn(hex) {
+  const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255);
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b > 0.45 ? '#0C0E11' : '#FFFFFF';
+}
+
+
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    const m = MEMBERS[props.level] || MEMBERS.admin;
+    this.state = { screen: props.start === 'style' ? 'style' : 'profile', name: m.name, draftName: m.name, renaming: false, hex: m.hex, draftHex: m.hex, customOpen: false, sticker: m.sticker, personality: m.personality, cheerAt: 0, blinking: false };
+  }
+  componentDidMount() {
+    this.blinkTimer = setInterval(() => {
+      this.setState({ blinking: true });
+      this.unblink = setTimeout(() => this.setState({ blinking: false }), BLINK_FOR);
+    }, BLINK_EVERY);
+  }
+  componentWillUnmount() { clearInterval(this.blinkTimer); clearTimeout(this.unblink); clearTimeout(this.cheerTimer); }
+
+  // Kids get a happy bounce whenever they change the look.
+  cheer() {
+    if ((this.props.level || 'admin') !== 'kid') return;
+    clearTimeout(this.cheerTimer);
+    this.setState({ cheerAt: Date.now() });
+    this.cheerTimer = setTimeout(() => this.setState({ cheerAt: 0 }), 1300);
+  }
+  setHex(hex) { this.setState({ hex: hex.toUpperCase(), draftHex: hex.toUpperCase() }); this.cheer(); }
+
+  renderVals() {
+    const level = this.props.level || 'admin', m = MEMBERS[level] || MEMBERS.admin;
+    const { screen, name, draftName, renaming, hex, draftHex, customOpen, sticker, personality, cheerAt, blinking } = this.state;
+    const isKid = level === 'kid', accent = hex, presetHexes = Object.values(LOOKS.colors).map((c) => c.toUpperCase());
+    const resting = LOOKS.personalities[personality].face;
+    const face = cheerAt ? 'happy' : blinking ? 'closed' : resting;
+    const ring = (on) => (on ? '3px solid ' + accent : '3px solid transparent');
+    const isCustom = !presetHexes.includes(hex.toUpperCase());
+    const presetName = Object.keys(LOOKS.colors).find((id) => LOOKS.colors[id].toUpperCase() === hex.toUpperCase());
+
+    return {
+      onProfile: screen === 'profile', onStyle: screen === 'style',
+      closeHref: m.close, name, status: m.status, accent, accentInk: inkOn(accent),
+      stageBg: accent + '22',
+      heroClass: cheerAt ? 'cheer' : '',
+      hero: sprite(hex, face, sticker, 4),
+      thumb: sprite(hex, face, sticker, 1.5, 27),
+      preview: sprite(hex, face, sticker, isKid ? 4.5 : 3.5),
+      canRename: !isKid, notRenaming: !renaming, renaming, draftName,
+      startRename: () => this.setState({ renaming: true, draftName: name }),
+      typeName: (e) => this.setState({ draftName: e.target.value }),
+      saveName: () => this.setState({ renaming: false, name: draftName.trim() || name }),
+      styleTitle: isKid ? 'Change look' : 'Look and personality',
+      styleSummary: (presetName ? COLOR_LABELS[presetName] : hex) + ' · ' + STICKER_LABELS[sticker] + ' · ' + LOOKS.personalities[personality].label,
+      openStyle: () => this.setState({ screen: 'style' }),
+      backToProfile: () => this.setState({ screen: 'profile' }),
+      showShares: !isKid, showAdmin: level === 'admin',
+      shares: [
+        { id: 'share-schedule', label: 'Schedule', hint: 'Events and reminders', value: 'Family' },
+        { id: 'share-lists', label: 'Lists', hint: 'Groceries, chores, packing', value: 'Family' },
+        { id: 'share-hq', label: 'What ' + name + ' is doing in HQ', hint: 'Others see "Busy" when off', value: 'Only me' },
+      ].map((s) => ({ ...s, options: ['Only me', 'Partner', 'Family'].map((v) => ({ value: v, selected: v === s.value })) })),
+      adminRows: [
+        { label: 'What ' + name + ' remembers', hint: '24 things · search and delete' },
+        { label: 'Rules and limits', hint: 'Quiet hours 9 PM–7 AM · 6 pushes a day' },
+        { label: 'Activity', hint: 'What ' + name + ' did and when' },
+      ],
+      swatch: isKid ? 52 : 44,
+      showPersonality: true,
+      sample: LOOKS.personalities[personality].sample,
+      colors: Object.keys(LOOKS.colors).map((id) => {
+        const on = LOOKS.colors[id].toUpperCase() === hex.toUpperCase();
+        return { hex: LOOKS.colors[id], label: COLOR_LABELS[id], on: on ? 'true' : 'false', ring: on ? '3px solid #FFFFFF' : '3px solid transparent', pick: () => this.setHex(LOOKS.colors[id]) };
+      }),
+      customOpen, customOpenStr: customOpen ? 'true' : 'false', customRing: isCustom ? '3px solid #FFFFFF' : '3px solid transparent',
+      toggleCustom: () => this.setState({ customOpen: !customOpen, draftHex: hex }),
+      hex, draftHex, hexBorder: HEX.test(draftHex) ? '#2E343D' : '#F2766B',
+      pickCustom: (e) => this.setHex(e.target.value),
+      typeHex: (e) => {
+        let v = e.target.value.trim();
+        if (v && v[0] !== '#') v = '#' + v;
+        if (HEX.test(v)) this.setHex(v); else this.setState({ draftHex: v });
+      },
+      stickers: [...LOOKS.stickers, 'none'].map((id) => ({
+        label: STICKER_LABELS[id], on: id === sticker ? 'true' : 'false', ring: ring(id === sticker),
+        hasImage: id !== 'none', isNone: id === 'none', src: id === 'none' ? '' : '/_blob/' + STICKER_ART[id],
+        pick: () => { this.setState({ sticker: id }); this.cheer(); },
+      })),
+      personalities: Object.keys(LOOKS.personalities).map((id) => {
+        const p = LOOKS.personalities[id];
+        return { label: p.label, blurb: p.blurb, on: id === personality ? 'true' : 'false', ring: ring(id === personality), face: sprite(hex, p.face, 'none', 1.5, 27), pick: () => { this.setState({ personality: id }); this.cheer(); } };
+      }),
+    };
+  }
+}
+</script>
+</body>
+</html>

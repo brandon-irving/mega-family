@@ -1,0 +1,386 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Zap's room</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;family=Pixelify+Sans:wght@400;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#0C0E11}
+a{color:#EDEFF2;text-decoration:none}
+button,input{font-family:inherit}
+@keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}
+.emote{animation:bob .8s ease-in-out infinite}
+@keyframes blink{0%,49%{opacity:1}50%,100%{opacity:0}}
+.more{animation:blink 1s steps(1) infinite}
+</style>
+</helmet>
+<div style="position: relative; width: 390px; height: 844px; box-sizing: border-box; background: #0C0E11; color: #EDEFF2; font-family: Inter, system-ui, sans-serif; display: flex; flex-direction: column; overflow: hidden">
+  <header style="display: grid; grid-template-columns: 96px 1fr 96px; align-items: center; height: 60px; padding: 0 10px; flex-shrink: 0">
+    <sc-if value="{{viewing}}" hint-placeholder-val="{{ true }}">
+      <a href="HQ.dc.html" style="display: flex; align-items: center; gap: 4px; height: 44px; font-size: 16px; color: #B9A4F2; font-weight: 600"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"></path></svg>HQ</a>
+      <h1 style="margin: 0; text-align: center; font-size: 19px; font-weight: 700">Zap’s room</h1>
+      <button type="button" onClick="{{startDecorate}}" style="justify-self: end; height: 40px; padding: 0 14px; border-radius: 20px; border: none; background: #8E6CE0; color: #140A33; font-size: 15px; font-weight: 700">Decorate</button>
+    </sc-if>
+    <sc-if value="{{decorating}}" hint-placeholder-val="{{ false }}">
+      <span></span>
+      <h1 style="margin: 0; text-align: center; font-size: 19px; font-weight: 700">Decorate</h1>
+      <button type="button" onClick="{{finishDecorate}}" style="justify-self: end; height: 40px; padding: 0 18px; border-radius: 20px; border: none; background: #EDEFF2; color: #0C0E11; font-size: 15px; font-weight: 700">Done</button>
+    </sc-if>
+  </header>
+
+  <div style="position: relative; width: 384px; height: 432px; margin: 0 3px; flex-shrink: 0; overflow: hidden">
+    <img src="{{base}}" alt="Zap's room" style="position: absolute; left: 0; top: 0; width: 384px; height: 432px; image-rendering: pixelated; display: block">
+    <sc-for list="{{pieces}}" as="p" hint-placeholder-count="8">
+      <img src="{{p.src}}" alt="" style="position: absolute; left: {{p.left}}px; top: {{p.top}}px; width: {{p.w}}px; height: {{p.h}}px; z-index: {{p.z}}; pointer-events: none; image-rendering: pixelated">
+    </sc-for>
+    <img src="{{zap.src}}" alt="" style="position: absolute; left: {{zap.left}}px; top: {{zap.top}}px; width: 48px; height: 60px; z-index: {{zap.z}}; pointer-events: none; image-rendering: pixelated">
+    <sc-if value="{{zap.hasEmote}}" hint-placeholder-val="{{ false }}">
+      <span class="emote" style="position: absolute; left: {{zap.emoteLeft}}px; top: {{zap.emoteTop}}px; z-index: 200; min-width: 28px; height: 24px; box-sizing: border-box; padding: 0 5px; border: 2px solid #1B1A3A; border-radius: 6px; background: #FFFFFF; color: #1B1A3A; font-family: 'Pixelify Sans', monospace; font-size: 16px; font-weight: 600; line-height: 20px; text-align: center">{{zap.emote}}</span>
+    </sc-if>
+
+    <sc-if value="{{viewing}}" hint-placeholder-val="{{ true }}">
+      <sc-for list="{{viewSpots}}" as="s" hint-placeholder-count="3">
+        <sc-if value="{{s.isLink}}" hint-placeholder-val="{{ false }}">
+          <a href="{{s.href}}" aria-label="{{s.label}}" style="position: absolute; left: {{s.left}}px; top: {{s.top}}px; width: {{s.w}}px; height: {{s.h}}px; z-index: 300"></a>
+        </sc-if>
+        <sc-if value="{{s.isButton}}" hint-placeholder-val="{{ true }}">
+          <button type="button" aria-label="{{s.label}}" onClick="{{s.tap}}" style="position: absolute; left: {{s.left}}px; top: {{s.top}}px; width: {{s.w}}px; height: {{s.h}}px; padding: 0; border: none; background: transparent; z-index: 300"></button>
+        </sc-if>
+      </sc-for>
+    </sc-if>
+
+    <sc-if value="{{decorating}}" hint-placeholder-val="{{ false }}">
+      <sc-for list="{{cells}}" as="c" hint-placeholder-count="72">
+        <button type="button" aria-label="{{c.label}}" onClick="{{c.tap}}" style="position: absolute; left: {{c.left}}px; top: {{c.top}}px; width: 48px; height: 48px; box-sizing: border-box; padding: 0; border: 1px solid rgba(27,26,58,0.18); background: transparent; z-index: 300"></button>
+      </sc-for>
+      <sc-if value="{{hasSel}}" hint-placeholder-val="{{ false }}">
+        <div aria-hidden="true" style="position: absolute; left: {{selBox.left}}px; top: {{selBox.top}}px; width: {{selBox.w}}px; height: {{selBox.h}}px; box-sizing: border-box; border: 3px dashed #FFFFFF; border-radius: 6px; box-shadow: 0 0 0 2px #1B1A3A; z-index: 250; pointer-events: none"></div>
+      </sc-if>
+    </sc-if>
+  </div>
+
+  <sc-if value="{{viewing}}" hint-placeholder-val="{{ true }}">
+    <section aria-live="polite" style="flex: 1; display: flex; flex-direction: column; justify-content: center; padding: 10px 12px">
+      <div style="position: relative; min-height: 100px; box-sizing: border-box; border: 4px solid #1B1A3A; border-radius: 10px; background: #FFFFFF; box-shadow: inset 0 0 0 3px #B9C3E0; padding: 14px 16px; color: #1B1A3A; font-family: 'Pixelify Sans', monospace; font-size: 19px; line-height: 26px">
+        {{log}}
+        <svg class="more" style="position: absolute; right: 14px; bottom: 12px" width="14" height="10" viewBox="0 0 14 10" aria-hidden="true"><path d="M0 0h14L7 10z" fill="#1B1A3A"></path></svg>
+      </div>
+    </section>
+    <nav aria-label="Main" style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); height: 70px; flex-shrink: 0; border-top: 1px solid #22262D; background: #0F1114">
+      <a href="Kid.dc.html" style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; color: #9AA1AB; font-size: 13px">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20.5l1.4-4.9A8 8 0 1 1 21 12z"></path></svg>
+        Chat
+      </a>
+      <a href="HQ.dc.html" aria-current="page" style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; color: #B9A4F2; font-size: 13px; font-weight: 700">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"></path></svg>
+        HQ
+      </a>
+    </nav>
+  </sc-if>
+
+  <sc-if value="{{decorating}}" hint-placeholder-val="{{ false }}">
+    <section style="flex: 1; display: flex; flex-direction: column; gap: 12px; padding: 12px 14px 16px; background: #15181D; border-top: 1px solid #2A3038; min-height: 0">
+      <div style="min-height: 52px; display: flex; align-items: center; gap: 10px">
+        <sc-if value="{{hasSel}}" hint-placeholder-val="{{ false }}">
+          <div style="font-size: 16px; font-weight: 700; min-width: 64px">{{sel.label}}</div>
+          <div style="display: flex; gap: 8px; flex: 1">
+            <sc-for list="{{sel.swatches}}" as="w" hint-placeholder-count="4">
+              <button type="button" aria-label="{{w.label}}" onClick="{{w.pick}}" style="width: 44px; height: 44px; border-radius: 22px; border: {{w.ring}}; background: {{w.hex}}"></button>
+            </sc-for>
+          </div>
+          <button type="button" onClick="{{removeSel}}" style="height: 44px; padding: 0 14px; border-radius: 22px; border: 1px solid #2E343D; background: transparent; color: #EDEFF2; font-size: 14px; font-weight: 600">Remove</button>
+        </sc-if>
+        <sc-if value="{{noSel}}" hint-placeholder-val="{{ true }}">
+          <div style="font-size: 15px; color: #B4BAC3; line-height: 21px">{{hint}}</div>
+        </sc-if>
+      </div>
+
+      <div role="tablist" aria-label="Decorate" style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; padding: 4px; border-radius: 14px; background: #0C0E11">
+        <sc-for list="{{tabs}}" as="t" hint-placeholder-count="3">
+          <button type="button" role="tab" aria-selected="{{t.on}}" onClick="{{t.pick}}" style="height: 40px; border-radius: 10px; border: none; background: {{t.bg}}; color: {{t.fg}}; font-size: 15px; font-weight: 600">{{t.label}}</button>
+        </sc-for>
+      </div>
+
+      <sc-if value="{{tabFurniture}}" hint-placeholder-val="{{ true }}">
+        <div style="display: flex; gap: 10px; overflow-x: auto; padding-bottom: 4px">
+          <sc-for list="{{tray}}" as="k" hint-placeholder-count="7">
+            <button type="button" onClick="{{k.add}}" aria-label="Add {{k.label}}" style="flex-shrink: 0; width: 84px; height: 104px; border-radius: 16px; border: 1px solid #2A3038; background: #1C2026; color: #EDEFF2; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; font-size: 13px; font-weight: 600">
+              <img src="{{k.src}}" alt="" style="width: {{k.w}}px; height: {{k.h}}px; image-rendering: pixelated">
+              {{k.label}}
+            </button>
+          </sc-for>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{tabWalls}}" hint-placeholder-val="{{ false }}">
+        <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px">
+          <sc-for list="{{wallSwatches}}" as="w" hint-placeholder-count="3">
+            <button type="button" onClick="{{w.pick}}" style="height: 96px; border-radius: 16px; border: {{w.ring}}; background: {{w.hex}}; color: #1B1A3A; font-size: 15px; font-weight: 700; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 12px">{{w.name}}</button>
+          </sc-for>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{tabPosters}}" hint-placeholder-val="{{ false }}">
+        <div style="display: flex; flex-direction: column; gap: 10px">
+          <label for="poster-prompt" style="font-size: 14px; color: #B4BAC3">Describe a poster and Zap will make it</label>
+          <input id="poster-prompt" type="text" value="{{prompt}}" onInput="{{typePrompt}}" placeholder="A rocket flying past a ringed planet" style="height: 52px; box-sizing: border-box; border-radius: 14px; border: 1px solid #2E343D; background: #0C0E11; color: #EDEFF2; padding: 0 14px; font-size: 16px">
+          <button type="button" onClick="{{makePoster}}" style="height: 52px; border-radius: 26px; border: none; background: #8E6CE0; color: #140A33; font-size: 16px; font-weight: 800">{{makeLabel}}</button>
+        </div>
+      </sc-if>
+    </section>
+  </sc-if>
+
+  <sc-if value="{{posterOpen}}" hint-placeholder-val="{{ false }}">
+    <div role="dialog" aria-label="Poster" style="position: absolute; inset: 0; z-index: 500; background: rgba(8,9,12,0.88); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; padding: 24px">
+      <div style="padding: 10px; background: {{posterFrame}}; border-radius: 6px; box-shadow: 0 0 0 4px #1B1A3A, 0 24px 60px rgba(0,0,0,0.6)">
+        <img src="/_blob/cec8f926a36bbb634cc9bd571f8087a7" alt="{{posterPrompt}}" style="width: 270px; height: 360px; display: block; image-rendering: pixelated">
+      </div>
+      <div style="display: flex; flex-direction: column; align-items: center; gap: 4px; text-align: center">
+        <div style="font-size: 18px; font-weight: 700">“{{posterPrompt}}”</div>
+        <div style="font-size: 13px; color: #9AA1AB">Made by Zap with Muse Image</div>
+      </div>
+      <button type="button" onClick="{{closePoster}}" style="height: 48px; padding: 0 32px; border-radius: 24px; border: none; background: #EDEFF2; color: #0C0E11; font-size: 16px; font-weight: 700">Close</button>
+    </div>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+// Generated from prototypes/megasprite (hq-template.mjs + export-room.mjs).
+const ROOM = {"tile":32,"cols":8,"rows":9,"walls":{"top":2,"bottom":1},"exitTile":[3,8],"blockedFixed":[[3,8]],"colors":["#8E6CE0","#5B8DEF","#6CBF6A","#F2766B"],"walls_on_offer":[{"name":"Cream","hex":"#F3EAD6"},{"name":"Mint","hex":"#DDF1E4"},{"name":"Lilac","hex":"#E9E1F8"}],"decor":{"bed":{"label":"Bed","layer":"floor","colorable":true,"station":{"offset":[1,1],"face":"left","does":"resting on the bed"},"size":[1,2]},"desk":{"label":"Desk","layer":"floor","colorable":false,"station":{"offset":[0,1],"face":"back","does":"reading at the desk"},"size":[2,1]},"lamp":{"label":"Lamp","layer":"floor","colorable":true,"size":[1,1]},"beanbag":{"label":"Beanbag","layer":"floor","colorable":true,"station":{"offset":[0,1],"face":"back","does":"relaxing by the beanbag"},"size":[1,1]},"toybox":{"label":"Toy box","layer":"floor","colorable":true,"station":{"offset":[1,0],"face":"left","does":"digging through the toy box"},"size":[1,1]},"rugSmall":{"label":"Rug","layer":"rug","colorable":true,"station":{"offset":[1,1],"face":"front","does":"playing on the rug"},"size":[2,2]},"plant":{"label":"Plant","layer":"floor","colorable":false,"size":[1,1]},"poster":{"label":"Poster","layer":"wall","colorable":true,"size":[1,2]}},"items":[{"kind":"poster","tile":[1,0],"color":0},{"kind":"bed","tile":[0,2],"color":0},{"kind":"lamp","tile":[1,2],"color":3},{"kind":"desk","tile":[5,2]},{"kind":"rugSmall","tile":[2,4],"color":1},{"kind":"beanbag","tile":[6,5],"color":2},{"kind":"toybox","tile":[0,6],"color":3},{"kind":"plant","tile":[7,7]}]};
+const ITEM_ART = {"beanbag_0":"082da285e7a5e0020b7fae5bd48c6a96","beanbag_1":"755cfd5b36fec053ee61cee3658dabb6","beanbag_2":"97c58b510a60a0ddf27aea7115bb445b","beanbag_3":"38adb4366c5a66c6e505c6a3e4f05fbc","bed_0":"714fd491a4fcc01b4cb6cb755a5429e3","bed_1":"7171927ae689a159b77f742bc1107156","bed_2":"1ebf83dc197719877aa526b8898c5b24","bed_3":"81311e6f8c68b0d3bf8cceab373b6c3a","desk_0":"4d50f1471f6328eda3b9ee0b5bac1109","lamp_0":"1878bfe3807e0003d92b56111facc26a","lamp_1":"5a6475d948168651bb64478b302d9a29","lamp_2":"67c194ee5fecf7031461aa5795ee08d2","lamp_3":"a7738cdda4e355339f0b7a9eda42a1d6","plant_0":"e4aca4c070c9557e5a5c7141e85c0b6b","poster_0":"7b50d0957a730a481bfbd5e19209506d","poster_1":"a973ed9245cb83a1023b9857e7365a05","poster_2":"4181590276ae7463aabe6d5006ec389b","poster_3":"0ccacec7c85855dbf80bbfd541d101f0","rugSmall_0":"76185d9c3c902c1cef620e7f753dac5f","rugSmall_1":"53bd48b7c5bca49be7a85602168f69be","rugSmall_2":"42419dd7ae2863972d4986cf238cf6e2","rugSmall_3":"6a1a32e736c696e7ff611e7967c9e15a","toybox_0":"0c8ee72775d3a6c571308724b23c91e1","toybox_1":"d033187f1a4796cb609bfc3c0c16496e","toybox_2":"fbc292055571af56c27c497b2e918b9a","toybox_3":"dc320e18d1432c9e16f93374c048126f"};
+const BASES = ["66d38cf706c12f5d473bb5405cfcf3cd","e7a9dd7c783c8f576818b58458bd6393","556c6f9bfa97f6325ea5d3660355d015"];
+const ZAP = {"back_stand":"049c98986410dc7a9db7abdfc9169be5","back_stepL":"0cf448e6905d2a4b1367881eb4cf5690","back_stepR":"3a0651bc23a2d8c4f820952d766108b5","front_happy":"eafbb24b7aa2998150983fe74dfc65e8","front_stand":"f711269617ff1f62d229156031391083","front_stepL":"03976cb2bbd7577cc0924cb9dec12869","front_stepR":"f93ad7213071f8855846181c6b1200d4","left_stand":"4a592a38621a9eb5fcea13f0034b887d","left_stepL":"b7499ad05c4c8c3bcd13f2f508133722","left_stepR":"a07ea42d1970f772dd989c411c9c71b1","right_stand":"bde6c99a5be1f60b1412911b33db5076","right_stepL":"faf5080204ea4cea49592b5a2308c4fd","right_stepR":"10a6eaac5e961eb3c26a391abeca5f9d"};
+const S = 1.5, T = ROOM.tile, STEP = 4, TICK = 40, PX = T * S;
+const COLOR_NAMES = ['Violet', 'Blue', 'Green', 'Coral'];
+const EMOTES = { rugSmall: '♪', desk: '…', beanbag: '♪', bed: 'z', toybox: '!' };
+const HAPPY = { rugSmall: true, beanbag: true };
+const DEFAULT_PROMPT = 'A rocket flying past a ringed planet';
+
+// Shared by HQ and rooms: tile routes and one walking step.
+const tileKey = (p) => p[0] + ',' + p[1];
+// Shortest 4-way path from -> to (excluding from). isOpen(x, y) says whether a tile is walkable.
+function route(from, to, isOpen) {
+  const prev = {}; prev[tileKey(from)] = null;
+  const queue = [from];
+  while (queue.length) {
+    const c = queue.shift();
+    if (tileKey(c) === tileKey(to)) break;
+    [[1, 0], [-1, 0], [0, 1], [0, -1]].forEach(([dx, dy]) => {
+      const n = [c[0] + dx, c[1] + dy];
+      if (!isOpen(n[0], n[1]) || tileKey(n) in prev) return;
+      prev[tileKey(n)] = c; queue.push(n);
+    });
+  }
+  if (!(tileKey(to) in prev)) return null;
+  const path = [];
+  for (let c = to; c && tileKey(c) !== tileKey(from); c = prev[tileKey(c)]) path.unshift(c);
+  return path;
+}
+// Advance a walker { x, y, path, face, walked, tiles } by `step` art pixels; returns true on arrival.
+function walk(m, tile, step) {
+  const gx = m.path[0][0] * tile, gy = m.path[0][1] * tile;
+  const dx = Math.sign(gx - m.x), dy = Math.sign(gy - m.y);
+  m.face = dx > 0 ? 'right' : dx < 0 ? 'left' : dy > 0 ? 'front' : 'back';
+  m.x += dx * step; m.y += dy * step; m.walked += step;
+  if (m.x !== gx || m.y !== gy) return false;
+  m.path = m.path.slice(1); m.tiles += 1;
+  return m.path.length === 0;
+}
+// Which sprite frame a walker shows: a step mid-tile, alternating feet per tile.
+function walkFrame(m, tile) {
+  const p = m.walked % tile;
+  return m.path.length && p >= tile / 4 && p < (tile * 3) / 4 ? (m.tiles % 2 ? 'stepR' : 'stepL') : 'stand';
+}
+
+
+const sizeOf = (kind) => ROOM.decor[kind].size;
+const layerOf = (kind) => ROOM.decor[kind].layer;
+const floorTop = ROOM.walls.top, floorBottom = ROOM.rows - ROOM.walls.bottom; // floor rows: [floorTop, floorBottom)
+const WINDOW = [5, 6]; // wall columns taken by the window
+const footprint = (it) => {
+  const [w, h] = sizeOf(it.kind), out = [];
+  for (let dy = 0; dy < h; dy++) for (let dx = 0; dx < w; dx++) out.push([it.tile[0] + dx, it.tile[1] + dy]);
+  return out;
+};
+const covers = (it, x, y) => footprint(it).some(([fx, fy]) => fx === x && fy === y);
+
+// Can `item` sit at tile, given the others? Wall items hang on row 0; rugs may sit under things.
+function fits(items, item, tile) {
+  const [w, h] = sizeOf(item.kind), layer = layerOf(item.kind);
+  const moved = { ...item, tile };
+  if (layer === 'wall') {
+    if (tile[1] !== 0 || tile[0] < 0 || tile[0] + w > ROOM.cols) return false;
+    if (footprint(moved).some(([x]) => WINDOW.includes(x))) return false;
+    return !items.some((o) => o.uid !== item.uid && layerOf(o.kind) === 'wall' && footprint(o).some(([x]) => x >= tile[0] && x < tile[0] + w));
+  }
+  if (tile[0] < 0 || tile[0] + w > ROOM.cols || tile[1] < floorTop || tile[1] + h > floorBottom) return false;
+  if (layer === 'rug') return true;
+  return !items.some((o) => o.uid !== item.uid && layerOf(o.kind) === 'floor' && footprint(o).some(([x, y]) => footprint(moved).some(([mx, my]) => mx === x && my === y)));
+}
+
+function openFor(items) {
+  const blocked = new Set(items.filter((it) => layerOf(it.kind) === 'floor').flatMap(footprint).map(tileKey));
+  return (x, y) => x >= 0 && x < ROOM.cols && y >= floorTop && y < floorBottom && !blocked.has(tileKey([x, y]));
+}
+
+// Each piece of furniture with a station gives the MEGA somewhere to go.
+function stationsFor(items) {
+  const open = openFor(items);
+  return items.filter((it) => ROOM.decor[it.kind].station).map((it) => {
+    const st = ROOM.decor[it.kind].station, tile = [it.tile[0] + st.offset[0], it.tile[1] + st.offset[1]];
+    return { kind: it.kind, tile, face: st.face, does: st.does };
+  }).filter((s) => open(s.tile[0], s.tile[1]));
+}
+
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    const items = ROOM.items.map((it, i) => ({ uid: i + 1, kind: it.kind, tile: it.tile, color: it.color ?? 0 }));
+    const posters = {}; items.filter((it) => it.kind === 'poster').forEach((it) => { posters[it.uid] = DEFAULT_PROMPT; });
+    this.state = {
+      mode: 'view', items, nextUid: items.length + 1, wall: 0, sel: null, tab: 'furniture',
+      posters, posterOpen: null, prompt: '', made: false,
+      zap: { x: 3 * T, y: 5 * T, face: 'front', path: [], walked: 0, tiles: 0, until: Date.now() + 2500, emote: '♪', happy: true, at: 'rugSmall' },
+      log: 'Zap is playing on the rug.',
+    };
+  }
+  componentDidMount() { this.timer = setInterval(this.tick, TICK); }
+  componentWillUnmount() { clearInterval(this.timer); }
+
+  tick = () => {
+    if (this.state.mode !== 'view' || this.state.posterOpen) return;
+    const now = Date.now(), z = { ...this.state.zap };
+    let log = this.state.log;
+    const stations = stationsFor(this.state.items);
+    if (z.path.length) {
+      if (walk(z, T, STEP)) {
+        const st = stations.find((s) => s.kind === z.at);
+        z.face = st ? st.face : 'front';
+        z.emote = EMOTES[z.at] || ''; z.happy = !!HAPPY[z.at]; z.until = now + 5000; z.walked = 0;
+        log = 'Zap is ' + (st ? st.does : 'looking around') + '.';
+      }
+    } else if (now >= z.until && stations.length) {
+      const here = [z.x / T, z.y / T], open = openFor(this.state.items);
+      const options = stations.filter((s) => s.kind !== z.at).map((s) => ({ s, path: route(here, s.tile, open) })).filter((o) => o.path && o.path.length);
+      if (options.length) {
+        const pick = options[Math.floor(Math.random() * options.length)];
+        z.path = pick.path; z.at = pick.s.kind; z.emote = ''; z.happy = false;
+      } else z.until = now + 3000;
+    }
+    this.setState({ zap: z, log });
+  };
+
+  // If furniture now covers Zap, step to the nearest open tile.
+  settleZap(items) {
+    const z = { ...this.state.zap, x: Math.round(this.state.zap.x / T) * T, y: Math.round(this.state.zap.y / T) * T, path: [], walked: 0, until: Date.now() + 1500, emote: '' };
+    const open = openFor(items);
+    if (!open(z.x / T, z.y / T)) {
+      let best = null;
+      for (let y = floorTop; y < floorBottom; y++) for (let x = 0; x < ROOM.cols; x++)
+        if (open(x, y)) { const d = Math.abs(x - z.x / T) + Math.abs(y - z.y / T); if (!best || d < best.d) best = { x, y, d }; }
+      if (best) { z.x = best.x * T; z.y = best.y * T; }
+    }
+    return z;
+  }
+
+  tapCell = (x, y) => {
+    const { items, sel } = this.state;
+    const rank = { floor: 0, wall: 1, rug: 2 };
+    const here = items.filter((it) => covers(it, x, y)).sort((a, b) => rank[layerOf(a.kind)] - rank[layerOf(b.kind)])[0];
+    const selected = items.find((it) => it.uid === sel);
+    if (here && here.uid === sel) return this.setState({ sel: null });
+    const moveOntoRug = here && layerOf(here.kind) === 'rug' && selected && layerOf(selected.kind) !== 'rug';
+    if (here && !moveOntoRug) return this.setState({ sel: here.uid });
+    if (!selected) return;
+    const [w, h] = sizeOf(selected.kind);
+    const anchor = layerOf(selected.kind) === 'wall' ? [Math.min(x, ROOM.cols - w), 0] : [Math.min(x, ROOM.cols - w), Math.min(y, floorBottom - h)];
+    if (fits(items, selected, anchor)) this.setState({ items: items.map((it) => (it.uid === sel ? { ...it, tile: anchor } : it)) });
+  };
+
+  addKind = (kind) => {
+    const { items, nextUid } = this.state, item = { uid: nextUid, kind, color: 0 };
+    for (let y = layerOf(kind) === 'wall' ? 0 : floorTop; y < (layerOf(kind) === 'wall' ? 1 : floorBottom); y++)
+      for (let x = 0; x < ROOM.cols; x++)
+        if (fits(items, item, [x, y])) {
+          const posters = kind === 'poster' ? { ...this.state.posters, [nextUid]: this.state.prompt || DEFAULT_PROMPT } : this.state.posters;
+          return this.setState({ items: [...items, { ...item, tile: [x, y] }], nextUid: nextUid + 1, sel: nextUid, posters, made: kind === 'poster' });
+        }
+  };
+
+  renderVals() {
+    const { mode, items, wall, sel, tab, zap, log, posterOpen, posters, prompt, made } = this.state;
+    const viewing = mode === 'view', decorating = mode === 'decorate';
+    const art = (it) => '/_blob/' + ITEM_ART[it.kind + '_' + (ROOM.decor[it.kind].colorable ? it.color : 0)];
+    const zOf = (it) => (layerOf(it.kind) === 'floor' ? 10 + (it.tile[1] + sizeOf(it.kind)[1] - 1) * 2 : 2);
+    const pieces = items.map((it) => {
+      const [w, h] = sizeOf(it.kind);
+      return { src: art(it), left: it.tile[0] * PX, top: (it.tile[1] - 1) * PX, w: w * PX, h: (h + 1) * PX, z: zOf(it) };
+    });
+
+    const walking = zap.path.length > 0;
+    const face = zap.face;
+    const sprite = !walking && zap.happy && face === 'front' ? 'front_happy' : face + '_' + walkFrame(zap, T);
+    const zapRow = Math.ceil(zap.y / T);
+    const zapVals = {
+      src: '/_blob/' + ZAP[sprite], left: (zap.x * S).toFixed(1), top: ((zap.y - 7) * S).toFixed(1), z: 11 + zapRow * 2,
+      emote: zap.emote, hasEmote: viewing && !walking && !!zap.emote, emoteLeft: (zap.x * S + 10).toFixed(1), emoteTop: ((zap.y - 7) * S - 26).toFixed(1),
+    };
+
+    const box = (x, y, w, h) => ({ left: x * PX, top: y * PX, w: w * PX, h: h * PX });
+    const viewSpots = [
+      ...items.filter((it) => it.kind === 'poster').map((it) => ({ ...box(it.tile[0], 0, 1, 2), label: 'Poster: ' + posters[it.uid], isButton: true, isLink: false, tap: () => this.setState({ posterOpen: it.uid }) })),
+      { ...box(ROOM.exitTile[0], ROOM.exitTile[1], 1, 1), label: 'Back to HQ', isLink: true, isButton: false, href: 'HQ.dc.html' },
+    ];
+
+    const cells = [];
+    for (let y = 0; y < ROOM.rows; y++) for (let x = 0; x < ROOM.cols; x++)
+      cells.push({ left: x * PX, top: y * PX, label: 'Tile ' + (x + 1) + ', ' + (y + 1), tap: () => this.tapCell(x, y) });
+
+    const selected = items.find((it) => it.uid === sel);
+    let selBox = {}, selVals = {};
+    if (selected) {
+      const [w, h] = sizeOf(selected.kind);
+      selBox = box(selected.tile[0], selected.tile[1], w, h);
+      selVals = {
+        label: ROOM.decor[selected.kind].label,
+        swatches: ROOM.decor[selected.kind].colorable ? ROOM.colors.map((hex, i) => ({
+          hex, label: COLOR_NAMES[i], ring: i === selected.color ? '3px solid #FFFFFF' : '3px solid transparent',
+          pick: () => this.setState({ items: items.map((it) => (it.uid === sel ? { ...it, color: i } : it)) }),
+        })) : [],
+      };
+    }
+
+    const tabNames = [['furniture', 'Furniture'], ['walls', 'Walls'], ['posters', 'Posters']];
+    const tray = Object.keys(ROOM.decor).filter((k) => k !== 'poster').map((kind) => {
+      const [w, h] = sizeOf(kind), scale = Math.min(1, 56 / ((h + 1) * T), 72 / (w * T));
+      return { label: ROOM.decor[kind].label, src: '/_blob/' + ITEM_ART[kind + '_0'], w: Math.round(w * T * scale), h: Math.round((h + 1) * T * scale), add: () => this.addKind(kind) };
+    });
+    const openPoster = items.find((it) => it.uid === posterOpen);
+
+    return {
+      viewing, decorating, base: '/_blob/' + BASES[wall], pieces, zap: zapVals, log, viewSpots, cells,
+      hasSel: decorating && !!selected, noSel: !selected, selBox, sel: selVals,
+      hint: 'Tap something to pick it up, then tap where it should go.',
+      tabs: tabNames.map(([id, label]) => ({ label, on: tab === id ? 'true' : 'false', bg: tab === id ? '#2A3038' : 'transparent', fg: tab === id ? '#FFFFFF' : '#9AA1AB', pick: () => this.setState({ tab: id }) })),
+      tabFurniture: tab === 'furniture', tabWalls: tab === 'walls', tabPosters: tab === 'posters', tray,
+      wallSwatches: ROOM.walls_on_offer.map((w, i) => ({ name: w.name, hex: w.hex, ring: i === wall ? '3px solid #FFFFFF' : '3px solid transparent', pick: () => this.setState({ wall: i }) })),
+      prompt, typePrompt: (e) => this.setState({ prompt: e.target.value, made: false }),
+      makeLabel: made ? 'Poster added. Make another' : 'Make poster',
+      makePoster: () => this.addKind('poster'),
+      removeSel: () => this.setState({ items: items.filter((it) => it.uid !== sel), sel: null }),
+      startDecorate: () => this.setState({ mode: 'decorate', sel: null }),
+      finishDecorate: () => this.setState({ mode: 'view', sel: null, zap: this.settleZap(items), log: 'Zap loves the new look!' }),
+      posterOpen: !!openPoster, posterPrompt: openPoster ? posters[openPoster.uid] : '',
+      posterFrame: openPoster ? ROOM.colors[openPoster.color] : '#8E6CE0',
+      closePoster: () => this.setState({ posterOpen: null }),
+    };
+  }
+}
+</script>
+</body>
+</html>

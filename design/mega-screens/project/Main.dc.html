@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>MEGA chat</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#0C0E11}
+a{color:#2FB8B0;text-decoration:none}a:hover{color:#5FD3CC}
+button{font-family:inherit}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; box-sizing: border-box; background: #0C0E11; color: #EDEFF2; font-family: Inter, system-ui, sans-serif; display: flex; flex-direction: column; overflow: hidden">
+
+  <header style="display: flex; align-items: center; gap: 12px; padding: 16px 16px 14px; border-bottom: 1px solid #22262D">
+    <a href="Profile.dc.html" aria-label="Open Teal's profile" style="display: block; width: 48px; height: 42px; border-radius: 10px; overflow: hidden; flex-shrink: 0">
+      <img src="/_blob/4e65e4e0767e20ffbb714514eea3f8b4" alt="Teal" style="width: 48px; height: 42px; display: block">
+    </a>
+    <div style="display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0">
+      <div style="font-size: 18px; font-weight: 600">Teal</div>
+      <div style="display: flex; align-items: center; gap: 6px; font-size: 13px; color: #9AA1AB">
+        <span style="width: 7px; height: 7px; border-radius: 4px; background: {{accent}}"></span>
+        <span>At the desk · Math homework</span>
+      </div>
+    </div>
+    <a href="Today.dc.html" aria-label="Today, 2 things need you" style="position: relative; display: flex; flex-direction: column; align-items: center; gap: 2px; width: 52px; height: 48px; justify-content: center; color: #EDEFF2">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15" rx="2.5"></rect><path d="M3.5 10h17M8 3v4M16 3v4"></path></svg>
+      <span style="font-size: 11px; color: #9AA1AB">Today</span>
+      <span style="position: absolute; top: 0; right: 4px; min-width: 18px; height: 18px; border-radius: 9px; background: {{accent}}; color: #04201E; font-size: 11px; font-weight: 700; display: flex; align-items: center; justify-content: center">2</span>
+    </a>
+  </header>
+
+  <main style="flex: 1; display: flex; flex-direction: column; justify-content: flex-end; gap: 18px; padding: 16px; overflow: hidden">
+
+    <div style="display: flex; gap: 10px; align-items: flex-start">
+      <div style="width: 32px; height: 28px; border-radius: 7px; overflow: hidden; flex-shrink: 0"><img src="/_blob/4e65e4e0767e20ffbb714514eea3f8b4" alt="" style="width: 32px; height: 28px; display: block"></div>
+      <div style="display: flex; flex-direction: column; gap: 8px">
+        <div style="font-size: 16px; line-height: 23px">Practice is at 5:30. Want a pickup reminder?</div>
+        <div style="display: flex; gap: 8px; flex-wrap: wrap">
+          <button type="button" style="height: 36px; padding: 0 14px; border-radius: 18px; border: 1px solid #2E343D; background: #16191E; color: #EDEFF2; font-size: 14px">Yes, at 4:50</button>
+          <button type="button" style="height: 36px; padding: 0 14px; border-radius: 18px; border: 1px solid #2E343D; background: #16191E; color: #EDEFF2; font-size: 14px">Not today</button>
+        </div>
+        <div style="font-size: 12px; color: #8A919B">9:37 AM</div>
+      </div>
+    </div>
+
+    <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px">
+      <div style="max-width: 270px; padding: 11px 15px; border-radius: 18px 18px 4px 18px; background: #123B39; font-size: 16px; line-height: 22px">Yes, remind us at 4:50.</div>
+      <div style="font-size: 12px; color: #8A919B">9:38 AM</div>
+    </div>
+
+    <div style="display: flex; gap: 10px; align-items: flex-start">
+      <div style="width: 32px; height: 28px; border-radius: 7px; overflow: hidden; flex-shrink: 0"><img src="/_blob/559c61a4801aa8bf0de738b7e3571c27" alt="" style="width: 32px; height: 28px; display: block"></div>
+      <div style="display: flex; flex-direction: column; gap: 10px; flex: 1">
+        <div style="font-size: 16px; line-height: 23px">Done. I'll remind the family.</div>
+        <div style="border: 1px solid #262B33; background: #15181D; border-radius: 16px; overflow: hidden">
+          <div style="display: flex; align-items: center; gap: 12px; padding: 14px">
+            <div style="width: 40px; height: 40px; border-radius: 12px; background: #123B39; color: {{accent}}; display: flex; align-items: center; justify-content: center">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"></path><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"></path></svg>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 2px">
+              <div style="font-size: 15px; font-weight: 600">Soccer pickup</div>
+              <div style="font-size: 13px; color: #9AA1AB">Reminder · Today, 4:50 PM</div>
+            </div>
+          </div>
+          <div style="display: flex; align-items: center; gap: 8px; padding: 10px 14px; border-top: 1px solid #22262D; font-size: 13px; color: #9AA1AB">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+            <span>Family can see this</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px">
+      <div style="max-width: 270px; padding: 11px 15px; border-radius: 18px 18px 4px 18px; background: #123B39; font-size: 16px; line-height: 22px"><span style="color: #F2A098; font-weight: 600">@Coral</span> are we still doing tacos Saturday?</div>
+      <div style="font-size: 12px; color: #8A919B">9:40 AM</div>
+    </div>
+
+    <div style="display: flex; gap: 10px; align-items: flex-start">
+      <div style="width: 32px; height: 28px; border-radius: 7px; overflow: hidden; flex-shrink: 0"><img src="/_blob/c3cf0f234f346c3c5acff6ecdd29f0b2" alt="" style="width: 32px; height: 28px; display: block"></div>
+      <div style="display: flex; flex-direction: column; gap: 4px">
+        <div style="font-size: 12px; font-weight: 600; color: #F2A098">Coral · joined from the family</div>
+        <div style="font-size: 16px; line-height: 23px">Yes! The recipe's on the shared list. I'll check the pantry Friday.</div>
+      </div>
+    </div>
+  </main>
+
+  <div style="padding: 8px 12px 10px">
+    <div style="display: flex; align-items: center; gap: 8px; height: 52px; padding: 0 6px; border-radius: 26px; background: #16191E; border: 1px solid #262B33">
+      <button type="button" aria-label="Attach" style="width: 40px; height: 40px; border-radius: 20px; border: none; background: #22262D; color: #EDEFF2; display: flex; align-items: center; justify-content: center">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>
+      </button>
+      <label for="msg" style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0)">Message Teal</label>
+      <input id="msg" type="text" placeholder="Message Teal…   @ for other MEGAs" style="flex: 1; min-width: 0; height: 40px; border: none; outline: none; background: transparent; color: #EDEFF2; font-size: 15px; font-family: inherit">
+      <a href="Talk.dc.html" aria-label="Open talk mode" style="width: 40px; height: 40px; border-radius: 20px; background: {{accent}}; color: #04201E; display: flex; align-items: center; justify-content: center">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="2" width="6" height="12" rx="3"></rect><path d="M19 10v1a7 7 0 0 1-14 0v-1M12 18v4"></path></svg>
+      </a>
+    </div>
+  </div>
+
+  <nav aria-label="Main" style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); height: 64px; border-top: 1px solid #22262D; background: #0F1114">
+    <a href="Main.dc.html" aria-current="page" style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; color: {{accent}}; font-size: 12px; font-weight: 600">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20.5l1.4-4.9A8 8 0 1 1 21 12z"></path></svg>
+      Chat
+    </a>
+    <a href="HQ.dc.html" style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; color: #9AA1AB; font-size: 12px">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"></path></svg>
+      HQ
+    </a>
+    <a href="Family.dc.html" style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; color: #9AA1AB; font-size: 12px">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+      Family
+    </a>
+  </nav>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"accent":{"editor":"color","default":"#2FB8B0","options":["#2FB8B0","#F2766B","#8E6CE0","#F2B33D"]},"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return { accent: this.props.accent ?? '#2FB8B0' };
+  }
+}
+</script>
+</body>
+</html>

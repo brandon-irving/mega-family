@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Morning greeting</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#0C0E11}
+@keyframes meter{0%,100%{transform:scaleY(.35)}50%{transform:scaleY(1)}}
+.bar{animation:meter .7s ease-in-out infinite;transform-origin:center}
+</style>
+</helmet>
+<div style="position: relative; width: 390px; height: 844px; overflow: hidden; font-family: Inter, system-ui, sans-serif">
+  <dc-import name="Main" hint-size="390px,844px"></dc-import>
+  <div style="position: absolute; inset: 0; background: rgba(8,9,12,0.82); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 22px; color: #EDEFF2">
+    <div style="width: 200px; height: 172px; border-radius: 28px; overflow: hidden; box-shadow: 0 0 0 6px rgba(47,184,176,0.25), 0 24px 60px rgba(0,0,0,0.5)">
+      <img src="/_blob/559c61a4801aa8bf0de738b7e3571c27" alt="Teal, smiling" style="width: 200px; height: 172px; display: block">
+    </div>
+    <div aria-hidden="true" style="display: flex; align-items: center; gap: 5px; height: 26px">
+      <span class="bar" style="width: 5px; height: 10px; border-radius: 3px; background: #2FB8B0; animation-delay: 0s"></span>
+      <span class="bar" style="width: 5px; height: 18px; border-radius: 3px; background: #2FB8B0; animation-delay: .1s"></span>
+      <span class="bar" style="width: 5px; height: 26px; border-radius: 3px; background: #2FB8B0; animation-delay: .2s"></span>
+      <span class="bar" style="width: 5px; height: 18px; border-radius: 3px; background: #2FB8B0; animation-delay: .3s"></span>
+      <span class="bar" style="width: 5px; height: 10px; border-radius: 3px; background: #2FB8B0; animation-delay: .4s"></span>
+    </div>
+    <div style="display: flex; flex-direction: column; align-items: center; gap: 6px; text-align: center; padding: 0 32px">
+      <div style="font-size: 28px; font-weight: 700">Good morning, Brandon!</div>
+      <div style="font-size: 15px; color: #B4BAC3">Soccer pickup is at 4:50 today.</div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>

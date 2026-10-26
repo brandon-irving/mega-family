@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Kid win</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#0C0E11}
+a{text-decoration:none}
+@keyframes bounce{0%,100%{transform:translateY(0) scale(1)}40%{transform:translateY(-18px) scale(1.04)}60%{transform:translateY(0) scale(.98)}}
+.bounce{animation:bounce .9s ease-in-out infinite}
+@keyframes pop{0%{transform:scale(0) rotate(0);opacity:0}30%{opacity:1}100%{transform:scale(1) rotate(25deg);opacity:0}}
+.star{position:absolute;animation:pop 1.4s ease-out infinite}
+</style>
+</helmet>
+<div style="position: relative; width: 390px; height: 844px; overflow: hidden; font-family: Inter, system-ui, sans-serif">
+  <dc-import name="Kid" hint-size="390px,844px"></dc-import>
+  <a href="Kid.dc.html" aria-label="Back to chat" style="position: absolute; inset: 0; background: rgba(20,12,44,0.92); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 22px; color: #EDEFF2">
+    <div style="position: relative; width: 260px; height: 224px">
+      <svg class="star" style="left: -6px; top: 10px; animation-delay: 0s" width="34" height="34" viewBox="0 0 24 24" fill="#FFE36E" aria-hidden="true"><path d="M12 2l3 7h7l-5.5 4.5 2 7.5-6.5-4.5L5.5 21l2-7.5L2 9h7z"></path></svg>
+      <svg class="star" style="right: -10px; top: 30px; animation-delay: .35s" width="28" height="28" viewBox="0 0 24 24" fill="#B9A4F2" aria-hidden="true"><path d="M12 2l3 7h7l-5.5 4.5 2 7.5-6.5-4.5L5.5 21l2-7.5L2 9h7z"></path></svg>
+      <svg class="star" style="left: 20px; bottom: -14px; animation-delay: .7s" width="24" height="24" viewBox="0 0 24 24" fill="#FFFFFF" aria-hidden="true"><path d="M12 2l3 7h7l-5.5 4.5 2 7.5-6.5-4.5L5.5 21l2-7.5L2 9h7z"></path></svg>
+      <svg class="star" style="right: 14px; bottom: -6px; animation-delay: 1.05s" width="32" height="32" viewBox="0 0 24 24" fill="#FFE36E" aria-hidden="true"><path d="M12 2l3 7h7l-5.5 4.5 2 7.5-6.5-4.5L5.5 21l2-7.5L2 9h7z"></path></svg>
+      <div class="bounce" style="width: 260px; height: 224px; border-radius: 34px; overflow: hidden; box-shadow: 0 0 0 8px rgba(142,108,224,0.35), 0 28px 70px rgba(0,0,0,0.55)">
+        <img src="/_blob/b7dc0dfbab7260b58d898992680c64de" alt="Zap, smiling" style="width: 260px; height: 224px; display: block">
+      </div>
+    </div>
+    <div style="display: flex; flex-direction: column; align-items: center; gap: 8px; text-align: center; padding: 0 32px">
+      <div style="font-size: 44px; font-weight: 800; line-height: 50px">7 × 8 = 56</div>
+      <div style="font-size: 26px; font-weight: 800; color: #FFE36E">You got it!</div>
+    </div>
+    <div style="display: flex; align-items: center; gap: 8px; height: 48px; padding: 0 20px; border-radius: 24px; background: #2A2150; color: #FFE36E; font-size: 20px; font-weight: 800">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M13 2 4 14h7l-1 8 9-12h-7z"></path></svg>
+      6 day streak
+    </div>
+    <div style="font-size: 14px; color: #9A90BF">Tap anywhere to keep going</div>
+  </a>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>

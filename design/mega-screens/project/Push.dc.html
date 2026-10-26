@@ -1,0 +1,296 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Push notifications</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#0C0E11}
+button{font-family:inherit;cursor:pointer}
+</style>
+</helmet>
+<div style="position: relative; width: 390px; height: 844px; overflow: hidden; font-family: Inter, system-ui, sans-serif; color: #EDEFF2; background: {{wallpaper}}">
+
+  <sc-if value="{{onLock}}" hint-placeholder-val="{{ true }}">
+    <div style="position: absolute; inset: 0; display: flex; flex-direction: column; align-items: stretch">
+      <div style="display: flex; flex-direction: column; align-items: center; padding-top: 58px; gap: 2px; flex-shrink: 0">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#EDEFF2" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"></rect><path d="M8 11V8a4 4 0 0 1 8 0v3"></path></svg>
+        <div style="font-size: 17px; font-weight: 600; margin-top: 6px">{{date}}</div>
+        <div style="font-size: 86px; font-weight: 700; line-height: 92px; letter-spacing: -2px">{{time}}</div>
+      </div>
+
+      <div style="flex: 1; display: flex; flex-direction: column; justify-content: flex-end; gap: 8px; padding: 0 10px 118px; min-height: 0">
+        <sc-for list="{{cards}}" as="c" hint-placeholder-count="2">
+          <section aria-label="{{c.label}}" style="position: relative; z-index: {{c.z}}; opacity: {{c.opacity}}; background: rgba(28,32,38,0.86); border-radius: 22px; padding: 12px; display: flex; flex-direction: column; gap: 10px; box-shadow: 0 10px 28px rgba(0,0,0,0.35)">
+            <sc-if value="{{c.open}}" hint-placeholder-val="{{ true }}">
+              <button type="button" onClick="{{c.expand}}" aria-expanded="{{c.expandedStr}}" style="display: flex; gap: 10px; align-items: flex-start; padding: 0; border: none; background: transparent; color: #EDEFF2; text-align: left">
+                <span style="position: relative; width: 40px; height: 34px; flex-shrink: 0; border-radius: 9px; overflow: hidden; background: #FFFFFF">
+                  <sc-for list="{{c.head.rects}}" as="r" hint-placeholder-count="150">
+                    <span style="position: absolute; left: {{r.l}}px; top: {{r.t}}px; width: {{r.w}}px; height: {{r.h}}px; background: {{r.c}}"></span>
+                  </sc-for>
+                </span>
+                <span style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px">
+                  <span style="display: flex; gap: 8px; font-size: 13px; color: #B4BAC3"><span style="flex: 1; font-weight: 600; color: {{c.kindColor}}">{{c.from}}</span><span>{{c.when}}</span></span>
+                  <span style="font-size: 16px; font-weight: 600; line-height: 21px">{{c.title}}</span>
+                  <span style="font-size: 14px; line-height: 19px; color: #C9CED6">{{c.body}}</span>
+                  <sc-if value="{{c.hasHeld}}" hint-placeholder-val="{{ false }}">
+                    <span style="font-size: 12px; color: #9AA1AB; display: flex; align-items: center; gap: 5px; margin-top: 2px"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"></path></svg>{{c.held}}</span>
+                  </sc-if>
+                </span>
+              </button>
+              <sc-if value="{{c.expanded}}" hint-placeholder-val="{{ false }}">
+                <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px">
+                  <sc-for list="{{c.actions}}" as="a" hint-placeholder-count="2">
+                    <button type="button" onClick="{{a.pick}}" style="height: {{c.btnH}}px; border-radius: 14px; border: none; background: {{a.bg}}; color: {{a.fg}}; font-size: {{c.btnFont}}px; font-weight: 600">{{a.label}}</button>
+                  </sc-for>
+                </div>
+                <button type="button" onClick="{{c.openApp}}" style="height: 40px; border-radius: 14px; border: 1px solid #3A414B; background: transparent; color: #EDEFF2; font-size: 14px; display: flex; align-items: center; justify-content: center; gap: 6px">Open chat with {{mega}}<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"></path></svg></button>
+              </sc-if>
+            </sc-if>
+            <sc-if value="{{c.isDone}}" hint-placeholder-val="{{ false }}">
+              <div role="status" style="display: flex; align-items: center; gap: 10px">
+                <span style="width: 28px; height: 28px; border-radius: 14px; background: {{c.megaHex}}; color: #04201E; display: flex; align-items: center; justify-content: center; flex-shrink: 0"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5 9-10"></path></svg></span>
+                <span style="flex: 1; display: flex; flex-direction: column; gap: 1px">
+                  <span style="font-size: 13px; color: #9AA1AB">You answered “{{c.answer}}”</span>
+                  <span style="font-size: 15px; line-height: 20px"><b>{{mega}}:</b> {{c.reply}}</span>
+                </span>
+              </div>
+            </sc-if>
+          </section>
+        </sc-for>
+
+        <sc-if value="{{hasQuiet}}" hint-placeholder-val="{{ true }}">
+          <sc-if value="{{quietClosed}}" hint-placeholder-val="{{ true }}">
+            <button type="button" onClick="{{openQuiet}}" aria-label="Show {{quietCount}} quiet updates" style="position: relative; opacity: {{quietOpacity}}; margin-bottom: 10px; border: none; padding: 0; background: transparent; color: #EDEFF2; text-align: left">
+              <span aria-hidden="true" style="position: absolute; left: 16px; right: 16px; bottom: -10px; height: 20px; border-radius: 0 0 18px 18px; background: rgba(28,32,38,0.55)"></span>
+              <span style="position: relative; display: flex; align-items: center; gap: 10px; background: rgba(28,32,38,0.72); border-radius: 22px; padding: 12px">
+                <span style="width: 40px; height: 34px; border-radius: 9px; background: rgba(255,255,255,0.08); display: flex; align-items: center; justify-content: center; color: #9AA1AB; flex-shrink: 0"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"></path><path d="M3 3l18 18"></path></svg></span>
+                <span style="flex: 1; display: flex; flex-direction: column; gap: 2px">
+                  <span style="font-size: 15px; font-weight: 600">{{quietCount}} quiet updates from {{mega}}</span>
+                  <span style="font-size: 13px; color: #9AA1AB">Delivered without sound</span>
+                </span>
+              </span>
+            </button>
+          </sc-if>
+          <sc-if value="{{quietOpen}}" hint-placeholder-val="{{ false }}">
+            <div style="display: flex; flex-direction: column; gap: 6px">
+              <div style="display: flex; align-items: center; padding: 0 6px">
+                <span style="flex: 1; font-size: 13px; font-weight: 600; color: #C9CED6">Quiet · no sound</span>
+                <button type="button" onClick="{{closeQuiet}}" style="height: 30px; padding: 0 12px; border-radius: 15px; border: none; background: rgba(28,32,38,0.86); color: #EDEFF2; font-size: 13px">Show less</button>
+              </div>
+              <sc-for list="{{quiet}}" as="q" hint-placeholder-count="2">
+                <div style="display: flex; gap: 10px; background: rgba(28,32,38,0.72); border-radius: 18px; padding: 11px 12px">
+                  <span style="flex: 1; display: flex; flex-direction: column; gap: 2px">
+                    <span style="display: flex; gap: 8px; font-size: 12px; color: #9AA1AB"><span style="flex: 1; font-weight: 600">{{mega}} · {{q.kind}}</span><span>{{q.when}}</span></span>
+                    <span style="font-size: 15px; font-weight: 600">{{q.title}}</span>
+                    <span style="font-size: 13px; color: #B4BAC3">{{q.body}}</span>
+                  </span>
+                </div>
+              </sc-for>
+            </div>
+          </sc-if>
+        </sc-if>
+      </div>
+
+      <sc-if value="{{dimmed}}" hint-placeholder-val="{{ false }}">
+        <button type="button" onClick="{{collapse}}" aria-label="Close" style="position: absolute; inset: 0; z-index: 1; border: none; background: rgba(6,7,9,0.55)"></button>
+      </sc-if>
+      <div aria-hidden="true" style="position: absolute; left: 44px; right: 44px; bottom: 38px; display: flex; justify-content: space-between">
+        <span style="width: 50px; height: 50px; border-radius: 25px; background: rgba(28,32,38,0.7)"></span>
+        <span style="width: 50px; height: 50px; border-radius: 25px; background: rgba(28,32,38,0.7)"></span>
+      </div>
+      <div aria-hidden="true" style="position: absolute; left: 50%; bottom: 10px; width: 134px; height: 5px; margin-left: -67px; border-radius: 3px; background: #EDEFF2"></div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{inApp}}" hint-placeholder-val="{{ false }}">
+    <div style="position: absolute; inset: 0; background: #0C0E11; display: flex; flex-direction: column">
+      <header style="display: flex; align-items: center; gap: 12px; padding: 16px 16px 12px; border-bottom: 1px solid #22262D; flex-shrink: 0">
+        <span style="position: relative; width: 48px; height: 41px; flex-shrink: 0; border-radius: 10px; overflow: hidden; background: #FFFFFF">
+          <sc-for list="{{appHead.rects}}" as="r" hint-placeholder-count="150">
+            <span style="position: absolute; left: {{r.l}}px; top: {{r.t}}px; width: {{r.w}}px; height: {{r.h}}px; background: {{r.c}}"></span>
+          </sc-for>
+        </span>
+        <div style="flex: 1; display: flex; flex-direction: column; gap: 1px">
+          <div style="font-size: 18px; font-weight: 600">{{mega}}</div>
+          <div style="font-size: 13px; color: #9AA1AB">Your MEGA</div>
+        </div>
+      </header>
+      <div style="flex: 1; display: flex; flex-direction: column; justify-content: flex-end; gap: 14px; padding: 16px; min-height: 0">
+        <div style="align-self: center; font-size: 12px; color: #9AA1AB; background: #16191E; border: 1px solid #22262D; padding: 5px 11px; border-radius: 12px; display: flex; align-items: center; gap: 6px"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"></path><path d="M10 21h4"></path></svg>From a notification · {{appCard.when}}</div>
+        <div style="display: flex; flex-direction: column; gap: 4px">
+          <div style="font-size: 12px; font-weight: 600; color: {{appCard.kindColor}}">{{appCard.from}}</div>
+          <div style="font-size: {{appFont}}px; line-height: 1.4">{{appCard.say}}</div>
+        </div>
+        <sc-if value="{{appAsking}}" hint-placeholder-val="{{ true }}">
+          <div style="display: flex; flex-wrap: wrap; gap: 8px">
+            <sc-for list="{{appCard.actions}}" as="a" hint-placeholder-count="2">
+              <button type="button" onClick="{{a.pick}}" style="height: {{appCard.btnH}}px; padding: 0 18px; border-radius: 22px; border: 1px solid {{a.border}}; background: {{a.bg}}; color: {{a.fg}}; font-size: {{appCard.btnFont}}px; font-weight: 600">{{a.label}}</button>
+            </sc-for>
+          </div>
+        </sc-if>
+        <sc-if value="{{appAnswered}}" hint-placeholder-val="{{ false }}">
+          <div style="align-self: flex-end; max-width: 270px; padding: 10px 15px; border-radius: 18px 18px 4px 18px; background: #123B39; font-size: 16px">{{appCard.answer}}</div>
+          <div style="font-size: {{appFont}}px; line-height: 1.4">{{appCard.reply}}</div>
+        </sc-if>
+      </div>
+      <div style="padding: 10px 16px 28px; flex-shrink: 0">
+        <div style="height: 48px; border-radius: 24px; border: 1px solid #2E343D; background: #16191E; display: flex; align-items: center; padding: 0 16px; color: #6B727D; font-size: 15px">Message {{mega}}…</div>
+      </div>
+    </div>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"scene":{"editor":"enum","options":["adult","kid","kidMorning"],"default":"adult"},"at":{"editor":"enum","options":["lock","expanded","handled","quietOpen","opened"],"default":"lock"},"$preview":{"width":390,"height":844}}'>
+// Generated from prototypes/megasprite (mega-template.mjs, pixel-paint.mjs, export-looks.mjs).
+const LOOKS = {"grid":[32,40],"body":[[15,0,2,"outline"],[14,1,1,"outline"],[15,1,2,"tipLight"],[17,1,1,"outline"],[13,2,1,"outline"],[14,2,1,"tipLight"],[15,2,2,"tip"],[17,2,1,"tipLight"],[18,2,1,"outline"],[14,3,1,"outline"],[15,3,2,"tipDark"],[17,3,1,"outline"],[14,4,4,"outline"],[14,5,1,"outline"],[15,5,2,"silver"],[17,5,1,"outline"],[14,6,1,"outline"],[15,6,2,"silver"],[17,6,1,"outline"],[6,7,20,"outline"],[5,8,1,"outline"],[6,8,20,"shellLight"],[26,8,1,"outline"],[4,9,1,"outline"],[5,9,1,"shellLight"],[6,9,20,"shell"],[26,9,1,"shellLight"],[27,9,1,"outline"],[3,10,1,"outline"],[4,10,1,"shellLight"],[5,10,22,"shell"],[27,10,1,"shellLight"],[28,10,1,"outline"],[3,11,1,"outline"],[4,11,4,"shell"],[8,11,16,"visor"],[24,11,4,"shell"],[28,11,1,"outline"],[2,12,2,"outline"],[4,12,3,"shell"],[7,12,3,"visor"],[10,12,3,"glare"],[13,12,12,"visor"],[25,12,3,"shell"],[28,12,2,"outline"],[1,13,1,"outline"],[2,13,1,"shellLight"],[3,13,1,"outline"],[4,13,3,"shell"],[7,13,2,"visor"],[9,13,1,"glare"],[10,13,15,"visor"],[25,13,3,"shell"],[28,13,1,"outline"],[29,13,1,"shellLight"],[30,13,1,"outline"],[0,14,1,"outline"],[1,14,1,"shellLight"],[2,14,1,"shell"],[3,14,1,"outline"],[4,14,3,"shell"],[7,14,2,"visor"],[9,14,1,"glare"],[10,14,15,"visor"],[25,14,3,"shell"],[28,14,1,"outline"],[29,14,1,"shell"],[30,14,1,"shellLight"],[31,14,1,"outline"],[0,15,1,"outline"],[1,15,2,"shell"],[3,15,1,"outline"],[4,15,3,"shell"],[7,15,18,"visor"],[25,15,3,"shell"],[28,15,1,"outline"],[29,15,2,"shell"],[31,15,1,"outline"],[0,16,1,"outline"],[1,16,2,"shell"],[3,16,1,"outline"],[4,16,3,"shell"],[7,16,18,"visor"],[25,16,3,"shell"],[28,16,1,"outline"],[29,16,2,"shell"],[31,16,1,"outline"],[0,17,1,"outline"],[1,17,2,"shell"],[3,17,1,"outline"],[4,17,3,"shell"],[7,17,18,"visor"],[25,17,3,"shell"],[28,17,1,"outline"],[29,17,2,"shell"],[31,17,1,"outline"],[0,18,1,"outline"],[1,18,1,"shellDark"],[2,18,1,"shell"],[3,18,1,"outline"],[4,18,3,"shell"],[7,18,18,"visor"],[25,18,3,"shell"],[28,18,1,"outline"],[29,18,1,"shell"],[30,18,1,"shellDark"],[31,18,1,"outline"],[1,19,1,"outline"],[2,19,1,"shellDark"],[3,19,1,"outline"],[4,19,3,"shell"],[7,19,18,"visor"],[25,19,3,"shell"],[28,19,1,"outline"],[29,19,1,"shellDark"],[30,19,1,"outline"],[2,20,2,"outline"],[4,20,3,"shell"],[7,20,18,"visor"],[25,20,3,"shell"],[28,20,2,"outline"],[3,21,1,"outline"],[4,21,3,"shell"],[7,21,18,"visor"],[25,21,3,"shell"],[28,21,1,"outline"],[3,22,1,"outline"],[4,22,4,"shell"],[8,22,16,"visor"],[24,22,4,"shell"],[28,22,1,"outline"],[3,23,1,"outline"],[4,23,1,"shellDark"],[5,23,22,"shell"],[27,23,1,"shellDark"],[28,23,1,"outline"],[4,24,1,"outline"],[5,24,1,"shellDark"],[6,24,20,"shell"],[26,24,1,"shellDark"],[27,24,1,"outline"],[5,25,1,"outline"],[6,25,20,"shellDark"],[26,25,1,"outline"],[5,26,22,"outline"],[4,27,1,"outline"],[5,27,2,"whiteLight"],[7,27,1,"outline"],[8,27,1,"shellLight"],[9,27,1,"outline"],[10,27,1,"shellLight"],[11,27,2,"shell"],[13,27,6,"outline"],[19,27,2,"shell"],[21,27,1,"shellLight"],[22,27,1,"outline"],[23,27,1,"shellLight"],[24,27,1,"outline"],[25,27,2,"whiteLight"],[27,27,1,"outline"],[3,28,1,"outline"],[4,28,1,"whiteLight"],[5,28,2,"white"],[7,28,1,"whiteLight"],[8,28,2,"outline"],[10,28,2,"shell"],[12,28,1,"outline"],[13,28,6,"whiteLight"],[19,28,1,"outline"],[20,28,2,"shell"],[22,28,2,"outline"],[24,28,1,"whiteLight"],[25,28,2,"white"],[27,28,1,"whiteLight"],[28,28,1,"outline"],[3,29,1,"outline"],[4,29,1,"whiteDark"],[5,29,2,"white"],[7,29,1,"whiteDark"],[8,29,2,"outline"],[10,29,2,"shell"],[12,29,1,"outline"],[13,29,6,"whiteDark"],[19,29,1,"outline"],[20,29,2,"shell"],[22,29,2,"outline"],[24,29,1,"whiteDark"],[25,29,2,"white"],[27,29,1,"whiteDark"],[28,29,1,"outline"],[4,30,1,"outline"],[5,30,2,"whiteDark"],[7,30,1,"outline"],[9,30,1,"outline"],[10,30,1,"shellDark"],[11,30,2,"shell"],[13,30,6,"outline"],[19,30,2,"shell"],[21,30,1,"shellDark"],[22,30,1,"outline"],[24,30,1,"outline"],[25,30,2,"whiteDark"],[27,30,1,"outline"],[5,31,2,"outline"],[10,31,1,"outline"],[11,31,10,"shellDark"],[21,31,1,"outline"],[25,31,2,"outline"],[11,32,10,"outline"],[11,33,1,"outline"],[12,33,2,"shell"],[14,33,1,"outline"],[17,33,1,"outline"],[18,33,2,"shell"],[20,33,1,"outline"],[11,34,4,"outline"],[17,34,4,"outline"],[10,35,1,"outline"],[11,35,3,"whiteLight"],[14,35,1,"outline"],[17,35,1,"outline"],[18,35,3,"whiteLight"],[21,35,1,"outline"],[9,36,1,"outline"],[10,36,1,"whiteLight"],[11,36,3,"white"],[14,36,1,"whiteLight"],[15,36,2,"outline"],[17,36,1,"whiteLight"],[18,36,3,"white"],[21,36,1,"whiteLight"],[22,36,1,"outline"],[10,37,1,"outline"],[11,37,3,"whiteDark"],[14,37,1,"outline"],[17,37,1,"outline"],[18,37,3,"whiteDark"],[21,37,1,"outline"],[11,38,3,"outline"],[18,38,3,"outline"]],"faces":{"calm":[[11,16,2,"eye"],[19,16,2,"eye"],[11,17,2,"eye"],[19,17,2,"eye"]],"happy":[[11,16,2,"eye"],[19,16,2,"eye"],[10,17,1,"eye"],[13,17,1,"eye"],[18,17,1,"eye"],[21,17,1,"eye"],[8,19,2,"blush"],[22,19,2,"blush"]],"wink":[[11,15,2,"eye"],[11,16,2,"eye"],[19,16,2,"eye"],[11,17,2,"eye"],[18,17,1,"eye"],[21,17,1,"eye"]],"open":[[11,15,2,"eye"],[19,15,2,"eye"],[11,16,2,"eye"],[19,16,2,"eye"],[11,17,2,"eye"],[19,17,2,"eye"]],"closed":[[10,17,4,"eye"],[18,17,4,"eye"]]},"fixed":{"outline":"#1B1A3A","visor":"#17143A","glare":"#BFEAF7","white":"#F4F6FB","whiteLight":"#FFFFFF","whiteDark":"#AEB3CC","silver":"#C9CFDB","silverLight":"#E8EBF2","silverDark":"#8E95AB","tip":"#9FF0F7","tipLight":"#F0FFFF","tipDark":"#5FCFE0","eye":"#E8FFFF","blush":"#FF9AB2"},"colors":{"teal":"#2FB8B0","coral":"#F2766B","violet":"#8E6CE0","sun":"#F2B33D","sky":"#5B8DEF","leaf":"#5BBF6A"},"stickers":["star","heart","leaf","bolt"],"personalities":{"calm":{"label":"Calm","face":"calm","blurb":"Gentle and unhurried","sample":"No rush. Practice is at 5:30, and I'll remind you at 4:50."},"cheerful":{"label":"Cheerful","face":"happy","blurb":"Upbeat and encouraging","sample":"Good news! Practice is at 5:30. Want a reminder at 4:50?"},"funny":{"label":"Funny","face":"wink","blurb":"Light jokes, still useful","sample":"Practice at 5:30. I'll ping you at 4:50, before traffic does."},"brief":{"label":"Brief","face":"open","blurb":"Short and to the point","sample":"Practice 5:30. Reminder at 4:50?"}}};
+const STICKER_ART = {"star":"a509b7da6f93811f29bf9e84560af70f","heart":"ef08bdd73525cdfac56fe3c437a18b9c","leaf":"6729bb22fb50e334dd97a073fa44e53a","bolt":"f4bb0c6f1f0fcae62475f582a31df06e"};
+function hexToHsl(hex) {
+  const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255);
+  const max = Math.max(r, g, b), min = Math.min(r, g, b), l = (max + min) / 2;
+  if (max === min) return [0, 0, l];
+  const d = max - min, s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+  const h = max === r ? (g - b) / d + (g < b ? 6 : 0) : max === g ? (b - r) / d + 2 : (r - g) / d + 4;
+  return [h * 60, s, l];
+}
+
+function hslToHex(h, s, l) {
+  const k = (n) => (n + h / 30) % 12, a = s * Math.min(l, 1 - l);
+  const f = (n) => l - a * Math.max(-1, Math.min(k(n) - 3, 9 - k(n), 1));
+  return "#" + [0, 8, 4].map((n) => Math.round(f(n) * 255).toString(16).padStart(2, "0")).join("");
+}
+
+const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
+
+/** Light and dark shades of one colour, with a slight hue shift like hand-pixelled art. */
+function shades(hex) {
+  const [h, s, l] = hexToHsl(hex);
+  return {
+    light: hslToHex((h + 356) % 360, s, clamp(l + 0.13, 0, 0.92)),
+    dark: hslToHex((h + 8) % 360, s, clamp(l - 0.16, 0.08, 1)),
+  };
+}
+
+
+// Shared by boards that draw MEGAs live from template data (LOOKS, STICKER_ART, shades()).
+function paletteFor(hex) {
+  const { light, dark } = shades(hex);
+  return { ...LOOKS.fixed, shell: hex, shellLight: light, shellDark: dark };
+}
+// Pixel runs -> positioned boxes at `scale`, optionally only rows above `maxRow` (head crops).
+function draw(hex, face, scale, maxRow) {
+  const pal = paletteFor(hex);
+  const runs = [...LOOKS.body, ...(LOOKS.faces[face] || [])].filter((r) => maxRow === undefined || r[1] < maxRow);
+  return runs.map(([x, y, w, k]) => ({ l: x * scale, t: y * scale, w: w * scale, h: scale, c: pal[k] }));
+}
+function sprite(hex, face, sticker, scale, maxRow) {
+  const [gw, gh] = LOOKS.grid;
+  return { rects: draw(hex, face, scale, maxRow), hasSticker: sticker !== 'none', sticker: sticker === 'none' ? '' : '/_blob/' + STICKER_ART[sticker], w: gw * scale, h: gh * scale };
+}
+// Dark or light text on a coloured button, whichever reads better.
+function inkOn(hex) {
+  const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255);
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b > 0.45 ? '#0C0E11' : '#FFFFFF';
+}
+
+
+
+// Sample MEGAs and notifications. People are labelled by role only.
+const MEGAS = {
+  teal: { name: 'Teal', hex: '#2FB8B0', face: 'open' },
+  coral: { name: 'Coral', hex: '#F2766B', face: 'happy' },
+  zap: { name: 'Zap', hex: '#8E6CE0', face: 'happy' },
+};
+// Loud kinds wake the phone (iOS time-sensitive / active); quiet kinds arrive with no sound (iOS passive).
+const KINDS = { Reminder: '#2FB8B0', Request: '#F2B33D' };
+const SCENES = {
+  adult: {
+    owner: 'teal', date: 'Sunday, October 25', time: '4:40',
+    loud: [
+      { id: 'milk', kind: 'Request', from: 'coral', when: '2m ago', title: 'Can you grab milk on the way home?',
+        body: 'Coral is asking for your partner. Groceries is out of milk.', say: 'Coral is asking for your partner: can you grab milk on the way home? Groceries is out.',
+        actions: ['Yes', 'I can’t'], replies: ['Told Coral you’ll grab it. Milk is on your list.', 'Told Coral you can’t. Coral will let your partner know.'] },
+      { id: 'pickup', kind: 'Reminder', when: 'now', title: 'Soccer pickup in 10 minutes',
+        body: 'Practice ends at 5:30. Leave by 4:50 to beat traffic.', say: 'Soccer pickup in 10 minutes. Practice ends at 5:30, so leave by 4:50 to beat traffic.',
+        actions: ['On my way', 'Snooze 5 min'], replies: ['Got it. Drive safe.', 'I’ll remind you again at 4:45.'] },
+    ],
+    quiet: [
+      { kind: 'Kid update', when: '3:58 PM', title: 'Twin finished their math homework', body: 'Zap says it took 25 minutes, with two hints.' },
+      { kind: 'Tip', when: '1h ago', title: 'Recycling goes out Tuesday', body: 'Want a reminder Monday night?' },
+    ],
+  },
+  kid: {
+    owner: 'zap', kid: true, date: 'Sunday, October 25', time: '3:55',
+    loud: [
+      { id: 'homework', kind: 'Reminder', when: 'now', title: 'Homework time in 5 minutes', body: 'Math worksheet today. I’ll give hints if you get stuck.',
+        say: 'Homework time in 5 minutes! Math worksheet today. I’ll give hints if you get stuck.',
+        actions: ['Starting!', '5 more min'], replies: ['Nice! See you at your desk.', 'OK, I’ll check back at 4:05.'] },
+    ],
+    quiet: [],
+  },
+  kidMorning: {
+    owner: 'zap', kid: true, date: 'Monday, October 26', time: '7:00',
+    loud: [
+      { id: 'book', kind: 'Reminder', when: '7:00 AM', held: 'Saved from 9:10 PM · quiet hours', title: 'Bring your library book today', body: 'It goes back to school today.',
+        say: 'Good morning! Bring your library book today. It goes back to school today.',
+        actions: ['Got it', 'Remind me at 7:30'], replies: ['Great. Have a good day!', 'OK, I’ll remind you at 7:30.'] },
+    ],
+    quiet: [],
+  },
+};
+// Kids get bigger targets, same as thread UI blocks.
+const SIZES = { adult: { btnH: 44, btnFont: 15, appFont: 17 }, kid: { btnH: 54, btnFont: 18, appFont: 20 } };
+const badge = (id, scale) => sprite(MEGAS[id].hex, MEGAS[id].face, 'none', scale, 27);
+
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    const s = SCENES[props.scene] ?? SCENES.adult, first = s.loud[0].id, at = props.at;
+    this.state = {
+      expanded: at === 'expanded' ? first : null,
+      answers: at === 'handled' ? { [first]: 0 } : {},
+      quietOpen: at === 'quietOpen',
+      openId: at === 'opened' ? first : null,
+    };
+  }
+  renderVals() {
+    const s = SCENES[this.props.scene] ?? SCENES.adult;
+    const { expanded, answers, quietOpen, openId } = this.state;
+    const owner = MEGAS[s.owner], size = s.kid ? SIZES.kid : SIZES.adult, { dark } = shades(owner.hex);
+    const answer = (id, i) => this.setState({ answers: { ...answers, [id]: i }, expanded: null });
+    const card = (n) => {
+      const done = answers[n.id] !== undefined, from = n.from ? MEGAS[n.from].name : owner.name;
+      return {
+        label: owner.name + ' ' + n.kind.toLowerCase(), from: owner.name + ' · ' + (n.from ? n.kind + ' from ' + from : n.kind), kindColor: KINDS[n.kind],
+        when: n.when, title: n.title, body: n.body, say: n.say, hasHeld: !!n.held, held: n.held || '',
+        head: badge(n.from ?? s.owner, 1.25), megaHex: owner.hex,
+        open: !done, isDone: done, answer: done ? n.actions[answers[n.id]] : '', reply: done ? n.replies[answers[n.id]] : '',
+        expanded: expanded === n.id, expandedStr: expanded === n.id ? 'true' : 'false',
+        z: expanded === n.id ? 2 : 0, opacity: expanded && expanded !== n.id ? 0.35 : 1,
+        btnH: size.btnH, btnFont: size.btnFont,
+        actions: n.actions.map((label, i) => ({ label, bg: i === 0 ? owner.hex : 'rgba(255,255,255,0.1)', fg: i === 0 ? inkOn(owner.hex) : '#EDEFF2', border: i === 0 ? owner.hex : '#3A414B', pick: () => answer(n.id, i) })),
+        expand: () => this.setState({ expanded: expanded === n.id ? null : n.id }),
+        openApp: () => this.setState({ openId: n.id, expanded: null }),
+      };
+    };
+    const cards = s.loud.map(card);
+    const appIdx = s.loud.findIndex((n) => n.id === openId), appCard = appIdx >= 0 ? cards[appIdx] : cards[0];
+    return {
+      wallpaper: 'linear-gradient(165deg, ' + dark + ' 0%, #12151A 55%, #0C0E11 100%)',
+      date: s.date, time: s.time, mega: owner.name,
+      onLock: !openId, inApp: !!openId, cards, dimmed: !!expanded, collapse: () => this.setState({ expanded: null }),
+      hasQuiet: s.quiet.length > 0, quietCount: s.quiet.length, quiet: s.quiet,
+      quietClosed: !quietOpen, quietOpen, quietOpacity: expanded ? 0.35 : 1,
+      openQuiet: () => this.setState({ quietOpen: true }), closeQuiet: () => this.setState({ quietOpen: false }),
+      appHead: badge(s.owner, 1.5), appCard, appFont: size.appFont, appAsking: appCard.open, appAnswered: appCard.isDone,
+    };
+  }
+}
+</script>
+</body>
+</html>

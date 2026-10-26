@@ -1,0 +1,574 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Onboarding</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#0C0E11}
+a{color:#EDEFF2;text-decoration:none}
+button,input{font-family:inherit}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(255,255,255,.35)}50%{box-shadow:0 0 0 10px rgba(255,255,255,0)}}
+.listening{animation:pulse 1s ease-in-out infinite}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; box-sizing: border-box; background: #0C0E11; color: #EDEFF2; font-family: Inter, system-ui, sans-serif; display: flex; flex-direction: column; overflow: hidden">
+
+  <sc-if value="{{showTop}}" hint-placeholder-val="{{ true }}">
+    <header style="display: flex; align-items: center; gap: 10px; height: 56px; padding: 0 12px; flex-shrink: 0">
+      <button type="button" onClick="{{back}}" aria-label="Back" style="width: 44px; height: 44px; border: none; background: transparent; color: #EDEFF2; display: flex; align-items: center; justify-content: center"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"></path></svg></button>
+      <div role="progressbar" aria-label="Setup progress" aria-valuemin="0" aria-valuemax="2" aria-valuenow="{{stepNum}}" style="flex: 1; height: 6px; border-radius: 3px; background: #22262D; overflow: hidden">
+        <div style="width: {{progress}}%; height: 6px; background: {{accent}}"></div>
+      </div>
+      <span style="width: 44px"></span>
+    </header>
+  </sc-if>
+
+  <!-- Welcome -->
+  <sc-if value="{{is.welcome}}" hint-placeholder-val="{{ true }}">
+    <div style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 28px; padding: 32px 24px">
+      <div style="display: flex; align-items: flex-end; gap: 14px">
+        <sc-for list="{{trio}}" as="t" hint-placeholder-count="3">
+          <div style="position: relative; width: {{t.w}}px; height: {{t.h}}px">
+            <sc-for list="{{t.rects}}" as="r" hint-placeholder-count="240">
+              <span style="position: absolute; left: {{r.l}}px; top: {{r.t}}px; width: {{r.w}}px; height: {{r.h}}px; background: {{r.c}}"></span>
+            </sc-for>
+          </div>
+        </sc-for>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 10px; text-align: center">
+        <h1 style="margin: 0; font-size: 30px; font-weight: 800">Welcome to MEGA</h1>
+        <p style="margin: 0; font-size: 17px; line-height: 25px; color: #B4BAC3">Everyone in your family gets their own helper. Let’s start with yours, and it’ll help you set up the rest.</p>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 12px; width: 100%">
+        <button type="button" onClick="{{next}}" style="height: 58px; border-radius: 29px; border: none; background: #EDEFF2; color: #0C0E11; font-size: 18px; font-weight: 800">Make my MEGA</button>
+        <button type="button" onClick="{{toCode}}" style="height: 52px; border-radius: 26px; border: 1px solid #2E343D; background: transparent; color: #EDEFF2; font-size: 16px; font-weight: 600">I have an invite</button>
+      </div>
+    </div>
+  </sc-if>
+
+  <!-- Make a MEGA (yours, or someone else's) -->
+  <sc-if value="{{is.make}}" hint-placeholder-val="{{ false }}">
+    <div style="flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 18px; padding: 4px 16px 16px">
+      <div style="display: flex; flex-direction: column; gap: 4px">
+        <h1 style="margin: 0; font-size: 24px; font-weight: 800">{{make.title}}</h1>
+        <p style="margin: 0; font-size: 15px; color: #9AA1AB">{{make.sub}}</p>
+      </div>
+      <div style="display: flex; align-items: center; justify-content: center; height: 176px; border-radius: 24px; background: {{stageBg}}">
+        <div style="position: relative; width: {{make.sprite.w}}px; height: {{make.sprite.h}}px">
+          <sc-for list="{{make.sprite.rects}}" as="r" hint-placeholder-count="240">
+            <span style="position: absolute; left: {{r.l}}px; top: {{r.t}}px; width: {{r.w}}px; height: {{r.h}}px; background: {{r.c}}"></span>
+          </sc-for>
+          <sc-if value="{{make.sprite.hasSticker}}" hint-placeholder-val="{{ true }}">
+            <img src="{{make.sprite.sticker}}" alt="" style="position: absolute; inset: 0; width: 100%; height: 100%; image-rendering: pixelated">
+          </sc-if>
+        </div>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 8px">
+        <label for="mega-name" style="font-size: 13px; font-weight: 600; color: #9AA1AB; letter-spacing: .04em; text-transform: uppercase">Name</label>
+        <input id="mega-name" type="text" value="{{make.name}}" onInput="{{typeMegaName}}" style="height: 50px; box-sizing: border-box; border-radius: 14px; border: 1px solid #2E343D; background: #16191E; color: #EDEFF2; padding: 0 14px; font-size: 18px; font-weight: 700">
+        <div style="display: flex; gap: 8px; flex-wrap: wrap">
+          <sc-for list="{{make.suggestions}}" as="n" hint-placeholder-count="4">
+            <button type="button" onClick="{{n.pick}}" style="height: 36px; padding: 0 14px; border-radius: 18px; border: 1px solid #2E343D; background: transparent; color: #EDEFF2; font-size: 14px">{{n.label}}</button>
+          </sc-for>
+        </div>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 8px">
+        <div style="font-size: 13px; font-weight: 600; color: #9AA1AB; letter-spacing: .04em; text-transform: uppercase">Color</div>
+        <div style="display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 8px">
+          <sc-for list="{{make.colors}}" as="c" hint-placeholder-count="6">
+            <button type="button" aria-label="{{c.label}}" aria-pressed="{{c.on}}" onClick="{{c.pick}}" style="height: 44px; border-radius: 50%; border: {{c.ring}}; background: {{c.hex}}; box-shadow: inset 0 0 0 2px rgba(0,0,0,0.25)"></button>
+          </sc-for>
+        </div>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 8px">
+        <div style="font-size: 13px; font-weight: 600; color: #9AA1AB; letter-spacing: .04em; text-transform: uppercase">Sticker</div>
+        <div style="display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px">
+          <sc-for list="{{make.stickers}}" as="d" hint-placeholder-count="5">
+            <button type="button" aria-label="{{d.label}}" aria-pressed="{{d.on}}" onClick="{{d.pick}}" style="position: relative; height: 44px; border-radius: 14px; border: {{d.ring}}; background: #16191E; color: #EDEFF2; overflow: hidden; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600">
+              <sc-if value="{{d.hasImage}}" hint-placeholder-val="{{ true }}">
+                <span aria-hidden="true" style="position: relative; width: 36px; height: 36px; overflow: hidden"><img src="{{d.src}}" alt="" style="position: absolute; left: -60px; top: -9px; width: 96px; height: 120px; image-rendering: pixelated"></span>
+              </sc-if>
+              <sc-if value="{{d.isNone}}" hint-placeholder-val="{{ false }}">None</sc-if>
+            </button>
+          </sc-for>
+        </div>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 8px">
+        <div style="font-size: 13px; font-weight: 600; color: #9AA1AB; letter-spacing: .04em; text-transform: uppercase">Personality</div>
+        <div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px">
+          <sc-for list="{{make.personalities}}" as="p" hint-placeholder-count="4">
+            <button type="button" aria-pressed="{{p.on}}" onClick="{{p.pick}}" style="height: 44px; border-radius: 14px; border: {{p.ring}}; background: #16191E; color: #EDEFF2; font-size: 14px; font-weight: 600">{{p.label}}</button>
+          </sc-for>
+        </div>
+        <div style="font-size: 14px; color: #9AA1AB; line-height: 20px">“{{make.sample}}”</div>
+      </div>
+    </div>
+    <div style="padding: 10px 16px 18px; flex-shrink: 0">
+      <button type="button" onClick="{{next}}" style="width: 100%; height: 56px; border-radius: 28px; border: none; background: {{accent}}; color: {{accentInk}}; font-size: 17px; font-weight: 800">{{make.cta}}</button>
+    </div>
+  </sc-if>
+
+  <!-- Chat with a MEGA: get to know you, then adding people, with UI blocks in the thread -->
+  <sc-if value="{{is.chat}}" hint-placeholder-val="{{ true }}">
+    <div style="display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-bottom: 1px solid #22262D; flex-shrink: 0">
+      <span style="position: relative; width: 48px; height: 40px; overflow: hidden; border-radius: 10px; background: #FFFFFF; flex-shrink: 0">
+        <sc-for list="{{guide.head.rects}}" as="r" hint-placeholder-count="150">
+          <span style="position: absolute; left: {{r.l}}px; top: {{r.t}}px; width: {{r.w}}px; height: {{r.h}}px; background: {{r.c}}"></span>
+        </sc-for>
+      </span>
+      <div style="display: flex; flex-direction: column; gap: 2px">
+        <div style="font-size: 18px; font-weight: 700">{{guide.name}}</div>
+        <div style="font-size: 13px; color: #9AA1AB">{{chatStatus}}</div>
+      </div>
+    </div>
+    <div style="flex: 1; overflow-y: auto; display: flex; flex-direction: column-reverse; gap: 14px; padding: 14px 16px">
+      <div style="display: flex; flex-direction: column; gap: 10px">
+        <sc-if value="{{block.theme}}" hint-placeholder-val="{{ false }}">
+          <button type="button" role="switch" aria-checked="{{previewStr}}" onClick="{{togglePreview}}" style="display: flex; align-items: center; gap: 12px; min-height: 56px; padding: 8px 14px; border-radius: 16px; border: 1px solid #2E343D; background: #16191E; color: #EDEFF2; text-align: left">
+            <span aria-hidden="true" style="width: 26px; height: 26px; border-radius: 13px; background: {{mineHex}}"></span>
+            <span style="flex: 1; display: flex; flex-direction: column; gap: 1px"><span style="font-size: 15px; font-weight: 600">Preview {{guide.name}}’s color</span><span style="font-size: 12px; color: #9AA1AB">The whole app changes while it’s on</span></span>
+            <span aria-hidden="true" style="position: relative; width: 48px; height: 28px; border-radius: 14px; background: {{previewTrack}}"><span style="position: absolute; top: 3px; left: {{previewKnob}}px; width: 22px; height: 22px; border-radius: 11px; background: #FFFFFF"></span></span>
+          </button>
+        </sc-if>
+        <sc-if value="{{block.chips}}" hint-placeholder-val="{{ true }}">
+          <div style="display: flex; gap: 8px; flex-wrap: wrap">
+            <sc-for list="{{chips}}" as="c" hint-placeholder-count="3">
+              <button type="button" onClick="{{c.pick}}" style="height: {{chipH}}px; padding: 0 18px; border-radius: 22px; border: {{c.border}}; background: {{c.bg}}; color: {{c.fg}}; font-size: {{chipFont}}px; font-weight: 600">{{c.label}}</button>
+            </sc-for>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{block.text}}" hint-placeholder-val="{{ false }}">
+          <div style="display: flex; gap: 8px; padding: 8px; border-radius: 18px; background: #16191E; border: 1px solid #2A3038">
+            <label for="block-text" style="position: absolute; left: -9999px">{{textPlaceholder}}</label>
+            <input id="block-text" type="text" value="{{draft}}" onInput="{{typeDraft}}" placeholder="{{textPlaceholder}}" style="flex: 1; min-width: 0; height: 44px; box-sizing: border-box; border: none; border-radius: 12px; background: #0C0E11; color: #EDEFF2; padding: 0 12px; font-size: 16px">
+            <button type="button" onClick="{{submitDraft}}" style="height: 44px; padding: 0 18px; border-radius: 22px; border: none; background: {{accent}}; color: {{accentInk}}; font-size: 15px; font-weight: 700">Add</button>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{block.fields}}" hint-placeholder-val="{{ false }}">
+          <div style="display: flex; flex-direction: column; gap: 4px; padding: 6px 14px 12px; border-radius: 18px; background: #16191E; border: 1px solid #2A3038">
+            <sc-for list="{{fields}}" as="f" hint-placeholder-count="3">
+              <div style="display: flex; align-items: center; gap: 10px; min-height: 50px; border-bottom: 1px solid #22262D">
+                <label for="{{f.id}}" style="width: 96px; font-size: 15px; color: #B4BAC3">{{f.label}}</label>
+                <input id="{{f.id}}" type="text" value="{{f.value}}" onInput="{{f.type}}" placeholder="{{f.placeholder}}" style="flex: 1; min-width: 0; height: 40px; border: none; background: transparent; color: #EDEFF2; font-size: 15px">
+              </div>
+            </sc-for>
+            <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: 10px">
+              <button type="button" onClick="{{skipFields}}" style="height: 44px; border-radius: 22px; border: 1px solid #2E343D; background: transparent; color: #EDEFF2; font-size: 15px; font-weight: 600">Skip</button>
+              <button type="button" onClick="{{submitFields}}" style="height: 44px; border-radius: 22px; border: none; background: {{accent}}; color: {{accentInk}}; font-size: 15px; font-weight: 700">Done</button>
+            </div>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{block.look}}" hint-placeholder-val="{{ false }}">
+          <div style="display: flex; flex-direction: column; gap: 12px; padding: 14px; border-radius: 18px; background: #16191E; border: 1px solid #2A3038">
+            <div style="display: flex; align-items: center; gap: 14px">
+              <div style="position: relative; width: {{theirs.sprite.w}}px; height: {{theirs.sprite.h}}px; flex-shrink: 0">
+                <sc-for list="{{theirs.sprite.rects}}" as="r" hint-placeholder-count="240">
+                  <span style="position: absolute; left: {{r.l}}px; top: {{r.t}}px; width: {{r.w}}px; height: {{r.h}}px; background: {{r.c}}"></span>
+                </sc-for>
+                <sc-if value="{{theirs.sprite.hasSticker}}" hint-placeholder-val="{{ true }}">
+                  <img src="{{theirs.sprite.sticker}}" alt="" style="position: absolute; inset: 0; width: 100%; height: 100%; image-rendering: pixelated">
+                </sc-if>
+              </div>
+              <div style="display: flex; flex-direction: column; gap: 6px; flex: 1">
+                <div style="font-size: 18px; font-weight: 800">{{theirs.name}}</div>
+                <div style="display: flex; gap: 6px; flex-wrap: wrap">
+                  <sc-for list="{{theirs.names}}" as="n" hint-placeholder-count="3">
+                    <button type="button" onClick="{{n.pick}}" style="height: 32px; padding: 0 10px; border-radius: 16px; border: {{n.border}}; background: transparent; color: #EDEFF2; font-size: 13px">{{n.label}}</button>
+                  </sc-for>
+                </div>
+              </div>
+            </div>
+            <div style="display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 6px">
+              <sc-for list="{{theirs.colors}}" as="c" hint-placeholder-count="6">
+                <button type="button" aria-label="{{c.label}}" aria-pressed="{{c.on}}" onClick="{{c.pick}}" style="height: 40px; border-radius: 50%; border: {{c.ring}}; background: {{c.hex}}"></button>
+              </sc-for>
+            </div>
+            <div style="display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px">
+              <sc-for list="{{theirs.stickers}}" as="d" hint-placeholder-count="5">
+                <button type="button" aria-label="{{d.label}}" aria-pressed="{{d.on}}" onClick="{{d.pick}}" style="position: relative; height: 40px; border-radius: 12px; border: {{d.ring}}; background: #0C0E11; color: #EDEFF2; overflow: hidden; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 600">
+                  <sc-if value="{{d.hasImage}}" hint-placeholder-val="{{ true }}">
+                    <span aria-hidden="true" style="position: relative; width: 30px; height: 30px; overflow: hidden"><img src="{{d.src}}" alt="" style="position: absolute; left: -50px; top: -7.5px; width: 80px; height: 100px; image-rendering: pixelated"></span>
+                  </sc-if>
+                  <sc-if value="{{d.isNone}}" hint-placeholder-val="{{ false }}">None</sc-if>
+                </button>
+              </sc-for>
+            </div>
+            <div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px">
+              <sc-for list="{{theirs.personalities}}" as="p" hint-placeholder-count="4">
+                <button type="button" aria-pressed="{{p.on}}" onClick="{{p.pick}}" style="height: 40px; border-radius: 12px; border: {{p.ring}}; background: #0C0E11; color: #EDEFF2; font-size: 13px; font-weight: 600">{{p.label}}</button>
+              </sc-for>
+            </div>
+            <button type="button" onClick="{{submitLook}}" style="height: 46px; border-radius: 23px; border: none; background: {{accent}}; color: {{accentInk}}; font-size: 15px; font-weight: 700">Looks good</button>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{block.questions}}" hint-placeholder-val="{{ false }}">
+          <div style="display: flex; flex-direction: column; gap: 8px; padding: 12px; border-radius: 18px; background: #16191E; border: 1px solid #2A3038">
+            <sc-for list="{{questions}}" as="q" hint-placeholder-count="5">
+              <div style="display: flex; align-items: center; gap: 10px; padding: 8px 4px; border-bottom: 1px solid #22262D; opacity: {{q.opacity}}">
+                <span style="flex: 1; display: flex; flex-direction: column; gap: 5px">
+                  <span style="font-size: 14px; font-weight: 600; line-height: 19px">{{q.ask}}</span>
+                  <span style="align-self: flex-start; font-size: 11px; font-weight: 600; padding: 2px 7px; border-radius: 7px; color: {{q.tagFg}}; background: {{q.tagBg}}">{{q.tag}}</span>
+                </span>
+                <button type="button" role="switch" aria-checked="{{q.onStr}}" aria-label="Ask this" onClick="{{q.toggle}}" style="position: relative; width: 48px; height: 30px; flex-shrink: 0; border-radius: 15px; border: none; padding: 0; background: {{q.track}}">
+                  <span aria-hidden="true" style="position: absolute; top: 3px; left: {{q.knob}}px; width: 24px; height: 24px; border-radius: 12px; background: #FFFFFF"></span>
+                </button>
+              </div>
+            </sc-for>
+            <sc-if value="{{hasSuggestion}}" hint-placeholder-val="{{ true }}">
+              <div style="display: flex; align-items: center; gap: 8px; padding: 8px 4px">
+                <span style="flex: 1; font-size: 13px; line-height: 18px; color: #B4BAC3">Add “What are you excited about this week?” for a fun first chat?</span>
+                <button type="button" onClick="{{acceptSuggestion}}" style="height: 36px; padding: 0 12px; border-radius: 18px; border: 1px solid {{accent}}; background: transparent; color: #EDEFF2; font-size: 13px; font-weight: 600">Add</button>
+              </div>
+            </sc-if>
+            <button type="button" onClick="{{submitQuestions}}" style="height: 46px; border-radius: 23px; border: none; background: {{accent}}; color: {{accentInk}}; font-size: 15px; font-weight: 700">Looks good</button>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{block.invite}}" hint-placeholder-val="{{ false }}">
+          <div style="display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 14px; border-radius: 18px; background: #16191E; border: 1px solid #2A3038">
+            <div style="padding: 10px; border-radius: 14px; background: #FFFFFF">
+              <div role="img" aria-label="QR code to join" style="position: relative; width: 147px; height: 147px">
+                <sc-for list="{{qr}}" as="b" hint-placeholder-count="200">
+                  <span style="position: absolute; left: {{b.l}}px; top: {{b.t}}px; width: 7px; height: 7px; background: #0C0E11"></span>
+                </sc-for>
+              </div>
+            </div>
+            <button type="button" style="width: 100%; height: 46px; border-radius: 23px; border: none; background: {{accent}}; color: {{accentInk}}; font-size: 15px; font-weight: 700">Send invite link</button>
+            <div style="width: 100%; display: flex; align-items: center; gap: 10px; font-size: 14px">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#F2B33D" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2"></rect><path d="M8 11V7a4 4 0 0 1 8 0v4"></path></svg>
+              <span style="flex: 1">Parent code: {{codeShown}}</span>
+              <button type="button" onClick="{{toggleCode}}" style="height: 34px; padding: 0 12px; border-radius: 17px; border: 1px solid #2E343D; background: transparent; color: #EDEFF2; font-size: 13px; font-weight: 600">{{codeToggle}}</button>
+            </div>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{block.link}}" hint-placeholder-val="{{ false }}">
+          <a href="Main.dc.html" style="height: 52px; border-radius: 26px; background: {{accent}}; color: {{accentInk}}; font-size: 16px; font-weight: 700; display: flex; align-items: center; justify-content: center">Go to my chat</a>
+        </sc-if>
+      </div>
+
+      <sc-for list="{{history}}" as="m" hint-placeholder-count="4">
+        <sc-if value="{{m.fromMega}}" hint-placeholder-val="{{ true }}">
+          <div style="font-size: {{msgFont}}px; line-height: 1.45; max-width: 330px">{{m.text}}</div>
+        </sc-if>
+        <sc-if value="{{m.fromMe}}" hint-placeholder-val="{{ false }}">
+          <div style="align-self: flex-end; max-width: 270px; padding: 10px 14px; border-radius: 18px 18px 4px 18px; background: {{bubble}}; font-size: 16px; line-height: 22px">{{m.text}}</div>
+        </sc-if>
+      </sc-for>
+    </div>
+    <div style="display: flex; align-items: center; gap: 10px; padding: 10px 16px 18px; flex-shrink: 0">
+      <button type="button" class="{{talkClass}}" onPointerDown="{{holdTalk}}" onPointerUp="{{releaseTalk}}" onPointerLeave="{{releaseTalk}}" style="flex: 1; height: 60px; border-radius: 30px; border: 2px solid {{accent}}; background: {{talkBg}}; color: {{talkFg}}; font-size: 17px; font-weight: 700; display: flex; align-items: center; justify-content: center; gap: 10px; touch-action: none; user-select: none">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="2" width="6" height="12" rx="3"></rect><path d="M19 10v1a7 7 0 0 1-14 0v-1M12 18v4"></path></svg>
+        {{talkLabel}}
+      </button>
+      <button type="button" aria-label="Type instead" style="width: 60px; height: 60px; border-radius: 30px; border: 1px solid #2E343D; background: #16191E; color: #EDEFF2; display: flex; align-items: center; justify-content: center"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="6" width="20" height="12" rx="2"></rect><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M7 14h10"></path></svg></button>
+    </div>
+  </sc-if>
+
+  <!-- Kid's device: parent code -->
+  <sc-if value="{{is.code}}" hint-placeholder-val="{{ false }}">
+    <div style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 18px; padding: 28px 24px 20px">
+      <div style="position: relative; width: {{kid.sprite.w}}px; height: {{kid.sprite.h}}px">
+        <sc-for list="{{kid.sprite.rects}}" as="r" hint-placeholder-count="240">
+          <span style="position: absolute; left: {{r.l}}px; top: {{r.t}}px; width: {{r.w}}px; height: {{r.h}}px; background: {{r.c}}"></span>
+        </sc-for>
+        <img src="{{kid.sprite.sticker}}" alt="" style="position: absolute; inset: 0; width: 100%; height: 100%; image-rendering: pixelated">
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 6px; text-align: center">
+        <h1 style="margin: 0; font-size: 24px; font-weight: 800">Ask a parent for the code</h1>
+        <p style="margin: 0; font-size: 16px; color: #B4BAC3">It’s 5 numbers. Then you can meet {{kidMega}}!</p>
+      </div>
+      <div aria-live="polite" style="display: flex; gap: 10px">
+        <sc-for list="{{codeBoxes}}" as="b" hint-placeholder-count="5">
+          <span style="width: 52px; height: 62px; border-radius: 14px; border: 2px solid {{b.border}}; background: #16191E; display: flex; align-items: center; justify-content: center; font-size: 28px; font-weight: 800">{{b.ch}}</span>
+        </sc-for>
+      </div>
+      <div style="min-height: 20px; font-size: 14px; color: #F2766B">{{codeError}}</div>
+      <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; width: 100%; margin-top: auto">
+        <sc-for list="{{keypad}}" as="k" hint-placeholder-count="12">
+          <button type="button" aria-label="{{k.label}}" onClick="{{k.press}}" style="height: 64px; border-radius: 18px; border: none; background: {{k.bg}}; color: #EDEFF2; font-size: 26px; font-weight: 700">{{k.text}}</button>
+        </sc-for>
+      </div>
+    </div>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"step":{"editor":"enum","options":["welcome","make","chat","code","kidmeet"],"default":"welcome"},"at":{"editor":"enum","options":["hello","theme","add","relation","details","look","questions","invite"],"default":"hello"},"color":{"editor":"enum","options":["teal","coral","violet","sun","sky","leaf"],"default":"teal"},"$preview":{"width":390,"height":844}}'>
+// Generated from prototypes/megasprite (mega-template.mjs, pixel-paint.mjs, export-looks.mjs).
+const LOOKS = {"grid":[32,40],"body":[[15,0,2,"outline"],[14,1,1,"outline"],[15,1,2,"tipLight"],[17,1,1,"outline"],[13,2,1,"outline"],[14,2,1,"tipLight"],[15,2,2,"tip"],[17,2,1,"tipLight"],[18,2,1,"outline"],[14,3,1,"outline"],[15,3,2,"tipDark"],[17,3,1,"outline"],[14,4,4,"outline"],[14,5,1,"outline"],[15,5,2,"silver"],[17,5,1,"outline"],[14,6,1,"outline"],[15,6,2,"silver"],[17,6,1,"outline"],[6,7,20,"outline"],[5,8,1,"outline"],[6,8,20,"shellLight"],[26,8,1,"outline"],[4,9,1,"outline"],[5,9,1,"shellLight"],[6,9,20,"shell"],[26,9,1,"shellLight"],[27,9,1,"outline"],[3,10,1,"outline"],[4,10,1,"shellLight"],[5,10,22,"shell"],[27,10,1,"shellLight"],[28,10,1,"outline"],[3,11,1,"outline"],[4,11,4,"shell"],[8,11,16,"visor"],[24,11,4,"shell"],[28,11,1,"outline"],[2,12,2,"outline"],[4,12,3,"shell"],[7,12,3,"visor"],[10,12,3,"glare"],[13,12,12,"visor"],[25,12,3,"shell"],[28,12,2,"outline"],[1,13,1,"outline"],[2,13,1,"shellLight"],[3,13,1,"outline"],[4,13,3,"shell"],[7,13,2,"visor"],[9,13,1,"glare"],[10,13,15,"visor"],[25,13,3,"shell"],[28,13,1,"outline"],[29,13,1,"shellLight"],[30,13,1,"outline"],[0,14,1,"outline"],[1,14,1,"shellLight"],[2,14,1,"shell"],[3,14,1,"outline"],[4,14,3,"shell"],[7,14,2,"visor"],[9,14,1,"glare"],[10,14,15,"visor"],[25,14,3,"shell"],[28,14,1,"outline"],[29,14,1,"shell"],[30,14,1,"shellLight"],[31,14,1,"outline"],[0,15,1,"outline"],[1,15,2,"shell"],[3,15,1,"outline"],[4,15,3,"shell"],[7,15,18,"visor"],[25,15,3,"shell"],[28,15,1,"outline"],[29,15,2,"shell"],[31,15,1,"outline"],[0,16,1,"outline"],[1,16,2,"shell"],[3,16,1,"outline"],[4,16,3,"shell"],[7,16,18,"visor"],[25,16,3,"shell"],[28,16,1,"outline"],[29,16,2,"shell"],[31,16,1,"outline"],[0,17,1,"outline"],[1,17,2,"shell"],[3,17,1,"outline"],[4,17,3,"shell"],[7,17,18,"visor"],[25,17,3,"shell"],[28,17,1,"outline"],[29,17,2,"shell"],[31,17,1,"outline"],[0,18,1,"outline"],[1,18,1,"shellDark"],[2,18,1,"shell"],[3,18,1,"outline"],[4,18,3,"shell"],[7,18,18,"visor"],[25,18,3,"shell"],[28,18,1,"outline"],[29,18,1,"shell"],[30,18,1,"shellDark"],[31,18,1,"outline"],[1,19,1,"outline"],[2,19,1,"shellDark"],[3,19,1,"outline"],[4,19,3,"shell"],[7,19,18,"visor"],[25,19,3,"shell"],[28,19,1,"outline"],[29,19,1,"shellDark"],[30,19,1,"outline"],[2,20,2,"outline"],[4,20,3,"shell"],[7,20,18,"visor"],[25,20,3,"shell"],[28,20,2,"outline"],[3,21,1,"outline"],[4,21,3,"shell"],[7,21,18,"visor"],[25,21,3,"shell"],[28,21,1,"outline"],[3,22,1,"outline"],[4,22,4,"shell"],[8,22,16,"visor"],[24,22,4,"shell"],[28,22,1,"outline"],[3,23,1,"outline"],[4,23,1,"shellDark"],[5,23,22,"shell"],[27,23,1,"shellDark"],[28,23,1,"outline"],[4,24,1,"outline"],[5,24,1,"shellDark"],[6,24,20,"shell"],[26,24,1,"shellDark"],[27,24,1,"outline"],[5,25,1,"outline"],[6,25,20,"shellDark"],[26,25,1,"outline"],[5,26,22,"outline"],[4,27,1,"outline"],[5,27,2,"whiteLight"],[7,27,1,"outline"],[8,27,1,"shellLight"],[9,27,1,"outline"],[10,27,1,"shellLight"],[11,27,2,"shell"],[13,27,6,"outline"],[19,27,2,"shell"],[21,27,1,"shellLight"],[22,27,1,"outline"],[23,27,1,"shellLight"],[24,27,1,"outline"],[25,27,2,"whiteLight"],[27,27,1,"outline"],[3,28,1,"outline"],[4,28,1,"whiteLight"],[5,28,2,"white"],[7,28,1,"whiteLight"],[8,28,2,"outline"],[10,28,2,"shell"],[12,28,1,"outline"],[13,28,6,"whiteLight"],[19,28,1,"outline"],[20,28,2,"shell"],[22,28,2,"outline"],[24,28,1,"whiteLight"],[25,28,2,"white"],[27,28,1,"whiteLight"],[28,28,1,"outline"],[3,29,1,"outline"],[4,29,1,"whiteDark"],[5,29,2,"white"],[7,29,1,"whiteDark"],[8,29,2,"outline"],[10,29,2,"shell"],[12,29,1,"outline"],[13,29,6,"whiteDark"],[19,29,1,"outline"],[20,29,2,"shell"],[22,29,2,"outline"],[24,29,1,"whiteDark"],[25,29,2,"white"],[27,29,1,"whiteDark"],[28,29,1,"outline"],[4,30,1,"outline"],[5,30,2,"whiteDark"],[7,30,1,"outline"],[9,30,1,"outline"],[10,30,1,"shellDark"],[11,30,2,"shell"],[13,30,6,"outline"],[19,30,2,"shell"],[21,30,1,"shellDark"],[22,30,1,"outline"],[24,30,1,"outline"],[25,30,2,"whiteDark"],[27,30,1,"outline"],[5,31,2,"outline"],[10,31,1,"outline"],[11,31,10,"shellDark"],[21,31,1,"outline"],[25,31,2,"outline"],[11,32,10,"outline"],[11,33,1,"outline"],[12,33,2,"shell"],[14,33,1,"outline"],[17,33,1,"outline"],[18,33,2,"shell"],[20,33,1,"outline"],[11,34,4,"outline"],[17,34,4,"outline"],[10,35,1,"outline"],[11,35,3,"whiteLight"],[14,35,1,"outline"],[17,35,1,"outline"],[18,35,3,"whiteLight"],[21,35,1,"outline"],[9,36,1,"outline"],[10,36,1,"whiteLight"],[11,36,3,"white"],[14,36,1,"whiteLight"],[15,36,2,"outline"],[17,36,1,"whiteLight"],[18,36,3,"white"],[21,36,1,"whiteLight"],[22,36,1,"outline"],[10,37,1,"outline"],[11,37,3,"whiteDark"],[14,37,1,"outline"],[17,37,1,"outline"],[18,37,3,"whiteDark"],[21,37,1,"outline"],[11,38,3,"outline"],[18,38,3,"outline"]],"faces":{"calm":[[11,16,2,"eye"],[19,16,2,"eye"],[11,17,2,"eye"],[19,17,2,"eye"]],"happy":[[11,16,2,"eye"],[19,16,2,"eye"],[10,17,1,"eye"],[13,17,1,"eye"],[18,17,1,"eye"],[21,17,1,"eye"],[8,19,2,"blush"],[22,19,2,"blush"]],"wink":[[11,15,2,"eye"],[11,16,2,"eye"],[19,16,2,"eye"],[11,17,2,"eye"],[18,17,1,"eye"],[21,17,1,"eye"]],"open":[[11,15,2,"eye"],[19,15,2,"eye"],[11,16,2,"eye"],[19,16,2,"eye"],[11,17,2,"eye"],[19,17,2,"eye"]],"closed":[[10,17,4,"eye"],[18,17,4,"eye"]]},"fixed":{"outline":"#1B1A3A","visor":"#17143A","glare":"#BFEAF7","white":"#F4F6FB","whiteLight":"#FFFFFF","whiteDark":"#AEB3CC","silver":"#C9CFDB","silverLight":"#E8EBF2","silverDark":"#8E95AB","tip":"#9FF0F7","tipLight":"#F0FFFF","tipDark":"#5FCFE0","eye":"#E8FFFF","blush":"#FF9AB2"},"colors":{"teal":"#2FB8B0","coral":"#F2766B","violet":"#8E6CE0","sun":"#F2B33D","sky":"#5B8DEF","leaf":"#5BBF6A"},"stickers":["star","heart","leaf","bolt"],"personalities":{"calm":{"label":"Calm","face":"calm","blurb":"Gentle and unhurried","sample":"No rush. Practice is at 5:30, and I'll remind you at 4:50."},"cheerful":{"label":"Cheerful","face":"happy","blurb":"Upbeat and encouraging","sample":"Good news! Practice is at 5:30. Want a reminder at 4:50?"},"funny":{"label":"Funny","face":"wink","blurb":"Light jokes, still useful","sample":"Practice at 5:30. I'll ping you at 4:50, before traffic does."},"brief":{"label":"Brief","face":"open","blurb":"Short and to the point","sample":"Practice 5:30. Reminder at 4:50?"}}};
+const STICKER_ART = {"star":"a509b7da6f93811f29bf9e84560af70f","heart":"ef08bdd73525cdfac56fe3c437a18b9c","leaf":"6729bb22fb50e334dd97a073fa44e53a","bolt":"f4bb0c6f1f0fcae62475f582a31df06e"};
+function hexToHsl(hex) {
+  const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255);
+  const max = Math.max(r, g, b), min = Math.min(r, g, b), l = (max + min) / 2;
+  if (max === min) return [0, 0, l];
+  const d = max - min, s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+  const h = max === r ? (g - b) / d + (g < b ? 6 : 0) : max === g ? (b - r) / d + 2 : (r - g) / d + 4;
+  return [h * 60, s, l];
+}
+
+function hslToHex(h, s, l) {
+  const k = (n) => (n + h / 30) % 12, a = s * Math.min(l, 1 - l);
+  const f = (n) => l - a * Math.max(-1, Math.min(k(n) - 3, 9 - k(n), 1));
+  return "#" + [0, 8, 4].map((n) => Math.round(f(n) * 255).toString(16).padStart(2, "0")).join("");
+}
+
+const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
+
+/** Light and dark shades of one colour, with a slight hue shift like hand-pixelled art. */
+function shades(hex) {
+  const [h, s, l] = hexToHsl(hex);
+  return {
+    light: hslToHex((h + 356) % 360, s, clamp(l + 0.13, 0, 0.92)),
+    dark: hslToHex((h + 8) % 360, s, clamp(l - 0.16, 0.08, 1)),
+  };
+}
+
+
+// Shared by boards that draw MEGAs live from template data (LOOKS, STICKER_ART, shades()).
+function paletteFor(hex) {
+  const { light, dark } = shades(hex);
+  return { ...LOOKS.fixed, shell: hex, shellLight: light, shellDark: dark };
+}
+// Pixel runs -> positioned boxes at `scale`, optionally only rows above `maxRow` (head crops).
+function draw(hex, face, scale, maxRow) {
+  const pal = paletteFor(hex);
+  const runs = [...LOOKS.body, ...(LOOKS.faces[face] || [])].filter((r) => maxRow === undefined || r[1] < maxRow);
+  return runs.map(([x, y, w, k]) => ({ l: x * scale, t: y * scale, w: w * scale, h: scale, c: pal[k] }));
+}
+function sprite(hex, face, sticker, scale, maxRow) {
+  const [gw, gh] = LOOKS.grid;
+  return { rects: draw(hex, face, scale, maxRow), hasSticker: sticker !== 'none', sticker: sticker === 'none' ? '' : '/_blob/' + STICKER_ART[sticker], w: gw * scale, h: gh * scale };
+}
+// Dark or light text on a coloured button, whichever reads better.
+function inkOn(hex) {
+  const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255);
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b > 0.45 ? '#0C0E11' : '#FFFFFF';
+}
+
+
+// Theme tokens, mirrored from config/theme.ts in the app. Midnight is the default theme.
+// The accent is either the theme's own or "match my MEGA" (the default for everyone but the admin).
+const THEMES = {
+  midnight: { label: 'Midnight', accent: '#2FB8B0', bg: '#0C0E11', surface: '#16191E', line: '#2E343D', text: '#EDEFF2', muted: '#9AA1AB' },
+  light: { label: 'Light', accent: '#1E9A93', bg: '#F5F6F8', surface: '#FFFFFF', line: '#DDE1E6', text: '#14171C', muted: '#5F6670' },
+};
+const themeAccent = (theme, accent, megaHex) => (accent === 'mega' ? megaHex : accent === 'theme' ? THEMES[theme].accent : accent);
+
+
+const ADMIN_STEPS = ['welcome', 'make', 'chat'];
+const PARENT_CODE = '48217';
+const COLOR_LABELS = { teal: 'Teal', coral: 'Coral', violet: 'Violet', sun: 'Sun', sky: 'Sky', leaf: 'Leaf' };
+const STICKER_LABELS = { star: 'Star', heart: 'Heart', leaf: 'Leaf', bolt: 'Bolt', none: 'No sticker' };
+const NAME_IDEAS = { teal: ['Teal', 'Pixel', 'Echo'], coral: ['Coral', 'Rosie', 'Spark'], violet: ['Zap', 'Nova', 'Plum'], sun: ['Sunny', 'Sol', 'Biscuit'], sky: ['Sky', 'Blue', 'Comet'], leaf: ['Sprout', 'Clover', 'Moss'] };
+const PRONOUNS = { Daughter: ['she', 'her', 'her'], Son: ['he', 'him', 'his'] }; // otherwise they / them / their
+const QUESTION_BANK = [
+  { ask: 'Is it OK if I call you {person}?', from: 'name' },
+  { ask: 'Your birthday is {birthday}, right?', open: 'When is your birthday?', from: 'birthday' },
+  { ask: 'You’re in {grade}, right?', open: 'What grade are you in?', from: 'grade' },
+  { ask: 'You do {activities}, right?', open: 'Do you play any sports or do any clubs?', from: 'activities' },
+  { ask: 'When is bedtime on school nights?' },
+];
+
+// The admin's setup chat. Each turn: what the MEGA says, the UI block it shows, and what an answer does.
+// Blocks come from the catalog: chips | text | fields | look | questions | invite | link.
+const ADMIN_TURNS = {
+  hello: { say: ['Hi! I’m {mega}. I’ll help you set up the whole family.', 'First, is it OK if I call you Brandon?'], block: 'chips', options: ['Yes', 'Call me something else'], next: (a, st) => (st.mine.hex === THEMES.midnight.accent ? 'reminders' : 'theme') },
+  theme: { say: ['Want the whole app in my color? Turn on the preview to try it first.'], block: 'theme', options: ['Use {mega}’s color', 'Keep Midnight'], next: () => 'reminders' },
+  reminders: { say: ['Great, Brandon. When do you like reminders: mornings, evenings, or both?'], block: 'chips', options: ['Mornings', 'Evenings', 'Both'], next: () => 'add' },
+  add: { say: ['Now let’s add your family. Who should I add first? Just tell me their name.'], block: 'text', placeholder: 'Their name', next: () => 'relation' },
+  relation: { say: ['Who is {person} to you?'], block: 'chips', options: ['Daughter', 'Son', 'Child', 'Partner', 'Parent', 'Something else'], voice: 'Child', next: () => 'give' },
+  give: { say: ['Got it, {person} is your {rel}. Should {they} get a MEGA of {their} own?'], block: 'chips', options: ['Yes, make one', 'Not yet'], next: (a) => (a === 'Not yet' ? 'nomega' : 'details') },
+  nomega: { say: ['{person} is in the family. You can make a MEGA for {them} any time from Family.'], block: 'chips', options: ['Add someone else', 'That’s everyone'], next: (a) => (a === 'Add someone else' ? 'add' : 'done') },
+  details: { say: ['Anything you’d like me to know first? Fill in what you know and skip the rest. I’ll check it with {them}.'], block: 'fields', next: () => 'look' },
+  look: { say: ['Let’s pick a look for {their} MEGA. {They} can change it later.'], block: 'look', next: () => 'questions' },
+  questions: { say: ['Here’s what {kidMega} will ask {person}. Anything you filled in becomes a quick check.'], block: 'questions', next: () => 'invite' },
+  invite: { say: ['{kidMega} is ready! Scan this on {person}’s device, or send the link if {person} isn’t nearby.'], block: 'invite', after: ['Add someone else', 'That’s everyone'], next: (a) => (a === 'Add someone else' ? 'add' : 'done') },
+  done: { say: ['All set. I’ll be in your chat whenever you need me.'], block: 'link' },
+};
+const KID_TURNS = {
+  hello: { say: ['Hi! I’m {kidMega}, and I’m all yours!', 'Is it OK if I call you {person}?'], block: 'chips', options: ['Yes!', 'Call me something else'], next: () => 'fun' },
+  fun: { say: ['Yay! What do you like to do for fun? Hold the button and tell me.'], block: 'none' },
+};
+// Boards can open partway through the setup chat; these answers fast-forward to that point.
+const FAST_FORWARD = { hello: [], theme: ['Yes'], add: ['Yes', 'Both'], relation: ['Yes', 'Both', 'Anela'], details: ['Yes', 'Both', 'Anela', 'Child', 'Yes, make one'], look: ['Yes', 'Both', 'Anela', 'Child', 'Yes, make one', 'skip'], questions: ['Yes', 'Both', 'Anela', 'Child', 'Yes, make one', 'skip', 'look'], invite: ['Yes', 'Both', 'Anela', 'Child', 'Yes, make one', 'skip', 'look', 'questions'] };
+
+// A QR-style pattern for the mockup (not a scannable code): three finder squares plus seeded modules.
+function qrModules(px) {
+  const n = 21, on = [];
+  const finder = (x0, y0) => { for (let y = 0; y < 7; y++) for (let x = 0; x < 7; x++) if (x === 0 || y === 0 || x === 6 || y === 6 || (x > 1 && x < 5 && y > 1 && y < 5)) on.push([x0 + x, y0 + y]); };
+  finder(0, 0); finder(14, 0); finder(0, 14);
+  let seed = 7;
+  for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
+    const inFinder = (x < 8 && y < 8) || (x > 12 && y < 8) || (x < 8 && y > 12);
+    seed = (seed * 1103515245 + 12345) % 2147483648;
+    if (!inFinder && seed % 100 < 46) on.push([x, y]);
+  }
+  return on.map(([x, y]) => ({ l: x * px, t: y * px }));
+}
+const QR = qrModules(7);
+function inkOn(hex) {
+  const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255);
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b > 0.45 ? '#0C0E11' : '#FFFFFF';
+}
+
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    const step = props.step === 'kidmeet' ? 'kidmeet' : props.step || 'welcome';
+    this.state = {
+      step, turn: 'hello', history: [], talking: false, draft: '',
+      mine: { name: 'Teal', hex: LOOKS.colors.teal, sticker: 'star', personality: 'brief' },
+      theirs: { name: 'Sunny', hex: LOOKS.colors.sun, sticker: 'leaf', personality: 'cheerful' },
+      person: 'Anela', rel: 'child', fields: { birthday: '', grade: '', activities: '' },
+      asks: QUESTION_BANK.map(() => true), extra: [], suggestion: true,
+      codeShown: false, code: '', codeError: '', blinking: false, theme: 'theme', preview: false,
+    };
+    const pick = props.color && LOOKS.colors[props.color];
+    if (pick) Object.assign(this.state.mine, { hex: pick, name: NAME_IDEAS[props.color][0] });
+    this.state.history = this.say(this.turns().hello);
+    const ff = FAST_FORWARD[props.at];
+    if (step === 'chat' && ff) ff.forEach((a) => this.respond(a, true));
+  }
+  componentDidMount() {
+    this.blinkTimer = setInterval(() => { this.setState({ blinking: true }); this.unblink = setTimeout(() => this.setState({ blinking: false }), 150); }, 3400);
+  }
+  componentWillUnmount() { clearInterval(this.blinkTimer); clearTimeout(this.unblink); clearTimeout(this.codeTimer); }
+
+  turns() { return this.state.step === 'kidmeet' ? KID_TURNS : ADMIN_TURNS; }
+  words() {
+    const [they, them, their] = PRONOUNS[this.state.relLabel] || ['they', 'them', 'their'];
+    return { mega: this.state.mine.name, kidMega: this.state.theirs.name, person: this.state.person, rel: this.state.rel, they, them, their, They: they[0].toUpperCase() + they.slice(1) };
+  }
+  fill(text) { const w = this.words(); return text.replace(/\{(\w+)\}/g, (m, k) => (k in w ? w[k] : m)); }
+  say(turn) { return turn.say.map((t) => ({ text: this.fill(t), fromMega: true, fromMe: false })); }
+
+  // An answer: record it as a reply bubble, apply it, then the MEGA's next turn. `quiet` = fast-forward (direct state writes).
+  respond(answer, quiet) {
+    const st = this.state, turn = this.turns()[st.turn];
+    const patch = {};
+    let shown = answer;
+    if (st.turn === 'add') patch.person = answer;
+    if (st.turn === 'relation') { patch.relLabel = answer; patch.rel = answer === 'Something else' ? 'family' : answer.toLowerCase(); }
+    if (st.turn === 'details') shown = answer === 'skip' ? 'Skipped' : Object.entries(st.fields).filter(([, v]) => v).map(([k, v]) => k[0].toUpperCase() + k.slice(1) + ': ' + v).join(' · ') || 'Skipped';
+    if (st.turn === 'look') shown = st.theirs.name + ' · ' + (COLOR_LABELS[Object.keys(LOOKS.colors).find((id) => LOOKS.colors[id] === st.theirs.hex)] || st.theirs.hex) + ' · ' + STICKER_LABELS[st.theirs.sticker] + ' · ' + LOOKS.personalities[st.theirs.personality].label;
+    if (st.turn === 'questions') shown = st.asks.filter((x) => x !== false).length + ' questions';
+    Object.assign(st, patch);
+    if (st.turn === 'theme') { patch.theme = answer.startsWith('Use') ? 'mega' : 'theme'; patch.preview = false; }
+    const nextId = turn.next ? turn.next(answer, st) : null;
+    const history = [...st.history, { text: shown, fromMega: false, fromMe: true }, ...(nextId ? this.say(this.turns()[nextId]) : [])];
+    if (quiet) Object.assign(this.state, { history, turn: nextId || st.turn, draft: '' });
+    else this.setState({ ...patch, history, turn: nextId || st.turn, draft: '' });
+  }
+  start(step) { this.setState({ step, turn: 'hello', history: [] }); this.setState({ history: this.say(this.turns().hello) }); }
+
+  pressKey(k) {
+    const { code } = this.state;
+    if (k === 'del') return this.setState({ code: code.slice(0, -1), codeError: '' });
+    if (code.length >= 5) return;
+    const next = code + k;
+    if (next.length < 5) return this.setState({ code: next, codeError: '' });
+    if (next === PARENT_CODE) { this.setState({ code: next }); this.codeTimer = setTimeout(() => this.start('kidmeet'), 500); }
+    else this.setState({ code: next, codeError: 'That’s not it. Ask your parent to check.' });
+  }
+
+  renderVals() {
+    const s = this.state, step = s.step, isKidChat = step === 'kidmeet';
+    const turn = this.turns()[s.turn] || {};
+    // The admin's chat wears the theme they chose (Midnight unless they took their MEGA's color); kids' chats wear their MEGA's.
+    const accent = step === 'code' || isKidChat ? s.theirs.hex : step === 'chat' ? themeAccent('midnight', s.preview ? 'mega' : s.theme, s.mine.hex) : s.mine.hex;
+    const face = (l) => (s.blinking ? 'closed' : LOOKS.personalities[l.personality].face);
+    const ring = (on) => (on ? '3px solid ' + accent : '3px solid transparent');
+    const lookControls = (look, set) => {
+      const colorId = Object.keys(LOOKS.colors).find((id) => LOOKS.colors[id] === look.hex) || 'teal';
+      return {
+        name: look.name,
+        names: NAME_IDEAS[colorId].map((n) => ({ label: n, border: n === look.name ? '2px solid ' + accent : '1px solid #2E343D', pick: () => set({ name: n }) })),
+        colors: Object.keys(LOOKS.colors).map((id) => ({ hex: LOOKS.colors[id], label: COLOR_LABELS[id], on: LOOKS.colors[id] === look.hex ? 'true' : 'false', ring: LOOKS.colors[id] === look.hex ? '3px solid #FFFFFF' : '3px solid transparent', pick: () => set({ hex: LOOKS.colors[id], name: NAME_IDEAS[id][0] }) })),
+        stickers: [...LOOKS.stickers, 'none'].map((id) => ({ label: STICKER_LABELS[id], on: id === look.sticker ? 'true' : 'false', ring: ring(id === look.sticker), hasImage: id !== 'none', isNone: id === 'none', src: id === 'none' ? '' : '/_blob/' + STICKER_ART[id], pick: () => set({ sticker: id }) })),
+        personalities: Object.keys(LOOKS.personalities).map((id) => ({ label: LOOKS.personalities[id].label, on: id === look.personality ? 'true' : 'false', ring: ring(id === look.personality), pick: () => set({ personality: id }) })),
+      };
+    };
+    const setMine = (p) => this.setState({ mine: { ...s.mine, ...p } });
+    const setTheirs = (p) => this.setState({ theirs: { ...s.theirs, ...p } });
+    const mineControls = lookControls(s.mine, setMine);
+    const options = (turn.block === 'chips' || turn.block === 'theme' ? turn.options : turn.block === 'invite' ? turn.after : []).map((o) => this.fill(o));
+    const guideLook = isKidChat ? s.theirs : s.mine;
+    const asks = [...QUESTION_BANK, ...s.extra];
+    const known = { name: s.person, ...s.fields };
+
+    return {
+      is: { welcome: step === 'welcome', make: step === 'make', chat: step === 'chat' || isKidChat, code: step === 'code' },
+      showTop: step === 'make',
+      stepNum: 1, progress: 50,
+      back: () => this.setState({ step: 'welcome' }),
+      next: () => (step === 'welcome' ? this.setState({ step: 'make' }) : this.start('chat')),
+      toCode: () => this.setState({ step: 'code' }),
+      accent, accentInk: inkOn(accent), stageBg: accent + '22', bubble: accent + '33',
+      trio: [['#2FB8B0', 'open'], ['#F2766B', 'happy'], ['#8E6CE0', 'wink']].map(([hex, f], i) => sprite(hex, s.blinking && i === 0 ? 'closed' : f, 'none', i === 1 ? 3.5 : 2.5)),
+      make: {
+        title: 'Make your MEGA', sub: 'You can change all of this later.', cta: 'Meet ' + (s.mine.name || 'your MEGA'),
+        sprite: sprite(s.mine.hex, face(s.mine), s.mine.sticker, 3.5),
+        name: s.mine.name, sample: LOOKS.personalities[s.mine.personality].sample,
+        suggestions: mineControls.names, colors: mineControls.colors, stickers: mineControls.stickers, personalities: mineControls.personalities,
+      },
+      typeMegaName: (e) => setMine({ name: e.target.value }),
+      guide: { name: guideLook.name, head: sprite(guideLook.hex, face(guideLook), guideLook.sticker, 1.5, 27) },
+      chatStatus: s.talking ? 'Listening…' : isKidChat ? 'Getting to know you' : 'Setting up your family',
+      history: [...s.history].reverse(),
+      msgFont: isKidChat ? 19 : 17, chipH: isKidChat ? 56 : 44, chipFont: isKidChat ? 18 : 15,
+      mineHex: s.mine.hex, previewStr: s.preview ? 'true' : 'false', previewTrack: s.preview ? s.mine.hex : '#3A414B', previewKnob: s.preview ? 23 : 3, togglePreview: () => this.setState({ preview: !s.preview }),
+      block: { theme: turn.block === 'theme' && !s.talking, chips: options.length > 0 && !s.talking, text: turn.block === 'text', fields: turn.block === 'fields', look: turn.block === 'look', questions: turn.block === 'questions', invite: turn.block === 'invite', link: turn.block === 'link' },
+      chips: options.map((label, i) => ({ label, pick: () => this.respond(label), bg: i === 0 ? accent : 'transparent', fg: i === 0 ? inkOn(accent) : '#EDEFF2', border: i === 0 ? 'none' : '1px solid #2E343D' })),
+      textPlaceholder: turn.placeholder || '', draft: s.draft,
+      typeDraft: (e) => this.setState({ draft: e.target.value }),
+      submitDraft: () => s.draft.trim() && this.respond(s.draft.trim()),
+      fields: [['birthday', 'Birthday', 'e.g. May 4'], ['grade', s.relLabel === 'Partner' || s.relLabel === 'Parent' ? 'Work' : 'Grade', 'Add'], ['activities', 'Activities', 'Add']].map(([id, label, placeholder]) => ({
+        id: 'f-' + id, label, placeholder, value: s.fields[id], type: (e) => this.setState({ fields: { ...s.fields, [id]: e.target.value } }),
+      })),
+      skipFields: () => this.respond('skip'), submitFields: () => this.respond('fields'),
+      theirs: { ...lookControls(s.theirs, setTheirs), sprite: sprite(s.theirs.hex, face(s.theirs), s.theirs.sticker, 2.5) },
+      submitLook: () => this.respond('look'),
+      questions: asks.map((q, i) => {
+        const on = s.asks[i] !== false, def = q.from && known[q.from];
+        const text = def ? this.fill(q.ask).replace('{birthday}', s.fields.birthday).replace('{grade}', s.fields.grade).replace('{activities}', s.fields.activities) : this.fill(q.open || q.ask);
+        return { ask: text, tag: def ? 'Checks what you told me' : 'Asks', tagFg: def ? inkOn(accent) : '#B4BAC3', tagBg: def ? accent : '#22262D',
+          onStr: on ? 'true' : 'false', track: on ? accent : '#3A414B', knob: on ? 21 : 3, opacity: on ? 1 : 0.55,
+          toggle: () => { const a = [...s.asks]; a[i] = !on; this.setState({ asks: a }); } };
+      }),
+      hasSuggestion: s.suggestion,
+      acceptSuggestion: () => this.setState({ extra: [...s.extra, { ask: 'What are you excited about this week?' }], asks: [...s.asks, true], suggestion: false }),
+      submitQuestions: () => this.respond('questions'),
+      qr: QR,
+      codeShown: s.codeShown ? PARENT_CODE.split('').join(' ') : '• • • • •', codeToggle: s.codeShown ? 'Hide' : 'Show', toggleCode: () => this.setState({ codeShown: !s.codeShown }),
+      talkLabel: s.talking ? 'Listening… let go to send' : 'Hold to talk',
+      talkClass: s.talking ? 'listening' : '', talkBg: s.talking ? accent : 'transparent', talkFg: s.talking ? inkOn(accent) : '#EDEFF2',
+      holdTalk: () => this.setState({ talking: true }),
+      releaseTalk: () => {
+        if (!this.state.talking) return;
+        this.setState({ talking: false });
+        const t = this.turns()[this.state.turn] || {};
+        if (t.block === 'chips') this.respond(t.voice || t.options[0]);
+        else if (t.block === 'text') this.respond('Anela');
+        else this.setState({ history: [...this.state.history, { text: '[' + this.state.person + '’s answer, typed out as they talk]', fromMega: false, fromMe: true }] });
+      },
+      kid: { sprite: sprite(s.theirs.hex, face(s.theirs), s.theirs.sticker, 3.5) },
+      kidMega: s.theirs.name,
+      codeBoxes: [0, 1, 2, 3, 4].map((i) => ({ ch: s.code[i] ? '•' : '', border: s.codeError ? '#F2766B' : i === s.code.length ? accent : '#2E343D' })),
+      codeError: s.codeError,
+      keypad: ['1', '2', '3', '4', '5', '6', '7', '8', '9', '', '0', 'del'].map((k) => ({ text: k === 'del' ? '⌫' : k, label: k === 'del' ? 'Delete' : k || 'Blank', bg: k ? '#16191E' : 'transparent', press: () => (k ? this.pressKey(k) : null) })),
+    };
+  }
+}
+</script>
+</body>
+</html>

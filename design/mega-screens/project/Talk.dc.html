@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Talk with Teal</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#0C0E11}
+a{color:#EDEFF2;text-decoration:none}
+button{font-family:inherit}
+@keyframes meter{0%,100%{transform:scaleY(.3)}50%{transform:scaleY(1)}}
+.bar{animation:meter .65s ease-in-out infinite;transform-origin:center}
+@keyframes think{0%,100%{box-shadow:0 0 0 4px rgba(47,184,176,.15)}50%{box-shadow:0 0 0 14px rgba(47,184,176,.35)}}
+.thinking{animation:think 1s ease-in-out infinite}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; box-sizing: border-box; background: #0C0E11; color: #EDEFF2; font-family: Inter, system-ui, sans-serif; display: flex; flex-direction: column; overflow: hidden">
+  <header style="display: grid; grid-template-columns: 48px 1fr 48px; align-items: center; padding: 12px 12px 0">
+    <a href="Main.dc.html" aria-label="Close talk mode" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"></path></svg>
+    </a>
+    <h1 style="margin: 0; text-align: center; font-size: 17px; font-weight: 600">Talk with Teal</h1>
+    <span></span>
+  </header>
+
+  <main style="flex: 1; display: flex; flex-direction: column; align-items: center; padding: 36px 28px 0; gap: 18px">
+    <div class="{{ringClass}}" style="width: 220px; height: 189px; border-radius: 30px; overflow: hidden; box-shadow: 0 0 0 4px rgba(47,184,176,0.15)">
+      <img src="{{face}}" alt="Teal" style="width: 220px; height: 189px; display: block">
+    </div>
+    <div style="display: flex; flex-direction: column; align-items: center; gap: 8px; min-height: 52px">
+      <sc-if value="{{showMeter}}" hint-placeholder-val="{{ true }}">
+        <div aria-hidden="true" style="display: flex; align-items: center; gap: 5px; height: 24px">
+          <span class="bar" style="width: 5px; height: 10px; border-radius: 3px; background: {{meterColor}}; animation-delay: 0s"></span>
+          <span class="bar" style="width: 5px; height: 18px; border-radius: 3px; background: {{meterColor}}; animation-delay: .12s"></span>
+          <span class="bar" style="width: 5px; height: 24px; border-radius: 3px; background: {{meterColor}}; animation-delay: .24s"></span>
+          <span class="bar" style="width: 5px; height: 18px; border-radius: 3px; background: {{meterColor}}; animation-delay: .36s"></span>
+          <span class="bar" style="width: 5px; height: 10px; border-radius: 3px; background: {{meterColor}}; animation-delay: .48s"></span>
+        </div>
+      </sc-if>
+      <div aria-live="polite" style="font-size: 14px; color: #9AA1AB">{{status}}</div>
+    </div>
+    <div style="font-size: 27px; line-height: 35px; font-weight: 600; text-align: center; min-height: 105px">{{tealText}}</div>
+    <sc-if value="{{hasYou}}" hint-placeholder-val="{{ true }}">
+      <div style="font-size: 16px; line-height: 23px; color: #B4BAC3; text-align: center"><span style="color: #8A919B">You · </span>{{youText}}</div>
+    </sc-if>
+  </main>
+
+  <footer style="display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 0 24px 26px">
+    <div style="display: flex; flex-direction: column; align-items: center; gap: 2px; color: #8A919B; font-size: 13px">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"></rect><path d="M8 11V7a4 4 0 0 1 8 0v4"></path></svg>
+      <span>Slide up to lock</span>
+    </div>
+    <button type="button" onPointerDown="{{press}}" onPointerUp="{{release}}" onPointerLeave="{{release}}" style="width: 100%; height: 76px; border-radius: 38px; border: 2px solid #2FB8B0; background: {{btnBg}}; color: {{btnFg}}; font-size: 19px; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 12px; touch-action: none; user-select: none">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="2" width="6" height="12" rx="3"></rect><path d="M19 10v1a7 7 0 0 1-14 0v-1M12 18v4"></path></svg>
+      {{btnLabel}}
+    </button>
+    <div style="display: flex; align-items: center; gap: 6px; color: #8A919B; font-size: 13px">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20.5l1.4-4.9A8 8 0 1 1 21 12z"></path></svg>
+      <span>Everything is saved to your chat</span>
+    </div>
+  </footer>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+const FACES = {
+  idle: '/_blob/4e65e4e0767e20ffbb714514eea3f8b4',
+  listening: '/_blob/4e65e4e0767e20ffbb714514eea3f8b4',
+  thinking: '/_blob/2aba1cdefd21020f37081c225160fac7',
+  speaking: '/_blob/559c61a4801aa8bf0de738b7e3571c27',
+};
+const STATUS = { idle: 'Hold the button and talk', listening: 'Listening…', thinking: 'Thinking…', speaking: 'Teal is talking' };
+const LABEL = { idle: 'Hold to talk', listening: 'Release to send', thinking: 'Hold to talk', speaking: 'Hold to interrupt' };
+const SCRIPT = [
+  { you: 'Yes, remind us at four fifty.', reply: 'Done. I’ll remind the family at 4:50.' },
+  { you: 'And add oranges to the grocery list.', reply: 'Added oranges. That makes 7 items.' },
+  { you: 'What’s on tonight?', reply: 'Dinner at 7, then reading time for the twins at 8:30.' },
+];
+
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { phase: 'idle', you: '', teal: 'Practice is at 5:30. Want a reminder?', turn: 0 };
+    this.timers = [];
+  }
+  componentWillUnmount() { this.clear(); }
+  clear() { this.timers.forEach((t) => clearInterval(t)); this.timers = []; }
+  stream(text, ms, onWord, onDone) {
+    const words = text.split(' ');
+    let i = 0;
+    const t = setInterval(() => {
+      i += 1;
+      onWord(words.slice(0, i).join(' '));
+      if (i >= words.length) { clearInterval(t); if (onDone) onDone(); }
+    }, ms);
+    this.timers.push(t);
+  }
+  press = () => {
+    if (this.state.phase === 'listening') return;
+    this.clear();
+    const line = SCRIPT[this.state.turn % SCRIPT.length];
+    this.setState({ phase: 'listening', you: '' });
+    this.stream(line.you, 260, (you) => this.setState({ you }));
+  };
+  release = () => {
+    if (this.state.phase !== 'listening') return;
+    this.clear();
+    const line = SCRIPT[this.state.turn % SCRIPT.length];
+    this.setState({ phase: 'thinking', you: this.state.you || line.you });
+    const t = setTimeout(() => {
+      this.setState({ phase: 'speaking', teal: '' });
+      this.stream(line.reply, 170, (teal) => this.setState({ teal }), () => {
+        const done = setTimeout(() => this.setState({ phase: 'idle', turn: this.state.turn + 1 }), 600);
+        this.timers.push(done);
+      });
+    }, 900);
+    this.timers.push(t);
+  };
+  renderVals() {
+    const { phase, you, teal } = this.state;
+    const listening = phase === 'listening';
+    return {
+      face: FACES[phase],
+      status: STATUS[phase],
+      btnLabel: LABEL[phase],
+      showMeter: listening || phase === 'speaking',
+      meterColor: listening ? '#EDEFF2' : '#2FB8B0',
+      ringClass: phase === 'thinking' ? 'thinking' : '',
+      tealText: teal,
+      youText: you,
+      hasYou: you.length > 0,
+      btnBg: listening ? '#2FB8B0' : '#0F2A29',
+      btnFg: listening ? '#04201E' : '#EDEFF2',
+      press: this.press,
+      release: this.release,
+    };
+  }
+}
+</script>
+</body>
+</html>

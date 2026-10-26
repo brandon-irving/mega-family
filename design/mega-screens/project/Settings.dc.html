@@ -1,0 +1,300 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Settings</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#0C0E11}
+button{font-family:inherit;cursor:pointer}
+a{color:inherit;text-decoration:none}
+</style>
+</helmet>
+<div style="position: relative; width: 390px; height: 844px; box-sizing: border-box; background: #0C0E11; color: #EDEFF2; font-family: Inter, system-ui, sans-serif; display: flex; flex-direction: column; overflow: hidden">
+  <header style="display: flex; align-items: center; gap: 12px; padding: 16px 16px 10px; flex-shrink: 0">
+    <h1 style="flex: 1; margin: 0; font-size: 26px; font-weight: 800">Settings</h1>
+    <span style="position: relative; width: 48px; height: 41px; flex-shrink: 0; border-radius: 10px; overflow: hidden; background: #FFFFFF">
+      <sc-for list="{{head.rects}}" as="r" hint-placeholder-count="150">
+        <span style="position: absolute; left: {{r.l}}px; top: {{r.t}}px; width: {{r.w}}px; height: {{r.h}}px; background: {{r.c}}"></span>
+      </sc-for>
+    </span>
+  </header>
+
+  <div style="flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 22px; padding: 6px 16px 28px">
+    <sc-for list="{{sections}}" as="sec" hint-placeholder-count="4">
+      <section style="display: flex; flex-direction: column; gap: 6px">
+        <h2 style="margin: 0 4px; font-size: 13px; font-weight: 700; letter-spacing: 0.6px; text-transform: uppercase; color: #9AA1AB">{{sec.title}}</h2>
+        <div style="background: #16191E; border: 1px solid #22262D; border-radius: 16px; overflow: hidden">
+          <sc-for list="{{sec.rows}}" as="row" hint-placeholder-count="3">
+            <sc-if value="{{row.isLink}}" hint-placeholder-val="{{ true }}">
+              <button type="button" onClick="{{row.tap}}" style="width: 100%; display: flex; align-items: center; gap: 12px; min-height: {{rowH}}px; padding: 10px 14px; border: none; border-top: {{row.divider}}; background: transparent; color: #EDEFF2; text-align: left">
+                <span style="flex: 1; display: flex; flex-direction: column; gap: 2px; min-width: 0">
+                  <span style="font-size: {{rowFont}}px; font-weight: 500">{{row.label}}</span>
+                  <sc-if value="{{row.hasHint}}" hint-placeholder-val="{{ false }}"><span style="font-size: 13px; color: #9AA1AB">{{row.hint}}</span></sc-if>
+                </span>
+                <sc-if value="{{row.hasSwatch}}" hint-placeholder-val="{{ false }}"><span aria-hidden="true" style="width: 18px; height: 18px; border-radius: 9px; background: {{accent}}"></span></sc-if>
+                <span style="font-size: 14px; color: #9AA1AB; text-align: right">{{row.value}}</span>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B727D" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"></path></svg>
+              </button>
+            </sc-if>
+            <sc-if value="{{row.isLocked}}" hint-placeholder-val="{{ false }}">
+              <div style="display: flex; align-items: center; gap: 12px; min-height: {{rowH}}px; padding: 10px 14px; border-top: {{row.divider}}">
+                <span style="flex: 1; display: flex; flex-direction: column; gap: 2px">
+                  <span style="font-size: {{rowFont}}px; font-weight: 500">{{row.label}}</span>
+                  <span style="font-size: 13px; color: #9AA1AB; display: flex; align-items: center; gap: 5px"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"></rect><path d="M8 11V8a4 4 0 0 1 8 0v3"></path></svg>{{row.hint}}</span>
+                </span>
+                <span style="font-size: 14px; color: #9AA1AB">{{row.value}}</span>
+              </div>
+            </sc-if>
+            <sc-if value="{{row.isCode}}" hint-placeholder-val="{{ false }}">
+              <div style="display: flex; align-items: center; gap: 12px; min-height: {{rowH}}px; padding: 10px 14px; border-top: {{row.divider}}">
+                <span style="flex: 1; display: flex; flex-direction: column; gap: 2px">
+                  <span style="font-size: {{rowFont}}px; font-weight: 500">{{row.label}}</span>
+                  <span style="font-size: 13px; color: #9AA1AB">{{row.hint}}</span>
+                </span>
+                <span style="font-size: 17px; font-weight: 700; letter-spacing: 2px; font-variant-numeric: tabular-nums">{{codeShown}}</span>
+                <button type="button" onClick="{{toggleCode}}" style="height: 34px; padding: 0 12px; border-radius: 17px; border: 1px solid #2E343D; background: transparent; color: #EDEFF2; font-size: 13px">{{codeToggle}}</button>
+              </div>
+            </sc-if>
+          </sc-for>
+        </div>
+        <sc-if value="{{sec.hasNote}}" hint-placeholder-val="{{ false }}"><div style="margin: 2px 4px 0; font-size: 13px; color: #9AA1AB; line-height: 18px">{{sec.note}}</div></sc-if>
+      </section>
+    </sc-for>
+  </div>
+
+  <sc-if value="{{sheetOpen}}" hint-placeholder-val="{{ false }}">
+    <button type="button" onClick="{{closeSheet}}" aria-label="Close" style="position: absolute; inset: 0; border: none; background: rgba(6,7,9,0.6)"></button>
+    <section aria-label="{{sheetTitle}}" style="position: absolute; left: 0; right: 0; bottom: 0; max-height: 760px; background: #16191E; border-radius: 24px 24px 0 0; border-top: 1px solid #2E343D; padding: 10px 16px 28px; display: flex; flex-direction: column; gap: 16px; overflow-y: auto">
+      <div aria-hidden="true" style="align-self: center; width: 36px; height: 4px; border-radius: 2px; background: #3A414B"></div>
+      <div style="display: flex; align-items: center">
+        <h2 style="flex: 1; margin: 0; font-size: 20px; font-weight: 800">{{sheetTitle}}</h2>
+        <button type="button" onClick="{{closeSheet}}" style="height: 36px; padding: 0 16px; border-radius: 18px; border: none; background: {{accent}}; color: {{accentInk}}; font-size: 15px; font-weight: 700">Done</button>
+      </div>
+
+      <sc-if value="{{isTheme}}" hint-placeholder-val="{{ true }}">
+        <div aria-label="Preview" style="border-radius: 18px; border: 1px solid {{pv.line}}; background: {{pv.bg}}; padding: 14px; display: flex; flex-direction: column; gap: 10px">
+          <div style="display: flex; align-items: center; gap: 8px">
+            <span style="position: relative; width: 32px; height: 27px; border-radius: 7px; overflow: hidden; background: #FFFFFF">
+              <sc-for list="{{smallHead.rects}}" as="r" hint-placeholder-count="150">
+                <span style="position: absolute; left: {{r.l}}px; top: {{r.t}}px; width: {{r.w}}px; height: {{r.h}}px; background: {{r.c}}"></span>
+              </sc-for>
+            </span>
+            <span style="font-size: 15px; font-weight: 600; color: {{pv.text}}">{{mega}}</span>
+            <span style="margin-left: auto; font-size: 12px; color: {{pv.muted}}">Preview</span>
+          </div>
+          <div style="font-size: 15px; line-height: 21px; color: {{pv.text}}">{{sample}}</div>
+          <div style="align-self: flex-end; padding: 8px 13px; border-radius: 16px 16px 4px 16px; background: {{pv.bubble}}; color: {{pv.text}}; font-size: 15px">Sounds good</div>
+          <div style="display: flex; gap: 8px">
+            <span style="height: 36px; padding: 0 14px; border-radius: 18px; background: {{accent}}; color: {{accentInk}}; font-size: 14px; font-weight: 700; display: flex; align-items: center">Yes</span>
+            <span style="height: 36px; padding: 0 14px; border-radius: 18px; border: 1px solid {{pv.line}}; color: {{pv.text}}; font-size: 14px; display: flex; align-items: center">Later</span>
+            <span aria-hidden="true" style="margin-left: auto; width: 46px; height: 26px; border-radius: 13px; background: {{accent}}; position: relative; align-self: center"><span style="position: absolute; top: 3px; right: 3px; width: 20px; height: 20px; border-radius: 10px; background: #FFFFFF"></span></span>
+          </div>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 8px">
+          <div style="font-size: 14px; font-weight: 600; color: #B4BAC3">Theme</div>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px">
+            <sc-for list="{{themes}}" as="t" hint-placeholder-count="2">
+              <button type="button" onClick="{{t.pick}}" aria-pressed="{{t.on}}" style="height: 56px; border-radius: 14px; border: {{t.ring}}; background: {{t.bg}}; color: {{t.fg}}; font-size: 15px; font-weight: 700">{{t.label}}</button>
+            </sc-for>
+          </div>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 8px">
+          <div style="font-size: 14px; font-weight: 600; color: #B4BAC3">Accent color</div>
+          <button type="button" onClick="{{pickMega}}" aria-pressed="{{megaOn}}" style="display: flex; align-items: center; gap: 12px; min-height: 56px; padding: 8px 12px; border-radius: 14px; border: {{megaRing}}; background: #0C0E11; color: #EDEFF2; text-align: left">
+            <span aria-hidden="true" style="width: 28px; height: 28px; border-radius: 14px; background: {{megaHex}}"></span>
+            <span style="flex: 1; display: flex; flex-direction: column; gap: 1px"><span style="font-size: 15px; font-weight: 600">Match {{mega}}</span><span style="font-size: 12px; color: #9AA1AB">Changes when {{mega}}’s color changes</span></span>
+          </button>
+          <div style="display: flex; flex-wrap: wrap; gap: 10px">
+            <sc-for list="{{accents}}" as="a" hint-placeholder-count="7">
+              <button type="button" onClick="{{a.pick}}" aria-label="{{a.label}}" aria-pressed="{{a.on}}" style="width: 44px; height: 44px; border-radius: 22px; border: {{a.ring}}; background: {{a.hex}}; box-shadow: inset 0 0 0 2px #16191E"></button>
+            </sc-for>
+          </div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{isWallpaper}}" hint-placeholder-val="{{ false }}">
+        <div style="display: flex; gap: 14px; align-items: center">
+          <div aria-label="Current wallpaper" style="position: relative; width: 104px; height: 200px; flex-shrink: 0; border-radius: 18px; overflow: hidden; border: 1px solid #2E343D; background: {{current.css}}">
+            <sc-if value="{{current.hasImage}}" hint-placeholder-val="{{ false }}"><img src="{{current.src}}" alt="" style="position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; image-rendering: pixelated"></sc-if>
+            <div style="position: absolute; left: 0; right: 0; top: 22px; text-align: center; font-size: 30px; font-weight: 700; color: #FFFFFF; text-shadow: 0 1px 6px rgba(0,0,0,0.5)">4:40</div>
+          </div>
+          <div style="flex: 1; display: flex; flex-direction: column; gap: 6px">
+            <div style="font-size: 17px; font-weight: 700">{{current.label}}</div>
+            <div style="font-size: 13px; color: #9AA1AB; line-height: 18px">Used on your lock screen and behind your chat.</div>
+          </div>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 8px">
+          <div style="font-size: 14px; font-weight: 600; color: #B4BAC3">Presets</div>
+          <div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px">
+            <sc-for list="{{presets}}" as="p" hint-placeholder-count="4">
+              <button type="button" onClick="{{p.pick}}" aria-label="{{p.label}}" aria-pressed="{{p.on}}" style="position: relative; height: 112px; border-radius: 14px; border: {{p.ring}}; padding: 0; overflow: hidden; background: {{p.css}}">
+                <sc-if value="{{p.hasImage}}" hint-placeholder-val="{{ false }}"><img src="{{p.src}}" alt="" style="position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; image-rendering: pixelated"></sc-if>
+                <span style="position: absolute; left: 0; right: 0; bottom: 0; padding: 4px; font-size: 11px; font-weight: 600; color: #FFFFFF; background: rgba(0,0,0,0.45)">{{p.label}}</span>
+              </button>
+            </sc-for>
+          </div>
+        </div>
+        <div style="display: grid; grid-template-columns: {{sourceCols}}; gap: 8px">
+          <button type="button" style="min-height: 64px; border-radius: 14px; border: 1px solid #2E343D; background: #0C0E11; color: #EDEFF2; display: flex; align-items: center; gap: 10px; padding: 0 12px; font-size: 15px; font-weight: 600; text-align: left">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"></rect><circle cx="9" cy="10" r="2"></circle><path d="M21 16l-5-5-8 8"></path></svg>Family photo
+          </button>
+          <sc-if value="{{canGenerate}}" hint-placeholder-val="{{ true }}">
+            <a href="Main.dc.html" style="min-height: 64px; border-radius: 14px; border: 1px solid {{accent}}; background: #0C0E11; color: #EDEFF2; display: flex; align-items: center; gap: 10px; padding: 0 12px; font-size: 15px; font-weight: 600">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="{{accent}}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.8 4.7L18.5 9.5l-4.7 1.8L12 16l-1.8-4.7L5.5 9.5l4.7-1.8z"></path><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"></path></svg>
+              <span style="display: flex; flex-direction: column; gap: 1px"><span>Make one</span><span style="font-size: 12px; font-weight: 400; color: #9AA1AB">Tell {{mega}} what to draw</span></span>
+            </a>
+          </sc-if>
+        </div>
+        <sc-if value="{{kidNote}}" hint-placeholder-val="{{ false }}"><div style="font-size: 13px; color: #9AA1AB; line-height: 18px">Want a new picture? Ask a parent to add one.</div></sc-if>
+      </sc-if>
+    </section>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"who":{"editor":"enum","options":["admin","adult","kid"],"default":"admin"},"sheet":{"editor":"enum","options":["none","theme","wallpaper"],"default":"none"},"$preview":{"width":390,"height":844}}'>
+// Generated from prototypes/megasprite (mega-template.mjs, pixel-paint.mjs, export-looks.mjs).
+const LOOKS = {"grid":[32,40],"body":[[15,0,2,"outline"],[14,1,1,"outline"],[15,1,2,"tipLight"],[17,1,1,"outline"],[13,2,1,"outline"],[14,2,1,"tipLight"],[15,2,2,"tip"],[17,2,1,"tipLight"],[18,2,1,"outline"],[14,3,1,"outline"],[15,3,2,"tipDark"],[17,3,1,"outline"],[14,4,4,"outline"],[14,5,1,"outline"],[15,5,2,"silver"],[17,5,1,"outline"],[14,6,1,"outline"],[15,6,2,"silver"],[17,6,1,"outline"],[6,7,20,"outline"],[5,8,1,"outline"],[6,8,20,"shellLight"],[26,8,1,"outline"],[4,9,1,"outline"],[5,9,1,"shellLight"],[6,9,20,"shell"],[26,9,1,"shellLight"],[27,9,1,"outline"],[3,10,1,"outline"],[4,10,1,"shellLight"],[5,10,22,"shell"],[27,10,1,"shellLight"],[28,10,1,"outline"],[3,11,1,"outline"],[4,11,4,"shell"],[8,11,16,"visor"],[24,11,4,"shell"],[28,11,1,"outline"],[2,12,2,"outline"],[4,12,3,"shell"],[7,12,3,"visor"],[10,12,3,"glare"],[13,12,12,"visor"],[25,12,3,"shell"],[28,12,2,"outline"],[1,13,1,"outline"],[2,13,1,"shellLight"],[3,13,1,"outline"],[4,13,3,"shell"],[7,13,2,"visor"],[9,13,1,"glare"],[10,13,15,"visor"],[25,13,3,"shell"],[28,13,1,"outline"],[29,13,1,"shellLight"],[30,13,1,"outline"],[0,14,1,"outline"],[1,14,1,"shellLight"],[2,14,1,"shell"],[3,14,1,"outline"],[4,14,3,"shell"],[7,14,2,"visor"],[9,14,1,"glare"],[10,14,15,"visor"],[25,14,3,"shell"],[28,14,1,"outline"],[29,14,1,"shell"],[30,14,1,"shellLight"],[31,14,1,"outline"],[0,15,1,"outline"],[1,15,2,"shell"],[3,15,1,"outline"],[4,15,3,"shell"],[7,15,18,"visor"],[25,15,3,"shell"],[28,15,1,"outline"],[29,15,2,"shell"],[31,15,1,"outline"],[0,16,1,"outline"],[1,16,2,"shell"],[3,16,1,"outline"],[4,16,3,"shell"],[7,16,18,"visor"],[25,16,3,"shell"],[28,16,1,"outline"],[29,16,2,"shell"],[31,16,1,"outline"],[0,17,1,"outline"],[1,17,2,"shell"],[3,17,1,"outline"],[4,17,3,"shell"],[7,17,18,"visor"],[25,17,3,"shell"],[28,17,1,"outline"],[29,17,2,"shell"],[31,17,1,"outline"],[0,18,1,"outline"],[1,18,1,"shellDark"],[2,18,1,"shell"],[3,18,1,"outline"],[4,18,3,"shell"],[7,18,18,"visor"],[25,18,3,"shell"],[28,18,1,"outline"],[29,18,1,"shell"],[30,18,1,"shellDark"],[31,18,1,"outline"],[1,19,1,"outline"],[2,19,1,"shellDark"],[3,19,1,"outline"],[4,19,3,"shell"],[7,19,18,"visor"],[25,19,3,"shell"],[28,19,1,"outline"],[29,19,1,"shellDark"],[30,19,1,"outline"],[2,20,2,"outline"],[4,20,3,"shell"],[7,20,18,"visor"],[25,20,3,"shell"],[28,20,2,"outline"],[3,21,1,"outline"],[4,21,3,"shell"],[7,21,18,"visor"],[25,21,3,"shell"],[28,21,1,"outline"],[3,22,1,"outline"],[4,22,4,"shell"],[8,22,16,"visor"],[24,22,4,"shell"],[28,22,1,"outline"],[3,23,1,"outline"],[4,23,1,"shellDark"],[5,23,22,"shell"],[27,23,1,"shellDark"],[28,23,1,"outline"],[4,24,1,"outline"],[5,24,1,"shellDark"],[6,24,20,"shell"],[26,24,1,"shellDark"],[27,24,1,"outline"],[5,25,1,"outline"],[6,25,20,"shellDark"],[26,25,1,"outline"],[5,26,22,"outline"],[4,27,1,"outline"],[5,27,2,"whiteLight"],[7,27,1,"outline"],[8,27,1,"shellLight"],[9,27,1,"outline"],[10,27,1,"shellLight"],[11,27,2,"shell"],[13,27,6,"outline"],[19,27,2,"shell"],[21,27,1,"shellLight"],[22,27,1,"outline"],[23,27,1,"shellLight"],[24,27,1,"outline"],[25,27,2,"whiteLight"],[27,27,1,"outline"],[3,28,1,"outline"],[4,28,1,"whiteLight"],[5,28,2,"white"],[7,28,1,"whiteLight"],[8,28,2,"outline"],[10,28,2,"shell"],[12,28,1,"outline"],[13,28,6,"whiteLight"],[19,28,1,"outline"],[20,28,2,"shell"],[22,28,2,"outline"],[24,28,1,"whiteLight"],[25,28,2,"white"],[27,28,1,"whiteLight"],[28,28,1,"outline"],[3,29,1,"outline"],[4,29,1,"whiteDark"],[5,29,2,"white"],[7,29,1,"whiteDark"],[8,29,2,"outline"],[10,29,2,"shell"],[12,29,1,"outline"],[13,29,6,"whiteDark"],[19,29,1,"outline"],[20,29,2,"shell"],[22,29,2,"outline"],[24,29,1,"whiteDark"],[25,29,2,"white"],[27,29,1,"whiteDark"],[28,29,1,"outline"],[4,30,1,"outline"],[5,30,2,"whiteDark"],[7,30,1,"outline"],[9,30,1,"outline"],[10,30,1,"shellDark"],[11,30,2,"shell"],[13,30,6,"outline"],[19,30,2,"shell"],[21,30,1,"shellDark"],[22,30,1,"outline"],[24,30,1,"outline"],[25,30,2,"whiteDark"],[27,30,1,"outline"],[5,31,2,"outline"],[10,31,1,"outline"],[11,31,10,"shellDark"],[21,31,1,"outline"],[25,31,2,"outline"],[11,32,10,"outline"],[11,33,1,"outline"],[12,33,2,"shell"],[14,33,1,"outline"],[17,33,1,"outline"],[18,33,2,"shell"],[20,33,1,"outline"],[11,34,4,"outline"],[17,34,4,"outline"],[10,35,1,"outline"],[11,35,3,"whiteLight"],[14,35,1,"outline"],[17,35,1,"outline"],[18,35,3,"whiteLight"],[21,35,1,"outline"],[9,36,1,"outline"],[10,36,1,"whiteLight"],[11,36,3,"white"],[14,36,1,"whiteLight"],[15,36,2,"outline"],[17,36,1,"whiteLight"],[18,36,3,"white"],[21,36,1,"whiteLight"],[22,36,1,"outline"],[10,37,1,"outline"],[11,37,3,"whiteDark"],[14,37,1,"outline"],[17,37,1,"outline"],[18,37,3,"whiteDark"],[21,37,1,"outline"],[11,38,3,"outline"],[18,38,3,"outline"]],"faces":{"calm":[[11,16,2,"eye"],[19,16,2,"eye"],[11,17,2,"eye"],[19,17,2,"eye"]],"happy":[[11,16,2,"eye"],[19,16,2,"eye"],[10,17,1,"eye"],[13,17,1,"eye"],[18,17,1,"eye"],[21,17,1,"eye"],[8,19,2,"blush"],[22,19,2,"blush"]],"wink":[[11,15,2,"eye"],[11,16,2,"eye"],[19,16,2,"eye"],[11,17,2,"eye"],[18,17,1,"eye"],[21,17,1,"eye"]],"open":[[11,15,2,"eye"],[19,15,2,"eye"],[11,16,2,"eye"],[19,16,2,"eye"],[11,17,2,"eye"],[19,17,2,"eye"]],"closed":[[10,17,4,"eye"],[18,17,4,"eye"]]},"fixed":{"outline":"#1B1A3A","visor":"#17143A","glare":"#BFEAF7","white":"#F4F6FB","whiteLight":"#FFFFFF","whiteDark":"#AEB3CC","silver":"#C9CFDB","silverLight":"#E8EBF2","silverDark":"#8E95AB","tip":"#9FF0F7","tipLight":"#F0FFFF","tipDark":"#5FCFE0","eye":"#E8FFFF","blush":"#FF9AB2"},"colors":{"teal":"#2FB8B0","coral":"#F2766B","violet":"#8E6CE0","sun":"#F2B33D","sky":"#5B8DEF","leaf":"#5BBF6A"},"stickers":["star","heart","leaf","bolt"],"personalities":{"calm":{"label":"Calm","face":"calm","blurb":"Gentle and unhurried","sample":"No rush. Practice is at 5:30, and I'll remind you at 4:50."},"cheerful":{"label":"Cheerful","face":"happy","blurb":"Upbeat and encouraging","sample":"Good news! Practice is at 5:30. Want a reminder at 4:50?"},"funny":{"label":"Funny","face":"wink","blurb":"Light jokes, still useful","sample":"Practice at 5:30. I'll ping you at 4:50, before traffic does."},"brief":{"label":"Brief","face":"open","blurb":"Short and to the point","sample":"Practice 5:30. Reminder at 4:50?"}}};
+const STICKER_ART = {"star":"a509b7da6f93811f29bf9e84560af70f","heart":"ef08bdd73525cdfac56fe3c437a18b9c","leaf":"6729bb22fb50e334dd97a073fa44e53a","bolt":"f4bb0c6f1f0fcae62475f582a31df06e"};
+function hexToHsl(hex) {
+  const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255);
+  const max = Math.max(r, g, b), min = Math.min(r, g, b), l = (max + min) / 2;
+  if (max === min) return [0, 0, l];
+  const d = max - min, s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+  const h = max === r ? (g - b) / d + (g < b ? 6 : 0) : max === g ? (b - r) / d + 2 : (r - g) / d + 4;
+  return [h * 60, s, l];
+}
+
+function hslToHex(h, s, l) {
+  const k = (n) => (n + h / 30) % 12, a = s * Math.min(l, 1 - l);
+  const f = (n) => l - a * Math.max(-1, Math.min(k(n) - 3, 9 - k(n), 1));
+  return "#" + [0, 8, 4].map((n) => Math.round(f(n) * 255).toString(16).padStart(2, "0")).join("");
+}
+
+const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
+
+/** Light and dark shades of one colour, with a slight hue shift like hand-pixelled art. */
+function shades(hex) {
+  const [h, s, l] = hexToHsl(hex);
+  return {
+    light: hslToHex((h + 356) % 360, s, clamp(l + 0.13, 0, 0.92)),
+    dark: hslToHex((h + 8) % 360, s, clamp(l - 0.16, 0.08, 1)),
+  };
+}
+
+
+// Shared by boards that draw MEGAs live from template data (LOOKS, STICKER_ART, shades()).
+function paletteFor(hex) {
+  const { light, dark } = shades(hex);
+  return { ...LOOKS.fixed, shell: hex, shellLight: light, shellDark: dark };
+}
+// Pixel runs -> positioned boxes at `scale`, optionally only rows above `maxRow` (head crops).
+function draw(hex, face, scale, maxRow) {
+  const pal = paletteFor(hex);
+  const runs = [...LOOKS.body, ...(LOOKS.faces[face] || [])].filter((r) => maxRow === undefined || r[1] < maxRow);
+  return runs.map(([x, y, w, k]) => ({ l: x * scale, t: y * scale, w: w * scale, h: scale, c: pal[k] }));
+}
+function sprite(hex, face, sticker, scale, maxRow) {
+  const [gw, gh] = LOOKS.grid;
+  return { rects: draw(hex, face, scale, maxRow), hasSticker: sticker !== 'none', sticker: sticker === 'none' ? '' : '/_blob/' + STICKER_ART[sticker], w: gw * scale, h: gh * scale };
+}
+// Dark or light text on a coloured button, whichever reads better.
+function inkOn(hex) {
+  const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255);
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b > 0.45 ? '#0C0E11' : '#FFFFFF';
+}
+
+
+// Theme tokens, mirrored from config/theme.ts in the app. Midnight is the default theme.
+// The accent is either the theme's own or "match my MEGA" (the default for everyone but the admin).
+const THEMES = {
+  midnight: { label: 'Midnight', accent: '#2FB8B0', bg: '#0C0E11', surface: '#16191E', line: '#2E343D', text: '#EDEFF2', muted: '#9AA1AB' },
+  light: { label: 'Light', accent: '#1E9A93', bg: '#F5F6F8', surface: '#FFFFFF', line: '#DDE1E6', text: '#14171C', muted: '#5F6670' },
+};
+const themeAccent = (theme, accent, megaHex) => (accent === 'mega' ? megaHex : accent === 'theme' ? THEMES[theme].accent : accent);
+
+
+// Sample viewers: each sees their own MEGA. People are labelled by role only.
+const VIEWERS = {
+  admin: { mega: 'Teal', hex: '#2FB8B0', face: 'open', accent: 'theme', wallpaper: 'glow', notify: true, family: true },
+  adult: { mega: 'Coral', hex: '#F2766B', face: 'happy', accent: 'mega', wallpaper: 'glow', notify: true },
+  kid: { mega: 'Zap', hex: '#8E6CE0', face: 'happy', accent: 'mega', wallpaper: 'room', kid: true },
+};
+const PARENT_CODE = '48217';
+const ROOM_ART = '/_blob/cf355e3cbfaf6b0dfd180a0e74427825';
+// Wallpaper presets are drawn in code (gradients from the MEGA colour) or are the MEGA's own room.
+const PRESETS = [
+  { id: 'glow', label: 'MEGA glow', css: (hex, dark) => 'linear-gradient(165deg, ' + dark + ' 0%, #12151A 55%, #0C0E11 100%)' },
+  { id: 'night', label: 'Night', css: () => 'radial-gradient(circle at 70% 20%, #2A3350 0%, #0C0E11 70%)' },
+  { id: 'dawn', label: 'Dawn', css: () => 'linear-gradient(180deg, #3B2A4F 0%, #B5655A 100%)' },
+  { id: 'room', label: 'My room', css: () => '#1B1F25', src: ROOM_ART },
+];
+
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    const v = VIEWERS[props.who] ?? VIEWERS.admin;
+    this.state = { sheet: props.sheet && props.sheet !== 'none' ? props.sheet : null, theme: 'midnight', accent: v.accent, wallpaper: v.wallpaper, codeShown: false };
+  }
+  renderVals() {
+    const v = VIEWERS[this.props.who] ?? VIEWERS.admin, s = this.state;
+    const accent = themeAccent(s.theme, s.accent, v.hex), { dark } = shades(v.hex), t = THEMES[s.theme];
+    const open = (sheet) => () => this.setState({ sheet });
+    const preset = PRESETS.find((p) => p.id === s.wallpaper);
+    const wall = (p) => ({ label: p.label, css: p.css(v.hex, dark), hasImage: !!p.src, src: p.src || '' });
+    const accentLabel = s.accent === 'mega' ? 'Matches ' + v.mega : s.accent === 'theme' ? 'Default color' : 'Custom color';
+    const sections = [
+      { title: 'Look', rows: [
+        { kind: 'link', label: 'Theme', value: t.label + ' · ' + accentLabel, swatch: true, tap: open('theme') },
+        { kind: 'link', label: 'Wallpaper', value: preset.label, tap: open('wallpaper') },
+      ] },
+      v.kid
+        ? { title: 'Notifications', note: 'A parent sets these. Your MEGA only sends reminders.', rows: [
+            { kind: 'locked', label: 'Quiet hours', hint: 'Set by a parent', value: '8:00 PM – 7:00 AM' },
+            { kind: 'locked', label: 'Daily time limit', hint: 'Set by a parent', value: '1 hour' },
+          ] }
+        : { title: 'Notifications', rows: [
+            { kind: 'link', label: 'What wakes my phone', hint: 'The rest arrive quietly', value: 'Reminders, requests' },
+            { kind: 'link', label: 'Quiet hours', value: '10:00 PM – 7:00 AM' },
+            { kind: 'link', label: 'Daily limit', value: '6 a day' },
+          ] },
+      ...(v.family ? [{ title: 'Family', note: 'Only you see this section.', rows: [
+        { kind: 'link', label: 'Members and MEGAs', value: '5 people', tap: () => {} },
+        { kind: 'code', label: 'Parent code', hint: 'Kids need it to join' },
+        { kind: 'link', label: 'Invite someone', value: 'QR or link' },
+        { kind: 'link', label: 'Default kid controls', hint: 'Used when you add a kid', value: '' },
+      ] }] : []),
+      { title: 'Account', rows: v.kid
+        ? [{ kind: 'link', label: 'Switch person', value: '' }]
+        : [{ kind: 'link', label: 'Signed in', value: 'Apple ID' }, { kind: 'link', label: 'Sign out', value: '' }] },
+    ].map((sec) => ({ ...sec, hasNote: !!sec.note, note: sec.note || '',
+      rows: sec.rows.map((r, i) => ({ ...r, isLink: r.kind === 'link', isLocked: r.kind === 'locked', isCode: r.kind === 'code', hasHint: !!r.hint, hint: r.hint || '', hasSwatch: !!r.swatch,
+        divider: i ? '1px solid #22262D' : 'none', tap: r.tap || (() => {}) })) }));
+    const ring = (on) => (on ? '3px solid ' + accent : '1px solid #2E343D');
+    return {
+      head: sprite(v.hex, v.face, 'none', 1.5, 27), smallHead: sprite(v.hex, v.face, 'none', 1, 27), mega: v.mega, megaHex: v.hex,
+      sample: LOOKS.personalities[{ open: 'brief', happy: 'cheerful' }[v.face] || 'brief'].sample,
+      accent, accentInk: inkOn(accent), sections,
+      rowH: v.kid ? 60 : 52, rowFont: v.kid ? 17 : 16,
+      codeShown: s.codeShown ? PARENT_CODE.split('').join(' ') : '• • • • •', codeToggle: s.codeShown ? 'Hide' : 'Show', toggleCode: () => this.setState({ codeShown: !s.codeShown }),
+      sheetOpen: !!s.sheet, isTheme: s.sheet === 'theme', isWallpaper: s.sheet === 'wallpaper', closeSheet: () => this.setState({ sheet: null }),
+      sheetTitle: s.sheet === 'theme' ? 'Theme' : 'Wallpaper',
+      pv: { ...t, bubble: accent + '33' },
+      themes: Object.keys(THEMES).map((id) => ({ label: THEMES[id].label, on: id === s.theme ? 'true' : 'false', ring: ring(id === s.theme), bg: THEMES[id].bg, fg: THEMES[id].text, pick: () => this.setState({ theme: id }) })),
+      megaOn: s.accent === 'mega' ? 'true' : 'false', megaRing: ring(s.accent === 'mega'), pickMega: () => this.setState({ accent: 'mega' }),
+      accents: [['theme', 'Default', THEMES[s.theme].accent], ...Object.entries(LOOKS.colors).filter(([, hex]) => hex !== THEMES.midnight.accent).map(([id, hex]) => [hex, id[0].toUpperCase() + id.slice(1), hex])].map(([val, label, hex]) => ({
+        label, hex, on: s.accent === val ? 'true' : 'false', ring: s.accent === val ? '3px solid #FFFFFF' : '3px solid transparent', pick: () => this.setState({ accent: val }) })),
+      current: wall(preset),
+      presets: PRESETS.map((p) => ({ ...wall(p), on: p.id === s.wallpaper ? 'true' : 'false', ring: ring(p.id === s.wallpaper), pick: () => this.setState({ wallpaper: p.id }) })),
+      canGenerate: !v.kid, kidNote: !!v.kid, sourceCols: v.kid ? '1fr' : '1fr 1fr',
+    };
+  }
+}
+</script>
+</body>
+</html>

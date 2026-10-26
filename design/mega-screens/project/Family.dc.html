@@ -1,0 +1,353 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Family</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#0C0E11}
+a{color:#EDEFF2;text-decoration:none}
+button{font-family:inherit}
+</style>
+</helmet>
+<div style="position: relative; width: 390px; height: 844px; box-sizing: border-box; background: #0C0E11; color: #EDEFF2; font-family: Inter, system-ui, sans-serif; display: flex; flex-direction: column; overflow: hidden">
+  <header style="display: flex; align-items: center; gap: 12px; padding: 16px 16px 10px; flex-shrink: 0">
+    <div style="display: flex; flex-direction: column; gap: 2px; flex: 1">
+      <h1 style="margin: 0; font-size: 26px; font-weight: 800">Family</h1>
+      <div style="font-size: 14px; color: #9AA1AB">{{memberCount}} members · {{megaCount}} MEGAs</div>
+    </div>
+    <button type="button" onClick="{{openCalendar}}" aria-label="Family calendar" style="width: 48px; height: 48px; border-radius: 24px; border: 1px solid #2E343D; background: #16191E; color: #EDEFF2; display: flex; align-items: center; justify-content: center">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"></rect><path d="M3 10h18M8 3v4M16 3v4"></path></svg>
+    </button>
+  </header>
+
+  <div style="flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 24px; padding: 6px 16px 24px">
+    <section style="display: flex; flex-direction: column">
+      <sc-for list="{{members}}" as="m" hint-placeholder-count="5">
+        <button type="button" onClick="{{m.open}}" style="display: flex; align-items: center; gap: 12px; min-height: 68px; padding: 8px 0; border: none; border-bottom: 1px solid #22262D; background: transparent; color: #EDEFF2; text-align: left">
+          <sc-if value="{{m.hasMega}}" hint-placeholder-val="{{ true }}">
+            <span style="position: relative; width: 48px; height: 41px; flex-shrink: 0; border-radius: 10px; overflow: hidden; background: #FFFFFF">
+              <sc-for list="{{m.head.rects}}" as="r" hint-placeholder-count="150">
+                <span style="position: absolute; left: {{r.l}}px; top: {{r.t}}px; width: {{r.w}}px; height: {{r.h}}px; background: {{r.c}}"></span>
+              </sc-for>
+            </span>
+          </sc-if>
+          <sc-if value="{{m.noMega}}" hint-placeholder-val="{{ false }}">
+            <span aria-hidden="true" style="width: 48px; height: 41px; flex-shrink: 0; border-radius: 10px; border: 2px dashed #3A414B; box-sizing: border-box; display: flex; align-items: center; justify-content: center; color: #6B727D"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"></circle><path d="M4 21v-1a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v1"></path></svg></span>
+          </sc-if>
+          <span style="flex: 1; display: flex; flex-direction: column; gap: 2px; min-width: 0">
+            <span style="font-size: 16px; font-weight: 600">{{m.title}}</span>
+            <span style="font-size: 13px; color: #9AA1AB">{{m.sub}}</span>
+          </span>
+          <span style="font-size: 12px; font-weight: 600; color: {{m.roleFg}}; background: {{m.roleBg}}; padding: 4px 9px; border-radius: 10px">{{m.role}}</span>
+        </button>
+      </sc-for>
+      <button type="button" style="display: flex; align-items: center; gap: 12px; min-height: 56px; padding: 0; border: none; background: transparent; color: #2FB8B0; font-size: 15px; font-weight: 600; text-align: left">
+        <span aria-hidden="true" style="width: 48px; display: flex; justify-content: center"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"></path></svg></span>
+        Add a family member
+      </button>
+    </section>
+
+    <section style="display: flex; flex-direction: column; gap: 10px">
+      <div style="display: flex; align-items: center; justify-content: space-between">
+        <h2 style="margin: 0; font-size: 13px; font-weight: 600; color: #9AA1AB; letter-spacing: .04em; text-transform: uppercase">Coming up · next 2 hours</h2>
+        <button type="button" onClick="{{openCalendar}}" style="height: 36px; padding: 0 4px; border: none; background: transparent; color: #2FB8B0; font-size: 14px; font-weight: 600">Calendar</button>
+      </div>
+      <sc-if value="{{hasSoon}}" hint-placeholder-val="{{ true }}">
+        <sc-for list="{{soon}}" as="e" hint-placeholder-count="2">
+          <div style="display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 16px; background: #16191E; border: 1px solid #2A3038">
+            <span aria-hidden="true" style="width: 4px; align-self: stretch; border-radius: 2px; background: {{e.color}}"></span>
+            <span style="display: flex; flex-direction: column; gap: 2px; flex: 1">
+              <span style="font-size: 16px; font-weight: 600">{{e.title}}</span>
+              <span style="font-size: 13px; color: #9AA1AB">{{e.who}}</span>
+            </span>
+            <span style="display: flex; flex-direction: column; align-items: flex-end; gap: 2px">
+              <span style="font-size: 15px; font-weight: 700; font-variant-numeric: tabular-nums">{{e.time}}</span>
+              <span style="font-size: 12px; color: #9AA1AB">{{e.until}}</span>
+            </span>
+          </div>
+        </sc-for>
+      </sc-if>
+      <sc-if value="{{noSoon}}" hint-placeholder-val="{{ false }}">
+        <div style="display: flex; align-items: center; gap: 12px; padding: 16px 14px; border-radius: 16px; border: 1px dashed #3A414B; color: #9AA1AB; font-size: 15px">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg>
+          No events in the next 2 hours
+        </div>
+      </sc-if>
+    </section>
+
+    <section style="display: flex; flex-direction: column; gap: 10px">
+      <h2 style="margin: 0; font-size: 13px; font-weight: 600; color: #9AA1AB; letter-spacing: .04em; text-transform: uppercase">Shared lists</h2>
+      <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px">
+        <sc-for list="{{lists}}" as="l" hint-placeholder-count="3">
+          <button type="button" style="display: flex; flex-direction: column; align-items: flex-start; gap: 4px; padding: 12px; border-radius: 16px; border: 1px solid #2A3038; background: #16191E; color: #EDEFF2; text-align: left">
+            <span style="font-size: 15px; font-weight: 700">{{l.name}}</span>
+            <span style="font-size: 12px; color: #9AA1AB">{{l.count}}</span>
+          </button>
+        </sc-for>
+      </div>
+    </section>
+  </div>
+
+  <nav aria-label="Main" style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); height: 64px; flex-shrink: 0; border-top: 1px solid #22262D; background: #0F1114">
+    <a href="Main.dc.html" style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; color: #9AA1AB; font-size: 12px">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20.5l1.4-4.9A8 8 0 1 1 21 12z"></path></svg>
+      Chat
+    </a>
+    <a href="HQ.dc.html" style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; color: #9AA1AB; font-size: 12px">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"></path></svg>
+      HQ
+    </a>
+    <a href="Family.dc.html" aria-current="page" style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; color: #2FB8B0; font-size: 12px; font-weight: 600">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+      Family
+    </a>
+  </nav>
+
+  <sc-if value="{{sheetOpen}}" hint-placeholder-val="{{ false }}">
+    <button type="button" aria-label="Close" onClick="{{closeSheet}}" style="position: absolute; inset: 0; z-index: 10; border: none; padding: 0; background: rgba(8,9,12,0.6)"></button>
+    <section aria-label="{{sheet.title}}" style="position: absolute; left: 0; right: 0; bottom: 0; z-index: 11; max-height: 720px; display: flex; flex-direction: column; background: #15181D; border-radius: 24px 24px 0 0; border-top: 1px solid #2A3038">
+      <div aria-hidden="true" style="align-self: center; width: 40px; height: 5px; border-radius: 3px; background: #3A414B; margin-top: 10px"></div>
+      <div style="overflow-y: auto; display: flex; flex-direction: column; gap: 18px; padding: 14px 18px 24px">
+        <div style="display: flex; align-items: center; gap: 14px">
+          <sc-if value="{{sheet.hasMega}}" hint-placeholder-val="{{ true }}">
+            <span style="position: relative; width: 64px; height: 54px; flex-shrink: 0; border-radius: 12px; overflow: hidden; background: #FFFFFF">
+              <sc-for list="{{sheet.head.rects}}" as="r" hint-placeholder-count="150">
+                <span style="position: absolute; left: {{r.l}}px; top: {{r.t}}px; width: {{r.w}}px; height: {{r.h}}px; background: {{r.c}}"></span>
+              </sc-for>
+            </span>
+          </sc-if>
+          <div style="display: flex; flex-direction: column; gap: 2px; flex: 1">
+            <div style="font-size: 20px; font-weight: 800">{{sheet.title}}</div>
+            <div style="font-size: 14px; color: #9AA1AB">{{sheet.sub}}</div>
+          </div>
+          <button type="button" aria-label="Close" onClick="{{closeSheet}}" style="width: 40px; height: 40px; border-radius: 20px; border: none; background: #22262D; color: #EDEFF2; display: flex; align-items: center; justify-content: center"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"></path></svg></button>
+        </div>
+
+        <sc-if value="{{sheet.hasMega}}" hint-placeholder-val="{{ true }}">
+          <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px">
+            <a href="Main.dc.html" style="height: 48px; border-radius: 24px; background: #2FB8B0; color: #04201E; font-size: 15px; font-weight: 700; display: flex; align-items: center; justify-content: center">Message {{sheet.mega}}</a>
+            <a href="Room.dc.html" style="height: 48px; box-sizing: border-box; border-radius: 24px; border: 1px solid #2E343D; color: #EDEFF2; font-size: 15px; font-weight: 600; display: flex; align-items: center; justify-content: center">Visit room</a>
+          </div>
+        </sc-if>
+        <sc-if value="{{sheet.noMega}}" hint-placeholder-val="{{ false }}">
+          <div style="display: flex; flex-direction: column; gap: 10px; padding: 14px; border-radius: 16px; border: 1px dashed #3A414B">
+            <div style="font-size: 15px; line-height: 21px; color: #B4BAC3">{{sheet.person}} doesn’t have a MEGA yet. You can create one and assign it whenever you’re ready.</div>
+            <button type="button" style="height: 48px; border-radius: 24px; border: none; background: #2FB8B0; color: #04201E; font-size: 15px; font-weight: 700">Create a MEGA for {{sheet.person}}</button>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{sheet.isKid}}" hint-placeholder-val="{{ false }}">
+          <section style="display: flex; flex-direction: column; gap: 4px">
+            <h3 style="margin: 0 0 4px; font-size: 13px; font-weight: 600; color: #9AA1AB; letter-spacing: .04em; text-transform: uppercase">Kid controls</h3>
+            <sc-for list="{{controls}}" as="c" hint-placeholder-count="5">
+              <div style="display: flex; align-items: center; gap: 12px; min-height: 60px; border-bottom: 1px solid #22262D">
+                <span style="flex: 1; display: flex; flex-direction: column; gap: 2px">
+                  <span style="font-size: 16px; font-weight: 500">{{c.label}}</span>
+                  <span style="font-size: 13px; color: #8A919B">{{c.hint}}</span>
+                </span>
+                <sc-if value="{{c.isToggle}}" hint-placeholder-val="{{ true }}">
+                  <button type="button" role="switch" aria-checked="{{c.onStr}}" aria-label="{{c.label}}" onClick="{{c.toggle}}" style="position: relative; width: 52px; height: 32px; flex-shrink: 0; border-radius: 16px; border: none; padding: 0; background: {{c.track}}">
+                    <span aria-hidden="true" style="position: absolute; top: 3px; left: {{c.knob}}px; width: 26px; height: 26px; border-radius: 13px; background: #FFFFFF"></span>
+                  </button>
+                </sc-if>
+                <sc-if value="{{c.isLink}}" hint-placeholder-val="{{ false }}">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#9AA1AB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"></path></svg>
+                </sc-if>
+              </div>
+            </sc-for>
+          </section>
+        </sc-if>
+      </div>
+    </section>
+  </sc-if>
+
+  <sc-if value="{{calOpen}}" hint-placeholder-val="{{ false }}">
+    <section aria-label="Family calendar" style="position: absolute; inset: 0; z-index: 20; background: #0C0E11; display: flex; flex-direction: column">
+      <header style="display: grid; grid-template-columns: 56px 1fr 56px; align-items: center; height: 56px; padding: 0 8px; flex-shrink: 0">
+        <button type="button" onClick="{{closeCalendar}}" aria-label="Close calendar" style="width: 44px; height: 44px; border: none; background: transparent; color: #EDEFF2; display: flex; align-items: center; justify-content: center"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"></path></svg></button>
+        <h2 style="margin: 0; text-align: center; font-size: 17px; font-weight: 700">{{monthLabel}}</h2>
+        <button type="button" onClick="{{goToday}}" style="justify-self: end; height: 36px; padding: 0 12px; border-radius: 18px; border: 1px solid #2E343D; background: transparent; color: #EDEFF2; font-size: 13px; font-weight: 600">Today</button>
+      </header>
+      <div style="display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; padding: 6px 10px 12px; border-bottom: 1px solid #22262D">
+        <sc-for list="{{days}}" as="d" hint-placeholder-count="7">
+          <button type="button" aria-pressed="{{d.on}}" aria-label="{{d.full}}" onClick="{{d.pick}}" style="display: flex; flex-direction: column; align-items: center; gap: 4px; height: 70px; padding: 6px 0; border-radius: 14px; border: none; background: {{d.bg}}; color: {{d.fg}}">
+            <span style="font-size: 12px; font-weight: 600; opacity: .8">{{d.dow}}</span>
+            <span style="font-size: 18px; font-weight: 800">{{d.num}}</span>
+            <span style="display: flex; gap: 3px; height: 6px">
+              <sc-for list="{{d.dots}}" as="c" hint-placeholder-count="2">
+                <span style="width: 6px; height: 6px; border-radius: 3px; background: {{c}}"></span>
+              </sc-for>
+            </span>
+          </button>
+        </sc-for>
+      </div>
+      <div style="flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; padding: 14px 16px 24px">
+        <div style="font-size: 15px; font-weight: 700; margin-bottom: 6px">{{dayLabel}}</div>
+        <sc-if value="{{dayEmpty}}" hint-placeholder-val="{{ false }}">
+          <div style="font-size: 15px; color: #9AA1AB; padding: 12px 0">Nothing planned.</div>
+        </sc-if>
+        <sc-for list="{{agenda}}" as="e" hint-placeholder-count="4">
+          <div style="display: flex; gap: 14px; align-items: center; min-height: 60px; border-bottom: 1px solid #22262D">
+            <span style="width: 74px; font-size: 14px; color: #9AA1AB; font-variant-numeric: tabular-nums">{{e.time}}</span>
+            <span aria-hidden="true" style="width: 4px; height: 36px; border-radius: 2px; background: {{e.color}}"></span>
+            <span style="display: flex; flex-direction: column; gap: 2px; flex: 1">
+              <span style="font-size: 16px; font-weight: 600">{{e.title}}</span>
+              <span style="font-size: 13px; color: #8A919B">{{e.who}}</span>
+            </span>
+          </div>
+        </sc-for>
+        <div style="display: flex; flex-wrap: wrap; gap: 12px; margin-top: 14px">
+          <sc-for list="{{legend}}" as="g" hint-placeholder-count="4">
+            <span style="display: flex; align-items: center; gap: 6px; font-size: 13px; color: #9AA1AB"><span style="width: 10px; height: 10px; border-radius: 5px; background: {{g.color}}"></span>{{g.who}}</span>
+          </sc-for>
+        </div>
+        <div style="font-size: 13px; color: #8A919B; margin-top: 10px">To add or change an event, ask your MEGA in chat.</div>
+      </div>
+    </section>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"open":{"editor":"enum","options":["none","zap","twin2","toddler"],"default":"none"},"calendar":{"editor":"enum","options":["closed","open"],"default":"closed"},"now":{"editor":"enum","options":["afternoon","evening"],"default":"afternoon"},"$preview":{"width":390,"height":844}}'>
+// Generated from prototypes/megasprite (mega-template.mjs, pixel-paint.mjs, export-looks.mjs).
+const LOOKS = {"grid":[32,40],"body":[[15,0,2,"outline"],[14,1,1,"outline"],[15,1,2,"tipLight"],[17,1,1,"outline"],[13,2,1,"outline"],[14,2,1,"tipLight"],[15,2,2,"tip"],[17,2,1,"tipLight"],[18,2,1,"outline"],[14,3,1,"outline"],[15,3,2,"tipDark"],[17,3,1,"outline"],[14,4,4,"outline"],[14,5,1,"outline"],[15,5,2,"silver"],[17,5,1,"outline"],[14,6,1,"outline"],[15,6,2,"silver"],[17,6,1,"outline"],[6,7,20,"outline"],[5,8,1,"outline"],[6,8,20,"shellLight"],[26,8,1,"outline"],[4,9,1,"outline"],[5,9,1,"shellLight"],[6,9,20,"shell"],[26,9,1,"shellLight"],[27,9,1,"outline"],[3,10,1,"outline"],[4,10,1,"shellLight"],[5,10,22,"shell"],[27,10,1,"shellLight"],[28,10,1,"outline"],[3,11,1,"outline"],[4,11,4,"shell"],[8,11,16,"visor"],[24,11,4,"shell"],[28,11,1,"outline"],[2,12,2,"outline"],[4,12,3,"shell"],[7,12,3,"visor"],[10,12,3,"glare"],[13,12,12,"visor"],[25,12,3,"shell"],[28,12,2,"outline"],[1,13,1,"outline"],[2,13,1,"shellLight"],[3,13,1,"outline"],[4,13,3,"shell"],[7,13,2,"visor"],[9,13,1,"glare"],[10,13,15,"visor"],[25,13,3,"shell"],[28,13,1,"outline"],[29,13,1,"shellLight"],[30,13,1,"outline"],[0,14,1,"outline"],[1,14,1,"shellLight"],[2,14,1,"shell"],[3,14,1,"outline"],[4,14,3,"shell"],[7,14,2,"visor"],[9,14,1,"glare"],[10,14,15,"visor"],[25,14,3,"shell"],[28,14,1,"outline"],[29,14,1,"shell"],[30,14,1,"shellLight"],[31,14,1,"outline"],[0,15,1,"outline"],[1,15,2,"shell"],[3,15,1,"outline"],[4,15,3,"shell"],[7,15,18,"visor"],[25,15,3,"shell"],[28,15,1,"outline"],[29,15,2,"shell"],[31,15,1,"outline"],[0,16,1,"outline"],[1,16,2,"shell"],[3,16,1,"outline"],[4,16,3,"shell"],[7,16,18,"visor"],[25,16,3,"shell"],[28,16,1,"outline"],[29,16,2,"shell"],[31,16,1,"outline"],[0,17,1,"outline"],[1,17,2,"shell"],[3,17,1,"outline"],[4,17,3,"shell"],[7,17,18,"visor"],[25,17,3,"shell"],[28,17,1,"outline"],[29,17,2,"shell"],[31,17,1,"outline"],[0,18,1,"outline"],[1,18,1,"shellDark"],[2,18,1,"shell"],[3,18,1,"outline"],[4,18,3,"shell"],[7,18,18,"visor"],[25,18,3,"shell"],[28,18,1,"outline"],[29,18,1,"shell"],[30,18,1,"shellDark"],[31,18,1,"outline"],[1,19,1,"outline"],[2,19,1,"shellDark"],[3,19,1,"outline"],[4,19,3,"shell"],[7,19,18,"visor"],[25,19,3,"shell"],[28,19,1,"outline"],[29,19,1,"shellDark"],[30,19,1,"outline"],[2,20,2,"outline"],[4,20,3,"shell"],[7,20,18,"visor"],[25,20,3,"shell"],[28,20,2,"outline"],[3,21,1,"outline"],[4,21,3,"shell"],[7,21,18,"visor"],[25,21,3,"shell"],[28,21,1,"outline"],[3,22,1,"outline"],[4,22,4,"shell"],[8,22,16,"visor"],[24,22,4,"shell"],[28,22,1,"outline"],[3,23,1,"outline"],[4,23,1,"shellDark"],[5,23,22,"shell"],[27,23,1,"shellDark"],[28,23,1,"outline"],[4,24,1,"outline"],[5,24,1,"shellDark"],[6,24,20,"shell"],[26,24,1,"shellDark"],[27,24,1,"outline"],[5,25,1,"outline"],[6,25,20,"shellDark"],[26,25,1,"outline"],[5,26,22,"outline"],[4,27,1,"outline"],[5,27,2,"whiteLight"],[7,27,1,"outline"],[8,27,1,"shellLight"],[9,27,1,"outline"],[10,27,1,"shellLight"],[11,27,2,"shell"],[13,27,6,"outline"],[19,27,2,"shell"],[21,27,1,"shellLight"],[22,27,1,"outline"],[23,27,1,"shellLight"],[24,27,1,"outline"],[25,27,2,"whiteLight"],[27,27,1,"outline"],[3,28,1,"outline"],[4,28,1,"whiteLight"],[5,28,2,"white"],[7,28,1,"whiteLight"],[8,28,2,"outline"],[10,28,2,"shell"],[12,28,1,"outline"],[13,28,6,"whiteLight"],[19,28,1,"outline"],[20,28,2,"shell"],[22,28,2,"outline"],[24,28,1,"whiteLight"],[25,28,2,"white"],[27,28,1,"whiteLight"],[28,28,1,"outline"],[3,29,1,"outline"],[4,29,1,"whiteDark"],[5,29,2,"white"],[7,29,1,"whiteDark"],[8,29,2,"outline"],[10,29,2,"shell"],[12,29,1,"outline"],[13,29,6,"whiteDark"],[19,29,1,"outline"],[20,29,2,"shell"],[22,29,2,"outline"],[24,29,1,"whiteDark"],[25,29,2,"white"],[27,29,1,"whiteDark"],[28,29,1,"outline"],[4,30,1,"outline"],[5,30,2,"whiteDark"],[7,30,1,"outline"],[9,30,1,"outline"],[10,30,1,"shellDark"],[11,30,2,"shell"],[13,30,6,"outline"],[19,30,2,"shell"],[21,30,1,"shellDark"],[22,30,1,"outline"],[24,30,1,"outline"],[25,30,2,"whiteDark"],[27,30,1,"outline"],[5,31,2,"outline"],[10,31,1,"outline"],[11,31,10,"shellDark"],[21,31,1,"outline"],[25,31,2,"outline"],[11,32,10,"outline"],[11,33,1,"outline"],[12,33,2,"shell"],[14,33,1,"outline"],[17,33,1,"outline"],[18,33,2,"shell"],[20,33,1,"outline"],[11,34,4,"outline"],[17,34,4,"outline"],[10,35,1,"outline"],[11,35,3,"whiteLight"],[14,35,1,"outline"],[17,35,1,"outline"],[18,35,3,"whiteLight"],[21,35,1,"outline"],[9,36,1,"outline"],[10,36,1,"whiteLight"],[11,36,3,"white"],[14,36,1,"whiteLight"],[15,36,2,"outline"],[17,36,1,"whiteLight"],[18,36,3,"white"],[21,36,1,"whiteLight"],[22,36,1,"outline"],[10,37,1,"outline"],[11,37,3,"whiteDark"],[14,37,1,"outline"],[17,37,1,"outline"],[18,37,3,"whiteDark"],[21,37,1,"outline"],[11,38,3,"outline"],[18,38,3,"outline"]],"faces":{"calm":[[11,16,2,"eye"],[19,16,2,"eye"],[11,17,2,"eye"],[19,17,2,"eye"]],"happy":[[11,16,2,"eye"],[19,16,2,"eye"],[10,17,1,"eye"],[13,17,1,"eye"],[18,17,1,"eye"],[21,17,1,"eye"],[8,19,2,"blush"],[22,19,2,"blush"]],"wink":[[11,15,2,"eye"],[11,16,2,"eye"],[19,16,2,"eye"],[11,17,2,"eye"],[18,17,1,"eye"],[21,17,1,"eye"]],"open":[[11,15,2,"eye"],[19,15,2,"eye"],[11,16,2,"eye"],[19,16,2,"eye"],[11,17,2,"eye"],[19,17,2,"eye"]],"closed":[[10,17,4,"eye"],[18,17,4,"eye"]]},"fixed":{"outline":"#1B1A3A","visor":"#17143A","glare":"#BFEAF7","white":"#F4F6FB","whiteLight":"#FFFFFF","whiteDark":"#AEB3CC","silver":"#C9CFDB","silverLight":"#E8EBF2","silverDark":"#8E95AB","tip":"#9FF0F7","tipLight":"#F0FFFF","tipDark":"#5FCFE0","eye":"#E8FFFF","blush":"#FF9AB2"},"colors":{"teal":"#2FB8B0","coral":"#F2766B","violet":"#8E6CE0","sun":"#F2B33D","sky":"#5B8DEF","leaf":"#5BBF6A"},"stickers":["star","heart","leaf","bolt"],"personalities":{"calm":{"label":"Calm","face":"calm","blurb":"Gentle and unhurried","sample":"No rush. Practice is at 5:30, and I'll remind you at 4:50."},"cheerful":{"label":"Cheerful","face":"happy","blurb":"Upbeat and encouraging","sample":"Good news! Practice is at 5:30. Want a reminder at 4:50?"},"funny":{"label":"Funny","face":"wink","blurb":"Light jokes, still useful","sample":"Practice at 5:30. I'll ping you at 4:50, before traffic does."},"brief":{"label":"Brief","face":"open","blurb":"Short and to the point","sample":"Practice 5:30. Reminder at 4:50?"}}};
+const STICKER_ART = {"star":"a509b7da6f93811f29bf9e84560af70f","heart":"ef08bdd73525cdfac56fe3c437a18b9c","leaf":"6729bb22fb50e334dd97a073fa44e53a","bolt":"f4bb0c6f1f0fcae62475f582a31df06e"};
+function hexToHsl(hex) {
+  const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255);
+  const max = Math.max(r, g, b), min = Math.min(r, g, b), l = (max + min) / 2;
+  if (max === min) return [0, 0, l];
+  const d = max - min, s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+  const h = max === r ? (g - b) / d + (g < b ? 6 : 0) : max === g ? (b - r) / d + 2 : (r - g) / d + 4;
+  return [h * 60, s, l];
+}
+
+function hslToHex(h, s, l) {
+  const k = (n) => (n + h / 30) % 12, a = s * Math.min(l, 1 - l);
+  const f = (n) => l - a * Math.max(-1, Math.min(k(n) - 3, 9 - k(n), 1));
+  return "#" + [0, 8, 4].map((n) => Math.round(f(n) * 255).toString(16).padStart(2, "0")).join("");
+}
+
+const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
+
+/** Light and dark shades of one colour, with a slight hue shift like hand-pixelled art. */
+function shades(hex) {
+  const [h, s, l] = hexToHsl(hex);
+  return {
+    light: hslToHex((h + 356) % 360, s, clamp(l + 0.13, 0, 0.92)),
+    dark: hslToHex((h + 8) % 360, s, clamp(l - 0.16, 0.08, 1)),
+  };
+}
+
+
+// Shared by boards that draw MEGAs live from template data (LOOKS, STICKER_ART, shades()).
+function paletteFor(hex) {
+  const { light, dark } = shades(hex);
+  return { ...LOOKS.fixed, shell: hex, shellLight: light, shellDark: dark };
+}
+// Pixel runs -> positioned boxes at `scale`, optionally only rows above `maxRow` (head crops).
+function draw(hex, face, scale, maxRow) {
+  const pal = paletteFor(hex);
+  const runs = [...LOOKS.body, ...(LOOKS.faces[face] || [])].filter((r) => maxRow === undefined || r[1] < maxRow);
+  return runs.map(([x, y, w, k]) => ({ l: x * scale, t: y * scale, w: w * scale, h: scale, c: pal[k] }));
+}
+function sprite(hex, face, sticker, scale, maxRow) {
+  const [gw, gh] = LOOKS.grid;
+  return { rects: draw(hex, face, scale, maxRow), hasSticker: sticker !== 'none', sticker: sticker === 'none' ? '' : '/_blob/' + STICKER_ART[sticker], w: gw * scale, h: gh * scale };
+}
+// Dark or light text on a coloured button, whichever reads better.
+function inkOn(hex) {
+  const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255);
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b > 0.45 ? '#0C0E11' : '#FFFFFF';
+}
+
+
+
+// Sample family: people are labelled by role only; MEGA names are samples.
+const PEOPLE = [
+  { id: 'you', person: 'You', role: 'Admin', mega: { name: 'Teal', hex: '#2FB8B0', face: 'open', status: 'At the desk · Math homework' } },
+  { id: 'partner', person: 'Partner', role: 'Adult', mega: { name: 'Coral', hex: '#F2766B', face: 'happy', status: 'At the calendar · Busy' } },
+  { id: 'zap', person: 'Twin', role: 'Kid', mega: { name: 'Zap', hex: '#8E6CE0', face: 'happy', status: 'On the toy rug' } },
+  { id: 'twin2', person: 'Twin', role: 'Kid', mega: null },
+  { id: 'toddler', person: 'Toddler', role: 'Kid', mega: null },
+];
+const ROLE_STYLE = { Admin: ['#2FB8B0', 'rgba(47,184,176,0.15)'], Adult: ['#F2B33D', 'rgba(242,179,61,0.15)'], Kid: ['#B9A4F2', 'rgba(142,108,224,0.18)'] };
+const CONTROLS = [
+  { id: 'homework', label: 'Homework mode', hint: 'Hints and steps, not answers', toggle: true, on: true },
+  { id: 'quiet', label: 'Quiet hours and bedtime', hint: '8:00 PM – 7:00 AM', toggle: false },
+  { id: 'limit', label: 'Daily time limit', hint: '1 hour on school days, 2 on weekends', toggle: false },
+  { id: 'topics', label: 'Blocked topics', hint: '3 topics', toggle: false },
+  { id: 'tells', label: 'What the MEGA tells parents', hint: 'Safety concerns and homework progress', toggle: false },
+];
+// Shared sample family week (Family board, widgets). Times are minutes after midnight.
+// Sample week. Times are minutes after midnight; "now" is set by the board's tweak.
+const WHO = { You: '#2FB8B0', Partner: '#F2766B', Twins: '#8E6CE0', Family: '#9AA1AB' };
+const WEEK = [
+  { dow: 'Sun', num: 25, full: 'Sunday, October 25', events: [[16 * 60 + 50, 'Soccer pickup', 'You'], [17 * 60 + 30, 'Soccer practice ends', 'Twins'], [19 * 60, 'Dinner', 'Family'], [20 * 60 + 30, 'Reading time', 'Twins']] },
+  { dow: 'Mon', num: 26, full: 'Monday, October 26', events: [[8 * 60, 'School drop-off', 'Partner'], [18 * 60, 'Soccer practice', 'Twins']] },
+  { dow: 'Tue', num: 27, full: 'Tuesday, October 27', events: [[19 * 60 + 30, 'Recycling out', 'You']] },
+  { dow: 'Wed', num: 28, full: 'Wednesday, October 28', events: [[18 * 60, 'Soccer practice', 'Twins'], [19 * 60, 'Dinner out', 'Family']] },
+  { dow: 'Thu', num: 29, full: 'Thursday, October 29', events: [] },
+  { dow: 'Fri', num: 30, full: 'Friday, October 30', events: [[18 * 60 + 30, 'Movie night', 'Family']] },
+  { dow: 'Sat', num: 31, full: 'Saturday, October 31', events: [[17 * 60, 'Halloween costumes on', 'Family'], [18 * 60, 'Trick-or-treating', 'Family']] },
+];
+const NOW = { afternoon: 16 * 60 + 42, evening: 21 * 60 + 10 };
+const SOON_WINDOW = 120;
+const clock = (m) => { const h = Math.floor(m / 60), mm = String(m % 60).padStart(2, '0'); return ((h + 11) % 12 + 1) + ':' + mm + (h < 12 ? ' AM' : ' PM'); };
+const inMinutes = (d) => (d < 60 ? 'in ' + d + ' min' : 'in ' + Math.floor(d / 60) + ' hr ' + (d % 60 ? (d % 60) + ' min' : '')).trim();
+
+
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    const open = props.open && props.open !== 'none' ? props.open : null;
+    this.state = { open, calOpen: props.calendar === 'open', day: 0, controls: Object.fromEntries(CONTROLS.filter((c) => c.toggle).map((c) => [c.id, c.on])) };
+  }
+  renderVals() {
+    const { open, calOpen, day, controls } = this.state;
+    const now = NOW[this.props.now] ?? NOW.afternoon;
+    const soon = WEEK[0].events.filter(([t]) => t >= now && t - now <= SOON_WINDOW).map(([t, title, who]) => ({ time: clock(t), until: inMinutes(t - now), title, who, color: WHO[who] }));
+    const head = (mega, scale) => sprite(mega.hex, mega.face, 'none', scale, 27);
+    const members = PEOPLE.map((p) => ({
+      title: p.mega ? p.mega.name + ' · ' + p.person : p.person,
+      sub: p.mega ? p.mega.status : 'No MEGA yet',
+      role: p.role, roleFg: ROLE_STYLE[p.role][0], roleBg: ROLE_STYLE[p.role][1],
+      hasMega: !!p.mega, noMega: !p.mega, head: p.mega ? head(p.mega, 1.5) : { rects: [] },
+      open: () => this.setState({ open: p.id }),
+    }));
+    const who = PEOPLE.find((p) => p.id === open);
+    const sheet = who ? {
+      title: who.mega ? who.mega.name : who.person, sub: who.mega ? who.person + ' · ' + who.role : who.role + ' · No MEGA yet',
+      person: who.person.toLowerCase() === 'you' ? 'you' : 'the ' + who.person.toLowerCase(),
+      mega: who.mega ? who.mega.name : '', hasMega: !!who.mega, noMega: !who.mega,
+      head: who.mega ? head(who.mega, 2) : { rects: [] },
+      isKid: who.role === 'Kid' && !!who.mega,
+    } : {};
+    return {
+      memberCount: PEOPLE.length, megaCount: PEOPLE.filter((p) => p.mega).length, members,
+      sheetOpen: !!who, sheet, closeSheet: () => this.setState({ open: null }),
+      controls: CONTROLS.map((c) => {
+        const on = !!controls[c.id];
+        return { label: c.label, hint: c.hint, isToggle: c.toggle, isLink: !c.toggle, onStr: on ? 'true' : 'false', track: on ? '#2FB8B0' : '#3A414B', knob: on ? 23 : 3,
+          toggle: () => this.setState({ controls: { ...controls, [c.id]: !on } }) };
+      }),
+      hasSoon: soon.length > 0, noSoon: soon.length === 0, soon,
+      lists: [{ name: 'Groceries', count: '7 items' }, { name: 'Chores', count: '3 open' }, { name: 'Packing', count: 'Empty' }],
+      calOpen, openCalendar: () => this.setState({ calOpen: true }), closeCalendar: () => this.setState({ calOpen: false }), goToday: () => this.setState({ day: 0 }),
+      monthLabel: 'October 2026',
+      days: WEEK.map((d, i) => ({ dow: d.dow, num: d.num, full: d.full, on: i === day ? 'true' : 'false', bg: i === day ? '#2FB8B0' : 'transparent', fg: i === day ? '#04201E' : '#EDEFF2',
+        dots: [...new Set(d.events.map((e) => WHO[e[2]]))].slice(0, 3), pick: () => this.setState({ day: i }) })),
+      dayLabel: (day === 0 ? 'Today · ' : '') + WEEK[day].full,
+      dayEmpty: WEEK[day].events.length === 0,
+      agenda: WEEK[day].events.map(([t, title, who]) => ({ time: clock(t), title, who, color: WHO[who] })),
+      legend: Object.keys(WHO).map((who) => ({ who, color: WHO[who] })),
+    };
+  }
+}
+</script>
+</body>
+</html>

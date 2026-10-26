@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Today view</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#0C0E11}
+a{color:#2FB8B0;text-decoration:none}
+button{font-family:inherit}
+</style>
+</helmet>
+<div style="position: relative; width: 390px; height: 844px; overflow: hidden; font-family: Inter, system-ui, sans-serif; color: #EDEFF2">
+  <dc-import name="Main" hint-size="390px,844px"></dc-import>
+  <a href="Main.dc.html" aria-label="Close Today" style="position: absolute; inset: 0; background: rgba(8,9,12,0.6)"></a>
+  <section aria-label="Today" style="position: absolute; left: 0; right: 0; bottom: 0; height: 700px; background: #15181D; border-radius: 24px 24px 0 0; border-top: 1px solid #2A3038; display: flex; flex-direction: column; overflow: hidden">
+    <div aria-hidden="true" style="align-self: center; width: 40px; height: 5px; border-radius: 3px; background: #3A414B; margin-top: 10px"></div>
+    <div style="display: flex; align-items: flex-end; justify-content: space-between; padding: 14px 20px 8px">
+      <div style="display: flex; flex-direction: column; gap: 2px">
+        <h2 style="margin: 0; font-size: 26px; font-weight: 700">Today</h2>
+        <div style="font-size: 14px; color: #9AA1AB">Sunday, October 25</div>
+      </div>
+      <a href="Main.dc.html" style="font-size: 15px; font-weight: 600; padding: 10px 4px">Done</a>
+    </div>
+
+    <div style="flex: 1; overflow: auto; padding: 8px 16px 20px; display: flex; flex-direction: column; gap: 22px">
+      <div style="display: flex; flex-direction: column; gap: 10px">
+        <div style="font-size: 13px; font-weight: 600; color: #9AA1AB; letter-spacing: .04em; text-transform: uppercase">Needs you · 2</div>
+        <sc-for list="{{needs}}" as="n" hint-placeholder-count="2">
+          <div style="background: #1C2026; border: 1px solid #2A3038; border-radius: 16px; padding: 14px; display: flex; flex-direction: column; gap: 12px">
+            <div style="display: flex; gap: 12px; align-items: flex-start">
+              <div style="width: 32px; height: 28px; border-radius: 7px; overflow: hidden; flex-shrink: 0"><img src="{{n.badge}}" alt="" style="width: 32px; height: 28px; display: block"></div>
+              <div style="display: flex; flex-direction: column; gap: 3px">
+                <div style="font-size: 12px; color: #9AA1AB">{{n.from}}</div>
+                <div style="font-size: 16px; font-weight: 600">{{n.title}}</div>
+                <div style="font-size: 14px; color: #B4BAC3">{{n.detail}}</div>
+              </div>
+            </div>
+            <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px">
+              <button type="button" style="height: 42px; border-radius: 21px; border: none; background: #2FB8B0; color: #04201E; font-size: 15px; font-weight: 600">{{n.primary}}</button>
+              <button type="button" style="height: 42px; border-radius: 21px; border: 1px solid #2E343D; background: transparent; color: #EDEFF2; font-size: 15px">{{n.secondary}}</button>
+            </div>
+          </div>
+        </sc-for>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 4px">
+        <div style="font-size: 13px; font-weight: 600; color: #9AA1AB; letter-spacing: .04em; text-transform: uppercase; margin-bottom: 6px">Schedule</div>
+        <sc-for list="{{events}}" as="e" hint-placeholder-count="4">
+          <div style="display: flex; gap: 14px; align-items: center; min-height: 52px; border-bottom: 1px solid #22262D">
+            <div style="width: 70px; font-size: 14px; color: #9AA1AB; font-variant-numeric: tabular-nums">{{e.time}}</div>
+            <div style="display: flex; flex-direction: column; gap: 2px; flex: 1">
+              <div style="font-size: 15px; font-weight: 500">{{e.title}}</div>
+              <div style="font-size: 13px; color: #8A919B">{{e.who}}</div>
+            </div>
+          </div>
+        </sc-for>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 8px">
+        <div style="font-size: 13px; font-weight: 600; color: #9AA1AB; letter-spacing: .04em; text-transform: uppercase">Lists</div>
+        <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px">
+          <sc-for list="{{lists}}" as="l" hint-placeholder-count="2">
+            <button type="button" style="text-align: left; background: #1C2026; border: 1px solid #2A3038; border-radius: 14px; padding: 14px; color: #EDEFF2; display: flex; flex-direction: column; gap: 4px">
+              <span style="font-size: 15px; font-weight: 600">{{l.name}}</span>
+              <span style="font-size: 13px; color: #9AA1AB">{{l.count}}</span>
+            </button>
+          </sc-for>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {
+      needs: [
+        { badge: '/_blob/c3cf0f234f346c3c5acff6ecdd29f0b2', from: 'Coral asks', title: 'Can you drive Sunday?', detail: 'Swim lesson at 10:00 AM', primary: 'Yes', secondary: 'I can’t' },
+        { badge: '/_blob/4e65e4e0767e20ffbb714514eea3f8b4', from: 'Teal asks', title: 'Add oranges to Groceries?', detail: 'You said you were running low this morning', primary: 'Add', secondary: 'Skip' },
+      ],
+      events: [
+        { time: '4:50 PM', title: 'Soccer pickup', who: 'You' },
+        { time: '5:30 PM', title: 'Soccer practice ends', who: 'Twins' },
+        { time: '7:00 PM', title: 'Dinner', who: 'Family' },
+        { time: '8:30 PM', title: 'Reading time', who: 'Twins' },
+      ],
+      lists: [
+        { name: 'Groceries', count: '6 items' },
+        { name: 'Household', count: '3 open' },
+      ],
+    };
+  }
+}
+</script>
+</body>
+</html>

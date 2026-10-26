@@ -1,0 +1,217 @@
+{
+ "tile": 32,
+ "cols": 8,
+ "rows": 9,
+ "walls": {
+  "top": 2,
+  "bottom": 1
+ },
+ "exitTile": [
+  3,
+  8
+ ],
+ "blockedFixed": [
+  [
+   3,
+   8
+  ]
+ ],
+ "colors": [
+  "#8E6CE0",
+  "#5B8DEF",
+  "#6CBF6A",
+  "#F2766B"
+ ],
+ "walls_on_offer": [
+  {
+   "name": "Cream",
+   "hex": "#F3EAD6"
+  },
+  {
+   "name": "Mint",
+   "hex": "#DDF1E4"
+  },
+  {
+   "name": "Lilac",
+   "hex": "#E9E1F8"
+  }
+ ],
+ "decor": {
+  "bed": {
+   "label": "Bed",
+   "layer": "floor",
+   "colorable": true,
+   "station": {
+    "offset": [
+     1,
+     1
+    ],
+    "face": "left",
+    "does": "resting on the bed"
+   },
+   "size": [
+    1,
+    2
+   ]
+  },
+  "desk": {
+   "label": "Desk",
+   "layer": "floor",
+   "colorable": false,
+   "station": {
+    "offset": [
+     0,
+     1
+    ],
+    "face": "back",
+    "does": "reading at the desk"
+   },
+   "size": [
+    2,
+    1
+   ]
+  },
+  "lamp": {
+   "label": "Lamp",
+   "layer": "floor",
+   "colorable": true,
+   "size": [
+    1,
+    1
+   ]
+  },
+  "beanbag": {
+   "label": "Beanbag",
+   "layer": "floor",
+   "colorable": true,
+   "station": {
+    "offset": [
+     0,
+     1
+    ],
+    "face": "back",
+    "does": "relaxing by the beanbag"
+   },
+   "size": [
+    1,
+    1
+   ]
+  },
+  "toybox": {
+   "label": "Toy box",
+   "layer": "floor",
+   "colorable": true,
+   "station": {
+    "offset": [
+     1,
+     0
+    ],
+    "face": "left",
+    "does": "digging through the toy box"
+   },
+   "size": [
+    1,
+    1
+   ]
+  },
+  "rugSmall": {
+   "label": "Rug",
+   "layer": "rug",
+   "colorable": true,
+   "station": {
+    "offset": [
+     1,
+     1
+    ],
+    "face": "front",
+    "does": "playing on the rug"
+   },
+   "size": [
+    2,
+    2
+   ]
+  },
+  "plant": {
+   "label": "Plant",
+   "layer": "floor",
+   "colorable": false,
+   "size": [
+    1,
+    1
+   ]
+  },
+  "poster": {
+   "label": "Poster",
+   "layer": "wall",
+   "colorable": true,
+   "size": [
+    1,
+    2
+   ]
+  }
+ },
+ "items": [
+  {
+   "kind": "poster",
+   "tile": [
+    1,
+    0
+   ],
+   "color": 0
+  },
+  {
+   "kind": "bed",
+   "tile": [
+    0,
+    2
+   ],
+   "color": 0
+  },
+  {
+   "kind": "lamp",
+   "tile": [
+    1,
+    2
+   ],
+   "color": 3
+  },
+  {
+   "kind": "desk",
+   "tile": [
+    5,
+    2
+   ]
+  },
+  {
+   "kind": "rugSmall",
+   "tile": [
+    2,
+    4
+   ],
+   "color": 1
+  },
+  {
+   "kind": "beanbag",
+   "tile": [
+    6,
+    5
+   ],
+   "color": 2
+  },
+  {
+   "kind": "toybox",
+   "tile": [
+    0,
+    6
+   ],
+   "color": 3
+  },
+  {
+   "kind": "plant",
+   "tile": [
+    7,
+    7
+   ]
+  }
+ ]
+}
