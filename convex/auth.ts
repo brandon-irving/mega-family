@@ -8,7 +8,7 @@
 // same redeem path an adult's Apple/Google sign-in uses. No schema changes, and it's one of Better Auth's
 // officially supported Convex-component plugins (checked against current docs).
 import { createClient, type GenericCtx } from '@convex-dev/better-auth';
-import { convex } from '@convex-dev/better-auth/plugins';
+import { convex, crossDomain } from '@convex-dev/better-auth/plugins';
 import { expo } from '@better-auth/expo';
 import { betterAuth } from 'better-auth/minimal';
 import { anonymous } from 'better-auth/plugins';
@@ -73,8 +73,14 @@ export function trustedOrigins(): string[] {
   return [...base, 'http://localhost:8081', 'http://localhost:19006', 'http://127.0.0.1:8081'];
 }
 
+// SITE_URL is the web app's own address (Convex Better Auth docs: React/Expo-web guides), e.g.
+// http://localhost:8081 in development; crossDomain uses it to hand the web client its session through the
+// Set-Better-Auth-Cookie header, since a browser won't send convex.site cookies back from another origin.
+const siteUrl = process.env.SITE_URL ?? '';
+
 export const createAuth = (ctx: GenericCtx<DataModel>) =>
   betterAuth({
+    baseURL: process.env.CONVEX_SITE_URL,
     trustedOrigins: trustedOrigins(),
     database: authComponent.adapter(ctx),
     socialProviders: {
@@ -88,5 +94,5 @@ export const createAuth = (ctx: GenericCtx<DataModel>) =>
         clientSecret: appleClientSecretCache,
       },
     },
-    plugins: [expo(), anonymous(), convex({ authConfig })],
+    plugins: [expo(), anonymous(), crossDomain({ siteUrl }), convex({ authConfig })],
   });
