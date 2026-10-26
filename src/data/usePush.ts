@@ -13,6 +13,7 @@ import { answerGuard } from '@/services/answerGuard';
 import { drainPendingAnswers } from '@/services/pendingAnswers';
 import { configureForegroundNotificationHandler, registerAndroidChannels, registerNotificationCategories, requestPushRegistration, subscribeToPushTokenChanges } from '@/services/push';
 import { interpretNotificationResponse, type NotificationResponseLike } from '@/services/notificationResponse';
+import { showAnswerReply } from '@/services/notificationReply';
 import { api } from './api';
 
 /** Registration (categories, channels and the foreground handler) is process-global state in the native
@@ -77,11 +78,16 @@ export function useNotificationRouting(): void {
   useEffect(() => {
     if (Platform.OS === 'web') return;
 
-    const sendAnswer = async (notificationId: string, buttonId: string) => {
+    // `originalIdentifier`/`threadIdentifier` are only known for a *live* tap (from the response itself);
+    // a queue-drained answer (the app relaunching after being killed) omits them, since the app is
+    // already open again by then — PLAN §6's "lock screen shows the reply" doesn't apply once there's no
+    // lock screen notification left to replace. See src/services/notificationReply.ts.
+    const sendAnswer = async (notificationId: string, buttonId: string, originalIdentifier?: string, threadIdentifier?: string | null) => {
       if (!answerGuard.shouldSend(notificationId, buttonId)) return;
       answerGuard.markSent(notificationId, buttonId);
       try {
-        await answerRef.current({ notificationId: notificationId as Id<'notifications'>, buttonId, via: 'push' });
+        const result = await answerRef.current({ notificationId: notificationId as Id<'notifications'>, buttonId, via: 'push' });
+        if (originalIdentifier) void showAnswerReply({ identifier: originalIdentifier, threadIdentifier }, result.reply);
       } catch (e) {
         answerGuard.forget(notificationId, buttonId); // let a genuine failure (not a duplicate) retry later
         throw e;
@@ -91,7 +97,7 @@ export function useNotificationRouting(): void {
     const handleResponse = (response: NotificationResponseLike) => {
       const action = interpretNotificationResponse(response);
       if (action.type === 'open') router.push(action.path as never);
-      else if (action.type === 'answer') void sendAnswer(action.notificationId, action.buttonId);
+      else if (action.type === 'answer') void sendAnswer(action.notificationId, action.buttonId, action.originalIdentifier, action.threadIdentifier);
     };
 
     const lastResponse = Notifications.getLastNotificationResponse();

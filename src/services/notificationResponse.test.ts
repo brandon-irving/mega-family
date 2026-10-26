@@ -3,10 +3,10 @@
 import { DEFAULT_ACTION_IDENTIFIER } from 'expo-notifications';
 import { interpretNotificationResponse, type NotificationResponseLike } from './notificationResponse';
 
-const data = { v: 1, notificationId: 'notifications:1', kind: 'reminder', threadId: 'threads:1', messageId: 'messages:1' };
+const data = { v: 1, notificationId: 'notifications:1', kind: 'reminder', threadId: 'threads:1', messageId: 'messages:1', answerToken: 'tok_abc' };
 
-function responseWith(actionIdentifier: string, overrideData: unknown = data): NotificationResponseLike {
-  return { actionIdentifier, notification: { request: { content: { data: overrideData } } } };
+function responseWith(actionIdentifier: string, overrideData: unknown = data, identifier = 'os-notification-id-1', threadIdentifier: string | null = 'thread-teal'): NotificationResponseLike {
+  return { actionIdentifier, notification: { request: { identifier, content: { data: overrideData, threadIdentifier } } } };
 }
 
 describe('interpretNotificationResponse', () => {
@@ -15,11 +15,23 @@ describe('interpretNotificationResponse', () => {
   });
 
   test('a button tap answers with that button id, not navigation', () => {
-    expect(interpretNotificationResponse(responseWith('on_my_way'))).toEqual({ type: 'answer', notificationId: 'notifications:1', buttonId: 'on_my_way' });
+    expect(interpretNotificationResponse(responseWith('on_my_way'))).toEqual({
+      type: 'answer',
+      notificationId: 'notifications:1',
+      buttonId: 'on_my_way',
+      originalIdentifier: 'os-notification-id-1',
+      threadIdentifier: 'thread-teal',
+    });
   });
 
   test('a different button id on the same notification answers with its own id', () => {
-    expect(interpretNotificationResponse(responseWith('snooze_5'))).toEqual({ type: 'answer', notificationId: 'notifications:1', buttonId: 'snooze_5' });
+    expect(interpretNotificationResponse(responseWith('snooze_5'))).toEqual({
+      type: 'answer',
+      notificationId: 'notifications:1',
+      buttonId: 'snooze_5',
+      originalIdentifier: 'os-notification-id-1',
+      threadIdentifier: 'thread-teal',
+    });
   });
 
   test('malformed data (missing fields) is ignored rather than crashing', () => {

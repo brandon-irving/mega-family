@@ -10,12 +10,13 @@ import * as Notifications from 'expo-notifications';
 import { DEFAULT_ACTION_IDENTIFIER } from 'expo-notifications';
 import * as push from '@/services/push';
 import * as pendingAnswers from '@/services/pendingAnswers';
+import * as notificationReply from '@/services/notificationReply';
 import { answerGuard } from '@/services/answerGuard';
 import { usePushRegistration, useNotificationRouting } from './usePush';
 
-const pushData = { v: 1, notificationId: 'notifications:1', kind: 'reminder', threadId: 'threads:1', messageId: 'messages:1' };
+const pushData = { v: 1, notificationId: 'notifications:1', kind: 'reminder', threadId: 'threads:1', messageId: 'messages:1', answerToken: 'tok_abc' };
 function responseWith(actionIdentifier: string) {
-  return { actionIdentifier, notification: { request: { content: { data: pushData } } } };
+  return { actionIdentifier, notification: { request: { identifier: 'os-id-1', content: { data: pushData, threadIdentifier: 'thread-teal' } } } };
 }
 
 jest.mock('expo-notifications', () => {
@@ -41,10 +42,12 @@ jest.mock('@/services/push', () => ({
 }));
 
 jest.mock('@/services/pendingAnswers', () => ({ drainPendingAnswers: jest.fn().mockResolvedValue(0) }));
+jest.mock('@/services/notificationReply', () => ({ showAnswerReply: jest.fn().mockResolvedValue(undefined) }));
 
 const mockedNotifications = Notifications as unknown as { getLastNotificationResponse: jest.Mock; addNotificationResponseReceivedListener: jest.Mock };
 const mockedPush = push as unknown as { [K in keyof typeof push]: jest.Mock };
 const mockedPending = pendingAnswers as unknown as { drainPendingAnswers: jest.Mock };
+const mockedReply = notificationReply as unknown as { showAnswerReply: jest.Mock };
 const mockedRouterPush = router.push as jest.Mock;
 
 beforeEach(() => {
@@ -129,6 +132,26 @@ describe('useNotificationRouting', () => {
     });
 
     expect(mockAnswerMutation).toHaveBeenCalledWith({ notificationId: 'notifications:1', buttonId: 'on_my_way', via: 'push' });
+  });
+
+  // G3 follow-up (PLAN §6: "the lock screen shows the MEGA's reply") — the foreground/background listener
+  // path still uses the mutation (not the HTTP route), but shows its reply the same shared way.
+  test('a button-tap response shows the mutation reply on the lock screen, replacing the original', async () => {
+    mockAnswerMutation.mockResolvedValue({ reply: "Told Coral you'll grab it" });
+    let onResponse: ((r: unknown) => void) | undefined;
+    mockedNotifications.addNotificationResponseReceivedListener.mockImplementation((cb: typeof onResponse) => {
+      onResponse = cb;
+      return { remove: jest.fn() };
+    });
+
+    await act(async () => {
+      renderHook(() => useNotificationRouting());
+    });
+    await act(async () => {
+      onResponse?.(responseWith('on_my_way'));
+    });
+
+    expect(mockedReply.showAnswerReply).toHaveBeenCalledWith({ identifier: 'os-id-1', threadIdentifier: 'thread-teal' }, "Told Coral you'll grab it");
   });
 
   test('the same tap replayed by both the cold-start check and the listener only answers once', async () => {

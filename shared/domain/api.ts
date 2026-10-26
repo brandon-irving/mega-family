@@ -272,7 +272,11 @@ export const API = {
 export type ApiModule = keyof typeof API;
 
 /** Push payload `data` (CONTRACT §5). */
-export const pushData = v.object({ v: v.literal(1), notificationId: v.id('notifications'), kind: notificationKind, threadId: v.id('threads'), messageId: v.id('messages') });
+// v0.10 (pending approval): additive `answerToken` — lets the killed-app background task
+// (src/services/backgroundNotificationTask.ts) POST straight to `<CONVEX_SITE_URL>/push/answer`
+// without an authenticated Convex session (none is available in that headless context), instead of the
+// `notifications.answer` mutation the foreground/background listener still uses.
+export const pushData = v.object({ v: v.literal(1), notificationId: v.id('notifications'), kind: notificationKind, threadId: v.id('threads'), messageId: v.id('messages'), answerToken: v.string() });
 export type PushData = Infer<typeof pushData>;
 
 /** Deep links (CONTRACT §6). The app's router and the server's widget/push links both build from these. */

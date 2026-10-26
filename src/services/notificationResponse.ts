@@ -14,10 +14,13 @@ import type { PushData } from '@shared/domain/api';
  * one with a plain object instead of constructing a real native response. */
 export type NotificationResponseLike = {
   actionIdentifier: string;
-  notification: { request: { content: { data?: unknown } } };
+  notification: { request: { identifier: string; content: { data?: unknown; threadIdentifier?: string | null } } };
 };
 
-export type ResponseAction = { type: 'answer'; notificationId: PushData['notificationId']; buttonId: string } | { type: 'open'; path: string } | { type: 'ignore' };
+export type ResponseAction =
+  | { type: 'answer'; notificationId: PushData['notificationId']; buttonId: string; originalIdentifier: string; threadIdentifier?: string | null }
+  | { type: 'open'; path: string }
+  | { type: 'ignore' };
 
 /** CONTRACT §5's push payload `data` shape, checked by hand (not `shared/domain`'s Convex validator,
  * which isn't meant for client-side `unknown` parsing) — a malformed or foreign payload is ignored
@@ -43,5 +46,11 @@ export function interpretNotificationResponse(response: NotificationResponseLike
   // Android and never fire the listener at all on iOS unless `customDismissAction` is set, which this
   // app's categories don't set) — anything that isn't the default tap and isn't one of this family's
   // configured button ids is treated as a no-op rather than guessed at.
-  return { type: 'answer', notificationId: data.notificationId, buttonId: response.actionIdentifier };
+  return {
+    type: 'answer',
+    notificationId: data.notificationId,
+    buttonId: response.actionIdentifier,
+    originalIdentifier: response.notification.request.identifier,
+    threadIdentifier: response.notification.request.content.threadIdentifier,
+  };
 }
