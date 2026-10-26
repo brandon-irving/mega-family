@@ -15,6 +15,7 @@ import { Button } from '@/ui/Button';
 import { Text } from '@/ui/Text';
 import { useTokens } from '@/ui/theme';
 import type { MegaInfo } from '@/features/shell/megaInfo';
+import type { NotificationDoc } from '@/data/useNotifications';
 import { MessageRow, type MessageDoc } from './MessageRow';
 
 const noop = () => {};
@@ -33,7 +34,9 @@ export type MessageListProps = {
   onForgetMemory?: (memoryId: Id<'memories'>) => void;
   onRespondRequest?: (requestId: string, accept: boolean) => void;
   onAnswerNotification?: (notificationId: string, buttonId: string) => void;
-  notificationButtonsFor?: (notificationId: string) => { id: string; label: string }[];
+  /** notificationId -> its resolved doc (see `@/data/useNotifications`), so a `{ kind: 'notification' }`
+   * card can render real content instead of just the word "Notification" (G1 fix). */
+  notificationsById?: Record<string, NotificationDoc>;
   emptyLabel?: string;
 };
 
@@ -48,7 +51,7 @@ export function MessageList({
   onForgetMemory = noop,
   onRespondRequest,
   onAnswerNotification,
-  notificationButtonsFor,
+  notificationsById,
   emptyLabel = 'No messages yet.',
 }: MessageListProps) {
   const tokens = useTokens();
@@ -85,7 +88,7 @@ export function MessageList({
             onForgetMemory={(memoryId) => onForgetMemory(memoryId as Id<'memories'>)}
             onRespondRequest={requestId ? (accept) => onRespondRequest?.(requestId, accept) : undefined}
             onAnswerNotification={notificationId ? (buttonId) => onAnswerNotification?.(notificationId, buttonId) : undefined}
-            notificationButtons={notificationId ? notificationButtonsFor?.(notificationId) : undefined}
+            notification={notificationId ? notificationsById?.[notificationId] : undefined}
           />
         );
       }}

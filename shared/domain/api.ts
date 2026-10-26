@@ -242,6 +242,10 @@ export const API = {
       args: { notificationId: v.id('notifications'), buttonId: v.string(), via: v.union(v.literal('push'), v.literal('block'), v.literal('widget')) },
       returns: v.object({ reply: v.string() }),
     }),
+    // CONTRACT.md v0.6 (pending approval), additive: the chat thread's `{ kind: 'notification',
+    // notificationId }` card (CONTRACT §3) had no way to load its content and rendered only the word
+    // "Notification" (G1 fix). Only the notification's recipient may read it, same as `notifications.answer`.
+    get: fn({ kind: 'query', day1: 'real', args: { notificationId: v.id('notifications') }, returns: notificationDoc }),
   },
   clock: {
     get: fn({ kind: 'query', day1: 'real', args: {}, returns: v.object({ now: v.number(), mode: T.clocks.mode }) }),

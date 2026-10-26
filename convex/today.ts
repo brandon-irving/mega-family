@@ -20,9 +20,18 @@ export const get = query({
       .withIndex('by_family_recipient', (q) => q.eq('familyId', familyId).eq('recipientId', viewer.member._id))
       .collect();
 
+    const openForYou = openRequests.filter((r) => r.status === 'open');
+    // G1 fix: a request's own notification (seed.ts links them via `requests.notificationId`) used to be
+    // listed twice — once as the request, once as the notification it's pushed through. Once its request
+    // is already in the list, the notification is just that request's delivery mechanism, not a second
+    // separate thing waiting on you.
+    const linkedNotificationIds = new Set(openForYou.map((r) => r.notificationId).filter((id) => id !== undefined));
+
     const waitingOnYou = [
-      ...openRequests.filter((r) => r.status === 'open').map((request) => ({ kind: 'request' as const, request })),
-      ...myNotifications.filter((n) => n.sentAt !== undefined && n.answer === undefined && n.buttons.length > 0).map((notification) => ({ kind: 'notification' as const, notification })),
+      ...openForYou.map((request) => ({ kind: 'request' as const, request })),
+      ...myNotifications
+        .filter((n) => n.sentAt !== undefined && n.answer === undefined && n.buttons.length > 0 && !linkedNotificationIds.has(n._id))
+        .map((notification) => ({ kind: 'notification' as const, notification })),
     ];
 
     const statementCandidate = await topStatementCandidate(ctx, viewer);

@@ -7,3 +7,4 @@ export * from './useFamily';
 export * from './useMega';
 export * from './useLists';
 export * from './useHq';
+export * from './useNotifications';

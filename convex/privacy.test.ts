@@ -280,6 +280,26 @@ describe('Milestone D: privacy grid', () => {
       expect(kidSharing).toBeNull();
     });
 
+    // ---------- notifications.get (G1 fix): the generic grid above already proves it never leaks a
+    // cross-family notification; this adds the same-family rule the grid can't catch — a sibling who is
+    // NOT the recipient must not be able to read it either. ----------
+
+    test('notifications.get: the recipient can read it, a non-recipient sibling gets FORBIDDEN', async () => {
+      const notification = (famA.docs.notifications as unknown as { _id: Id<'notifications'>; recipientId: Id<'members'> }[]).find(
+        (n) => n.recipientId === famA.members.admin,
+      );
+      expect(notification, 'fixture sanity: the seeded milk request pushes a notification to admin').toBeDefined();
+
+      const byRecipient = await t.withIdentity({ subject: 'sample:admin' }).query(api.notifications.get, { notificationId: notification!._id });
+      expect(byRecipient._id).toBe(notification!._id);
+
+      const err = await t
+        .withIdentity({ subject: 'sample:twin1' })
+        .query(api.notifications.get, { notificationId: notification!._id })
+        .catch((e) => e);
+      expect(codeOf(err)).toBe('FORBIDDEN');
+    });
+
     // ---------- same-family memory scope grid (task brief rule 2): the cross-family id-diff above can't
     // catch a kid or sibling seeing a memory that's within their OWN family's id-space but still outside
     // the scopes `readableScopeKeys` (convex/model/memoryAccess.ts) says they may read. ----------

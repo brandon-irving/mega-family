@@ -5,7 +5,7 @@
 import type { Id } from '@shared/domain/validators';
 import type { MessageBody, SaveChip, UIBlock } from '@shared/domain/messages';
 import type { Infer } from 'convex/values';
-import type { megaDoc, memberCard, memoryDoc, messageDoc } from '@shared/domain/api';
+import type { megaDoc, memberCard, memoryDoc, messageDoc, notificationDoc } from '@shared/domain/api';
 import { SAMPLE_FAMILY } from '@shared/fixtures/sampleFamily';
 import type { MegaInfo } from '@/features/shell/megaInfo';
 
@@ -94,6 +94,25 @@ export const CARDS_BY_KIND = {
   travel: { kind: 'travel' as const, to: 'Soccer practice', leaveBy: Date.now(), minutes: 12 },
   request: { kind: 'request' as const, requestId: id('requests', '1') },
   notification: { kind: 'notification' as const, notificationId: id('notifications', '1') },
+};
+
+/** A request's own notification (CONTRACT: `requests.notificationId`) — title already reads as the
+ * asker's phrasing, same shape `notifications.get` (CONTRACT §4 v0.6) returns. */
+export const NOTIFICATION_FIXTURE: Infer<typeof notificationDoc> = {
+  _id: id('notifications', '1'),
+  _creationTime: Date.now(),
+  familyId: FIXTURE_IDS.family,
+  recipientId: FIXTURE_IDS.admin,
+  kind: 'request',
+  loudness: 'active',
+  title: 'Coral asks',
+  body: 'Can you grab milk on your way home?',
+  megaId: FIXTURE_IDS.teal,
+  buttons: [
+    { id: 'yes', label: 'Yes' },
+    { id: 'cant', label: "I can't" },
+  ],
+  sentAt: Date.now(),
 };
 
 export const MEMBER_CARD_FIXTURE: Infer<typeof memberCard> = {

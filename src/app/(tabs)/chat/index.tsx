@@ -4,11 +4,13 @@
 import { useCallback, useMemo, useState } from 'react';
 import { router, useLocalSearchParams } from 'expo-router';
 import { KeyboardAvoidingView, Platform, View } from 'react-native';
+import type { Id } from '@shared/domain/validators';
 import { ROLES_CONFIG } from '@shared/config/roles';
 import { LINKS } from '@shared/domain/api';
 import { useViewer } from '@/data/useViewer';
 import { useAnswerBlock, useChatThread, useReactToMessage, useSendMessage, useStreamBody } from '@/data/useChat';
-import { useToday } from '@/data/useToday';
+import { useToday, useAnswerNotification } from '@/data/useToday';
+import { useNotificationsFor } from '@/data/useNotifications';
 import { useChangeMemoryScope, useForgetMemory } from '@/data/useMega';
 import { useMegaDirectory } from '@/data/useMegaDirectory';
 import { Screen } from '@/ui/Screen';
@@ -31,8 +33,24 @@ export default function ChatRoute() {
   const react = useReactToMessage();
   const changeMemoryScope = useChangeMemoryScope();
   const forgetMemory = useForgetMemory();
+  const answerNotification = useAnswerNotification();
   const [pendingStreamId, setPendingStreamId] = useState<string | null>(null);
   const stream = useStreamBody(pendingStreamId);
+
+  // Every `{ kind: 'notification' }` card in the loaded page, resolved to its real content (G1 fix: the
+  // card only ever carried an id, so it rendered just the word "Notification").
+  const notificationIds = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          thread.results
+            .map((m) => (m.body.type === 'card' && m.body.card.kind === 'notification' ? m.body.card.notificationId : null))
+            .filter((id): id is Id<'notifications'> => id !== null),
+        ),
+      ),
+    [thread.results],
+  );
+  const notificationsById = useNotificationsFor(notificationIds);
 
   const onSend = useCallback(
     async (text: string) => {
@@ -81,6 +99,8 @@ export default function ChatRoute() {
             onReact={(id, reaction) => react({ messageId: id, reaction })}
             onChangeMemoryScope={(memoryId, scope) => changeMemoryScope({ memoryId, scope })}
             onForgetMemory={(memoryId) => forgetMemory({ memoryId })}
+            onAnswerNotification={(notificationId, buttonId) => answerNotification({ notificationId: notificationId as Id<'notifications'>, buttonId, via: 'block' })}
+            notificationsById={notificationsById}
           />
         </View>
         {showStreamBanner && stream && (

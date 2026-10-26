@@ -4,13 +4,18 @@ import type { ReactNode } from 'react';
 import { View } from 'react-native';
 import type { Infer } from 'convex/values';
 import type { API } from '@shared/domain/api';
-import { Button } from '@/ui/Button';
+import { BUTTON_SETS } from '@shared/config/notifications';
+import { ButtonRow } from '@/ui/ButtonRow';
 import { Card } from '@/ui/Card';
-import { Chip } from '@/ui/Chip';
 import { Text } from '@/ui/Text';
 import { useTokens } from '@/ui/theme';
 
 export type Today = Infer<(typeof API)['today']['get']['returns']>;
+
+// A bare `request` entry (no notification doc attached) renders its buttons straight from config, in
+// the same order its own notification would carry them (G1 fix #3: this used to hardcode "I can't"
+// before "Yes" — the reverse of BUTTON_SETS).
+const REQUEST_BUTTONS = BUTTON_SETS['request.default'];
 
 export type TodayContentProps = {
   today: Today;
@@ -52,10 +57,7 @@ export function TodayContent({ today, onRespondRequest, onAnswerNotification }: 
             w.kind === 'request' ? (
               <Card key={w.request._id} style={{ marginBottom: tokens.spacing.sm }}>
                 <Text style={{ marginBottom: tokens.spacing.sm }}>{w.request.text}</Text>
-                <View style={{ flexDirection: 'row', gap: tokens.spacing.sm }}>
-                  <Button label="I can't" variant="secondary" onPress={() => onRespondRequest(w.request._id, false)} />
-                  <Button label="Yes" onPress={() => onRespondRequest(w.request._id, true)} />
-                </View>
+                <ButtonRow buttons={REQUEST_BUTTONS} onPress={(buttonId) => onRespondRequest(w.request._id, buttonId === 'yes')} />
               </Card>
             ) : (
               <Card key={w.notification._id} style={{ marginBottom: tokens.spacing.sm }}>
@@ -63,11 +65,7 @@ export function TodayContent({ today, onRespondRequest, onAnswerNotification }: 
                 <Text color="muted" style={{ marginBottom: tokens.spacing.sm }}>
                   {w.notification.body}
                 </Text>
-                <View style={{ flexDirection: 'row', gap: tokens.spacing.sm, flexWrap: 'wrap' }}>
-                  {w.notification.buttons.map((b) => (
-                    <Chip key={b.id} label={b.label} onPress={() => onAnswerNotification(w.notification._id, b.id)} />
-                  ))}
-                </View>
+                <ButtonRow buttons={w.notification.buttons} onPress={(buttonId) => onAnswerNotification(w.notification._id, buttonId)} />
               </Card>
             ),
           )

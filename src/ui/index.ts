@@ -4,6 +4,7 @@ export * from './Text';
 export * from './Card';
 export * from './Chip';
 export * from './Button';
+export * from './ButtonRow';
 export * from './Sheet';
 export * from './Badge';
 export * from './LoadingScreen';

@@ -7,6 +7,7 @@ import type { Id } from '@shared/domain/validators';
 import type { BlockAnswer, SaveChip } from '@shared/domain/messages';
 import type { Reaction, Scope } from '@shared/domain/enums';
 import type { MegaInfo } from '@/features/shell/megaInfo';
+import type { NotificationDoc } from '@/data/useNotifications';
 import { MessageList, type MessageDoc } from './MessageList';
 
 export type ChatThreadProps = {
@@ -20,7 +21,7 @@ export type ChatThreadProps = {
   onForgetMemory: (memoryId: Id<'memories'>) => void;
   onRespondRequest?: (requestId: string, accept: boolean) => void;
   onAnswerNotification?: (notificationId: string, buttonId: string) => void;
-  notificationButtonsFor?: (notificationId: string) => { id: string; label: string }[];
+  notificationsById?: Record<string, NotificationDoc>;
 };
 
 export function ChatThread({
@@ -34,7 +35,7 @@ export function ChatThread({
   onForgetMemory,
   onRespondRequest,
   onAnswerNotification,
-  notificationButtonsFor,
+  notificationsById,
 }: ChatThreadProps) {
   return (
     <MessageList
@@ -48,7 +49,7 @@ export function ChatThread({
       onForgetMemory={onForgetMemory}
       onRespondRequest={onRespondRequest}
       onAnswerNotification={onAnswerNotification}
-      notificationButtonsFor={notificationButtonsFor}
+      notificationsById={notificationsById}
       emptyLabel="No messages yet. Say hello."
     />
   );

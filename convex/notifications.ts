@@ -1,11 +1,25 @@
 // CONTRACT §4 `notifications.answer` — day1 stub: records the answer and returns a canned lock-screen
 // reply; the button's real tool effect (PLAN.md → Proactive engine step 6) needs the chat tool loop.
 import { API } from '../shared/domain/api';
-import { mutation } from './_generated/server';
+import { mutation, query } from './_generated/server';
 import { pick } from './model/define';
 import { fail } from './model/errors';
 import { clock } from './ports/clock';
 import { requireViewer } from './model/viewer';
+
+/** CONTRACT §4 `notifications.get` (v0.6, pending approval) — G1 fix: the chat thread's `{ kind:
+ * 'notification' }` card needs this to render real content instead of the word "Notification". Same
+ * recipient-only rule as `notifications.answer`. */
+export const get = query({
+  ...pick(API.notifications.get),
+  handler: async (ctx, args) => {
+    const viewer = await requireViewer(ctx);
+    const notification = await ctx.db.get(args.notificationId);
+    if (!notification || notification.familyId !== viewer.member.familyId) fail('NOT_FOUND');
+    if (notification.recipientId !== viewer.member._id) fail('FORBIDDEN');
+    return notification;
+  },
+});
 
 export const answer = mutation({
   ...pick(API.notifications.answer),

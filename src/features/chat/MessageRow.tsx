@@ -11,6 +11,7 @@ import { MegaBadge } from '@/ui/MegaBadge';
 import { Text } from '@/ui/Text';
 import { useTokens } from '@/ui/theme';
 import type { MegaInfo } from '@/features/shell/megaInfo';
+import type { NotificationDoc } from '@/data/useNotifications';
 import { AnsweredBlock, Block } from './Blocks';
 import { ResultCard } from './Cards';
 import { SaveChip } from './SaveChip';
@@ -27,7 +28,7 @@ export type MessageRowProps = {
   onForgetMemory: (memoryId: string) => void;
   onRespondRequest?: (accept: boolean) => void;
   onAnswerNotification?: (buttonId: string) => void;
-  notificationButtons?: { id: string; label: string }[];
+  notification?: NotificationDoc;
 };
 
 export function MessageRow({
@@ -39,11 +40,11 @@ export function MessageRow({
   onForgetMemory,
   onRespondRequest,
   onAnswerNotification,
-  notificationButtons,
+  notification,
 }: MessageRowProps) {
   const tokens = useTokens();
   const showBadge = message.author.kind === 'mega';
-  const content = <Body message={message} isMine={isMine} onAnswerBlock={onAnswerBlock} onRespondRequest={onRespondRequest} onAnswerNotification={onAnswerNotification} notificationButtons={notificationButtons} />;
+  const content = <Body message={message} isMine={isMine} onAnswerBlock={onAnswerBlock} onRespondRequest={onRespondRequest} onAnswerNotification={onAnswerNotification} notification={notification} />;
 
   return (
     <View style={{ marginBottom: tokens.spacing.md }}>
@@ -80,14 +81,14 @@ function Body({
   onAnswerBlock,
   onRespondRequest,
   onAnswerNotification,
-  notificationButtons,
+  notification,
 }: {
   message: MessageDoc;
   isMine: boolean;
   onAnswerBlock: (answer: BlockAnswer) => void;
   onRespondRequest?: (accept: boolean) => void;
   onAnswerNotification?: (buttonId: string) => void;
-  notificationButtons?: { id: string; label: string }[];
+  notification?: NotificationDoc;
 }) {
   const tokens = useTokens();
   const body = message.body;
@@ -103,7 +104,7 @@ function Body({
         </Bubble>
       );
     case 'card':
-      return <ResultCard card={body.card} onRespondRequest={onRespondRequest} onAnswerNotification={onAnswerNotification} notificationButtons={notificationButtons} />;
+      return <ResultCard card={body.card} onRespondRequest={onRespondRequest} onAnswerNotification={onAnswerNotification} notification={notification} />;
     case 'image':
       return <Image source={{ uri: `/_storage/${body.storageId}` }} accessibilityLabel={body.caption ?? 'Shared photo'} style={{ width: 220, height: 220, borderRadius: 12 }} />;
     case 'notice':
