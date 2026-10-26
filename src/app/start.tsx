@@ -1,6 +1,7 @@
 // "Join or start a family" (PLAN.md → Onboarding): shown once signed in but `me.get` has no member yet —
 // most often an adult who signed in with Apple/Google and hasn't redeemed an invite.
 import { router } from 'expo-router';
+import { UseDifferentAccount } from '@/features/shell/UseDifferentAccount';
 import { Button } from '@/ui/Button';
 import { Card } from '@/ui/Card';
 import { Screen } from '@/ui/Screen';
@@ -18,6 +19,7 @@ export default function StartRoute() {
         <Button label="Start a family" onPress={() => router.push('/onboarding')} />
         <Button label="I have an invite" variant="secondary" onPress={() => router.push('/invite')} />
       </Card>
+      <UseDifferentAccount />
     </Screen>
   );
 }

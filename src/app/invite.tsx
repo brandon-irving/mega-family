@@ -4,6 +4,7 @@
 import { useState } from 'react';
 import { TextInput } from 'react-native';
 import { router } from 'expo-router';
+import { UseDifferentAccount } from '@/features/shell/UseDifferentAccount';
 import { Button } from '@/ui/Button';
 import { Card } from '@/ui/Card';
 import { Screen } from '@/ui/Screen';
@@ -39,6 +40,7 @@ export default function InviteRoute() {
         />
         <Button label="Continue" disabled={!token} onPress={() => router.push(`/join/${token}` as never)} />
       </Card>
+      <UseDifferentAccount />
     </Screen>
   );
 }
