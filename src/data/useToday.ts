@@ -2,9 +2,10 @@
 // response mutations its buttons call.
 import { useMutation, useQuery } from 'convex/react';
 import { api } from './api';
+import { useStableQuery } from './useStableQuery';
 
 export function useToday() {
-  return useQuery(api.today.get, {});
+  return useStableQuery(useQuery(api.today.get, {})); // no-flicker: keeps showing today's count on a refetch
 }
 
 export function useAnswerNotification() {

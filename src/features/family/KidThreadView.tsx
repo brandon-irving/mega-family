@@ -6,5 +6,7 @@ import { MessageList, type MessageDoc } from '@/features/chat/MessageList';
 import type { MegaInfo } from '@/features/shell/megaInfo';
 
 export function KidThreadView({ messages, megaById }: { messages: MessageDoc[]; megaById: Record<string, MegaInfo> }) {
-  return <MessageList messages={messages} isMine={(m) => m.author.kind === 'member'} megaById={megaById} />;
+  // A parent reading is never editing: save chips here are always read-only, regardless of the kid's
+  // own role-based chip setting (PLAN §4: "reading isn't recall" — scope changes stay the kid's own call).
+  return <MessageList messages={messages} isMine={(m) => m.author.kind === 'member'} megaById={megaById} chipsReadOnly />;
 }

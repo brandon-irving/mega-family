@@ -11,14 +11,17 @@ export type ChipProps = {
   testID?: string;
 };
 
-/** A tappable pill — used for choice-block options, filters and the SaveChip under a message. */
+/** A tappable pill — used for choice-block options, filters and the SaveChip under a message. With no
+ * `onPress` it's a plain, non-interactive label (SaveChip's read-only mode for kids, PLAN "MEGA profile":
+ * kids "don't get sharing or memory"). */
 export function Chip({ label, selected = false, onPress, accessibilityLabel, testID }: ChipProps) {
   const tokens = useTokens();
   return (
     <Pressable
       onPress={onPress}
+      disabled={!onPress}
       accessibilityRole="button"
-      accessibilityState={{ selected }}
+      accessibilityState={{ selected, disabled: !onPress }}
       accessibilityLabel={accessibilityLabel ?? label}
       testID={testID}
       style={{
