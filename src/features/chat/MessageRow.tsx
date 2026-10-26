@@ -89,16 +89,17 @@ function Body({
   onAnswerNotification?: (buttonId: string) => void;
   notificationButtons?: { id: string; label: string }[];
 }) {
+  const tokens = useTokens();
   const body = message.body;
   switch (body.type) {
     case 'text':
-      return <Text style={isMine ? { color: '#FFFFFF' } : undefined}>{body.text}</Text>;
+      return <Text style={isMine ? { color: tokens.onAccent } : undefined}>{body.text}</Text>;
     case 'block':
       return body.answeredWith ? <AnsweredBlock block={body.block} answer={body.answeredWith} /> : <Block block={body.block} onAnswer={onAnswerBlock} />;
     case 'answer':
       return (
         <Bubble mine={isMine}>
-          <Text style={isMine ? { color: '#FFFFFF' } : undefined}>{body.label}</Text>
+          <Text style={isMine ? { color: tokens.onAccent } : undefined}>{body.label}</Text>
         </Bubble>
       );
     case 'card':

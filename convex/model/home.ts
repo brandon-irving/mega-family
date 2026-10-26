@@ -4,7 +4,7 @@ import type { Infer } from 'convex/values';
 import { LIMITS } from '../../shared/config';
 import type { Viewer } from '../../shared/domain/api';
 import { listSummary } from '../../shared/domain/api';
-import { localDate } from '../../shared/time';
+import { addDays, localDate, zonedInstant } from '../../shared/time';
 import type { Doc } from '../_generated/dataModel';
 import type { MutationCtx, QueryCtx } from '../_generated/server';
 import { clock } from '../ports/clock';
@@ -41,12 +41,18 @@ export async function upcomingEvents(ctx: Ctx, viewer: Viewer): Promise<Doc<'eve
   return eventsInRange(ctx, viewer, now, now + LIMITS.comingUpWindowMin * 60_000);
 }
 
-/** `today.get`'s events: the rest of the viewer's local "today" that hasn't already finished. */
+/** `today.get`'s events: the rest of the viewer's local "today" that hasn't already finished. Uses the
+ * day's actual [start-of-day, end-of-day] window rather than filtering by `localDate(e.start) === today`
+ * (G1 fix) — that excluded an event that began before local midnight and is still running, since its
+ * `start` falls on *yesterday's* date even though it overlaps today. `eventsInRange` already keeps
+ * anything overlapping the window, including something that started earlier and hasn't ended. */
 export async function todaysEvents(ctx: Ctx, viewer: Viewer): Promise<Doc<'events'>[]> {
   const now = await clock.now(ctx, viewer.member.familyId);
   const today = localDate(now, viewer.family.timezone);
-  const rows = await eventsInRange(ctx, viewer, now - LIMITS.maxEventHours * 60 * 60_000, now + 24 * 60 * 60_000);
-  return rows.filter((e) => localDate(e.start, viewer.family.timezone) === today && (e.end ?? e.start) >= now);
+  const startOfDay = zonedInstant(today, 0, viewer.family.timezone);
+  const endOfDay = zonedInstant(addDays(today, 1), 0, viewer.family.timezone) - 1; // the last ms of today
+  const rows = await eventsInRange(ctx, viewer, startOfDay, endOfDay);
+  return rows.filter((e) => (e.end ?? e.start) >= now);
 }
 
 /** Lists visible to `viewer` (CONTRACT §4 `lists.all`), each with its items and open count. */

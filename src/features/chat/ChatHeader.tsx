@@ -68,7 +68,7 @@ export function ChatHeader({ mega, statusLine, todayCount, onOpenProfile, onOpen
         <Text variant="label">Today</Text>
         {todayCount > 0 && (
           <View style={{ backgroundColor: tokens.accent, borderRadius: tokens.radii.pill, minWidth: 20, height: 20, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4 }}>
-            <Text variant="caption" style={{ color: '#FFFFFF' }}>
+            <Text variant="caption" style={{ color: tokens.onAccent }}>
               {todayCount}
             </Text>
           </View>

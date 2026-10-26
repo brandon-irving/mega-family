@@ -116,7 +116,12 @@ export const API = {
   },
   invites: {
     create: fn({ kind: 'mutation', day1: 'real', args: { memberId: v.id('members') }, returns: v.object({ url: v.string(), qrPayload: v.string(), expiresAt: v.number() }) }),
-    redeem: fn({ kind: 'mutation', day1: 'real', args: { token: v.string(), parentCode: v.optional(v.string()) }, returns: v.object({ memberId: v.id('members') }) }),
+    // CONTRACT.md v0.5: changed from a mutation to an action (not additive — see the changelog). The
+    // wrong-parent-code attempt counter must persist even when the call itself still reports
+    // WRONG_PARENT_CODE; Convex mutations are strictly atomic (a mutation that writes and then throws
+    // rolls the write back too), so only an action's independently-committed `ctx.runMutation` calls can
+    // do both in one round trip.
+    redeem: fn({ kind: 'action', day1: 'real', args: { token: v.string(), parentCode: v.optional(v.string()) }, returns: v.object({ memberId: v.id('members') }) }),
   },
   family: {
     parentCode: fn({ kind: 'query', day1: 'real', adminOnly: true, args: {}, returns: v.object({ code: v.string() }) }),

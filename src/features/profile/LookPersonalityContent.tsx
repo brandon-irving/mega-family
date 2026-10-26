@@ -49,7 +49,7 @@ export function LookPersonalityContent({ value, onSave }: LookPersonalityContent
             setCustomHex(t);
             if (HEX_RE.test(t)) setHex(t);
           }}
-          placeholder="#2FB8B0"
+          placeholder={COLORS.teal}
           placeholderTextColor={tokens.muted}
           style={{ color: tokens.text, borderColor: tokens.line, borderWidth: 1, borderRadius: tokens.radii.sm, padding: tokens.spacing.sm, minHeight: tokens.touchTarget }}
           accessibilityLabel="Custom hex color"

@@ -2,14 +2,32 @@
 import type { ThemeName } from '../domain/enums';
 import type { WALLPAPER_PRESET_IDS } from './ids';
 
-export type ThemeTokens = { label: string; accent: string; bg: string; surface: string; line: string; text: string; muted: string };
+export type ThemeTokens = {
+  label: string;
+  accent: string;
+  bg: string;
+  surface: string;
+  line: string;
+  text: string;
+  muted: string;
+  /** Text/icon color on top of `accent` (a filled button, a selected chip, a badge count, …). */
+  onAccent: string;
+  /** A translucent full-bleed backdrop behind a modal/sheet. */
+  scrim: string;
+};
 
 export const THEMES: Record<ThemeName, ThemeTokens> = {
-  midnight: { label: 'Midnight', accent: '#2FB8B0', bg: '#0C0E11', surface: '#16191E', line: '#2E343D', text: '#EDEFF2', muted: '#9AA1AB' },
-  light: { label: 'Light', accent: '#1E9A93', bg: '#F5F6F8', surface: '#FFFFFF', line: '#DDE1E6', text: '#14171C', muted: '#5F6670' },
+  midnight: { label: 'Midnight', accent: '#2FB8B0', bg: '#0C0E11', surface: '#16191E', line: '#2E343D', text: '#EDEFF2', muted: '#9AA1AB', onAccent: '#FFFFFF', scrim: '#00000088' },
+  light: { label: 'Light', accent: '#1E9A93', bg: '#F5F6F8', surface: '#FFFFFF', line: '#DDE1E6', text: '#14171C', muted: '#5F6670', onAccent: '#FFFFFF', scrim: '#00000088' },
 };
 
 export const DEFAULT_THEME: ThemeName = 'midnight';
+
+/** The two text colors that read clearly against *any* background luminance — independent of
+ * ThemeTokens because what they sit on isn't always the active theme's own accent (a MEGA's shell color
+ * is user-customizable to any hex; Chip's "selected" state picks between these by checking its
+ * luminance, the same contrast check regardless of which theme happens to be active). */
+export const CONTRAST_TEXT = { light: '#FFFFFF', dark: '#14171C' } as const;
 
 /** Wallpaper presets drawn in code. */
 export const WALLPAPER_PRESETS: readonly { id: (typeof WALLPAPER_PRESET_IDS)[number]; label: string }[] = [

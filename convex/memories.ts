@@ -2,6 +2,7 @@
 // PLAN.md → Global memory: "enforced in queries, never only in prompts" — every read goes through
 // `readableScopeKeys`, the one function that decides which scope keys a member may see.
 import type { Doc } from './_generated/dataModel';
+import { LIMITS } from '../shared/config';
 import { API } from '../shared/domain/api';
 import { mutation, query } from './_generated/server';
 import { pick } from './model/define';
@@ -72,9 +73,10 @@ export const list = query({
     }
 
     // Merge path: more than one scope key and/or a text search. Convex search takes one exact filter value
-    // per call (PLAN.md → Global memory), so this runs one bounded `take` per key and merges in memory —
-    // correct for a family's small memory set, but not a true cursor-paginated search (documented limit).
-    const take = Math.min(args.paginationOpts.numItems, 200);
+    // per call (PLAN.md → Global memory), so this runs one bounded `take` per key (LIMITS.memories
+    // .mergeSearchCapPerScope) and merges in memory — correct for a family's small memory set, but not a
+    // true cursor-paginated search (documented limit).
+    const take = Math.min(args.paginationOpts.numItems, LIMITS.memories.mergeSearchCapPerScope);
     const searchKeys = keys ?? (await everyScopeKey(ctx, familyId));
     let rows: Doc<'memories'>[] = [];
     for (const key of searchKeys) {

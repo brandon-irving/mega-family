@@ -15,6 +15,7 @@ import { Card } from '@/ui/Card';
 import { Screen } from '@/ui/Screen';
 import { Text } from '@/ui/Text';
 import { useTokens } from '@/ui/theme';
+import { IDENTITY } from '@shared/config/identity';
 import { SAMPLE_FAMILY, type SampleKey } from '@shared/fixtures/sampleFamily';
 
 const DEMO_KEYS = ['admin', 'partner', 'twin1', 'twin2'] as const;
@@ -53,10 +54,10 @@ export default function WelcomeRoute({ demoMode = process.env.EXPO_PUBLIC_DEMO_M
   return (
     <Screen scroll>
       <Text variant="headline" style={{ marginBottom: tokens.spacing.xs }}>
-        MEGA
+        {IDENTITY.name}
       </Text>
       <Text color="muted" style={{ marginBottom: tokens.spacing.xl }}>
-        Your family&apos;s AI assistants.
+        {IDENTITY.tagline}.
       </Text>
 
       <Card style={{ gap: tokens.spacing.md }}>

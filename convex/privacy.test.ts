@@ -279,5 +279,43 @@ describe('Milestone D: privacy grid', () => {
       const kidSharing = await t.withIdentity({ subject: 'sample:twin1' }).query(api.sharing.get, {});
       expect(kidSharing).toBeNull();
     });
+
+    // ---------- same-family memory scope grid (task brief rule 2): the cross-family id-diff above can't
+    // catch a kid or sibling seeing a memory that's within their OWN family's id-space but still outside
+    // the scopes `readableScopeKeys` (convex/model/memoryAccess.ts) says they may read. ----------
+
+    function memoryTextsFor(subject: string) {
+      return t
+        .withIdentity({ subject })
+        .query(api.memories.list, { paginationOpts: { numItems: 50, cursor: null } })
+        .then((page) => page.page.map((m) => m.text));
+    }
+
+    test('memories.list never returns an adults-scope memory to a kid, even unfiltered', async () => {
+      const adultsOnly = (famA.docs.memories as unknown as { scope: string; text: string }[]).filter((m) => m.scope === 'adults');
+      expect(adultsOnly.length, 'fixture sanity: sampleFamily seeds at least one adults-scope memory').toBeGreaterThan(0);
+
+      const twin1Texts = await memoryTextsFor('sample:twin1');
+      for (const m of adultsOnly) expect(twin1Texts, `kid (twin1) should never see adults-scope memory "${m.text}"`).not.toContain(m.text);
+    });
+
+    test('memories.list never returns a shared memory to a member who is not its grantee', async () => {
+      const sharedMemory = (famA.docs.memories as unknown as { scope: string; text: string }[]).find((m) => m.scope === 'shared');
+      expect(sharedMemory, 'fixture sanity: sampleFamily seeds an admin -> partner shared memory').toBeDefined();
+
+      const twin1Texts = await memoryTextsFor('sample:twin1');
+      expect(twin1Texts, 'twin1 is not a grantee of the admin -> partner share').not.toContain(sharedMemory!.text);
+
+      const twin2Texts = await memoryTextsFor('sample:twin2');
+      expect(twin2Texts, 'twin2 is not a grantee of the admin -> partner share').not.toContain(sharedMemory!.text);
+    });
+
+    test('memories.list returns the admin -> partner shared memory to partner (the grantee)', async () => {
+      const sharedMemory = (famA.docs.memories as unknown as { scope: string; text: string }[]).find((m) => m.scope === 'shared');
+      expect(sharedMemory).toBeDefined();
+
+      const partnerTexts = await memoryTextsFor('sample:partner');
+      expect(partnerTexts, 'partner is the grantee of the admin -> partner share').toContain(sharedMemory!.text);
+    });
   });
 });

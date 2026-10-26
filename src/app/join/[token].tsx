@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { TextInput } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { api } from '@/data/api';
-import { useMutation } from 'convex/react';
+import { useAction } from 'convex/react';
 import { Button } from '@/ui/Button';
 import { Card } from '@/ui/Card';
 import { Screen } from '@/ui/Screen';
@@ -14,7 +14,9 @@ export default function JoinRoute() {
   const { token } = useLocalSearchParams<{ token: string }>();
   const [parentCode, setParentCode] = useState('');
   const [error, setError] = useState<string | null>(null);
-  const redeem = useMutation(api.invites.redeem);
+  // CONTRACT.md v0.5: invites.redeem is an action, not a mutation (see convex/invites.ts's docstring —
+  // the wrong-parent-code attempt counter needs to commit even when this call itself still fails).
+  const redeem = useAction(api.invites.redeem);
   const tokens = useTokens();
 
   const onJoin = async () => {

@@ -2,10 +2,13 @@
 // the user's message plus a placeholder MEGA reply and creates a real persistent-text-streaming stream;
 // the actual (canned) reply text is generated when the app opens the `/chat-stream` HTTP route, exactly
 // the shape the component expects — there's no model wired up yet, only the plumbing.
+import { v } from 'convex/values';
 import { PersistentTextStreaming, type StreamId } from '@convex-dev/persistent-text-streaming';
 import { API } from '../shared/domain/api';
-import { components } from './_generated/api';
-import { httpAction, mutation, query } from './_generated/server';
+import { components, internal } from './_generated/api';
+import { httpAction, internalQuery, mutation, query } from './_generated/server';
+import { requireReadableStream } from './model/chat';
+import { withCors } from './model/cors';
 import { pick } from './model/define';
 import { fail } from './model/errors';
 import { detectSpokenMentions } from './model/mentions';
@@ -98,28 +101,6 @@ export const send = mutation({
   },
 });
 
-/** Resolves a stream id back to its message and checks the caller may read it: their own thread, or a
- * kid's thread they parent with `parentsCanReadChat` on. Guards `chat.streamBody` against probing another
- * family's stream ids (CLAUDE.md → every read keyed by an opaque id still needs a server-side check). */
-async function requireReadableStream(ctx: Parameters<typeof requireViewer>[0], viewer: Awaited<ReturnType<typeof requireViewer>>, streamId: string) {
-  const message = await ctx.db
-    .query('messages')
-    .withIndex('by_streamId', (q) => q.eq('streamId', streamId))
-    .unique();
-  if (!message || message.familyId !== viewer.member.familyId) fail('NOT_FOUND');
-  const thread = await ctx.db.get(message.threadId);
-  if (!thread) fail('NOT_FOUND');
-  if (thread.ownerId === viewer.member._id) return message;
-  if (viewer.isParentOf.includes(thread.ownerId)) {
-    const controls = await ctx.db
-      .query('kidControls')
-      .withIndex('by_family_member', (q) => q.eq('familyId', viewer.member.familyId).eq('memberId', thread.ownerId))
-      .unique();
-    if (controls?.parentsCanReadChat) return message;
-  }
-  fail('FORBIDDEN');
-}
-
 export const streamBody = query({
   ...pick(API.chat.streamBody),
   handler: async (ctx, args) => {
@@ -167,13 +148,33 @@ export const react = mutation({
   },
 });
 
-/** CONTRACT §4 `chat.stream` (`POST /chat-stream { streamId }`). Routed from `convex/http.ts`. */
+/** httpAction ctx has no `ctx.db` (only `runQuery`/`runMutation`/`runAction`), so the ownership check
+ * (`requireReadableStream`) has to live behind a query `streamChat` can call — this is that query, not a
+ * public API entry (nothing else needs it; `chat.streamBody` runs the same check directly against its
+ * own query ctx). Throws the same codes `requireReadableStream`/`requireViewer` would. */
+export const canReadStream = internalQuery({
+  args: { streamId: v.string() },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const viewer = await requireViewer(ctx);
+    await requireReadableStream(ctx, viewer, args.streamId);
+    return null;
+  },
+});
+
+/** CONTRACT §4 `chat.stream` (`POST /chat-stream { streamId }`). Routed from `convex/http.ts`. G1 fix:
+ * this used to stream to anyone who knew a `streamId` — no auth, no ownership check — with CORS wide
+ * open (`Access-Control-Allow-Origin: *`). Now requires the same identity + ownership/parent check as
+ * `chat.streamBody`, and the same trustedOrigins-based CORS as the auth routes (convex/model/cors.ts). */
 export const streamChat = httpAction(async (ctx, request) => {
   const { streamId } = (await request.json()) as { streamId: string };
+  try {
+    await ctx.runQuery(internal.chat.canReadStream, { streamId });
+  } catch {
+    return withCors(request, new Response(null, { status: 403 }));
+  }
   const response = await streaming.stream(ctx, request, streamId as StreamId, async (_ctx, _request, _id, append) => {
     for (const word of CANNED_REPLY.split(' ')) await append(`${word} `);
   });
-  response.headers.set('Access-Control-Allow-Origin', '*');
-  response.headers.set('Vary', 'Origin');
-  return response;
+  return withCors(request, response);
 });

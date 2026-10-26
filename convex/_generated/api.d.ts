@@ -25,6 +25,8 @@ import type * as lists from "../lists.js";
 import type * as me from "../me.js";
 import type * as megas from "../megas.js";
 import type * as memories from "../memories.js";
+import type * as model_chat from "../model/chat.js";
+import type * as model_cors from "../model/cors.js";
 import type * as model_define from "../model/define.js";
 import type * as model_errors from "../model/errors.js";
 import type * as model_home from "../model/home.js";
@@ -73,6 +75,8 @@ declare const fullApi: ApiFromModules<{
   me: typeof me;
   megas: typeof megas;
   memories: typeof memories;
+  "model/chat": typeof model_chat;
+  "model/cors": typeof model_cors;
   "model/define": typeof model_define;
   "model/errors": typeof model_errors;
   "model/home": typeof model_home;

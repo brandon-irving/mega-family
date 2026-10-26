@@ -1,17 +1,13 @@
 // The scrollable thread: messages, reply buttons on blocks, result cards. Presentational — takes
-// already-loaded messages (oldest first, as chat.thread's pagination returns them) and callbacks, so
-// it can be driven by usePaginatedQuery in the route or by fixtures in tests. A plain FlatList that
-// stays scrolled to the newest message; `onLoadMore` fires near the top to fetch older pages.
-import { useEffect, useRef } from 'react';
-import { FlatList, View } from 'react-native';
+// already-loaded messages (newest first, as chat.thread's pagination returns them, CONTRACT §4) and
+// callbacks, so it can be driven by usePaginatedQuery in the route or by fixtures in tests. Just wires
+// ChatThread's own callbacks into the shared MessageList renderer (see its docstring for *why* it's an
+// inverted FlatList) — "mine" here means the signed-in viewer's own authored messages.
 import type { Id } from '@shared/domain/validators';
 import type { BlockAnswer, SaveChip } from '@shared/domain/messages';
 import type { Reaction, Scope } from '@shared/domain/enums';
-import { Button } from '@/ui/Button';
-import { Text } from '@/ui/Text';
-import { useTokens } from '@/ui/theme';
 import type { MegaInfo } from '@/features/shell/megaInfo';
-import { MessageRow, type MessageDoc } from './MessageRow';
+import { MessageList, type MessageDoc } from './MessageList';
 
 export type ChatThreadProps = {
   messages: MessageDoc[];
@@ -40,51 +36,22 @@ export function ChatThread({
   onAnswerNotification,
   notificationButtonsFor,
 }: ChatThreadProps) {
-  const tokens = useTokens();
-  const listRef = useRef<FlatList<MessageDoc>>(null);
-
-  useEffect(() => {
-    if (messages.length > 0) listRef.current?.scrollToEnd({ animated: true });
-  }, [messages.length]);
-
-  if (messages.length === 0) {
-    return (
-      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: tokens.spacing.xl }}>
-        <Text color="muted">No messages yet. Say hello.</Text>
-      </View>
-    );
-  }
-
   return (
-    <FlatList
-      ref={listRef}
-      data={messages}
-      keyExtractor={(m) => m._id}
-      contentContainerStyle={{ padding: tokens.spacing.lg }}
-      ListHeaderComponent={onLoadMore ? <Button label="Load earlier messages" variant="ghost" onPress={onLoadMore} /> : undefined}
-      renderItem={({ item }) => {
-        const isMine = item.author.kind === 'member' && item.author.id === viewerMemberId;
-        const mega = item.author.kind === 'mega' ? megaById[item.author.id] ?? null : null;
-        const card = item.body.type === 'card' ? item.body.card : null;
-        const requestId = card?.kind === 'request' ? card.requestId : null;
-        const notificationId = card?.kind === 'notification' ? card.notificationId : null;
-        return (
-          <MessageRow
-            message={item}
-            isMine={isMine}
-            mega={mega}
-            onAnswerBlock={(answer) => onAnswerBlock(item._id, answer)}
-            onReact={(reaction) => onReact(item._id, reaction)}
-            onChangeMemoryScope={(memoryId, scope) => onChangeMemoryScope(memoryId as Id<'memories'>, scope)}
-            onForgetMemory={(memoryId) => onForgetMemory(memoryId as Id<'memories'>)}
-            onRespondRequest={requestId ? (accept) => onRespondRequest?.(requestId, accept) : undefined}
-            onAnswerNotification={notificationId ? (buttonId) => onAnswerNotification?.(notificationId, buttonId) : undefined}
-            notificationButtons={notificationId ? notificationButtonsFor?.(notificationId) : undefined}
-          />
-        );
-      }}
+    <MessageList
+      messages={messages}
+      isMine={(m) => m.author.kind === 'member' && m.author.id === viewerMemberId}
+      megaById={megaById}
+      onLoadMore={onLoadMore}
+      onAnswerBlock={onAnswerBlock}
+      onReact={onReact}
+      onChangeMemoryScope={onChangeMemoryScope}
+      onForgetMemory={onForgetMemory}
+      onRespondRequest={onRespondRequest}
+      onAnswerNotification={onAnswerNotification}
+      notificationButtonsFor={notificationButtonsFor}
+      emptyLabel="No messages yet. Say hello."
     />
   );
 }
 
-export type { SaveChip };
+export type { MessageDoc, SaveChip };

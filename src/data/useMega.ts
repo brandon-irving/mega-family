@@ -17,6 +17,12 @@ export function useUpdateMega() {
   return useMutation(api.megas.update);
 }
 
+/** What the MEGA shares (CONTRACT §4 `sharing.get`): the viewer's own `sharing` row, or `null` for a
+ * kid (who has none) — the MEGA profile screen hides the "What it shares" section when this is null. */
+export function useSharing() {
+  return useQuery(api.sharing.get, {});
+}
+
 export function useSetSharing() {
   return useMutation(api.sharing.set);
 }

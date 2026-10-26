@@ -6,6 +6,7 @@ import { httpRouter } from 'convex/server';
 import { httpAction } from './_generated/server';
 import { authComponent, createAuth, trustedOrigins } from './auth';
 import { streamChat } from './chat';
+import { corsOrigin } from './model/cors';
 
 const http = httpRouter();
 
@@ -27,9 +28,12 @@ http.route({
   handler: httpAction(async (_ctx, request) => {
     const h = request.headers;
     if (h.get('Origin') !== null && h.get('Access-Control-Request-Method') !== null && h.get('Access-Control-Request-Headers') !== null) {
+      // Same trustedOrigins policy as the auth routes (convex/auth.ts) — no wildcard, and no
+      // Access-Control-Allow-Origin header at all for an origin that isn't trusted.
+      const origin = corsOrigin(request);
       return new Response(null, {
         headers: new Headers({
-          'Access-Control-Allow-Origin': '*',
+          ...(origin ? { 'Access-Control-Allow-Origin': origin, Vary: 'Origin' } : {}),
           'Access-Control-Allow-Methods': 'POST',
           'Access-Control-Allow-Headers': 'Content-Type, Digest, Authorization',
           'Access-Control-Max-Age': '86400',

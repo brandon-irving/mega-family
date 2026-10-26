@@ -47,7 +47,7 @@ function ListCard({ list, onAddItem, onCheckItem, onRemoveItem }: { list: ListSu
               accessibilityLabel={item.text}
               style={{ width: 22, height: 22, borderRadius: 6, borderWidth: 1, borderColor: tokens.line, alignItems: 'center', justifyContent: 'center', backgroundColor: item.checked ? tokens.accent : 'transparent' }}
             >
-              {item.checked && <Text style={{ color: '#FFFFFF', fontSize: 14 }}>✓</Text>}
+              {item.checked && <Text style={{ color: tokens.onAccent, fontSize: 14 }}>✓</Text>}
             </Pressable>
             <Text style={{ flex: 1, textDecorationLine: item.checked ? 'line-through' : 'none' }}>{item.text}</Text>
             <Pressable onPress={() => onRemoveItem(item._id)} accessibilityRole="button" accessibilityLabel={`Remove ${item.text}`}>

@@ -102,7 +102,7 @@ describe('invites.create / .redeem', () => {
     const token = url.split('/').pop()!;
     const family = await t.run((ctx) => ctx.db.get(familyId));
 
-    const { memberId } = await t.withIdentity({ subject: 'new-kid-device' }).mutation(api.invites.redeem, { token, parentCode: family!.parentCode });
+    const { memberId } = await t.withIdentity({ subject: 'new-kid-device' }).action(api.invites.redeem, { token, parentCode: family!.parentCode });
     expect(memberId).toBe(kidId);
 
     const viewer = await t.withIdentity({ subject: 'new-kid-device' }).query(api.me.get, {});
@@ -115,7 +115,7 @@ describe('invites.create / .redeem', () => {
     const token = url.split('/').pop()!;
     const err = await t
       .withIdentity({ subject: 'new-kid-device' })
-      .mutation(api.invites.redeem, { token, parentCode: '00000' })
+      .action(api.invites.redeem, { token, parentCode: '00000' })
       .catch((e) => e);
     expect(code(err)).toBe('WRONG_PARENT_CODE');
   });
@@ -124,7 +124,7 @@ describe('invites.create / .redeem', () => {
     const { t } = await seeded();
     const err = await t
       .withIdentity({ subject: 'new-kid-device' })
-      .mutation(api.invites.redeem, { token: 'not-a-real-token' })
+      .action(api.invites.redeem, { token: 'not-a-real-token' })
       .catch((e) => e);
     expect(code(err)).toBe('INVALID_INVITE');
   });

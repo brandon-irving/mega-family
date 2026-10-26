@@ -39,8 +39,8 @@ export function Button({ label, variant = 'primary', loading, accessibilityLabel
       ]}
       {...rest}
     >
-      {loading && <ActivityIndicator color={isPrimary ? '#FFFFFF' : tokens.accent} />}
-      <Text variant="label" style={{ color: isPrimary ? '#FFFFFF' : isGhost ? tokens.accent : tokens.text }}>
+      {loading && <ActivityIndicator color={isPrimary ? tokens.onAccent : tokens.accent} />}
+      <Text variant="label" style={{ color: isPrimary ? tokens.onAccent : isGhost ? tokens.accent : tokens.text }}>
         {label}
       </Text>
     </Pressable>

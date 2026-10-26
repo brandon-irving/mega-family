@@ -1,7 +1,7 @@
 // MEGA profile sheet (PLAN §3), opened from the chat header badge.
 import { router } from 'expo-router';
 import { useViewer } from '@/data/useViewer';
-import { useMegaStatus, useSetSharing, useUpdateMega } from '@/data/useMega';
+import { useMegaStatus, useSetSharing, useSharing, useUpdateMega } from '@/data/useMega';
 import { LoadingScreen } from '@/ui/LoadingScreen';
 import { Sheet } from '@/ui/Sheet';
 import { ProfileContent } from '@/features/profile/ProfileContent';
@@ -11,6 +11,7 @@ export default function MegaProfileRoute() {
   const status = useMegaStatus(viewer?.mega?._id ?? null);
   const updateMega = useUpdateMega();
   const setSharing = useSetSharing();
+  const sharing = useSharing();
 
   if (viewer === undefined) return <LoadingScreen label="Opening profile…" />;
   if (!viewer?.mega) return <LoadingScreen label="No MEGA yet" />;
@@ -26,7 +27,7 @@ export default function MegaProfileRoute() {
         canRename={isAdult}
         canSeeSharing={isAdult}
         isAdmin={isAdmin}
-        sharing={{ schedule: 'family', lists: 'family', hqActivity: 'family' }}
+        sharing={sharing ?? undefined}
         onRename={(name) => updateMega({ name })}
         onOpenLookPersonality={() => router.push('/mega-profile/look' as never)}
         onChangeSharing={(patch) => setSharing(patch)}

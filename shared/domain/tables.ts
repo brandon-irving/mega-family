@@ -79,6 +79,9 @@ export const invites = {
   tokenHash: v.string(),
   expiresAt: v.number(),
   redeemedAt: v.optional(v.number()),
+  // CONTRACT.md v0.4 (additive, pending approval): wrong-parent-code attempts for this invite, so
+  // `invites.redeem` can lock it out — see shared/config/limits.ts `maxParentCodeAttempts`.
+  failedAttempts: v.optional(v.number()),
 };
 
 export const grants = { familyId, ownerId: memberId, granteeIds: v.array(memberId), label: v.string() };

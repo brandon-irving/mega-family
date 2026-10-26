@@ -64,7 +64,7 @@ export function TalkContent({ mega, state, liveCaption, reply, mentions, onHoldS
           justifyContent: 'center',
         }}
       >
-        <Text variant="title" style={state === 'listening' ? { color: '#FFFFFF' } : undefined}>
+        <Text variant="title" style={state === 'listening' ? { color: tokens.onAccent } : undefined}>
           🎙
         </Text>
       </Pressable>

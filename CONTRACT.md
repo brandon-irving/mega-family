@@ -7,7 +7,8 @@ This is the agreement both build tracks follow. The backend owns `convex/`, the 
 ## Changelog
 | Version | Date | Change |
 |---|---|---|
-| 0.4 | Oct 26 | **Pending approval.** Additive: new query `sharing.get` (§4, "MEGA profile, memory and learnings") — the viewer's own `sharing` row, or `null` for kids (who have none). Requested by the frontend track; backend implemented it as `real` and covered it in the privacy grid. Also additive: new mutation `demo.signInAs` (§4, new "Demo" row), replacing the ad hoc `/demo-signin` HTTP route it had before G1 — same DEMO_MODE gate, but now args/returns-checked and covered by the privacy grid like every other function. The route and its internal helper (`auth.linkSampleMember`) are removed. |
+| 0.5 | Oct 26 | **Pending approval.** G1 security fix: `invites.redeem` changed from a mutation (`m`) to an action (`a`) — **not additive**, both tracks must update their call site (frontend: `useAction` instead of `useMutation`). Needed so a wrong parent-code guess can still bump `invites.failedAttempts` (see 0.4 below) even though the call itself reports `WRONG_PARENT_CODE`: Convex mutations are atomic (a write made earlier in a mutation handler is rolled back if that handler later throws, and this holds even for a mutation nested via `ctx.runMutation`, since it's only a sub-transaction of the same top-level call), so only an action's independently-committed `ctx.runMutation` calls can commit the counter and still fail the overall call. |
+| 0.4 | Oct 26 | **Pending approval.** Additive: new query `sharing.get` (§4, "MEGA profile, memory and learnings") — the viewer's own `sharing` row, or `null` for kids (who have none). Requested by the frontend track; backend implemented it as `real` and covered it in the privacy grid. Also additive: new mutation `demo.signInAs` (§4, new "Demo" row), replacing the ad hoc `/demo-signin` HTTP route it had before G1 — same DEMO_MODE gate, but now args/returns-checked and covered by the privacy grid like every other function. The route and its internal helper (`auth.linkSampleMember`) are removed. Also additive: `invites.failedAttempts?: number` (§2) — a per-invite wrong-parent-code counter; `invites.redeem` locks the invite `RATE_LIMITED` at `LIMITS.maxParentCodeAttempts` (brute-force guard, G1 fix). |
 | 0.1 | Oct 26 | First draft for review |
 | 0.3 | Oct 26 | G0 build: optional fields where a value can't exist yet (`families.adminId`, `createdBy`/`addedBy` on seeded or imported rows, `notifications.candidateId`/`messageId`/`sentAt`); index names now all start with the family; `ShareLevel` enum named; scope keys use the family's id; §4 is machine-readable in `shared/domain/api.ts` |
 | 0.2 | Oct 26 | Spoken MEGA names (`SpokenMention`, detection in `talk.transcribe` and `chat.send`); open questions decided |
@@ -61,7 +62,7 @@ Every row in a family-owned table has `familyId`, and every index starts with `f
 **megas**: `familyId`, `kind: MegaKind`, `ownerId?: id(members)` (empty for the family MEGA; for a care MEGA it's the child), `name`, `look: { hex: string, sticker: string }`, `personality: Personality`, `job: { station: Station, label: string, busy: boolean, since: number }`
 - index: `by_family_owner` (its familyId prefix lists a family's MEGAs)
 
-**invites**: `familyId`, `memberId`, `tokenHash`, `expiresAt`, `redeemedAt?`
+**invites**: `familyId`, `memberId`, `tokenHash`, `expiresAt`, `redeemedAt?`, `failedAttempts?: number` (wrong parent-code guesses; `invites.redeem` locks the invite RATE_LIMITED at `LIMITS.maxParentCodeAttempts`)
 - indexes: `by_tokenHash` (no family prefix: used when joining), `by_family_member`
 
 **grants**: `familyId`, `ownerId`, `granteeIds: id(members)[]`, `label` (sharing: "running late → Coral")
@@ -173,7 +174,7 @@ This section is mirrored exactly by `shared/domain/api.ts`; `tests/contract.test
 | `me.get` | q | — | `Viewer \| null` where `Viewer = { member, family, mega, settings, theme: ResolvedTheme, isParentOf: id(members)[] }` | real |
 | `onboarding.start` | m | `{ familyName, timezone, myName, look: { hex, sticker }, personality, megaName }` | `{ familyId, threadId }` (creates the family, admin, MEGA and thread; the rest happens in chat) | real |
 | `invites.create` | m | `{ memberId }` | `{ url, qrPayload, expiresAt }` | real |
-| `invites.redeem` | m | `{ token, parentCode?: string }` (code required for kids) | `{ memberId }` | real |
+| `invites.redeem` | a | `{ token, parentCode?: string }` (code required for kids) | `{ memberId }` | real |
 | `family.parentCode` | q | — (admin only) | `{ code }` | real |
 
 ### Chat and talk

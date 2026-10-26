@@ -22,7 +22,7 @@ export function SaveChip({ chip, onChangeScope, onForget }: SaveChipProps) {
     <>
       <Chip label={`Saved · ${chip.label}`} onPress={() => setOpen(true)} accessibilityLabel={`Saved, ${chip.label}. Tap to change.`} />
       <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
-        <View style={{ flex: 1, backgroundColor: '#00000088', justifyContent: 'flex-end' }}>
+        <View style={{ flex: 1, backgroundColor: tokens.scrim, justifyContent: 'flex-end' }}>
           <Card style={{ borderBottomLeftRadius: 0, borderBottomRightRadius: 0, margin: 0 }}>
             <Text variant="title" style={{ marginBottom: tokens.spacing.sm }}>
               Change scope

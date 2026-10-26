@@ -4,6 +4,7 @@ import { router } from 'expo-router';
 import { useCalendarRange, useFamilyMembers } from '@/data/useFamily';
 import { LoadingScreen } from '@/ui/LoadingScreen';
 import { Sheet } from '@/ui/Sheet';
+import { useTokens } from '@/ui/theme';
 import { CalendarContent } from '@/features/family/CalendarContent';
 
 function startOfWeek(now: number): number {
@@ -24,6 +25,7 @@ export default function CalendarRoute() {
   const weekEnd = weekStart !== null ? weekStart + 7 * 24 * 60 * 60 * 1000 : null;
   const events = useCalendarRange(weekStart, weekEnd);
   const members = useFamilyMembers();
+  const tokens = useTokens();
 
   if (weekStart === null || events === undefined || members === undefined) return <LoadingScreen label="Loading calendar…" />;
 
@@ -32,7 +34,7 @@ export default function CalendarRoute() {
       <CalendarContent
         weekStart={weekStart}
         events={events}
-        members={members.map((m) => ({ _id: m.member._id, name: m.member.name, hex: m.mega?.look.hex ?? '#9AA1AB' }))}
+        members={members.map((m) => ({ _id: m.member._id, name: m.member.name, hex: m.mega?.look.hex ?? tokens.muted }))}
       />
     </Sheet>
   );

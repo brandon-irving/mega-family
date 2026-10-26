@@ -42,10 +42,10 @@ export function CalendarContent({ weekStart, events, members }: CalendarContentP
               backgroundColor: i === selectedDay ? tokens.accent : 'transparent',
             }}
           >
-            <Text variant="caption" style={i === selectedDay ? { color: '#FFFFFF' } : undefined}>
+            <Text variant="caption" style={i === selectedDay ? { color: tokens.onAccent } : undefined}>
               {new Date(d).toLocaleDateString(undefined, { weekday: 'short' }).slice(0, 2)}
             </Text>
-            <Text variant="label" style={i === selectedDay ? { color: '#FFFFFF' } : undefined}>
+            <Text variant="label" style={i === selectedDay ? { color: tokens.onAccent } : undefined}>
               {new Date(d).getDate()}
             </Text>
           </Pressable>
