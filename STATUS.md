@@ -19,6 +19,19 @@ _Last updated: Oct 26 (Day 1 of the build)._
 
 **In flight when this was written:** a background agent fixing the G2 UX review findings: white flash on load/sign-in, tabs reflashing loading states (switch all `src/data/*` queries to `useStableQuery` + a lint test), accent text contrast (WCAG-derived `readableOn`), MessageList memoization, hit targets. It then checks choice blocks, talk mode, the kid shell and desktop. When it commits, verify (all checks below), then `git tag -a g2` and start G3.
 
+## Next up (as of the context clear on Oct 26)
+
+1. **Finish G2 UX fixes.** A background agent was mid-way; its *uncommitted* edits caused a "Too many re-renders" crash in `src/app/(tabs)/chat/_layout.tsx` (`useThemedStackOptions`) that the owner hit on web. It was told to fix that and test both sign-in paths before committing. In the new session: check `git status`/`git log`. If the fixes aren't committed and the agent is gone, re-do them (the list is under "In flight" above), make the crash go away, run all checks, then tag `g2`.
+2. **Design the login screens on the canvas** (owner request), using the usual flow: agree the shape in chat first, then mock up on the canvas (`design/README.md`), get feedback, iterate. Scope:
+   - **Welcome / sign in:** Continue with Apple (iOS), Continue with Google, "I have an invite", and the demo list (dev builds only).
+   - **I have an invite:** paste a link or scan a QR code.
+   - **Kid joining:** the 5-digit parent code (the `KidCode` board exists, and `KidMeet` follows it).
+   - **Join or start a family:** shown when signed in without a family, with "Use a different account".
+   - **Returning user:** loading → straight into chat (no flash).
+
+   Must match the visual direction (dark Midnight default, the MEGA sprite, accent tokens) and be mobile-first. The current code screens (`src/app/welcome.tsx`, `invite.tsx`, `start.tsx`, `onboarding.tsx` (an interim one-question Start a family), `join/[token].tsx`) are functional placeholders to restyle after the design is approved.
+3. Then G3 (the proactive engine and push).
+
 ## How we work (owner-approved process)
 
 - **Gates:** each gate passes only with all checks green **and** fresh adversarial reviewers (security/privacy, correctness, **UX**) who didn't write the code; every fix gets a **failing-first regression test**; then a local commit + tag. **Commit locally, never push.** Commit messages end with the Co-Authored-By / Claude-Session lines used in `git log`.
@@ -59,7 +72,7 @@ Owner approved **$5 total for live model checks until G6**; ≈3 cents used. The
 
 1. iPhone build (`npm run build:ios:dev`) if not done; then the Apple Services ID (`com.megafamily.app.web`, domain `colorless-ibis-289.convex.site`, return URL `https://colorless-ibis-289.convex.site/api/auth/callback/apple`) + Sign in with Apple key → `node scripts/secrets.mjs apple-key <AuthKey.p8>` → `node scripts/secrets.mjs sync-convex`.
 2. Approve CONTRACT.md v0.4–v0.9 (sharing.get, demo.signInAs, parent-code lockout with invites.redeem as an action, notifications.get, server-driven replies, answerBlock streamId, usage.reservedCents).
-3. Web walkthrough feedback (in progress as of this note).
+3. Web walkthrough feedback: the owner hit the re-render crash above; their Google sign-in works and the interim Start a family is in.
 
 ## Lessons learned (don't relearn these)
 
