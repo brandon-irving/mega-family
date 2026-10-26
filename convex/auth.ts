@@ -1,0 +1,99 @@
+// PLAN.md → Sign-in. Better Auth through the Convex component, behind the same "server decides who you
+// are" rule as everything else: `convex/model/viewer.ts` maps `ctx.auth.getUserIdentity().subject` to a
+// `members` row, and that's the only input to every permission check in this backend.
+//
+// Kids without Apple/Google (decided): the `anonymous` plugin, not a custom endpoint. A kid's device signs
+// in anonymously (no credentials) to get *a* Better Auth identity, then calls `invites.redeem` with the
+// invite token and the 5-digit parent code to link that identity's subject to their `members` row — the
+// same redeem path an adult's Apple/Google sign-in uses. No schema changes, and it's one of Better Auth's
+// officially supported Convex-component plugins (checked against current docs).
+import { createClient, type GenericCtx } from '@convex-dev/better-auth';
+import { convex } from '@convex-dev/better-auth/plugins';
+import { expo } from '@better-auth/expo';
+import { v } from 'convex/values';
+import { betterAuth } from 'better-auth/minimal';
+import { anonymous } from 'better-auth/plugins';
+import { importPKCS8, SignJWT } from 'jose';
+import { IDENTITY } from '../shared/config/identity';
+import authConfig from './auth.config';
+import { components } from './_generated/api';
+import type { DataModel } from './_generated/dataModel';
+import { internalMutation } from './_generated/server';
+
+export const authComponent = createClient<DataModel>(components.betterAuth);
+
+function base64ToUtf8(b64: string): string {
+  const binary = atob(b64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return new TextDecoder().decode(bytes);
+}
+
+/** Apple's client "secret" is a JWT MEGA signs itself (no static secret to leak), good for 180 days — under
+ * Apple's 6-month cap. Needs APPLE_TEAM_ID / APPLE_KEY_ID / APPLE_PRIVATE_KEY_B64 / APPLE_CLIENT_ID. */
+async function generateAppleClientSecret(): Promise<string> {
+  const teamId = process.env.APPLE_TEAM_ID;
+  const keyId = process.env.APPLE_KEY_ID;
+  const keyB64 = process.env.APPLE_PRIVATE_KEY_B64;
+  const clientId = process.env.APPLE_CLIENT_ID;
+  if (!teamId || !keyId || !keyB64 || !clientId) throw new Error('Apple sign-in needs APPLE_TEAM_ID, APPLE_KEY_ID, APPLE_PRIVATE_KEY_B64 and APPLE_CLIENT_ID set on this deployment');
+  const key = await importPKCS8(base64ToUtf8(keyB64), 'ES256');
+  return new SignJWT({})
+    .setProtectedHeader({ alg: 'ES256', kid: keyId })
+    .setIssuer(teamId)
+    .setIssuedAt()
+    .setExpirationTime('180d')
+    .setAudience('https://appleid.apple.com')
+    .setSubject(clientId)
+    .sign(key);
+}
+
+// Better Auth's documented pattern for this is an async `clientSecret` hook (current docs: "Better Auth's
+// async provider configuration"), but the pinned stable `better-auth` release in this repo's package.json
+// (1.7.x) still types `clientSecret` as a plain `string` — only the 1.8 beta line adds the function form.
+// Rather than pin a beta dependency, this generates the JWT once per cold start into a module-level cache
+// (fire-and-forget, never blocks module load) and reads the cached string synchronously; the JWT is valid
+// for 180 days, so recomputing it per-request would be wasteful even with the function form. If Apple env
+// vars aren't set yet, the cache just stays empty and only Apple sign-in is affected (Google/anonymous
+// aren't touched). Revisit this once `better-auth`'s stable line ships the async form.
+let appleClientSecretCache = '';
+void generateAppleClientSecret()
+  .then((s) => {
+    appleClientSecretCache = s;
+  })
+  .catch((e) => console.error('[auth] Apple client secret not generated:', (e as Error).message));
+
+export const createAuth = (ctx: GenericCtx<DataModel>) =>
+  betterAuth({
+    trustedOrigins: [`${IDENTITY.scheme}://`, 'https://appleid.apple.com'],
+    database: authComponent.adapter(ctx),
+    socialProviders: {
+      google: {
+        clientId: [process.env.GOOGLE_WEB_CLIENT_ID ?? '', process.env.GOOGLE_IOS_CLIENT_ID ?? ''],
+        clientSecret: process.env.GOOGLE_CLIENT_SECRET ?? '',
+      },
+      apple: {
+        clientId: process.env.APPLE_CLIENT_ID ?? '',
+        appBundleIdentifier: IDENTITY.bundleId,
+        clientSecret: appleClientSecretCache,
+      },
+    },
+    plugins: [expo(), anonymous(), convex({ authConfig })],
+  });
+
+/** Demo sign-in only (`convex/http.ts` → `/demo-signin`): relinks a freshly-created anonymous identity's
+ * subject onto one of the seeded sample members' `authId`, so `members.by_authId` resolves the new
+ * session to that member on the next request. Never reachable unless `DEMO_MODE==='true'` — enforced by
+ * the HTTP route that calls this, not here, since this is an ordinary internal mutation. */
+export const linkSampleMember = internalMutation({
+  args: { key: v.string(), authId: v.string() },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const member = await ctx.db
+      .query('members')
+      .withIndex('by_authId', (q) => q.eq('authId', `sample:${args.key}`))
+      .unique();
+    if (member) await ctx.db.patch(member._id, { authId: args.authId });
+    return null;
+  },
+});

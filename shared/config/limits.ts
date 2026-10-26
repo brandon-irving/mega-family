@@ -11,4 +11,7 @@ export const LIMITS = {
   parentCodeDigits: 5,
   kidWallpaperMinAge: 13, // kids can't generate wallpapers for now; a future age threshold
   block: { maxOptionsAdult: 8, maxOptionsKid: 4 },
+  /** Spoken-MEGA-name matching (CONTRACT §4 "Spoken MEGA names"). Below this similarity the loose
+   * sound-alike match is dropped rather than guessed; there's no model call to escalate to yet (G1). */
+  mention: { minSimilarity: 0.72 },
 } as const;

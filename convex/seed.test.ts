@@ -1,7 +1,7 @@
 /// <reference types="vite/client" />
 import { convexTest } from 'convex-test';
 import { describe, expect, test } from 'vitest';
-import { SAMPLE_FAMILY } from '../shared/fixtures/sampleFamily';
+import { SAMPLE_FAMILY, type SampleKey } from '../shared/fixtures/sampleFamily';
 import { TABLES } from '../shared/domain/tables';
 import { internal } from './_generated/api';
 import type { Id } from './_generated/dataModel';
@@ -11,9 +11,13 @@ import schema from './schema';
 const modules = import.meta.glob('./**/*.ts');
 const WEEK = '2026-10-25'; // the mockups' week (a Sunday)
 
-async function seeded() {
+// Explicit return type: with dozens of functions now in the API, TS's inference through an unannotated
+// async wrapper around `internal.seed.sampleFamily`'s FunctionReference can silently degrade to `any`
+// (no error, just every `t.run((ctx) => ...)` callback losing its contextual typing). Annotating `r`
+// keeps that resolution local and cheap instead of forcing it through the whole generated `internal` type.
+async function seeded(): Promise<{ t: ReturnType<typeof convexTest<typeof schema.tables>>; familyId: Id<'families'>; members: Record<SampleKey, Id<'members'>> }> {
   const t = convexTest(schema, modules);
-  const r = await t.mutation(internal.seed.sampleFamily, { weekOf: WEEK });
+  const r: { familyId: Id<'families'>; members: Record<SampleKey, Id<'members'>> } = await t.mutation(internal.seed.sampleFamily, { weekOf: WEEK });
   return { t, ...r };
 }
 

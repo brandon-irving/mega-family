@@ -171,6 +171,7 @@ export const API = {
     timeline: fn({ kind: 'query', day1: 'real', args: {}, returns: v.array(widgetEntry) }),
   },
   sharing: {
+    get: fn({ kind: 'query', day1: 'real', args: {}, returns: v.union(v.object({ schedule: shareLevel, lists: shareLevel, hqActivity: shareLevel }), v.null()) }),
     set: fn({ kind: 'mutation', day1: 'real', args: { schedule: v.optional(shareLevel), lists: v.optional(shareLevel), hqActivity: v.optional(shareLevel) }, returns: v.null() }),
   },
   memories: {

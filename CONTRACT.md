@@ -7,6 +7,7 @@ This is the agreement both build tracks follow. The backend owns `convex/`, the 
 ## Changelog
 | Version | Date | Change |
 |---|---|---|
+| 0.4 | Oct 26 | **Pending approval.** Additive: new query `sharing.get` (§4, "MEGA profile, memory and learnings") — the viewer's own `sharing` row, or `null` for kids (who have none). Requested by the frontend track; backend implemented it as `real` and covered it in the privacy grid. |
 | 0.1 | Oct 26 | First draft for review |
 | 0.3 | Oct 26 | G0 build: optional fields where a value can't exist yet (`families.adminId`, `createdBy`/`addedBy` on seeded or imported rows, `notifications.candidateId`/`messageId`/`sentAt`); index names now all start with the family; `ShareLevel` enum named; scope keys use the family's id; §4 is machine-readable in `shared/domain/api.ts` |
 | 0.2 | Oct 26 | Spoken MEGA names (`SpokenMention`, detection in `talk.transcribe` and `chat.send`); open questions decided |
@@ -207,6 +208,7 @@ This section is mirrored exactly by `shared/domain/api.ts`; `tests/contract.test
 |---|---|---|---|---|
 | `megas.mine` | q | — | `Mega` | real |
 | `megas.update` | m | `{ name?, look?, personality? }` (kids can't rename) | `null` | real |
+| `sharing.get` | q | — | `{ schedule, lists, hqActivity } \| null` (`null` for a kid, who has no `sharing` row) | real |
 | `sharing.set` | m | `{ schedule?, lists?, hqActivity? }` | `null` | real |
 | `memories.list` | q | `{ scope?: Scope, search?: string, paginationOpts }` | page of `Memory` (only readable scopes; the full list for admin) | real |
 | `memories.forget` | m | `{ memoryId }` | `null` | real |

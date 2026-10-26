@@ -1,6 +1,8 @@
 // Fields come from shared/domain/tables (the contract). This file only adds indexes.
-// Every index starts with familyId, except the two lookups that happen before the family is known:
-// members.by_authId (sign-in) and invites.by_tokenHash (joining).
+// Every index starts with familyId, except three lookups that aren't scoped by a known family:
+// members.by_authId (sign-in), invites.by_tokenHash (joining), and messages.by_streamId (resolving a
+// persistent-text-streaming stream id back to its message; the streamId itself is the opaque lookup key,
+// and the caller's access is checked afterward, same as the other two).
 // Query notes for G1:
 // - grants: "grants I'm a grantee of" reads the family's grants through by_family_owner (prefix on familyId) and
 //   filters granteeIds; arrays can't be indexed, and a family has only a handful of grants.
@@ -21,7 +23,7 @@ export default defineSchema({
   settings: defineTable(T.settings).index('by_family_member', ['familyId', 'memberId']),
 
   threads: defineTable(T.threads).index('by_family_owner', ['familyId', 'ownerId']),
-  messages: defineTable(T.messages).index('by_family_thread_at', ['familyId', 'threadId', 'at']),
+  messages: defineTable(T.messages).index('by_family_thread_at', ['familyId', 'threadId', 'at']).index('by_streamId', ['streamId']),
 
   memories: defineTable(T.memories)
     .index('by_family_scopeKey', ['familyId', 'scopeKey'])
