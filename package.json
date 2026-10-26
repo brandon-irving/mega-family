@@ -72,7 +72,9 @@
     "test:scripts": "node --test scripts/secrets.test.mjs",
     "check": "npm run typecheck && npm run test && npm run test:ui && npm run test:scripts",
     "secrets": "node scripts/secrets.mjs",
-    "smoke:meta": "node scripts/secrets.mjs run --only tool -- node scripts/smoke/meta.mjs"
+    "smoke:meta": "node scripts/secrets.mjs run --only tool -- node scripts/smoke/meta.mjs",
+    "dev": "node scripts/secrets.mjs run --only app -- expo start",
+    "dev:web": "node scripts/secrets.mjs run --only app -- expo start --web"
   },
   "private": true
 }
