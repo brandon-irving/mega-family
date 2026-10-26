@@ -61,3 +61,70 @@ t = open('Widgets.template.html').read().replace('__SPRITE_LIVE__', live).replac
 open(S + '/mega-screens/project/Widgets.dc.html', 'w').write(t)
 assert '__' not in t.replace('__proto', '')
 print('built widgets')
+
+# Sign-in row: one template (Login) plus a thin wrapper board per state. This list is the single source
+# for the wrappers and their canvas.json row (Screen 9).
+walk_sprites = {k: v for k, v in hq_blobs.items() if k.split('_')[0] in ('teal', 'coral', 'violet')}
+t = open('Login.template.html').read().replace('__SPRITES__', compact(walk_sprites)).replace('__SPRITE_LIVE__', live)
+open(S + '/mega-screens/project/Login.dc.html', 'w').write(t)
+assert '__' not in t.replace('__proto', '')
+
+LOGIN_BOARDS = [
+    ('LoginOpening', '1 · Opening (returning user)', {'step': 'opening'}),
+    ('Login', '2 · Welcome', {}),
+    ('LoginSheet', '3 · Sign-in sheet', {'step': 'welcome', 'sheet': 'signin'}),
+    ('LoginDemo', 'Dev builds: demo accounts', {'step': 'welcome', 'sheet': 'demo', 'build': 'dev'}),
+    ('LoginInvite', '4 · I have an invite', {'step': 'invite'}),
+    ('LoginScan', '5 · Scan the QR code (camera: G8 build)', {'step': 'scan'}),
+    ('LoginPreview', '6 · Invite preview (adult)', {'step': 'preview'}),
+    ('LoginPreviewKid', '6b · Invite preview (kid → parent code)', {'step': 'preview', 'who': 'kid'}),
+    ('LoginExpired', 'Invite expired', {'step': 'preview', 'invite': 'expired'}),
+    ('LoginLocked', 'Kid: too many wrong codes', {'step': 'locked', 'who': 'kid'}),
+    ('LoginFamily', '7 · Signed in, no family yet', {'step': 'family'}),
+]
+WRAPPER = '''<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>{title}</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;family=Pixelify+Sans:wght@400;600&amp;display=swap" rel="stylesheet">
+<style>
+body{{margin:0;background:#0C0E11}}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; overflow: hidden; background: #0C0E11">
+  <dc-import name="Login"{attrs} hint-size="390px,844px"></dc-import>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{{"$preview":{{"width":390,"height":844}}}}'>
+class Component extends DCLogic {{
+  renderVals() {{
+    return {{}};
+  }}
+}}
+</script>
+</body>
+</html>
+'''
+for stem, title, props in LOGIN_BOARDS:
+    if stem == 'Login':
+        continue
+    attrs = ''.join(f' {k}="{v}"' for k, v in props.items())
+    open(f'{S}/mega-screens/project/{stem}.dc.html', 'w').write(WRAPPER.format(title=title.replace('&', '&amp;'), attrs=attrs))
+
+ROW_Y, GAP = 10112, 470
+cpath = S + '/mega-screens/project/canvas.json'
+canvas = json.load(open(cpath))
+for i, (stem, title, _) in enumerate(LOGIN_BOARDS):
+    f = stem + '.dc.html'
+    canvas['boards'][f] = {'x': i * GAP, 'y': ROW_Y, 'w': 390, 'h': 844, 'title': title, 'is_interactive': True}
+    if f not in canvas['order']:
+        canvas['order'].append(f)
+canvas['notes']['screen9'] = {'x': 0, 'y': ROW_Y - 260, 'text': 'Screen 9 · Sign in and joining', 'kind': 'title1', 'maxW': len(LOGIN_BOARDS) * GAP - 80}
+json.dump(canvas, open(cpath, 'w'), ensure_ascii=False)
+print('built login')
