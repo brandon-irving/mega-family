@@ -1,11 +1,12 @@
 import 'tsx/cjs'; // lets this file import the shared TypeScript config
 import type { ExpoConfig } from 'expo/config';
-import { IDENTITY } from './shared/config/identity';
-import { THEMES } from './shared/config/theme';
+import { IDENTITY } from './shared/config/identity.ts';
+import { THEMES } from './shared/config/theme.ts';
 
 const config: ExpoConfig = {
   name: IDENTITY.name,
   slug: IDENTITY.slug,
+  owner: IDENTITY.expoOwner,
   version: '1.0.0',
   orientation: 'portrait',
   icon: './assets/images/icon.png',
@@ -32,6 +33,7 @@ const config: ExpoConfig = {
     ['expo-splash-screen', { backgroundColor: THEMES.midnight.bg, image: './assets/images/splash-icon.png', imageWidth: 76 }],
   ],
   experiments: { typedRoutes: true, reactCompiler: true },
+  extra: { eas: { projectId: IDENTITY.easProjectId } },
 };
 
 export default config;

@@ -33,3 +33,6 @@ yarn-error.*
 /android
 scripts/smoke/results.json
 scripts/smoke/*.wav
+
+# Agent worktrees
+.claude/worktrees/

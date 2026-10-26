@@ -7,4 +7,6 @@ export const IDENTITY = {
   scheme: 'mega',
   bundleId: 'com.megafamily.app',
   appleServicesId: 'com.megafamily.app.web',
+  expoOwner: 'birving2',
+  easProjectId: 'a4dba631-36e1-4b29-8697-92d47e6f3938',
 } as const;
