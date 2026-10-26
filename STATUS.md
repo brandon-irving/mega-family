@@ -10,7 +10,7 @@ _Last updated: Oct 26 (Day 1 of the build)._
 |---|---|---|
 | G0 | Scaffold, contract as code (`shared/`), schema, sample family seed, test harness, secrets script | ✅ committed |
 | G1 | Real reads + stubs for every API function, Better Auth sign-in (Apple/Google/invite+parent code/demo), app shell and screens, privacy test grid | ✅ tag `g1` |
-| G2 | Real Muse Spark agent loop with tools, memory writer + learning policy + save chips, talk mode (WAV), transcription, spend guard | 🟡 code done, reviewed, deployed; **UX fixes in progress** (see below) |
+| G2 | Real Muse Spark agent loop with tools, memory writer + learning policy + save chips, talk mode (WAV), transcription, spend guard | ✅ tag `g2` (UX fixes `fab39d5`; talk mode still needs an on-device visual pass) |
 | G3 | Proactive engine (triggers → draft → judge → timing → deliver), push with buttons (expo-notifications categories), answers → effects, MEGA-to-MEGA requests, widget timeline / Today statements | next |
 | G4 | Web search with kid filter, weather + NWS alerts, travel time (Mapbox) | |
 | G5 | Onboarding chat, Settings (theme/wallpaper), HQ tile room + own rooms, ICS + device calendar import, nightly profiler + check questions | |
