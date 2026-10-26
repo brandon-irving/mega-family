@@ -49,7 +49,9 @@ export function talkReducer(state: TalkState, action: TalkAction): TalkState {
     case 'transcribed':
       return state.phase === 'transcribing' ? { ...state, phase: 'review', caption: action.text, mentions: action.mentions } : state;
     case 'transcribeFailed':
-      return state.phase === 'transcribing' ? { ...initialTalkState, error: action.error } : state;
+      // Also from 'recording'/'locked': voice.start() itself can reject (e.g. a platform that can't record
+      // the WAV the server requires) before `release` ever moves the phase to 'transcribing'.
+      return state.phase === 'transcribing' || state.phase === 'recording' || state.phase === 'locked' ? { ...initialTalkState, error: action.error } : state;
     case 'removeMention':
       return state.phase === 'review' ? { ...state, mentions: state.mentions.filter((_, i) => i !== action.index) } : state;
     case 'send':

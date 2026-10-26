@@ -7,7 +7,7 @@ import { useAnswerBlock, useChatThread, useSendMessage, useStreamBody } from '@/
 import { useUploadAndTranscribe } from '@/data/useTalk';
 import { errorCopyFor, streamStatusCopy } from '@/data/errorCopy';
 import { useViewer } from '@/data/useViewer';
-import { useVoiceService } from '@/services/voice';
+import { useVoiceService, VOICE_UNSUPPORTED_MESSAGE } from '@/services/voice';
 import { speaker } from '@/services/speaker';
 import { turnEnd, turnStart } from '@/services/talkFeedback';
 import { LoadingScreen } from '@/ui/LoadingScreen';
@@ -39,7 +39,13 @@ export default function TalkRoute() {
 
   const beginRecording = useCallback(() => {
     turnStart();
-    voice.start().catch((e) => dispatch({ type: 'transcribeFailed', error: errorCopyFor(e) }));
+    voice.start().catch((e) => {
+      // VOICE_UNSUPPORTED_MESSAGE (src/services/voice.ts canRecordWav()) never reaches a server — it's a
+      // local platform-capability check — so errorCopyFor's ConvexError-only translation would otherwise
+      // swallow it into a generic "something went wrong" instead of the specific, actionable message.
+      const friendly = e instanceof Error && e.message === VOICE_UNSUPPORTED_MESSAGE ? e.message : errorCopyFor(e);
+      dispatch({ type: 'transcribeFailed', error: friendly });
+    });
   }, [voice]);
 
   // Opens already listening (PLAN §8 widgets: "mega://talk ... opens already listening") — intentionally

@@ -7,17 +7,20 @@
 import { v } from 'convex/values';
 import { MEMORY_KINDS, SCOPES } from '../../shared/domain/enums';
 import type { UIBlock } from '../../shared/domain/messages';
+import { localDateTimeToInstant } from '../../shared/time';
 import type { Doc, Id } from '../_generated/dataModel';
 import { internalMutation } from '../_generated/server';
 import { applyLearningDecision } from '../model/applyLearning';
+import { gateByServerConcern, isConcernCategory, logDroppedConcern } from '../model/concernGate';
 import { decideLearning, type LearningOp } from '../model/learningPolicy';
 import { canSeeScoped } from '../model/visibility';
 import { getOrCreateOwnThread } from '../model/threads';
 import { recall } from '../model/recall';
+import { parentOf } from '../model/viewer';
 import { clock } from '../ports/clock';
 import { isToolAllowedForRole } from './toolSpecs';
 
-type Caller = { familyId: Id<'families'>; memberId: Id<'members'>; role: Doc<'members'>['role']; megaId: Id<'megas'> | null; threadId: Id<'threads'> };
+type Caller = { familyId: Id<'families'>; memberId: Id<'members'>; role: Doc<'members'>['role']; megaId: Id<'megas'> | null; threadId: Id<'threads'>; tz: string };
 
 // ---------- small arg validators (shared/domain enums back every enum check) ----------
 
@@ -44,6 +47,16 @@ function strArray(v: unknown): string[] {
 function oneOf<T extends string>(v: unknown, allowed: readonly T[], field: string): T {
   if (typeof v !== 'string' || !(allowed as readonly string[]).includes(v)) throw new Error(`"${field}" must be one of: ${allowed.join(', ')}`);
   return v as T;
+}
+/** Converts a tool-facing local "YYYY-MM-DDTHH:MM" (toolSpecs.ts's `jsonLocalDateTime`) into ms, in the
+ * caller's family timezone. Throws a clear, model-recoverable message (shared/time.ts) on a bad format or
+ * an impossible date/time — never silently misinterprets a raw number (e.g. a model that reverted to
+ * epoch ms) as a string. */
+function localTime(v: unknown, field: string, tz: string): number {
+  return localDateTimeToInstant(str(v, field), tz);
+}
+function optLocalTime(v: unknown, tz: string): number | undefined {
+  return typeof v === 'string' && v.trim() ? localDateTimeToInstant(v, tz) : undefined;
 }
 
 async function loadMember(ctx: any, familyId: Id<'families'>, raw: unknown, field: string): Promise<Doc<'members'>> {
@@ -94,7 +107,7 @@ async function toolRecall(ctx: any, caller: Caller, raw: Record<string, unknown>
   return hits.map((h) => `- (${h.kind}) ${h.text}`).join('\n');
 }
 
-async function toolRemember(ctx: any, caller: Caller, raw: Record<string, unknown>, now: number): Promise<string> {
+async function toolRemember(ctx: any, caller: Caller, raw: Record<string, unknown>, now: number, serverConcern: string | undefined): Promise<string> {
   const text = str(raw.text, 'text');
   const kind = oneOf(raw.kind, MEMORY_KINDS, 'kind');
   const scope = oneOf(raw.scope, SCOPES, 'scope');
@@ -123,7 +136,7 @@ async function toolRemember(ctx: any, caller: Caller, raw: Record<string, unknow
     supersedes = prior._id;
   }
 
-  const op: LearningOp = {
+  let op: LearningOp = {
     trigger: supersedes ? 'correction' : 'explicit',
     kind,
     text,
@@ -133,7 +146,16 @@ async function toolRemember(ctx: any, caller: Caller, raw: Record<string, unknow
     sensitive,
     about: about.length ? about : [caller.memberId],
   };
+  // G2 security review (BLOCKER): the `remember` tool's own args never carry a concernCategory — the model
+  // calling this tool isn't asked to self-report one — so without this, nothing here ever checked the
+  // content at all. `serverConcern` comes from an independent classifier call (convex/agent/
+  // concernClassifier.ts, run by the loop before dispatching this tool call, since this is a mutation and
+  // can't call a model itself) plus a keyword backstop; it overrides whatever `sensitive` the caller passed.
+  if (isConcernCategory(serverConcern)) op = gateByServerConcern(op, serverConcern);
   const decision = decideLearning(op, caller.memberId);
+  if (decision.action === 'drop' && isConcernCategory(serverConcern) && serverConcern !== 'ok') {
+    await logDroppedConcern(ctx, { familyId: caller.familyId, memberId: caller.memberId, now }, text, serverConcern, decision.reason);
+  }
   const result = await applyLearningDecision(ctx, { familyId: caller.familyId, memberId: caller.memberId, role: caller.role, megaId: caller.megaId, threadId: caller.threadId, now }, op, decision, supersedes);
   return result.summary;
 }
@@ -141,7 +163,7 @@ async function toolRemember(ctx: any, caller: Caller, raw: Record<string, unknow
 async function toolEventsCreate(ctx: any, caller: Caller, raw: Record<string, unknown>): Promise<string> {
   if (caller.role === 'kid') throw new Error("kids can't create events");
   const title = str(raw.title, 'title');
-  const start = num(raw.start, 'start');
+  const start = localTime(raw.start, 'start', caller.tz);
   const whoRaw = strArray(raw.who);
   const who: Id<'members'>[] = [];
   for (const w of whoRaw) who.push((await loadMember(ctx, caller.familyId, w, 'who'))._id);
@@ -150,7 +172,7 @@ async function toolEventsCreate(ctx: any, caller: Caller, raw: Record<string, un
     familyId: caller.familyId,
     title,
     start,
-    end: optNum(raw.end),
+    end: optLocalTime(raw.end, caller.tz),
     allDay: optStr(raw.allDay),
     who,
     place: optStr(raw.place),
@@ -167,8 +189,8 @@ async function toolEventsUpdate(ctx: any, caller: Caller, raw: Record<string, un
   const event = await loadEvent(ctx, caller.familyId, raw.eventId);
   const patch: Record<string, unknown> = {};
   if (typeof raw.title === 'string') patch.title = raw.title;
-  if (typeof raw.start === 'number') patch.start = raw.start;
-  if (typeof raw.end === 'number') patch.end = raw.end;
+  if (typeof raw.start === 'string') patch.start = localTime(raw.start, 'start', caller.tz);
+  if (typeof raw.end === 'string') patch.end = localTime(raw.end, 'end', caller.tz);
   if (typeof raw.place === 'string') patch.place = raw.place;
   if (Array.isArray(raw.who)) {
     const who: Id<'members'>[] = [];
@@ -186,10 +208,29 @@ async function toolEventsCancel(ctx: any, caller: Caller, raw: Record<string, un
   return `cancelled event "${event.title}"`;
 }
 
+/** G2 security review (SHOULD-FIX): `reminders_create` let anyone — kids included — set a reminder for any
+ * other family member. A kid may only target themselves; an adult/admin may target themselves, their
+ * partner, or their own kids (reusing `parentOf`, the same "is this my kid" check `requireViewer`'s
+ * `isParentOf` and `chat.ts`'s own-thread check already use — not a second copy of that rule). */
+async function canTargetReminder(ctx: any, caller: Caller, targetId: Id<'members'>): Promise<boolean> {
+  if (targetId === caller.memberId) return true;
+  if (caller.role === 'kid') return false;
+  const kids = await parentOf(ctx, caller.familyId, caller.memberId);
+  if (kids.includes(targetId)) return true;
+  const rels = await ctx.db
+    .query('relationships')
+    .withIndex('by_family_from', (q: any) => q.eq('familyId', caller.familyId).eq('from', caller.memberId))
+    .collect();
+  return rels.some((r: Doc<'relationships'>) => r.to === targetId && r.kind === 'partner');
+}
+
 async function toolRemindersCreate(ctx: any, caller: Caller, raw: Record<string, unknown>): Promise<string> {
   const forMember = await loadMember(ctx, caller.familyId, raw.forMemberId, 'forMemberId');
+  if (!(await canTargetReminder(ctx, caller, forMember._id))) {
+    throw new Error(caller.role === 'kid' ? "you can only set reminders for yourself" : "you can only set reminders for yourself, your partner, or your own kids");
+  }
   const text = str(raw.text, 'text');
-  const dueAt = num(raw.dueAt, 'dueAt');
+  const dueAt = localTime(raw.dueAt, 'dueAt', caller.tz);
   let eventId: Id<'events'> | undefined;
   const eventRaw = optStr(raw.eventId);
   if (eventRaw) eventId = (await loadEvent(ctx, caller.familyId, eventRaw))._id;
@@ -327,12 +368,17 @@ export const execute = internalMutation({
     threadId: v.id('threads'),
     name: v.string(),
     argumentsJson: v.string(),
+    /** `remember` only: the independent concern classification `convex/agent/loop.ts` ran before dispatching
+     * this call (this is a mutation and can't call a model itself — see convex/agent/concernClassifier.ts). */
+    serverConcern: v.optional(v.string()),
   },
   returns: v.object({ ok: v.boolean(), resultText: v.string() }),
   handler: async (ctx, args) => {
     const member = await ctx.db.get(args.memberId);
     if (!member || member.familyId !== args.familyId) return { ok: false, resultText: 'caller is not a member of this family' };
     if (!isToolAllowedForRole(args.name, member.role)) return { ok: false, resultText: `the "${args.name}" tool isn't available to you` };
+    const family = await ctx.db.get(args.familyId);
+    if (!family) return { ok: false, resultText: 'family not found' };
 
     let raw: Record<string, unknown>;
     try {
@@ -343,7 +389,7 @@ export const execute = internalMutation({
       return { ok: false, resultText: 'invalid tool arguments (not valid JSON)' };
     }
 
-    const caller: Caller = { familyId: args.familyId, memberId: args.memberId, role: member.role, megaId: args.megaId ?? null, threadId: args.threadId };
+    const caller: Caller = { familyId: args.familyId, memberId: args.memberId, role: member.role, megaId: args.megaId ?? null, threadId: args.threadId, tz: family.timezone };
     const now = await clock.now(ctx, args.familyId);
 
     try {
@@ -351,7 +397,7 @@ export const execute = internalMutation({
         case 'recall':
           return { ok: true, resultText: await toolRecall(ctx, caller, raw) };
         case 'remember':
-          return { ok: true, resultText: await toolRemember(ctx, caller, raw, now) };
+          return { ok: true, resultText: await toolRemember(ctx, caller, raw, now, args.serverConcern) };
         case 'events_create':
           return { ok: true, resultText: await toolEventsCreate(ctx, caller, raw) };
         case 'events_update':

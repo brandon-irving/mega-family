@@ -319,6 +319,11 @@ export const usage = {
   searches: v.number(),
   images: v.number(),
   cents: v.number(),
+  /** Outstanding pre-call estimates not yet released (CONTRACT.md v0.9): `requireBudget` reserves an
+   * estimate here atomically with its cap check, so a concurrent call can't pass the same check before the
+   * first one's actual cost is recorded. `recordUsage`/`releaseReservation` release it. Optional/additive
+   * so existing rows (and every caller that doesn't reserve) default to none reserved. */
+  reservedCents: v.optional(v.number()),
 };
 
 export const clocks = { familyId, mode: v.union(v.literal('real'), v.literal('simulated')), offsetMs: v.number() };

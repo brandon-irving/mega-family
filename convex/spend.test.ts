@@ -64,3 +64,49 @@ describe('spend guard', () => {
     expect(codeOf(err2)).toBe('VALIDATION');
   });
 });
+
+// G2 security review (SHOULD-FIX): requireBudget was check-then-act — it only read already-*recorded*
+// cents, and the real model call happened in between requireBudget and recordUsage, so two concurrent
+// turns could each pass the check and together overshoot the cap. Fixed by making requireBudget reserve
+// the estimate atomically (in the same mutation as the check), counting reserved+recorded against both
+// caps; recordUsage releases the reservation and records the real cost; releaseReservation releases
+// without recording anything (the failed-call path, e.g. a thrown ChatModelError).
+describe('spend guard: atomic reservation (concurrent-turn overshoot)', () => {
+  test('two reservations that together exceed the daily cap: the second is refused before either records any actual usage', async () => {
+    const t = convexTest(schema, modules);
+    const { familyId } = await t.mutation(internal.seed.sampleFamily, { weekOf: WEEK });
+    const cap = LIMITS.spend.centsPerFamilyPerDay;
+    const reservation = Math.ceil(cap * 0.6); // two of these together exceed the cap, one alone doesn't
+    await expect(t.mutation(internal.spend.requireBudget, { familyId, estimatedCents: reservation })).resolves.toBeNull();
+    const err = await t.mutation(internal.spend.requireBudget, { familyId, estimatedCents: reservation }).catch((e) => e);
+    expect(codeOf(err)).toBe('BUDGET_EXCEEDED');
+    // Neither call has actually recorded real spend yet — only a reservation exists.
+    const row = (await t.run((ctx) => ctx.db.query('usage').withIndex('by_family_day', (q) => q.eq('familyId', familyId)).collect()))[0];
+    expect(row?.cents ?? 0).toBe(0);
+  });
+
+  test('recordUsage releases the reservation and records the real cost, freeing room for a later call', async () => {
+    const t = convexTest(schema, modules);
+    const { familyId } = await t.mutation(internal.seed.sampleFamily, { weekOf: WEEK });
+    const cap = LIMITS.spend.centsPerFamilyPerDay;
+    await t.mutation(internal.spend.requireBudget, { familyId, estimatedCents: 50 });
+    await t.mutation(internal.spend.recordUsage, { familyId, cents: 10, releaseCents: 50 });
+    const row = (await t.run((ctx) => ctx.db.query('usage').withIndex('by_family_day', (q) => q.eq('familyId', familyId)).collect()))[0];
+    expect(row.cents).toBe(10);
+    expect(row.reservedCents ?? 0).toBe(0);
+    await expect(t.mutation(internal.spend.requireBudget, { familyId, estimatedCents: cap - 10 - 1 })).resolves.toBeNull();
+  });
+
+  test('releaseReservation (a failed model call) releases the hold without recording any usage', async () => {
+    const t = convexTest(schema, modules);
+    const { familyId } = await t.mutation(internal.seed.sampleFamily, { weekOf: WEEK });
+    const cap = LIMITS.spend.centsPerFamilyPerDay;
+    const reservation = Math.ceil(cap * 0.6);
+    await t.mutation(internal.spend.requireBudget, { familyId, estimatedCents: reservation });
+    await t.mutation(internal.spend.releaseReservation, { familyId, estimatedCents: reservation });
+    const row = (await t.run((ctx) => ctx.db.query('usage').withIndex('by_family_day', (q) => q.eq('familyId', familyId)).collect()))[0];
+    expect(row?.cents ?? 0).toBe(0);
+    expect(row?.reservedCents ?? 0).toBe(0);
+    await expect(t.mutation(internal.spend.requireBudget, { familyId, estimatedCents: reservation })).resolves.toBeNull();
+  });
+});

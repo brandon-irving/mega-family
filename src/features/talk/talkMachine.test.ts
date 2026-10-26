@@ -70,6 +70,18 @@ describe('talkReducer', () => {
     expect(state).toEqual({ ...initialTalkState, error: 'Something went wrong on my end.' });
   });
 
+  // G2 task 4: voice.start() can now reject immediately (e.g. Android, which can't record the WAV the
+  // server requires — src/services/voice.ts canRecordWav()) — before `release` ever fires, while phase is
+  // still 'recording' (talk.tsx's mount effect dispatches 'holdStart' synchronously, then the async
+  // start().catch(...) fires afterward). Without this, `transcribeFailed`'s old `phase === 'transcribing'`
+  // guard made that dispatch a silent no-op and the UI stayed stuck showing "recording" with no mic active.
+  test("a recording-start failure (e.g. voice unsupported on this device) also drops back to idle with the friendly error, not stuck on 'recording'", () => {
+    let state = step(initialTalkState, { type: 'holdStart' });
+    expect(state.phase).toBe('recording');
+    state = talkReducer(state, { type: 'transcribeFailed', error: "Voice isn't supported on this device yet" });
+    expect(state).toEqual({ ...initialTalkState, error: "Voice isn't supported on this device yet" });
+  });
+
   test('a send failure returns to review (so the chips/caption are not lost) with the error set', () => {
     let state = step(
       initialTalkState,

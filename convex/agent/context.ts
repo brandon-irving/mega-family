@@ -5,6 +5,7 @@
 import { v } from 'convex/values';
 import { LIMITS } from '../../shared/config';
 import type { Viewer } from '../../shared/domain/api';
+import { formatLocalDateTime } from '../../shared/time';
 import type { Doc, Id } from '../_generated/dataModel';
 import { internalQuery } from '../_generated/server';
 import { eventsInRange, visibleLists } from '../model/home';
@@ -46,6 +47,7 @@ function viewerLike(familyId: Id<'families'>, memberId: Id<'members'>, role: Doc
 export const buildContext = internalQuery({
   args: { familyId: v.id('families'), memberId: v.id('members'), megaId: v.optional(v.id('megas')), threadId: v.id('threads'), userText: v.string() },
   returns: v.object({
+    now: v.string(),
     roster: v.array(v.object({ memberId: v.id('members'), name: v.string(), role: v.string() })),
     mega: v.union(v.object({ name: v.string(), personality: v.string() }), v.null()),
     profileCard: v.string(),
@@ -60,6 +62,9 @@ export const buildContext = internalQuery({
     const member = await ctx.db.get(args.memberId);
     if (!member || member.familyId !== args.familyId) throw new Error('agent/context: member not in family');
     const viewer = viewerLike(args.familyId, args.memberId, member.role);
+    const family = await ctx.db.get(args.familyId);
+    if (!family) throw new Error('agent/context: family not found');
+    const tz = family.timezone;
 
     const roster = (
       await ctx.db
@@ -101,14 +106,21 @@ export const buildContext = internalQuery({
       .order('desc')
       .take(RECENT_THREAD_MESSAGES);
 
+    const nameOf = (id: Id<'members'>) => roster.find((m) => m.memberId === id)?.name;
+    const eventLine = (e: Doc<'events'>) => {
+      const who = e.who.map(nameOf).filter((n): n is string => !!n);
+      return `${formatLocalDateTime(e.start, tz, { weekday: 'short' })} — ${e.title}${who.length ? ` (${who.join(', ')})` : ''}`;
+    };
+
     return {
+      now: `${formatLocalDateTime(now, tz)} (${tz})`,
       roster,
       mega,
       profileCard,
       pinnedFacts: facts,
       searchHits: hits.map((h) => h.text),
-      upcomingEvents: events.map((e) => `${e.title} at ${new Date(e.start).toISOString()}`),
-      upcomingReminders: reminders.filter((r) => !r.done).map((r) => `${r.text} (due ${new Date(r.dueAt).toISOString()})`),
+      upcomingEvents: events.map(eventLine),
+      upcomingReminders: reminders.filter((r) => !r.done).map((r) => `${r.text} (due ${formatLocalDateTime(r.dueAt, tz, { weekday: 'short' })})`),
       lists: lists.map((l) => `${l.list.name}: ${l.items.map((i) => (i.checked ? `~~${i.text}~~` : i.text)).join(', ')}`),
       recentThread: thread
         .reverse()

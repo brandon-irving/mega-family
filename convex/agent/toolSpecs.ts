@@ -41,6 +41,10 @@ const jsonBool = { type: 'boolean' } as const;
 const jsonStr = { type: 'string' } as const;
 const jsonNum = { type: 'number' } as const;
 const jsonStrArray = { type: 'array', items: jsonStr } as const;
+// Model-facing time args are local wall-clock strings, not epoch ms (a model computes ms badly) — the
+// family's own timezone (shared/time.ts zonedInstant), converted server-side in convex/agent/tools.ts.
+const jsonLocalDateTime = { type: 'string', description: 'Local date-time in the family\'s own timezone, as "YYYY-MM-DDTHH:MM" (24-hour). Never epoch ms, never UTC, never a "Z" suffix.' } as const;
+const jsonAllDay = { type: 'string', description: 'All-day date as "YYYY-MM-DD", in the family\'s timezone.' } as const;
 
 export const AGENT_TOOLS: Record<AgentToolName, ToolDef> = {
   recall: {
@@ -82,7 +86,7 @@ export const AGENT_TOOLS: Record<AgentToolName, ToolDef> = {
       description: 'Add an event to the family calendar.',
       parameters: {
         type: 'object',
-        properties: { title: jsonStr, start: jsonNum, end: jsonNum, allDay: jsonStr, who: jsonStrArray, place: jsonStr, scope: { type: 'string', enum: [...SCOPES] } },
+        properties: { title: jsonStr, start: jsonLocalDateTime, end: jsonLocalDateTime, allDay: jsonAllDay, who: jsonStrArray, place: jsonStr, scope: { type: 'string', enum: [...SCOPES] } },
         required: ['title', 'start', 'who', 'scope'],
         additionalProperties: false,
       },
@@ -96,7 +100,7 @@ export const AGENT_TOOLS: Record<AgentToolName, ToolDef> = {
       description: 'Change an existing event.',
       parameters: {
         type: 'object',
-        properties: { eventId: jsonStr, title: jsonStr, start: jsonNum, end: jsonNum, who: jsonStrArray, place: jsonStr },
+        properties: { eventId: jsonStr, title: jsonStr, start: jsonLocalDateTime, end: jsonLocalDateTime, who: jsonStrArray, place: jsonStr },
         required: ['eventId'],
         additionalProperties: false,
       },
@@ -115,7 +119,7 @@ export const AGENT_TOOLS: Record<AgentToolName, ToolDef> = {
       description: 'Set a reminder for a family member at a specific time.',
       parameters: {
         type: 'object',
-        properties: { forMemberId: jsonStr, text: jsonStr, dueAt: jsonNum, eventId: jsonStr },
+        properties: { forMemberId: jsonStr, text: jsonStr, dueAt: jsonLocalDateTime, eventId: jsonStr },
         required: ['forMemberId', 'text', 'dueAt'],
         additionalProperties: false,
       },

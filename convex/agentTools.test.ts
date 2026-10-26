@@ -4,10 +4,14 @@
 // exactly as a compromised/adversarial model's tool call would look.
 import { convexTest } from 'convex-test';
 import { describe, expect, test } from 'vitest';
+import { SAMPLE_FAMILY } from '../shared/fixtures/sampleFamily';
+import { localParts, zonedInstant } from '../shared/time';
 import { api, internal } from './_generated/api';
 import type { Id } from './_generated/dataModel';
 import { scopeKey } from './model/scopes';
 import schema from './schema';
+
+const TZ = SAMPLE_FAMILY.timezone;
 
 const modules = import.meta.glob('./**/*.ts');
 const WEEK = '2026-10-25';
@@ -179,18 +183,18 @@ describe('agent/tools.execute: tool calls create the right rows', () => {
     const { t, familyId, members, threadOf, megaOf } = await seeded();
     const thread = await threadOf(members.admin);
     const mega = await megaOf(members.admin);
-    const start = Date.now() + 60 * 60_000;
     const result = await t.mutation(internal.agent.tools.execute, {
       familyId,
       memberId: members.admin,
       megaId: mega._id,
       threadId: thread._id,
       name: 'events_create',
-      argumentsJson: JSON.stringify({ title: 'Dentist', start, who: [members.admin], scope: 'family' }),
+      argumentsJson: JSON.stringify({ title: 'Dentist', start: '2026-10-26T14:30', who: [members.admin], scope: 'family' }),
     });
     expect(result.ok).toBe(true);
+    const expectedStart = zonedInstant('2026-10-26', 14 * 60 + 30, TZ);
     const events = await t.run((ctx) => ctx.db.query('events').withIndex('by_family_start', (q) => q.eq('familyId', familyId)).collect());
-    expect(events.some((e) => e.title === 'Dentist' && e.start === start)).toBe(true);
+    expect(events.some((e) => e.title === 'Dentist' && e.start === expectedStart)).toBe(true);
   });
 
   test('lists_add creates the list if missing and adds the item', async () => {
@@ -286,5 +290,217 @@ describe('agent/tools.execute: tool calls create the right rows', () => {
     const key = scopeKey(familyId, { scope: 'personal', memberId: members.admin });
     const memories = await t.run((ctx) => ctx.db.query('memories').withIndex('by_family_scopeKey', (q) => q.eq('familyId', familyId).eq('scopeKey', key)).collect());
     expect(memories.some((m) => m.text === 'Prefers tea over coffee' && m.confirmed === true)).toBe(true);
+  });
+});
+
+describe("agent/tools.execute: model-facing time args are local \"YYYY-MM-DDTHH:MM\" strings, not epoch ms", () => {
+  test('reminders_create converts a local date-time into the right instant in the family timezone', async () => {
+    const { t, familyId, members, threadOf, megaOf } = await seeded();
+    const thread = await threadOf(members.admin);
+    const mega = await megaOf(members.admin);
+    const result = await t.mutation(internal.agent.tools.execute, {
+      familyId,
+      memberId: members.admin,
+      megaId: mega._id,
+      threadId: thread._id,
+      name: 'reminders_create',
+      argumentsJson: JSON.stringify({ forMemberId: members.admin, text: 'Pick up the cake', dueAt: '2026-10-26T08:00' }),
+    });
+    expect(result.ok).toBe(true);
+    const expected = zonedInstant('2026-10-26', 8 * 60, TZ);
+    const reminders = await t.run((ctx) => ctx.db.query('reminders').withIndex('by_family_member_due', (q) => q.eq('familyId', familyId).eq('forMemberId', members.admin)).collect());
+    expect(reminders.some((r) => r.text === 'Pick up the cake' && r.dueAt === expected)).toBe(true);
+  });
+
+  test('events_update converts a new local start/end into the right instants', async () => {
+    const { t, familyId, members, threadOf, megaOf } = await seeded();
+    const thread = await threadOf(members.admin);
+    const mega = await megaOf(members.admin);
+    const created = await t.mutation(internal.agent.tools.execute, {
+      familyId,
+      memberId: members.admin,
+      megaId: mega._id,
+      threadId: thread._id,
+      name: 'events_create',
+      argumentsJson: JSON.stringify({ title: 'Checkup', start: '2026-10-26T14:30', who: [members.admin], scope: 'family' }),
+    });
+    expect(created.ok).toBe(true);
+    const event = (await t.run((ctx) => ctx.db.query('events').withIndex('by_family_start', (q) => q.eq('familyId', familyId)).collect())).find((e) => e.title === 'Checkup')!;
+
+    const result = await t.mutation(internal.agent.tools.execute, {
+      familyId,
+      memberId: members.admin,
+      megaId: mega._id,
+      threadId: thread._id,
+      name: 'events_update',
+      argumentsJson: JSON.stringify({ eventId: event._id, start: '2026-11-03T09:15', end: '2026-11-03T10:00' }),
+    });
+    expect(result.ok).toBe(true);
+    const updated = await t.run((ctx) => ctx.db.get(event._id));
+    expect(updated!.start).toBe(zonedInstant('2026-11-03', 9 * 60 + 15, TZ));
+    expect(updated!.end).toBe(zonedInstant('2026-11-03', 10 * 60, TZ));
+  });
+
+  test('an impossible calendar date is refused with a clear, recoverable tool error (not a crash)', async () => {
+    const { t, familyId, members, threadOf, megaOf } = await seeded();
+    const thread = await threadOf(members.admin);
+    const mega = await megaOf(members.admin);
+    const result = await t.mutation(internal.agent.tools.execute, {
+      familyId,
+      memberId: members.admin,
+      megaId: mega._id,
+      threadId: thread._id,
+      name: 'reminders_create',
+      argumentsJson: JSON.stringify({ forMemberId: members.admin, text: 'bad date', dueAt: '2026-02-30T10:00' }),
+    });
+    expect(result.ok).toBe(false);
+    expect(result.resultText.toLowerCase()).toMatch(/day|date/);
+    const reminders = await t.run((ctx) => ctx.db.query('reminders').withIndex('by_family_member_due', (q) => q.eq('familyId', familyId).eq('forMemberId', members.admin)).collect());
+    expect(reminders.some((r) => r.text === 'bad date')).toBe(false);
+  });
+
+  test('a malformed date-time string (e.g. epoch ms, the old shape) is refused, not silently misinterpreted', async () => {
+    const { t, familyId, members, threadOf, megaOf } = await seeded();
+    const thread = await threadOf(members.admin);
+    const mega = await megaOf(members.admin);
+    const result = await t.mutation(internal.agent.tools.execute, {
+      familyId,
+      memberId: members.admin,
+      megaId: mega._id,
+      threadId: thread._id,
+      name: 'reminders_create',
+      argumentsJson: JSON.stringify({ forMemberId: members.admin, text: 'bad format', dueAt: Date.now() }),
+    });
+    expect(result.ok).toBe(false);
+  });
+
+  test('DST boundary: 2026-11-01T01:30 in America/New_York (the hour that happens twice) round-trips to the same wall-clock time', async () => {
+    const { t, familyId, members, threadOf, megaOf } = await seeded();
+    const thread = await threadOf(members.admin);
+    const mega = await megaOf(members.admin);
+    const result = await t.mutation(internal.agent.tools.execute, {
+      familyId,
+      memberId: members.admin,
+      megaId: mega._id,
+      threadId: thread._id,
+      name: 'reminders_create',
+      argumentsJson: JSON.stringify({ forMemberId: members.admin, text: 'fall-back check', dueAt: '2026-11-01T01:30' }),
+    });
+    expect(result.ok).toBe(true);
+    const created = (await t.run((ctx) => ctx.db.query('reminders').withIndex('by_family_member_due', (q) => q.eq('familyId', familyId).eq('forMemberId', members.admin)).collect())).find(
+      (r) => r.text === 'fall-back check',
+    )!;
+    const parts = localParts(created.dueAt, TZ);
+    expect([parts.hour, parts.minute]).toEqual([1, 30]);
+  });
+
+  test('DST boundary: 2026-03-08T02:30 in America/New_York (the hour that never happens) still succeeds, not a crash', async () => {
+    const { t, familyId, members, threadOf, megaOf } = await seeded();
+    const thread = await threadOf(members.admin);
+    const mega = await megaOf(members.admin);
+    const result = await t.mutation(internal.agent.tools.execute, {
+      familyId,
+      memberId: members.admin,
+      megaId: mega._id,
+      threadId: thread._id,
+      name: 'reminders_create',
+      argumentsJson: JSON.stringify({ forMemberId: members.admin, text: 'spring-forward check', dueAt: '2026-03-08T02:30' }),
+    });
+    expect(result.ok).toBe(true);
+  });
+});
+
+// G2 security review (SHOULD-FIX): reminders_create let anyone, kids included, set a reminder for any
+// other family member by id. A kid may only target themselves; an adult/admin may target themselves,
+// their partner, or their own kids (same "is this my kid" rule `isParentOf`/`parentOf` already enforces
+// elsewhere — convex/model/viewer.ts — reused here rather than re-implemented).
+describe('agent/tools.execute: reminders_create only lets you target yourself, your partner, or your own kids', () => {
+  test('a kid can set a reminder for themselves', async () => {
+    const { t, familyId, members, threadOf, megaOf } = await seeded();
+    const thread = await threadOf(members.twin1);
+    const mega = await megaOf(members.twin1);
+    const result = await t.mutation(internal.agent.tools.execute, {
+      familyId,
+      memberId: members.twin1,
+      megaId: mega._id,
+      threadId: thread._id,
+      name: 'reminders_create',
+      argumentsJson: JSON.stringify({ forMemberId: members.twin1, text: 'practice piano', dueAt: '2026-10-26T16:00' }),
+    });
+    expect(result.ok).toBe(true);
+  });
+
+  test("a kid can't set a reminder for a sibling or a parent", async () => {
+    const { t, familyId, members, threadOf, megaOf } = await seeded();
+    const thread = await threadOf(members.twin1);
+    const mega = await megaOf(members.twin1);
+    for (const target of [members.twin2, members.admin]) {
+      const result = await t.mutation(internal.agent.tools.execute, {
+        familyId,
+        memberId: members.twin1,
+        megaId: mega._id,
+        threadId: thread._id,
+        name: 'reminders_create',
+        argumentsJson: JSON.stringify({ forMemberId: target, text: 'do something', dueAt: '2026-10-26T16:00' }),
+      });
+      expect(result.ok, target).toBe(false);
+    }
+    const reminders = await t.run((ctx) => ctx.db.query('reminders').withIndex('by_family_member_due', (q) => q.eq('familyId', familyId)).collect());
+    expect(reminders.some((r) => r.text === 'do something')).toBe(false);
+  });
+
+  test('an admin/adult can set a reminder for their partner', async () => {
+    const { t, familyId, members, threadOf, megaOf } = await seeded();
+    const thread = await threadOf(members.admin);
+    const mega = await megaOf(members.admin);
+    const result = await t.mutation(internal.agent.tools.execute, {
+      familyId,
+      memberId: members.admin,
+      megaId: mega._id,
+      threadId: thread._id,
+      name: 'reminders_create',
+      argumentsJson: JSON.stringify({ forMemberId: members.partner, text: 'pick up dry cleaning', dueAt: '2026-10-26T16:00' }),
+    });
+    expect(result.ok).toBe(true);
+  });
+
+  test('an admin/adult can set a reminder for their own kid', async () => {
+    const { t, familyId, members, threadOf, megaOf } = await seeded();
+    const thread = await threadOf(members.admin);
+    const mega = await megaOf(members.admin);
+    const result = await t.mutation(internal.agent.tools.execute, {
+      familyId,
+      memberId: members.admin,
+      megaId: mega._id,
+      threadId: thread._id,
+      name: 'reminders_create',
+      argumentsJson: JSON.stringify({ forMemberId: members.twin1, text: 'bring home permission slip', dueAt: '2026-10-26T16:00' }),
+    });
+    expect(result.ok).toBe(true);
+  });
+
+  test("an adult can't set a reminder for a kid they are not a parent of", async () => {
+    const { t, familyId, members, threadOf, megaOf } = await seeded();
+    // Remove partner's parent-of-twin1 relationship so partner is no longer twin1's parent for this check —
+    // the sample family seeds both admin and partner as parents of every kid, so this is the only way to
+    // exercise the "not your kid" branch against this fixture.
+    await t.run(async (ctx) => {
+      const rels = await ctx.db.query('relationships').withIndex('by_family_from', (q) => q.eq('familyId', familyId).eq('from', members.partner)).collect();
+      const toTwin1 = rels.find((r) => r.to === members.twin1 && r.kind === 'parent');
+      if (toTwin1) await ctx.db.delete(toTwin1._id);
+    });
+    const thread = await threadOf(members.partner);
+    const mega = await megaOf(members.partner);
+    const result = await t.mutation(internal.agent.tools.execute, {
+      familyId,
+      memberId: members.partner,
+      megaId: mega._id,
+      threadId: thread._id,
+      name: 'reminders_create',
+      argumentsJson: JSON.stringify({ forMemberId: members.twin1, text: 'not your kid', dueAt: '2026-10-26T16:00' }),
+    });
+    expect(result.ok).toBe(false);
+    const reminders = await t.run((ctx) => ctx.db.query('reminders').withIndex('by_family_member_due', (q) => q.eq('familyId', familyId)).collect());
+    expect(reminders.some((r) => r.text === 'not your kid')).toBe(false);
   });
 });

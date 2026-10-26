@@ -61,6 +61,57 @@ export function dayOfWeek(date: string): number {
   return new Date(Date.UTC(y, m - 1, d)).getUTCDay();
 }
 
+const displayCache = new Map<string, Intl.DateTimeFormat>();
+function displayFormatter(tz: string, weekday: 'long' | 'short') {
+  const key = `${tz}|${weekday}`;
+  let f = displayCache.get(key);
+  if (!f) {
+    f = new Intl.DateTimeFormat('en-US', { timeZone: tz, weekday, month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true });
+    displayCache.set(key, f);
+  }
+  return f;
+}
+
+/** A human, local-time rendering of an instant in a timezone: "Sunday, Oct 25, 4:42 PM" with the default
+ * `weekday: 'long'` (used for the agent's "Now:" line), or "Sun Oct 25, 4:50 PM" with `weekday: 'short'`
+ * (used for events/reminders shown to the model, e.g. "Mon Oct 26, 8:00 AM — School drop-off"). One
+ * formatter so both read the same way instead of each caller rolling its own date math. */
+export function formatLocalDateTime(at: number, tz: string, opts: { weekday?: 'long' | 'short' } = {}): string {
+  const weekday = opts.weekday ?? 'long';
+  const p = Object.fromEntries(displayFormatter(tz, weekday).formatToParts(new Date(at)).map((x) => [x.type, x.value]));
+  const sep = weekday === 'long' ? ', ' : ' ';
+  return `${p.weekday}${sep}${p.month} ${p.day}, ${p.hour}:${p.minute} ${p.dayPeriod}`;
+}
+
+const LOCAL_DATETIME_RE = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/;
+
+/** Parses a tool-facing local date-time ("YYYY-MM-DDTHH:MM", the model's `events_create`/`events_update`/
+ * `reminders_create` schema — convex/agent/toolSpecs.ts) into the instant it names in `tz`, validating both
+ * the format and that the date/time actually exists (rejects Feb 30, hour 24, etc). A model computes epoch
+ * ms badly, so tool args are local wall-clock strings instead; the public CONTRACT API (events.create etc.)
+ * is unaffected and still takes ms. Throws a plain, short message a model can read and recover from.
+ *
+ * DST: a spring-forward gap (a local time that never happens, e.g. 2:30 AM on the day clocks jump to 3 AM)
+ * still resolves to *some* instant via `zonedInstant`'s offset arithmetic, same as any other local time in
+ * this module — it isn't rejected as "impossible" since, unlike an invalid calendar date, there's a
+ * reasonable instant to return. A fall-back fold (a local time that happens twice, e.g. 1:30 AM on the day
+ * clocks repeat) resolves to its first occurrence. */
+export function localDateTimeToInstant(s: string, tz: string): number {
+  const m = LOCAL_DATETIME_RE.exec(s);
+  if (!m) throw new Error(`"${s}" isn't a valid local date-time — use "YYYY-MM-DDTHH:MM"`);
+  const [, y, mo, d, h, mi] = m;
+  const month = +mo;
+  const day = +d;
+  const hour = +h;
+  const minute = +mi;
+  if (month < 1 || month > 12) throw new Error(`"${s}": month must be 01-12`);
+  if (hour > 23) throw new Error(`"${s}": hour must be 00-23`);
+  if (minute > 59) throw new Error(`"${s}": minute must be 00-59`);
+  const daysInMonth = new Date(Date.UTC(+y, month, 0)).getUTCDate();
+  if (day < 1 || day > daysInMonth) throw new Error(`"${s}": "${y}-${mo}" has no day ${d}`);
+  return zonedInstant(`${y}-${mo}-${d}`, hour * 60 + minute, tz);
+}
+
 export const MINUTE = 60_000;
 export const HOUR = 60 * MINUTE;
 export const DAY = 24 * HOUR;

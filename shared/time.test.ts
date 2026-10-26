@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { addDays, dayOfWeek, localDate, localParts, zonedInstant } from './time';
+import { addDays, dayOfWeek, formatLocalDateTime, localDate, localDateTimeToInstant, localParts, zonedInstant } from './time';
 
 const NY = 'America/New_York';
 
@@ -26,6 +26,52 @@ describe('zonedInstant', () => {
   test('works in other timezones', () => {
     expect(new Date(zonedInstant('2026-10-25', 9 * 60, 'Asia/Tokyo')).toISOString()).toBe('2026-10-25T00:00:00.000Z');
     expect(new Date(zonedInstant('2026-07-01', 0, 'Europe/London')).toISOString()).toBe('2026-06-30T23:00:00.000Z');
+  });
+});
+
+describe('formatLocalDateTime', () => {
+  test('long weekday (the system prompt\'s "Now:" line)', () => {
+    expect(formatLocalDateTime(zonedInstant('2026-10-25', 16 * 60 + 42, NY), NY)).toBe('Sunday, Oct 25, 4:42 PM');
+  });
+
+  test('short weekday (events/reminders shown to the model)', () => {
+    expect(formatLocalDateTime(zonedInstant('2026-10-25', 16 * 60 + 50, NY), NY, { weekday: 'short' })).toBe('Sun Oct 25, 4:50 PM');
+  });
+
+  test('reflects the timezone passed in, not the machine\'s local zone', () => {
+    expect(formatLocalDateTime(zonedInstant('2026-10-25', 9 * 60, 'Asia/Tokyo'), 'Asia/Tokyo')).toBe('Sunday, Oct 25, 9:00 AM');
+  });
+});
+
+describe('localDateTimeToInstant (model-facing tool time args)', () => {
+  test('parses a normal local date-time the same as zonedInstant', () => {
+    expect(localDateTimeToInstant('2026-10-25T16:50', NY)).toBe(zonedInstant('2026-10-25', 16 * 60 + 50, NY));
+  });
+
+  test('rejects a malformed string', () => {
+    expect(() => localDateTimeToInstant('10/25/2026 4:50pm', NY)).toThrow();
+    expect(() => localDateTimeToInstant('2026-10-25 16:50', NY)).toThrow(); // missing "T"
+    expect(() => localDateTimeToInstant('2026-10-25T16:50:00', NY)).toThrow(); // seconds not allowed
+  });
+
+  test('rejects an impossible calendar date', () => {
+    expect(() => localDateTimeToInstant('2026-02-30T10:00', NY)).toThrow(/no day/);
+    expect(() => localDateTimeToInstant('2026-13-01T10:00', NY)).toThrow(/month/);
+  });
+
+  test('rejects an impossible time of day', () => {
+    expect(() => localDateTimeToInstant('2026-10-25T24:00', NY)).toThrow(/hour/);
+    expect(() => localDateTimeToInstant('2026-10-25T10:60', NY)).toThrow(/minute/);
+  });
+
+  test('DST fall-back: 2026-11-01T01:30 in America/New_York (the hour that happens twice) round-trips to 1:30', () => {
+    const at = localDateTimeToInstant('2026-11-01T01:30', NY);
+    const p = localParts(at, NY);
+    expect([p.hour, p.minute]).toEqual([1, 30]);
+  });
+
+  test('DST spring-forward: 2026-03-08T02:30 in America/New_York (the hour that never happens) still produces a valid instant', () => {
+    expect(() => localDateTimeToInstant('2026-03-08T02:30', NY)).not.toThrow();
   });
 });
 

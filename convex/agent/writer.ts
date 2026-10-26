@@ -5,14 +5,17 @@
 // becomes a row — the same one the `remember` tool uses — so a save looks the same either way.
 import { v } from 'convex/values';
 import { LIMITS } from '../../shared/config';
+import { CONCERN_CATEGORIES as SERVER_CONCERN_CATEGORIES } from '../../shared/config/learning';
 import { chatCostCents, estimateChatCostCents } from '../../shared/config/pricing';
 import { LEARNING_TRIGGERS, MEMORY_KINDS, SCOPES } from '../../shared/domain/enums';
 import { role as roleValidator } from '../../shared/domain/enums';
+import { literals } from '../../shared/domain/validators';
 import type { Doc, Id } from '../_generated/dataModel';
 import { internal } from '../_generated/api';
-import { internalAction, internalMutation } from '../_generated/server';
+import { internalAction, internalMutation, internalQuery } from '../_generated/server';
 import { getChatModel } from '../adapters/registry';
 import { applyLearningDecision } from '../model/applyLearning';
+import { gateByServerConcern, isConcernCategory, logDroppedConcern } from '../model/concernGate';
 import { decideLearning, type LearningOp } from '../model/learningPolicy';
 import { clock } from '../ports/clock';
 import { ChatModelError } from '../ports/chatModel';
@@ -101,20 +104,35 @@ export const run = internalAction({
       { role: 'user' as const, content: `Member said: ${args.userText}\nMEGA replied: ${args.replyText}` },
     ];
     const maxTokens = LIMITS.agent.maxTokensStructured;
+    const estimatedCents = estimateChatCostCents(args.userText.length + args.replyText.length, maxTokens);
+    let reserved = false;
 
     try {
-      await ctx.runMutation(internal.spend.requireBudget, { familyId: args.familyId, estimatedCents: estimateChatCostCents(args.userText.length + args.replyText.length, maxTokens) });
+      await ctx.runMutation(internal.spend.requireBudget, { familyId: args.familyId, estimatedCents });
+      reserved = true;
       const result = await model.chat({ messages, schema: { name: 'learnings', schema: OPERATIONS_SCHEMA, strict: true }, maxTokens, effort: LIMITS.agent.effort });
       await ctx.runMutation(internal.spend.recordUsage, {
         familyId: args.familyId,
         tokensIn: result.usage.tokensIn,
         tokensOut: result.usage.tokensOut,
         cents: chatCostCents(result.usage.tokensIn, result.usage.tokensOut, result.usage.cachedTokensIn ?? 0),
+        releaseCents: estimatedCents,
       });
+      reserved = false;
 
       const parsed = result.text ? JSON.parse(result.text) : { operations: [] };
       const operations: RawProposal[] = Array.isArray(parsed?.operations) ? parsed.operations : [];
       if (operations.length) {
+        // G2 security review (BLOCKER): never trust the writer model's own `concernCategory`/`trigger` for
+        // the never-save gate — classify each proposed fact independently (text + who it's about only,
+        // never this conversation) the same way the `remember` tool's calls are (convex/agent/
+        // concernClassifier.ts, convex/model/concernGate.ts).
+        const classified: (RawProposal & { serverConcern: (typeof SERVER_CONCERN_CATEGORIES)[number] })[] = [];
+        for (const op of operations) {
+          const aboutNames = op.about?.length ? await ctx.runQuery(internal.agent.writer.memberNamesForConcernCheck, { familyId: args.familyId, memberIds: op.about }) : [];
+          const { category } = await ctx.runAction(internal.agent.concernClassifier.classify, { familyId: args.familyId, text: op.text, aboutNames });
+          classified.push({ ...op, serverConcern: category });
+        }
         await ctx.runMutation(internal.agent.writer.applyProposals, {
           familyId: args.familyId,
           memberId: args.memberId,
@@ -122,15 +140,38 @@ export const run = internalAction({
           megaId: args.megaId,
           threadId: args.threadId,
           replyMessageId: args.replyMessageId,
-          proposals: operations,
+          proposals: classified,
         });
       }
     } catch (e) {
+      if (reserved) await ctx.runMutation(internal.spend.releaseReservation, { familyId: args.familyId, estimatedCents });
       // A writer failure is never user-facing — the reply already went out. Swallowed, not rethrown, so a
       // scheduler retry can't hammer spend on a model that's down; BUDGET_EXCEEDED also lands here safely.
       if (!(e instanceof ChatModelError)) throw e; // a non-model bug (e.g. a real coding error) should surface in logs
     }
     return null;
+  },
+});
+
+/** Resolves member ids (from a writer proposal's `about`) to names for the concern classifier — it sees
+ * only "who this is about", never anything else about them. Tolerant of a malformed id (same pattern as
+ * `loadMemberId` below): skipped rather than thrown, since this is advisory context for the classifier, not
+ * a permission check. */
+export const memberNamesForConcernCheck = internalQuery({
+  args: { familyId: v.id('families'), memberIds: v.array(v.string()) },
+  returns: v.array(v.string()),
+  handler: async (ctx, args) => {
+    const names: string[] = [];
+    for (const raw of args.memberIds) {
+      let doc: Doc<'members'> | null = null;
+      try {
+        doc = await ctx.db.get(raw as Id<'members'>);
+      } catch {
+        doc = null;
+      }
+      if (doc && doc.familyId === args.familyId) names.push(doc.name);
+    }
+    return names;
   },
 });
 
@@ -152,8 +193,11 @@ export const applyProposals = internalMutation({
         about: v.optional(v.array(v.string())),
         confidence: v.number(),
         sensitive: v.boolean(),
-        concernCategory: v.optional(v.string()),
+        concernCategory: v.optional(v.string()), // the writer's own (untrusted) label — kept for logging only, never for the gate; see serverConcern
         supersedesMemoryId: v.optional(v.string()),
+        /** The independent classification `run` computed per-op before calling here (never the writer
+         * model's own `concernCategory` above) — the only thing the gate below actually trusts. */
+        serverConcern: literals(SERVER_CONCERN_CATEGORIES),
       }),
     ),
   },
@@ -189,8 +233,7 @@ export const applyProposals = internalMutation({
         if (prior && prior.familyId === args.familyId) supersedes = prior._id;
       }
 
-      const concern = p.concernCategory && p.concernCategory !== 'none' ? (p.concernCategory as LearningOp['concernCategory']) : undefined;
-      const op: LearningOp = {
+      let op: LearningOp = {
         trigger: p.trigger as LearningOp['trigger'],
         kind: p.kind as LearningOp['kind'],
         text: p.text,
@@ -199,10 +242,14 @@ export const applyProposals = internalMutation({
         confidence: Number.isFinite(p.confidence) ? Math.max(0, Math.min(1, p.confidence)) : 0,
         sensitive: p.sensitive,
         about: about.length ? about : [args.memberId],
-        concernCategory: concern,
-        derivedFromWebSearch: false, // G2: the web_search tool isn't implemented yet, so this is always false
+        concernCategory: undefined, // never the writer's own (untrusted) label — only `gateByServerConcern` below sets this
+        derivedFromWebSearch: false, // G2: the web_search tool isn't implemented yet; gateByServerConcern may still set this from serverConcern
       };
+      if (isConcernCategory(p.serverConcern)) op = gateByServerConcern(op, p.serverConcern);
       const decision = decideLearning(op, args.memberId);
+      if (decision.action === 'drop' && p.serverConcern !== 'ok') {
+        await logDroppedConcern(ctx, { familyId: args.familyId, memberId: args.memberId, now }, p.text, p.serverConcern, decision.reason);
+      }
       const applied = await applyLearningDecision(ctx, { familyId: args.familyId, memberId: args.memberId, role: args.role, megaId: args.megaId ?? null, threadId: args.threadId, now }, op, decision, supersedes);
       if (applied.chip) chips.push(applied.chip);
     }
