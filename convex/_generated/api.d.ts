@@ -8,7 +8,9 @@
  * @module
  */
 
+import type * as adapters_expoPushSender from "../adapters/expoPushSender.js";
 import type * as adapters_fakeChatModel from "../adapters/fakeChatModel.js";
+import type * as adapters_fakePushSender from "../adapters/fakePushSender.js";
 import type * as adapters_fakeTranscriber from "../adapters/fakeTranscriber.js";
 import type * as adapters_metaChatModel from "../adapters/metaChatModel.js";
 import type * as adapters_metaTranscriber from "../adapters/metaTranscriber.js";
@@ -24,6 +26,7 @@ import type * as auth from "../auth.js";
 import type * as calendar from "../calendar.js";
 import type * as chat from "../chat.js";
 import type * as clock from "../clock.js";
+import type * as crons from "../crons.js";
 import type * as demo from "../demo.js";
 import type * as events from "../events.js";
 import type * as family from "../family.js";
@@ -48,8 +51,13 @@ import type * as model_learningPolicy from "../model/learningPolicy.js";
 import type * as model_megaStatus from "../model/megaStatus.js";
 import type * as model_memoryAccess from "../model/memoryAccess.js";
 import type * as model_mentions from "../model/mentions.js";
+import type * as model_notificationAnswer from "../model/notificationAnswer.js";
+import type * as model_notificationEffects from "../model/notificationEffects.js";
+import type * as model_proactive from "../model/proactive.js";
+import type * as model_pushAnswerToken from "../model/pushAnswerToken.js";
 import type * as model_random from "../model/random.js";
 import type * as model_recall from "../model/recall.js";
+import type * as model_requestEffects from "../model/requestEffects.js";
 import type * as model_scopes from "../model/scopes.js";
 import type * as model_sharingAccess from "../model/sharingAccess.js";
 import type * as model_spend from "../model/spend.js";
@@ -60,8 +68,11 @@ import type * as notifications from "../notifications.js";
 import type * as onboarding from "../onboarding.js";
 import type * as ports_chatModel from "../ports/chatModel.js";
 import type * as ports_clock from "../ports/clock.js";
+import type * as ports_pushSender from "../ports/pushSender.js";
 import type * as ports_transcriber from "../ports/transcriber.js";
+import type * as proactive from "../proactive.js";
 import type * as push from "../push.js";
+import type * as pushAnswer from "../pushAnswer.js";
 import type * as requests from "../requests.js";
 import type * as rooms from "../rooms.js";
 import type * as seed from "../seed.js";
@@ -79,7 +90,9 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  "adapters/expoPushSender": typeof adapters_expoPushSender;
   "adapters/fakeChatModel": typeof adapters_fakeChatModel;
+  "adapters/fakePushSender": typeof adapters_fakePushSender;
   "adapters/fakeTranscriber": typeof adapters_fakeTranscriber;
   "adapters/metaChatModel": typeof adapters_metaChatModel;
   "adapters/metaTranscriber": typeof adapters_metaTranscriber;
@@ -95,6 +108,7 @@ declare const fullApi: ApiFromModules<{
   calendar: typeof calendar;
   chat: typeof chat;
   clock: typeof clock;
+  crons: typeof crons;
   demo: typeof demo;
   events: typeof events;
   family: typeof family;
@@ -119,8 +133,13 @@ declare const fullApi: ApiFromModules<{
   "model/megaStatus": typeof model_megaStatus;
   "model/memoryAccess": typeof model_memoryAccess;
   "model/mentions": typeof model_mentions;
+  "model/notificationAnswer": typeof model_notificationAnswer;
+  "model/notificationEffects": typeof model_notificationEffects;
+  "model/proactive": typeof model_proactive;
+  "model/pushAnswerToken": typeof model_pushAnswerToken;
   "model/random": typeof model_random;
   "model/recall": typeof model_recall;
+  "model/requestEffects": typeof model_requestEffects;
   "model/scopes": typeof model_scopes;
   "model/sharingAccess": typeof model_sharingAccess;
   "model/spend": typeof model_spend;
@@ -131,8 +150,11 @@ declare const fullApi: ApiFromModules<{
   onboarding: typeof onboarding;
   "ports/chatModel": typeof ports_chatModel;
   "ports/clock": typeof ports_clock;
+  "ports/pushSender": typeof ports_pushSender;
   "ports/transcriber": typeof ports_transcriber;
+  proactive: typeof proactive;
   push: typeof push;
+  pushAnswer: typeof pushAnswer;
   requests: typeof requests;
   rooms: typeof rooms;
   seed: typeof seed;

@@ -40,6 +40,7 @@ const OPERATIONS_SCHEMA = {
           sensitive: { type: 'boolean' },
           concernCategory: { type: 'string', enum: [...CONCERN_CATEGORIES] },
           supersedesMemoryId: { type: 'string' },
+          mattersToMemberId: { type: 'string' },
         },
         required: ['trigger', 'kind', 'text', 'suggestedScope', 'confidence', 'sensitive'],
         additionalProperties: false,
@@ -61,14 +62,21 @@ interface RawProposal {
   sensitive: boolean;
   concernCategory?: string;
   supersedesMemoryId?: string;
+  /** PLAN.md -> Proactive engine trigger source #1 ("the memory writer marks 'matters to Teal'"): set when
+   * this fact is something a DIFFERENT named member should proactively hear about or be asked about (e.g.
+   * "we're out of milk" -> the admin). `convex/model/proactive.ts`'s cross-member trigger reads this off
+   * the `familyEvents` row `applyProposals` writes below — never trusted for anything else (it's not a
+   * memory field; it only ever drives the proactive pipeline). */
+  mattersToMemberId?: string;
 }
 
-function writerSystemPrompt(memberName: string, role: string): string {
+function writerSystemPrompt(memberName: string, role: string, roster: { memberId: string; name: string }[]): string {
   return [
     `You just finished a conversation turn with ${memberName} (role: ${role}). Decide what, if anything, is worth remembering for next time.`,
     'Propose zero or more operations. Each needs a trigger (explicit = they said "remember..."/"from now on..."; correction = they corrected something already known, set supersedesMemoryId; stated = mentioned in passing; pattern/reaction = you noticed a recurring pattern, not something said this turn — rare from a single turn), a kind, the fact as a short sentence, a suggested scope, your confidence 0-1, and whether it is sensitive (health, money, feelings, relationships).',
     'Set concernCategory to "health", "feelings", "schoolTrouble", or "kidTrait" if this is a GUESS or inference you are making about those things — these are never saved unless the member said it about themselves, in which case still flag it so it is handled carefully. Otherwise set it to "none".',
     'Only propose a shared scope with shareWithMemberIds when this turn is specifically about telling another named member something personal.',
+    `Family roster (name, id): ${roster.map((m) => `${m.name} (${m.memberId})`).join('; ')}. If this fact is something a DIFFERENT specific member (not ${memberName}) should be told or asked about — e.g. they said "we're out of milk" and the admin should know — set mattersToMemberId to that member's id. Only when it's genuinely actionable or worth telling them, not for every passing mention of someone's name.`,
     'Never propose anything from a web search result, or anything about another member\'s private conversation — you only ever see this member\'s own thread.',
     'If nothing is worth remembering, return an empty operations array.',
   ].join('\n');
@@ -99,8 +107,9 @@ export const run = internalAction({
   returns: v.null(),
   handler: async (ctx, args) => {
     const model = getChatModel();
+    const roster = await ctx.runQuery(internal.agent.writer.rosterFor, { familyId: args.familyId, excludeMemberId: args.memberId });
     const messages = [
-      { role: 'system' as const, content: writerSystemPrompt(args.memberName, args.role) },
+      { role: 'system' as const, content: writerSystemPrompt(args.memberName, args.role, roster) },
       { role: 'user' as const, content: `Member said: ${args.userText}\nMEGA replied: ${args.replyText}` },
     ];
     const maxTokens = LIMITS.agent.maxTokensStructured;
@@ -175,6 +184,21 @@ export const memberNamesForConcernCheck = internalQuery({
   },
 });
 
+/** The roster (minus the member currently talking) for the writer's `mattersToMemberId` prompt — the
+ * model needs real member ids to name a target, the same way `agent/context.ts` gives the main chat loop
+ * a roster. */
+export const rosterFor = internalQuery({
+  args: { familyId: v.id('families'), excludeMemberId: v.id('members') },
+  returns: v.array(v.object({ memberId: v.id('members'), name: v.string() })),
+  handler: async (ctx, args) => {
+    const members = await ctx.db
+      .query('members')
+      .withIndex('by_family', (q) => q.eq('familyId', args.familyId))
+      .collect();
+    return members.filter((m) => m._id !== args.excludeMemberId).map((m) => ({ memberId: m._id, name: m.name }));
+  },
+});
+
 export const applyProposals = internalMutation({
   args: {
     familyId: v.id('families'),
@@ -195,6 +219,7 @@ export const applyProposals = internalMutation({
         sensitive: v.boolean(),
         concernCategory: v.optional(v.string()), // the writer's own (untrusted) label — kept for logging only, never for the gate; see serverConcern
         supersedesMemoryId: v.optional(v.string()),
+        mattersToMemberId: v.optional(v.string()),
         /** The independent classification `run` computed per-op before calling here (never the writer
          * model's own `concernCategory` above) — the only thing the gate below actually trusts. */
         serverConcern: literals(SERVER_CONCERN_CATEGORIES),
@@ -252,6 +277,23 @@ export const applyProposals = internalMutation({
       }
       const applied = await applyLearningDecision(ctx, { familyId: args.familyId, memberId: args.memberId, role: args.role, megaId: args.megaId ?? null, threadId: args.threadId, now }, op, decision, supersedes);
       if (applied.chip) chips.push(applied.chip);
+
+      // PLAN.md -> Proactive engine trigger source #1 ("the memory writer marks 'matters to Teal'"): never
+      // trusted for anything about the fact's own content — only this one pointer, and only once it
+      // resolves to a real, different member of this family. convex/model/proactive.ts's cross-member
+      // trigger (`scanFamilyEventTriggers`) picks this up and runs it through the full draft+judge pipeline.
+      if (p.mattersToMemberId) {
+        const targetId = await loadMemberId(ctx, args.familyId, p.mattersToMemberId);
+        if (targetId && targetId !== args.memberId) {
+          await ctx.db.insert('familyEvents', {
+            familyId: args.familyId,
+            at: now,
+            type: 'said',
+            payload: { mattersToMemberId: targetId, fromMemberId: args.memberId, text: p.text },
+            processed: { memory: true, profiler: false, triggers: false },
+          });
+        }
+      }
     }
 
     if (chips.length) {

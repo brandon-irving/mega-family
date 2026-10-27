@@ -217,7 +217,8 @@ export const API = {
     remove: fn({ kind: 'mutation', day1: 'real', args: { itemId: v.id('listItems') }, returns: v.null() }),
   },
   requests: {
-    respond: fn({ kind: 'mutation', day1: 'stub', args: { requestId: v.id('requests'), accept: v.boolean() }, returns: v.null() }),
+    // G3: real effects (PLAN.md -> Proactive engine step 6) — see convex/model/requestEffects.ts.
+    respond: fn({ kind: 'mutation', day1: 'real', args: { requestId: v.id('requests'), accept: v.boolean() }, returns: v.null() }),
   },
   hq: {
     room: fn({
@@ -246,9 +247,11 @@ export const API = {
     register: fn({ kind: 'mutation', day1: 'real', args: { token: v.string(), platform }, returns: v.null() }),
   },
   notifications: {
+    // G3: real effects (PLAN.md -> Proactive engine step 6), idempotent — see convex/model/
+    // notificationEffects.ts and convex/model/requestEffects.ts.
     answer: fn({
       kind: 'mutation',
-      day1: 'stub',
+      day1: 'real',
       args: { notificationId: v.id('notifications'), buttonId: v.string(), via: v.union(v.literal('push'), v.literal('block'), v.literal('widget')) },
       returns: v.object({ reply: v.string() }),
     }),
@@ -271,8 +274,18 @@ export const API = {
 
 export type ApiModule = keyof typeof API;
 
-/** Push payload `data` (CONTRACT §5). */
-export const pushData = v.object({ v: v.literal(1), notificationId: v.id('notifications'), kind: notificationKind, threadId: v.id('threads'), messageId: v.id('messages') });
+/** Push payload `data` (CONTRACT §5). `answerToken` (v0.11, additive): an HMAC-signed, notification- and
+ * recipient-scoped token so the background notification-response task (iOS runs it headless, no signed-in
+ * session) can call `POST /push/answer` and have the button's effect actually run, instead of silently
+ * doing nothing until the app is reopened (PLAN.md's push section flagged this as a day-3 risk). */
+export const pushData = v.object({
+  v: v.literal(1),
+  notificationId: v.id('notifications'),
+  kind: notificationKind,
+  threadId: v.id('threads'),
+  messageId: v.id('messages'),
+  answerToken: v.optional(v.string()),
+});
 export type PushData = Infer<typeof pushData>;
 
 /** Deep links (CONTRACT §6). The app's router and the server's widget/push links both build from these. */

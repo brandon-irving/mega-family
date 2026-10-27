@@ -9,10 +9,11 @@ import { MEMORY_KINDS, SCOPES } from '../../shared/domain/enums';
 import type { UIBlock } from '../../shared/domain/messages';
 import { localDateTimeToInstant } from '../../shared/time';
 import type { Doc, Id } from '../_generated/dataModel';
-import { internalMutation } from '../_generated/server';
+import { internalMutation, type MutationCtx } from '../_generated/server';
 import { applyLearningDecision } from '../model/applyLearning';
 import { gateByServerConcern, isConcernCategory, logDroppedConcern } from '../model/concernGate';
 import { decideLearning, type LearningOp } from '../model/learningPolicy';
+import { createRequestCandidate } from '../model/proactive';
 import { canSeeScoped } from '../model/visibility';
 import { getOrCreateOwnThread } from '../model/threads';
 import { recall } from '../model/recall';
@@ -275,12 +276,25 @@ async function toolListsRemove(ctx: any, caller: Caller, raw: Record<string, unk
   return `removed "${itemText}" from ${list.name}`;
 }
 
+/** `ask_member`'s optional `onAccept` (PLAN.md -> Proactive engine step 6: "Yes -> tell Coral and add milk
+ * to Groceries"). Only `lists_add` is supported for now (shared/domain/tables.ts `requests.onAccept`) —
+ * anything else is dropped rather than thrown, so a model that invents an unsupported effect just doesn't
+ * get one, instead of failing the whole ask. */
+function optOnAccept(raw: unknown): { tool: 'lists_add'; listName: string; text: string } | undefined {
+  if (!raw || typeof raw !== 'object') return undefined;
+  const o = raw as Record<string, unknown>;
+  if (o.tool !== 'lists_add') return undefined;
+  if (typeof o.listName !== 'string' || !o.listName.trim() || typeof o.text !== 'string' || !o.text.trim()) return undefined;
+  return { tool: 'lists_add', listName: o.listName, text: o.text };
+}
+
 async function toolAskMember(ctx: any, caller: Caller, raw: Record<string, unknown>, now: number): Promise<string> {
   if (caller.role === 'kid') throw new Error("kids can't ask another member's MEGA");
   const target = await loadMember(ctx, caller.familyId, raw.toMemberId, 'toMemberId');
   if (target._id === caller.memberId) throw new Error("can't ask yourself");
   const text = str(raw.text, 'text');
-  const requestId = await ctx.db.insert('requests', { familyId: caller.familyId, fromMemberId: caller.memberId, toMemberId: target._id, text, status: 'open' });
+  const onAccept = optOnAccept(raw.onAccept);
+  const requestId = await ctx.db.insert('requests', { familyId: caller.familyId, fromMemberId: caller.memberId, toMemberId: target._id, text, status: 'open', onAccept });
 
   const targetMega = await ctx.db
     .query('megas')
@@ -296,6 +310,11 @@ async function toolAskMember(ctx: any, caller: Caller, raw: Record<string, unkno
     body: { type: 'card', card: { kind: 'request', requestId } },
     chips: [],
   });
+
+  // PLAN.md -> Proactive engine trigger source #5 ("MEGA-to-MEGA requests"): this also becomes a push to
+  // the target, through the same candidate pipeline every other trigger uses (convex/model/proactive.ts).
+  await createRequestCandidate(ctx, { familyId: caller.familyId, recipientId: target._id, requestId, text, now });
+
   return `asked ${target.name}`;
 }
 
@@ -360,6 +379,77 @@ async function toolFollowUp(ctx: any, caller: Caller, raw: Record<string, unknow
 
 // ---------- dispatcher ----------
 
+export interface DispatchToolArgs {
+  familyId: Id<'families'>;
+  memberId: Id<'members'>;
+  megaId?: Id<'megas'>;
+  threadId: Id<'threads'>;
+  name: string;
+  argumentsJson: string;
+  /** `remember` only: the independent concern classification `convex/agent/loop.ts` ran before dispatching
+   * this call (this is a mutation and can't call a model itself — see convex/agent/concernClassifier.ts). */
+  serverConcern?: string;
+}
+
+/** The dispatcher's actual logic, as a plain function any mutation can call directly within its own
+ * transaction. The registered `execute` mutation below is the entry point from the agent loop (an action,
+ * via `ctx.runMutation`); `convex/model/requestEffects.ts` calls this directly (same mutation ctx, no
+ * `ctx.runMutation` round trip — mutations can't call other mutations that way) so that answering a
+ * MEGA-to-MEGA request's "Yes" button runs through this SAME handler a chat tool call would (PLAN.md ->
+ * Proactive engine step 6). */
+export async function dispatchTool(ctx: MutationCtx, args: DispatchToolArgs): Promise<{ ok: boolean; resultText: string }> {
+  const member = await ctx.db.get(args.memberId);
+  if (!member || member.familyId !== args.familyId) return { ok: false, resultText: 'caller is not a member of this family' };
+  if (!isToolAllowedForRole(args.name, member.role)) return { ok: false, resultText: `the "${args.name}" tool isn't available to you` };
+  const family = await ctx.db.get(args.familyId);
+  if (!family) return { ok: false, resultText: 'family not found' };
+
+  let raw: Record<string, unknown>;
+  try {
+    const parsed = JSON.parse(args.argumentsJson);
+    if (!parsed || typeof parsed !== 'object') throw new Error('not an object');
+    raw = parsed as Record<string, unknown>;
+  } catch {
+    return { ok: false, resultText: 'invalid tool arguments (not valid JSON)' };
+  }
+
+  const caller: Caller = { familyId: args.familyId, memberId: args.memberId, role: member.role, megaId: args.megaId ?? null, threadId: args.threadId, tz: family.timezone };
+  const now = await clock.now(ctx, args.familyId);
+
+  try {
+    switch (args.name) {
+      case 'recall':
+        return { ok: true, resultText: await toolRecall(ctx, caller, raw) };
+      case 'remember':
+        return { ok: true, resultText: await toolRemember(ctx, caller, raw, now, args.serverConcern) };
+      case 'events_create':
+        return { ok: true, resultText: await toolEventsCreate(ctx, caller, raw) };
+      case 'events_update':
+        return { ok: true, resultText: await toolEventsUpdate(ctx, caller, raw) };
+      case 'events_cancel':
+        return { ok: true, resultText: await toolEventsCancel(ctx, caller, raw) };
+      case 'reminders_create':
+        return { ok: true, resultText: await toolRemindersCreate(ctx, caller, raw) };
+      case 'lists_add':
+        return { ok: true, resultText: await toolListsAdd(ctx, caller, raw, now) };
+      case 'lists_check':
+        return { ok: true, resultText: await toolListsCheck(ctx, caller, raw) };
+      case 'lists_remove':
+        return { ok: true, resultText: await toolListsRemove(ctx, caller, raw) };
+      case 'ask_member':
+        return { ok: true, resultText: await toolAskMember(ctx, caller, raw, now) };
+      case 'show_ui':
+        return { ok: true, resultText: await toolShowUi(ctx, caller, raw, now) };
+      case 'follow_up':
+        return { ok: true, resultText: await toolFollowUp(ctx, caller, raw, now) };
+      default:
+        return { ok: false, resultText: `unknown tool "${args.name}"` };
+    }
+  } catch (e) {
+    return { ok: false, resultText: e instanceof Error ? e.message : String(e) };
+  }
+}
+
 export const execute = internalMutation({
   args: {
     familyId: v.id('families'),
@@ -368,61 +458,8 @@ export const execute = internalMutation({
     threadId: v.id('threads'),
     name: v.string(),
     argumentsJson: v.string(),
-    /** `remember` only: the independent concern classification `convex/agent/loop.ts` ran before dispatching
-     * this call (this is a mutation and can't call a model itself — see convex/agent/concernClassifier.ts). */
     serverConcern: v.optional(v.string()),
   },
   returns: v.object({ ok: v.boolean(), resultText: v.string() }),
-  handler: async (ctx, args) => {
-    const member = await ctx.db.get(args.memberId);
-    if (!member || member.familyId !== args.familyId) return { ok: false, resultText: 'caller is not a member of this family' };
-    if (!isToolAllowedForRole(args.name, member.role)) return { ok: false, resultText: `the "${args.name}" tool isn't available to you` };
-    const family = await ctx.db.get(args.familyId);
-    if (!family) return { ok: false, resultText: 'family not found' };
-
-    let raw: Record<string, unknown>;
-    try {
-      const parsed = JSON.parse(args.argumentsJson);
-      if (!parsed || typeof parsed !== 'object') throw new Error('not an object');
-      raw = parsed as Record<string, unknown>;
-    } catch {
-      return { ok: false, resultText: 'invalid tool arguments (not valid JSON)' };
-    }
-
-    const caller: Caller = { familyId: args.familyId, memberId: args.memberId, role: member.role, megaId: args.megaId ?? null, threadId: args.threadId, tz: family.timezone };
-    const now = await clock.now(ctx, args.familyId);
-
-    try {
-      switch (args.name) {
-        case 'recall':
-          return { ok: true, resultText: await toolRecall(ctx, caller, raw) };
-        case 'remember':
-          return { ok: true, resultText: await toolRemember(ctx, caller, raw, now, args.serverConcern) };
-        case 'events_create':
-          return { ok: true, resultText: await toolEventsCreate(ctx, caller, raw) };
-        case 'events_update':
-          return { ok: true, resultText: await toolEventsUpdate(ctx, caller, raw) };
-        case 'events_cancel':
-          return { ok: true, resultText: await toolEventsCancel(ctx, caller, raw) };
-        case 'reminders_create':
-          return { ok: true, resultText: await toolRemindersCreate(ctx, caller, raw) };
-        case 'lists_add':
-          return { ok: true, resultText: await toolListsAdd(ctx, caller, raw, now) };
-        case 'lists_check':
-          return { ok: true, resultText: await toolListsCheck(ctx, caller, raw) };
-        case 'lists_remove':
-          return { ok: true, resultText: await toolListsRemove(ctx, caller, raw) };
-        case 'ask_member':
-          return { ok: true, resultText: await toolAskMember(ctx, caller, raw, now) };
-        case 'show_ui':
-          return { ok: true, resultText: await toolShowUi(ctx, caller, raw, now) };
-        case 'follow_up':
-          return { ok: true, resultText: await toolFollowUp(ctx, caller, raw, now) };
-        default:
-          return { ok: false, resultText: `unknown tool "${args.name}"` };
-      }
-    } catch (e) {
-      return { ok: false, resultText: e instanceof Error ? e.message : String(e) };
-    }
-  },
+  handler: async (ctx, args) => dispatchTool(ctx, args),
 });

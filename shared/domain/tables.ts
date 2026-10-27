@@ -234,6 +234,17 @@ export const familyEvents = {
 export const button = v.object({ id: v.string(), label: v.string() });
 export type Button = Infer<typeof button>;
 
+/** Which trigger produced a candidate (PLAN.md -> Proactive engine "Trigger -> candidate"), so the delivery
+ * step can re-check "does this still apply" (e.g. a reminder already marked done) and the answer-effects
+ * dispatcher (convex/model/notificationEffects.ts) knows which real row a button tap should act on. */
+export const candidateSource = v.union(
+  v.object({ kind: v.literal('reminder'), reminderId: v.id('reminders') }),
+  v.object({ kind: v.literal('request'), requestId: v.id('requests') }),
+  v.object({ kind: v.literal('checkin'), memberId }),
+  v.object({ kind: v.literal('mattersTo'), fromMemberId: memberId, familyEventId: v.id('familyEvents') }),
+);
+export type CandidateSource = Infer<typeof candidateSource>;
+
 export const candidates = {
   familyId,
   recipientId: memberId,
@@ -247,6 +258,9 @@ export const candidates = {
   deliverAt: v.optional(v.number()),
   scheduledId: v.optional(v.id('_scheduled_functions')),
   status: v.union(v.literal('new'), v.literal('scheduled'), v.literal('delivered'), v.literal('dropped'), v.literal('cancelled')),
+  /** Additive (G3): which trigger produced this candidate. Optional so it's fine on anything seeded
+   * directly (seed.ts's hand-built "statement" row has no real trigger behind it). */
+  source: v.optional(candidateSource),
 };
 
 export const notifications = {
@@ -264,6 +278,14 @@ export const notifications = {
   heldUntil: v.optional(v.number()),
   answer: v.optional(v.object({ buttonId: v.string(), at: v.number(), via })),
   reply: v.optional(v.string()),
+  /** Additive (G3): back-links to the row a button's real effect acts on (convex/model/
+   * notificationEffects.ts) — at most one is ever set, matching `kind`. */
+  reminderId: v.optional(v.id('reminders')),
+  requestId: v.optional(v.id('requests')),
+  /** Additive (CONTRACT §5 v0.11): failed `POST /push/answer` token-verification attempts against this
+   * notification (convex/pushAnswer.ts) — a brute-force guard, same shape as `invites.failedAttempts`.
+   * Never the HMAC secret or the token itself; nothing about the answer token is ever persisted. */
+  answerFailedAttempts: v.optional(v.number()),
 };
 
 export const requests = {
@@ -273,6 +295,11 @@ export const requests = {
   text: v.string(),
   status: v.union(v.literal('open'), v.literal('accepted'), v.literal('declined'), v.literal('done')),
   notificationId: v.optional(v.id('notifications')),
+  /** Additive (G3): what accepting this request should actually do, declared by the `ask_member` tool call
+   * that created it (PLAN.md -> Proactive engine step 6, "Yes -> tell Coral and add milk to Groceries") —
+   * never inferred from the request's free-text `text` at answer time. Only `lists_add` for now; more tools
+   * can join this union as the effect dispatcher (convex/model/requestEffects.ts) grows. */
+  onAccept: v.optional(v.object({ tool: v.literal('lists_add'), listName: v.string(), text: v.string() })),
 };
 
 // ---------- places, art and system ----------

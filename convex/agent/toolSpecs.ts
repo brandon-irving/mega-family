@@ -157,8 +157,24 @@ export const AGENT_TOOLS: Record<AgentToolName, ToolDef> = {
     implemented: true,
     spec: {
       name: 'ask_member',
-      description: "Send a request to another family member's MEGA — it shows as a card in their chat with Yes/No buttons.",
-      parameters: { type: 'object', properties: { toMemberId: jsonStr, text: jsonStr }, required: ['toMemberId', 'text'], additionalProperties: false },
+      description:
+        "Send a request to another family member's MEGA — it shows as a card in their chat and a push notification with Yes/No buttons. Optionally set onAccept so saying \"yes\" automatically does something (for now, only adding an item to a list) instead of just recording a yes.",
+      parameters: {
+        type: 'object',
+        properties: {
+          toMemberId: jsonStr,
+          text: jsonStr,
+          onAccept: {
+            type: 'object',
+            description: 'What "yes" should automatically do. Only set this when the request is literally asking them to add something to a list.',
+            properties: { tool: { type: 'string', enum: ['lists_add'] }, listName: jsonStr, text: jsonStr },
+            required: ['tool', 'listName', 'text'],
+            additionalProperties: false,
+          },
+        },
+        required: ['toMemberId', 'text'],
+        additionalProperties: false,
+      },
     },
   },
   show_ui: {

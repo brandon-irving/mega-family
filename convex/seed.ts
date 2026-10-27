@@ -153,9 +153,12 @@ export const sampleFamily = internalMutation({
       });
     }
 
-    // the open milk request, with its push to the admin
+    // the open milk request, with its push to the admin. onAccept (G3): tapping "Yes" doesn't just record
+    // an answer, it actually adds milk to Groceries (PLAN.md -> Proactive engine step 6) — the same
+    // demo-able effect a live ask_member call gets via convex/model/proactive.ts `createRequestCandidate`.
     const req = S.request;
     const requestCfg = NOTIFICATION_KINDS_CONFIG.request;
+    const requestId = await ctx.db.insert('requests', { familyId, fromMemberId: m[req.from], toMemberId: m[req.to], text: req.text, status: 'open', onAccept: { tool: 'lists_add', listName: 'Groceries', text: 'Milk' } });
     const notificationId = await ctx.db.insert('notifications', {
       familyId,
       recipientId: m[req.to],
@@ -165,17 +168,20 @@ export const sampleFamily = internalMutation({
       body: req.text,
       megaId: mega[req.to],
       buttons: [...BUTTON_SETS[requestCfg.buttons]],
+      requestId,
       sentAt: demoNow - 5 * 60_000,
     });
     const messageId = await message(ctx, familyId, thread[req.to], demoNow - 5 * 60_000, { kind: 'mega', id: mega[req.to] }, { type: 'card', card: { kind: 'notification', notificationId } }, notificationId);
     await ctx.db.patch(notificationId, { messageId });
-    await ctx.db.insert('requests', { familyId, fromMemberId: m[req.from], toMemberId: m[req.to], text: req.text, status: 'open', notificationId });
+    await ctx.db.patch(requestId, { notificationId });
 
-    // a kid reminder held by quiet hours
+    // a kid reminder held by quiet hours. reminderId (G3): links the notification back to the reminder it
+    // came from, so answering "On my way" / "Snooze 5 min" (convex/model/notificationEffects.ts) has a
+    // real row to act on — the same link convex/model/proactive.ts's reminder trigger sets.
     const h = S.heldReminder;
     const dueAt = at(h.day, h.minutes);
     const reminderCfg = NOTIFICATION_KINDS_CONFIG.reminder;
-    await ctx.db.insert('reminders', { familyId, forMemberId: m[h.for], text: h.text, dueAt, done: false, createdBy: m.admin });
+    const reminderId = await ctx.db.insert('reminders', { familyId, forMemberId: m[h.for], text: h.text, dueAt, done: false, createdBy: m.admin });
     const [qh, qm] = LIMITS.quietHours.kid.end.split(':').map(Number);
     await ctx.db.insert('notifications', {
       familyId,
@@ -186,6 +192,7 @@ export const sampleFamily = internalMutation({
       body: h.text,
       megaId: mega[h.for],
       buttons: [...BUTTON_SETS[reminderCfg.buttons]],
+      reminderId,
       heldUntil: at(h.day + 1, qh * 60 + qm),
     });
 
