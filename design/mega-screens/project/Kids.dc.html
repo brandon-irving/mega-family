@@ -1,0 +1,695 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Kids: homework, routines, Mega Bucks</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;family=Pixelify+Sans:wght@400;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#0C0E11}
+button{font-family:inherit;cursor:pointer}
+a{color:#EDEFF2;text-decoration:none}
+@keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
+.bob{animation:bob .9s ease-in-out infinite}
+@keyframes pop{0%{transform:scale(.4);opacity:0}60%{transform:scale(1.12);opacity:1}100%{transform:scale(1)}}
+.pop{animation:pop 520ms cubic-bezier(.2,.9,.3,1.2) both}
+@keyframes twinkle{0%,100%{opacity:0;transform:scale(.6)}50%{opacity:1;transform:scale(1)}}
+.twinkle{animation:twinkle 1.4s ease-in-out infinite}
+@media (prefers-reduced-motion: reduce){.bob,.pop,.twinkle{animation:none}}
+</style>
+</helmet>
+<div style="position: relative; width: 390px; height: 844px; overflow: hidden; background: #0C0E11; color: #EDEFF2; font-family: Inter, system-ui, sans-serif">
+
+<sc-if value="{{showThread}}" hint-placeholder-val="{{ true }}">
+  <!-- Chat thread (shared by the Kids and Calendar boards; filled by thread.js). -->
+  <div style="position: absolute; inset: 0; display: flex; flex-direction: column; background: #0C0E11">
+    <header style="display: flex; align-items: center; gap: 12px; padding: 54px 16px 12px; border-bottom: 1px solid #22262D; flex-shrink: 0">
+      <span style="position: relative; width: 44px; height: 38px; flex-shrink: 0; border-radius: 10px; overflow: hidden; background: #FFFFFF">
+        <span style="position: absolute; left: 6px; top: 6px; width: 32px; height: 27px">
+          <sc-for list="{{th.head.rects}}" as="r" hint-placeholder-count="150">
+            <span style="position: absolute; left: {{r.l}}px; top: {{r.t}}px; width: {{r.w}}px; height: {{r.h}}px; background: {{r.c}}"></span>
+          </sc-for>
+        </span>
+      </span>
+      <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px">
+        <div style="font-size: 18px; font-weight: 700">{{th.name}}</div>
+        <div style="font-size: 13px; color: #9AA1AB">{{th.sub}}</div>
+      </div>
+      <sc-if value="{{th.showCoin}}" hint-placeholder-val="{{ false }}">
+        <span aria-label="{{th.balance}} Mega Bucks" style="height: 36px; padding: 0 12px 0 8px; border-radius: 18px; background: #1E2228; border: 1px solid #2E343D; display: flex; align-items: center; gap: 7px; font-family: 'Pixelify Sans', monospace; font-size: 18px; font-weight: 600; color: #FFD54A">
+          <span style="position: relative; width: 24px; height: 24px">
+            <sc-for list="{{th.coin.rects}}" as="r" hint-placeholder-count="40">
+              <span style="position: absolute; left: {{r.l}}px; top: {{r.t}}px; width: {{r.w}}px; height: {{r.h}}px; background: {{r.c}}"></span>
+            </sc-for>
+          </span>
+          {{th.balance}}
+        </span>
+      </sc-if>
+    </header>
+
+    <div style="flex: 1; min-height: 0; overflow: hidden; display: flex; flex-direction: column; justify-content: flex-end; gap: 14px; padding: 16px">
+      <sc-for list="{{th.items}}" as="m" hint-placeholder-count="4">
+        <sc-if value="{{m.isDay}}" hint-placeholder-val="{{ false }}">
+          <div style="align-self: center; font-size: 12px; font-weight: 600; color: #9AA1AB; padding: 4px 10px; border-radius: 10px; background: #16191E">{{m.text}}</div>
+        </sc-if>
+        <sc-if value="{{m.isText}}" hint-placeholder-val="{{ true }}">
+          <div style="display: flex; flex-direction: column; gap: 4px; max-width: 330px">
+            <div style="font-size: 12px; font-weight: 700; color: {{m.whoColor}}">{{m.who}}</div>
+            <div style="font-size: {{th.font}}px; line-height: 1.4">{{m.text}}</div>
+          </div>
+        </sc-if>
+        <sc-if value="{{m.isMine}}" hint-placeholder-val="{{ false }}">
+          <div style="align-self: flex-end; max-width: 270px; padding: 10px 15px; border-radius: 18px 18px 4px 18px; background: {{th.mine}}; font-size: {{th.font}}px; line-height: 1.35">{{m.text}}</div>
+        </sc-if>
+        <sc-if value="{{m.isPhoto}}" hint-placeholder-val="{{ false }}">
+          <div style="align-self: flex-end; display: flex; flex-direction: column; align-items: flex-end; gap: 6px">
+            <div aria-label="Photo of a fractions worksheet" role="img" style="width: 168px; height: 200px; border-radius: 16px; overflow: hidden; background: #3A3F47; display: flex; align-items: center; justify-content: center">
+              <div style="width: 132px; height: 172px; transform: rotate(-3deg); background: #F6F3EA; border-radius: 3px; padding: 10px; box-sizing: border-box; color: #2B2B33; display: flex; flex-direction: column; gap: 7px">
+                <div style="font-size: 10px; font-weight: 800">Fractions · Sheet 4</div>
+                <sc-for list="{{th.sheet}}" as="q" hint-placeholder-count="6">
+                  <div style="font-size: 9px; display: flex; gap: 4px"><span>{{q.n}}.</span><span style="flex: 1">{{q.text}}</span><span style="width: 22px; border-bottom: 1px solid #8A8F99"></span></div>
+                </sc-for>
+              </div>
+            </div>
+            <div style="font-size: 12px; color: #9AA1AB">{{m.text}}</div>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{m.isCard}}" hint-placeholder-val="{{ false }}">
+          <section aria-label="{{m.title}}" style="border-radius: 20px; background: #16191E; border: 1px solid #2E343D; padding: 14px; display: flex; flex-direction: column; gap: 12px">
+            <div style="display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 700; color: {{m.fromColor}}">
+              <span>{{m.from}}</span>
+              <sc-if value="{{m.isAi}}" hint-placeholder-val="{{ false }}">
+                <span style="padding: 1px 6px; border-radius: 6px; border: 1px solid #3A414B; color: #B4BAC3; font-size: 11px; font-weight: 700; letter-spacing: .04em">AI</span>
+              </sc-if>
+            </div>
+            <sc-if value="{{m.hasProgress}}" hint-placeholder-val="{{ false }}">
+              <div style="display: flex; align-items: center; gap: 6px">
+                <sc-for list="{{m.dots}}" as="d" hint-placeholder-count="4">
+                  <span style="width: 28px; height: 6px; border-radius: 3px; background: {{d.bg}}"></span>
+                </sc-for>
+                <span style="margin-left: 4px; font-size: 13px; color: #9AA1AB">{{m.progressLabel}}</span>
+              </div>
+            </sc-if>
+            <div style="display: flex; flex-direction: column; gap: 4px">
+              <div style="font-size: {{m.titleSize}}px; line-height: 1.3; font-weight: 700">{{m.title}}</div>
+              <sc-if value="{{m.hasBody}}" hint-placeholder-val="{{ true }}">
+                <div style="font-size: {{m.bodySize}}px; line-height: 1.45; color: #B4BAC3">{{m.body}}</div>
+              </sc-if>
+            </div>
+            <sc-if value="{{m.hasCompare}}" hint-placeholder-val="{{ false }}">
+              <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px">
+                <div style="border-radius: 14px; background: #0C0E11; border: 1px solid #2E343D; padding: 10px; display: flex; flex-direction: column; gap: 3px">
+                  <span style="font-size: 11px; font-weight: 700; color: #9AA1AB; letter-spacing: .05em; text-transform: uppercase">Now</span>
+                  <span style="font-size: 14px; font-weight: 600">{{m.before}}</span>
+                  <span style="font-size: 12px; color: #9AA1AB">{{m.beforeSub}}</span>
+                </div>
+                <div style="border-radius: 14px; background: #10243F; border: 1px solid #5B8DEF; padding: 10px; display: flex; flex-direction: column; gap: 3px">
+                  <span style="font-size: 11px; font-weight: 700; color: #9DBCF7; letter-spacing: .05em; text-transform: uppercase">After you approve</span>
+                  <span style="font-size: 14px; font-weight: 600">{{m.after}}</span>
+                  <span style="font-size: 12px; color: #B4BAC3">{{m.afterSub}}</span>
+                </div>
+              </div>
+            </sc-if>
+            <sc-if value="{{m.hasHint}}" hint-placeholder-val="{{ false }}">
+              <div role="note" style="display: flex; gap: 10px; align-items: flex-start; border-radius: 14px; background: #1F1A33; border: 1px solid #8E6CE0; padding: 12px">
+                <svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#C4B2F5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0; margin-top: 2px"><path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9c.6.4 1 1.1 1 1.8V16h5v-.3c0-.7.4-1.4 1-1.8A6 6 0 0 0 12 3z"></path></svg>
+                <span style="font-size: {{m.bodySize}}px; line-height: 1.4">{{m.hint}}</span>
+              </div>
+            </sc-if>
+            <sc-if value="{{m.hasTags}}" hint-placeholder-val="{{ false }}">
+              <div style="display: flex; flex-direction: column; gap: 6px">
+                <span style="font-size: 12px; font-weight: 700; color: #9AA1AB; letter-spacing: .04em; text-transform: uppercase">{{m.tagsLabel}}</span>
+                <div style="display: flex; flex-wrap: wrap; gap: 6px">
+                  <sc-for list="{{m.tags}}" as="t" hint-placeholder-count="3">
+                    <span style="padding: 5px 10px; border-radius: 12px; background: #10243F; border: 1px solid #2B4A7A; color: #C9D8F7; font-size: 13px; line-height: 18px">{{t.text}}</span>
+                  </sc-for>
+                </div>
+              </div>
+            </sc-if>
+            <sc-if value="{{m.hasChips}}" hint-placeholder-val="{{ false }}">
+              <div style="display: flex; flex-direction: column; gap: 8px">
+                <sc-for list="{{m.chipRows}}" as="row" hint-placeholder-count="1">
+                  <div style="display: flex; flex-direction: column; gap: 6px">
+                    <span style="font-size: 12px; font-weight: 700; color: #9AA1AB; letter-spacing: .04em; text-transform: uppercase">{{row.label}}</span>
+                    <div style="display: flex; flex-wrap: wrap; gap: 8px">
+                      <sc-for list="{{row.chips}}" as="k" hint-placeholder-count="3">
+                        <button type="button" aria-pressed="{{k.pressed}}" onClick="{{k.pick}}" style="min-height: 40px; padding: 6px 14px; border-radius: 20px; border: 1px solid {{k.border}}; background: {{k.bg}}; color: {{k.fg}}; font-size: 14px; font-weight: 600; display: flex; align-items: center; gap: 6px">{{k.label}}</button>
+                      </sc-for>
+                    </div>
+                  </div>
+                </sc-for>
+              </div>
+            </sc-if>
+            <sc-if value="{{m.hasChecks}}" hint-placeholder-val="{{ false }}">
+              <div style="display: flex; flex-direction: column; gap: 8px">
+                <sc-for list="{{m.checks}}" as="k" hint-placeholder-count="3">
+                  <button type="button" role="checkbox" aria-checked="{{k.checked}}" onClick="{{k.toggle}}" style="min-height: {{th.btnH}}px; padding: 8px 14px; border-radius: 16px; border: 1px solid {{k.border}}; background: {{k.bg}}; color: #EDEFF2; display: flex; align-items: center; gap: 12px; text-align: left">
+                    <span style="width: 26px; height: 26px; flex-shrink: 0; border-radius: 8px; border: 2px solid {{k.boxBorder}}; background: {{k.boxBg}}; color: #0C0E11; display: flex; align-items: center; justify-content: center">
+                      <sc-if value="{{k.done}}" hint-placeholder-val="{{ false }}">
+                        <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"></path></svg>
+                      </sc-if>
+                    </span>
+                    <span style="flex: 1; display: flex; flex-direction: column; gap: 1px">
+                      <span style="font-size: {{th.btnFont}}px; font-weight: 600; text-decoration: {{k.strike}}">{{k.label}}</span>
+                      <span style="font-size: 13px; color: #9AA1AB">{{k.sub}}</span>
+                    </span>
+                  </button>
+                </sc-for>
+              </div>
+            </sc-if>
+            <sc-if value="{{m.hasRows}}" hint-placeholder-val="{{ false }}">
+              <div style="display: flex; flex-direction: column; gap: 8px">
+                <sc-for list="{{m.rows}}" as="g" hint-placeholder-count="3">
+                  <div style="display: flex; align-items: center; gap: 12px; border-radius: 14px; background: #0C0E11; border: 1px solid #22262D; padding: 10px 10px 10px 12px">
+                    <span style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px">
+                      <span style="font-size: 15px; font-weight: 700">{{g.title}}</span>
+                      <span style="font-size: 13px; color: #9AA1AB">{{g.why}}</span>
+                    </span>
+                    <button type="button" onClick="{{g.act}}" aria-label="{{g.aria}}" style="height: 40px; padding: 0 12px; border-radius: 20px; border: 1px solid {{g.border}}; background: {{g.bg}}; color: {{g.fg}}; font-size: 13px; font-weight: 700; flex-shrink: 0">{{g.actLabel}}</button>
+                  </div>
+                </sc-for>
+              </div>
+            </sc-if>
+            <sc-if value="{{m.hasStepper}}" hint-placeholder-val="{{ false }}">
+              <div style="display: flex; align-items: center; gap: 12px; border-radius: 16px; background: #0C0E11; border: 1px solid #2E343D; padding: 8px 8px 8px 14px">
+                <span style="position: relative; width: 24px; height: 24px; flex-shrink: 0">
+                  <sc-for list="{{th.coin.rects}}" as="r" hint-placeholder-count="40">
+                    <span style="position: absolute; left: {{r.l}}px; top: {{r.t}}px; width: {{r.w}}px; height: {{r.h}}px; background: {{r.c}}"></span>
+                  </sc-for>
+                </span>
+                <span style="flex: 1; font-size: 15px; color: #B4BAC3">Mega Bucks</span>
+                <button type="button" aria-label="Fewer" onClick="{{m.dec}}" style="width: 44px; height: 44px; border-radius: 22px; border: 1px solid #2E343D; background: #16191E; color: #EDEFF2; font-size: 22px; font-weight: 600">−</button>
+                <span aria-live="polite" style="min-width: 32px; text-align: center; font-family: 'Pixelify Sans', monospace; font-size: 24px; font-weight: 600; color: #FFD54A">{{m.amount}}</span>
+                <button type="button" aria-label="More" onClick="{{m.inc}}" style="width: 44px; height: 44px; border-radius: 22px; border: 1px solid #2E343D; background: #16191E; color: #EDEFF2; font-size: 22px; font-weight: 600">+</button>
+              </div>
+            </sc-if>
+            <sc-if value="{{m.hasChoices}}" hint-placeholder-val="{{ false }}">
+              <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px">
+                <sc-for list="{{m.choices}}" as="k" hint-placeholder-count="4">
+                  <button type="button" onClick="{{k.pick}}" style="height: 64px; border-radius: 16px; border: 2px solid {{k.border}}; background: {{k.bg}}; color: {{k.fg}}; font-family: 'Pixelify Sans', monospace; font-size: 26px; font-weight: 600">{{k.label}}</button>
+                </sc-for>
+              </div>
+            </sc-if>
+            <sc-if value="{{m.hasActions}}" hint-placeholder-val="{{ true }}">
+              <div style="display: grid; grid-template-columns: repeat({{m.cols}}, minmax(0, 1fr)); gap: 8px">
+                <sc-for list="{{m.actions}}" as="a" hint-placeholder-count="2">
+                  <button type="button" onClick="{{a.pick}}" style="height: {{th.btnH}}px; border-radius: 14px; border: 1px solid {{a.border}}; background: {{a.bg}}; color: {{a.fg}}; font-size: {{th.btnFont}}px; font-weight: 700">{{a.label}}</button>
+                </sc-for>
+              </div>
+            </sc-if>
+            <sc-if value="{{m.hasStatus}}" hint-placeholder-val="{{ false }}">
+              <div role="status" style="display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 600; color: {{m.statusColor}}">
+                <span style="width: 8px; height: 8px; border-radius: 4px; background: {{m.statusColor}}; flex-shrink: 0"></span>{{m.status}}
+              </div>
+            </sc-if>
+            <sc-if value="{{m.hasFoot}}" hint-placeholder-val="{{ false }}">
+              <div style="display: flex; align-items: center; gap: 6px; font-size: 12px; color: #9AA1AB">
+                <svg aria-hidden="true" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0"><rect x="5" y="11" width="14" height="10" rx="2"></rect><path d="M8 11V8a4 4 0 0 1 8 0v3"></path></svg>
+                {{m.foot}}
+              </div>
+            </sc-if>
+          </section>
+        </sc-if>
+      </sc-for>
+    </div>
+
+    <div style="display: flex; align-items: center; gap: 8px; padding: 10px 16px 30px; flex-shrink: 0">
+      <sc-if value="{{th.camera}}" hint-placeholder-val="{{ false }}">
+        <button type="button" aria-label="Take a photo" onClick="{{th.openCamera}}" style="width: 48px; height: 48px; flex-shrink: 0; border-radius: 24px; border: 1px solid #2E343D; background: #16191E; color: #EDEFF2; display: flex; align-items: center; justify-content: center">
+          <svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h3l2-3h6l2 3h3a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z"></path><circle cx="12" cy="13.5" r="3.5"></circle></svg>
+        </button>
+      </sc-if>
+      <label for="composer" style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0)">Message {{th.name}}</label>
+      <input id="composer" type="text" placeholder="Message {{th.name}}…" style="flex: 1; min-width: 0; height: 48px; box-sizing: border-box; border-radius: 24px; border: 1px solid #2E343D; background: #16191E; color: #EDEFF2; padding: 0 16px; font-size: 15px; font-family: inherit">
+      <button type="button" aria-label="Talk" style="width: 48px; height: 48px; flex-shrink: 0; border-radius: 24px; border: none; background: {{th.accent}}; color: #0C0E11; display: flex; align-items: center; justify-content: center">
+        <svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"></rect><path d="M5 11a7 7 0 0 0 14 0M12 18v3"></path></svg>
+      </button>
+    </div>
+  </div>
+</sc-if>
+
+  <!-- 1 · Parent snaps the homework: the camera sheet over Admin's chat. -->
+  <sc-if value="{{cameraOpen}}" hint-placeholder-val="{{ false }}">
+    <div style="position: absolute; inset: 0; background: #050607; display: flex; flex-direction: column">
+      <div style="display: flex; align-items: center; padding: 54px 8px 0; height: 44px">
+        <button type="button" aria-label="Close the camera" onClick="{{closeCamera}}" style="width: 44px; height: 44px; border: none; background: transparent; color: #EDEFF2; display: flex; align-items: center; justify-content: center">
+          <svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"></path></svg>
+        </button>
+        <div style="flex: 1; text-align: center; font-size: 17px; font-weight: 700; margin-right: 44px">Homework photo</div>
+      </div>
+      <div style="position: relative; margin: 28px 24px 0; height: 470px; border-radius: 24px; background: #2A2E35; overflow: hidden; display: flex; align-items: center; justify-content: center">
+        <div aria-label="A fractions worksheet in the camera" role="img" style="width: 250px; height: 330px; transform: rotate(-4deg); background: #F6F3EA; border-radius: 4px; padding: 20px; box-sizing: border-box; color: #2B2B33; display: flex; flex-direction: column; gap: 14px; box-shadow: 0 12px 30px rgba(0,0,0,0.4)">
+          <div style="display: flex; justify-content: space-between; font-size: 12px"><b style="font-size: 15px">Fractions · Sheet 4</b><span>Name <span style="display: inline-block; width: 56px; border-bottom: 1px solid #8A8F99"></span></span></div>
+          <sc-for list="{{sheet}}" as="q" hint-placeholder-count="6">
+            <div style="font-size: 15px; display: flex; gap: 8px"><span>{{q.n}}.</span><span style="flex: 1">{{q.text}}</span><span style="width: 44px; border-bottom: 1px solid #8A8F99"></span></div>
+          </sc-for>
+        </div>
+        <span style="position: absolute; left: 18px; top: 18px; width: 36px; height: 36px; border-top: 4px solid #EDEFF2; border-left: 4px solid #EDEFF2; border-top-left-radius: 14px"></span>
+        <span style="position: absolute; right: 18px; top: 18px; width: 36px; height: 36px; border-top: 4px solid #EDEFF2; border-right: 4px solid #EDEFF2; border-top-right-radius: 14px"></span>
+        <span style="position: absolute; left: 18px; bottom: 18px; width: 36px; height: 36px; border-bottom: 4px solid #EDEFF2; border-left: 4px solid #EDEFF2; border-bottom-left-radius: 14px"></span>
+        <span style="position: absolute; right: 18px; bottom: 18px; width: 36px; height: 36px; border-bottom: 4px solid #EDEFF2; border-right: 4px solid #EDEFF2; border-bottom-right-radius: 14px"></span>
+      </div>
+      <p style="margin: 18px 32px 0; font-size: 15px; line-height: 22px; color: #B4BAC3; text-align: center">Fit the whole page in the frame. Teal reads it and makes practice for the twins.</p>
+      <div style="flex: 1; display: flex; align-items: center; justify-content: center">
+        <button type="button" aria-label="Take the photo" onClick="{{shoot}}" style="width: 76px; height: 76px; border-radius: 38px; border: 4px solid #EDEFF2; background: transparent; padding: 4px">
+          <span style="display: block; width: 100%; height: 100%; border-radius: 30px; background: #EDEFF2"></span>
+        </button>
+      </div>
+      <div style="display: flex; align-items: center; justify-content: center; gap: 6px; padding-bottom: 30px; font-size: 12px; color: #9AA1AB">
+        <svg aria-hidden="true" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="10" rx="2"></rect><path d="M8 11V8a4 4 0 0 1 8 0v3"></path></svg>
+        Only Admin and Partner see homework photos.
+      </div>
+    </div>
+  </sc-if>
+
+  <!-- 8 · Morning routine: one step per tap, the kid's MEGA cheering. -->
+  <sc-if value="{{isMorning}}" hint-placeholder-val="{{ false }}">
+    <div style="position: absolute; inset: 0; display: flex; flex-direction: column; padding: 58px 16px 30px; box-sizing: border-box">
+      <div style="display: flex; align-items: center; gap: 10px">
+        <div style="flex: 1; display: flex; flex-direction: column; gap: 2px">
+          <div style="font-size: 14px; font-weight: 600; color: #9AA1AB">Monday · 7:05 AM</div>
+          <h1 style="margin: 0; font-size: 28px; line-height: 34px; font-weight: 800">{{morning.greeting}}</h1>
+        </div>
+      </div>
+      <div style="position: relative; height: 230px; display: flex; align-items: flex-end; justify-content: center">
+        <sc-if value="{{morning.cheer}}" hint-placeholder-val="{{ true }}">
+          <span class="pop" style="position: absolute; top: 6px; left: 50%; margin-left: 46px; padding: 6px 12px; border: 3px solid #1B1A3A; border-radius: 10px; background: #FFFFFF; color: #1B1A3A; font-family: 'Pixelify Sans', monospace; font-size: 20px; font-weight: 600">{{morning.cheerText}}</span>
+        </sc-if>
+        <div class="bob" style="position: relative; width: {{morning.zap.w}}px; height: {{morning.zap.h}}px">
+          <sc-for list="{{morning.zap.rects}}" as="r" hint-placeholder-count="240">
+            <span style="position: absolute; left: {{r.l}}px; top: {{r.t}}px; width: {{r.w}}px; height: {{r.h}}px; background: {{r.c}}"></span>
+          </sc-for>
+        </div>
+      </div>
+      <section aria-label="Current step" style="margin-top: 18px; border-radius: 24px; background: #16191E; border: 1px solid #2E343D; padding: 18px; display: flex; flex-direction: column; gap: 14px">
+        <div style="display: flex; align-items: center; gap: 6px">
+          <sc-for list="{{morning.dots}}" as="d" hint-placeholder-count="4">
+            <span style="flex: 1; height: 8px; border-radius: 4px; background: {{d.bg}}"></span>
+          </sc-for>
+        </div>
+        <div style="font-size: 14px; font-weight: 700; color: #C4B2F5">{{morning.count}}</div>
+        <div style="font-size: 30px; line-height: 36px; font-weight: 800">{{morning.title}}</div>
+        <div style="font-size: 18px; line-height: 26px; color: #B4BAC3">{{morning.sub}}</div>
+        <sc-if value="{{morning.going}}" hint-placeholder-val="{{ true }}">
+          <button type="button" onClick="{{morning.done}}" style="height: 64px; border-radius: 20px; border: none; background: #8E6CE0; color: #140A33; font-size: 22px; font-weight: 800">Done!</button>
+        </sc-if>
+        <sc-if value="{{morning.finished}}" hint-placeholder-val="{{ false }}">
+          <button type="button" onClick="{{morning.restart}}" style="height: 64px; border-radius: 20px; border: 1px solid #3A414B; background: transparent; color: #EDEFF2; font-size: 20px; font-weight: 700">Start over</button>
+        </sc-if>
+      </section>
+      <ol aria-label="Morning steps" style="list-style: none; margin: 16px 0 0; padding: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px">
+        <sc-for list="{{morning.steps}}" as="s" hint-placeholder-count="4">
+          <li style="display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 10px 4px; border-radius: 16px; background: {{s.bg}}; border: 1px solid {{s.border}}; opacity: {{s.opacity}}">
+            <span style="width: 30px; height: 30px; border-radius: 15px; background: {{s.dotBg}}; color: #140A33; display: flex; align-items: center; justify-content: center; font-size: 15px; font-weight: 800">{{s.mark}}</span>
+            <span style="font-size: 13px; font-weight: 600; text-align: center; line-height: 16px">{{s.short}}</span>
+          </li>
+        </sc-for>
+      </ol>
+    </div>
+  </sc-if>
+
+  <!-- 9 · Mega Bucks arrive: a parent released them. -->
+  <sc-if value="{{isBucks}}" hint-placeholder-val="{{ false }}">
+    <div style="position: absolute; inset: 0; background: rgba(6,7,9,0.82); display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 0 24px; gap: 0">
+      <section aria-label="Mega Bucks released" class="pop" style="position: relative; width: 100%; box-sizing: border-box; border-radius: 28px; background: #16191E; border: 1px solid #2E343D; padding: 28px 22px 22px; display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center">
+        <div style="position: relative; width: 132px; height: 132px; display: flex; align-items: center; justify-content: center">
+          <sc-for list="{{bucks.sparkles}}" as="p" hint-placeholder-count="5">
+            <span class="twinkle" style="position: absolute; left: {{p.l}}px; top: {{p.t}}px; width: 8px; height: 8px; background: #FFF1A8; animation-delay: {{p.delay}}ms"></span>
+          </sc-for>
+          <div style="position: relative; width: {{bucks.coin.size}}px; height: {{bucks.coin.size}}px">
+            <sc-for list="{{bucks.coin.rects}}" as="r" hint-placeholder-count="40">
+              <span style="position: absolute; left: {{r.l}}px; top: {{r.t}}px; width: {{r.w}}px; height: {{r.h}}px; background: {{r.c}}"></span>
+            </sc-for>
+          </div>
+        </div>
+        <div style="font-family: 'Pixelify Sans', monospace; font-size: 40px; font-weight: 600; color: #FFD54A">+{{bucks.amount}}</div>
+        <h1 style="margin: 0; font-size: 26px; line-height: 32px; font-weight: 800">Admin released {{bucks.amount}} Mega Bucks!</h1>
+        <p style="margin: 0; font-size: 18px; line-height: 26px; color: #B4BAC3">For your fractions practice. Nice work!</p>
+        <div style="margin-top: 6px; height: 44px; padding: 0 16px; border-radius: 22px; background: #0C0E11; border: 1px solid #2E343D; display: flex; align-items: center; gap: 8px; font-size: 16px; color: #B4BAC3">
+          You have <b style="font-family: 'Pixelify Sans', monospace; font-size: 22px; color: #FFD54A">{{bucks.balance}}</b> Mega Bucks
+        </div>
+        <a href="Store.dc.html" style="align-self: stretch; margin-top: 10px; height: 58px; border-radius: 20px; background: #8E6CE0; color: #140A33; font-size: 20px; font-weight: 800; display: flex; align-items: center; justify-content: center">Open the Store</a>
+        <button type="button" onClick="{{bucks.later}}" style="align-self: stretch; height: 52px; border-radius: 20px; border: 1px solid #3A414B; background: transparent; color: #EDEFF2; font-size: 18px; font-weight: 600">Later</button>
+      </section>
+      <div class="bob" style="position: relative; margin-top: -8px; width: {{bucks.zap.w}}px; height: {{bucks.zap.h}}px">
+        <sc-for list="{{bucks.zap.rects}}" as="r" hint-placeholder-count="240">
+          <span style="position: absolute; left: {{r.l}}px; top: {{r.t}}px; width: {{r.w}}px; height: {{r.h}}px; background: {{r.c}}"></span>
+        </sc-for>
+      </div>
+    </div>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"step":{"editor":"enum","options":["snap","make","practice","done","summary","chore","choreApprove","bedtime","morning","bucks"],"default":"make"},"hint":{"editor":"enum","options":["off","on"],"default":"off"},"$preview":{"width":390,"height":844}}'>
+// Generated from prototypes/megasprite (mega-template.mjs, pixel-paint.mjs, export-looks.mjs).
+const LOOKS = {"grid":[32,40],"body":[[15,0,2,"outline"],[14,1,1,"outline"],[15,1,2,"tipLight"],[17,1,1,"outline"],[13,2,1,"outline"],[14,2,1,"tipLight"],[15,2,2,"tip"],[17,2,1,"tipLight"],[18,2,1,"outline"],[14,3,1,"outline"],[15,3,2,"tipDark"],[17,3,1,"outline"],[14,4,4,"outline"],[14,5,1,"outline"],[15,5,2,"silver"],[17,5,1,"outline"],[14,6,1,"outline"],[15,6,2,"silver"],[17,6,1,"outline"],[6,7,20,"outline"],[5,8,1,"outline"],[6,8,20,"shellLight"],[26,8,1,"outline"],[4,9,1,"outline"],[5,9,1,"shellLight"],[6,9,20,"shell"],[26,9,1,"shellLight"],[27,9,1,"outline"],[3,10,1,"outline"],[4,10,1,"shellLight"],[5,10,22,"shell"],[27,10,1,"shellLight"],[28,10,1,"outline"],[3,11,1,"outline"],[4,11,4,"shell"],[8,11,16,"visor"],[24,11,4,"shell"],[28,11,1,"outline"],[2,12,2,"outline"],[4,12,3,"shell"],[7,12,3,"visor"],[10,12,3,"glare"],[13,12,12,"visor"],[25,12,3,"shell"],[28,12,2,"outline"],[1,13,1,"outline"],[2,13,1,"shellLight"],[3,13,1,"outline"],[4,13,3,"shell"],[7,13,2,"visor"],[9,13,1,"glare"],[10,13,15,"visor"],[25,13,3,"shell"],[28,13,1,"outline"],[29,13,1,"shellLight"],[30,13,1,"outline"],[0,14,1,"outline"],[1,14,1,"shellLight"],[2,14,1,"shell"],[3,14,1,"outline"],[4,14,3,"shell"],[7,14,2,"visor"],[9,14,1,"glare"],[10,14,15,"visor"],[25,14,3,"shell"],[28,14,1,"outline"],[29,14,1,"shell"],[30,14,1,"shellLight"],[31,14,1,"outline"],[0,15,1,"outline"],[1,15,2,"shell"],[3,15,1,"outline"],[4,15,3,"shell"],[7,15,18,"visor"],[25,15,3,"shell"],[28,15,1,"outline"],[29,15,2,"shell"],[31,15,1,"outline"],[0,16,1,"outline"],[1,16,2,"shell"],[3,16,1,"outline"],[4,16,3,"shell"],[7,16,18,"visor"],[25,16,3,"shell"],[28,16,1,"outline"],[29,16,2,"shell"],[31,16,1,"outline"],[0,17,1,"outline"],[1,17,2,"shell"],[3,17,1,"outline"],[4,17,3,"shell"],[7,17,18,"visor"],[25,17,3,"shell"],[28,17,1,"outline"],[29,17,2,"shell"],[31,17,1,"outline"],[0,18,1,"outline"],[1,18,1,"shellDark"],[2,18,1,"shell"],[3,18,1,"outline"],[4,18,3,"shell"],[7,18,18,"visor"],[25,18,3,"shell"],[28,18,1,"outline"],[29,18,1,"shell"],[30,18,1,"shellDark"],[31,18,1,"outline"],[1,19,1,"outline"],[2,19,1,"shellDark"],[3,19,1,"outline"],[4,19,3,"shell"],[7,19,18,"visor"],[25,19,3,"shell"],[28,19,1,"outline"],[29,19,1,"shellDark"],[30,19,1,"outline"],[2,20,2,"outline"],[4,20,3,"shell"],[7,20,18,"visor"],[25,20,3,"shell"],[28,20,2,"outline"],[3,21,1,"outline"],[4,21,3,"shell"],[7,21,18,"visor"],[25,21,3,"shell"],[28,21,1,"outline"],[3,22,1,"outline"],[4,22,4,"shell"],[8,22,16,"visor"],[24,22,4,"shell"],[28,22,1,"outline"],[3,23,1,"outline"],[4,23,1,"shellDark"],[5,23,22,"shell"],[27,23,1,"shellDark"],[28,23,1,"outline"],[4,24,1,"outline"],[5,24,1,"shellDark"],[6,24,20,"shell"],[26,24,1,"shellDark"],[27,24,1,"outline"],[5,25,1,"outline"],[6,25,20,"shellDark"],[26,25,1,"outline"],[5,26,22,"outline"],[4,27,1,"outline"],[5,27,2,"whiteLight"],[7,27,1,"outline"],[8,27,1,"shellLight"],[9,27,1,"outline"],[10,27,1,"shellLight"],[11,27,2,"shell"],[13,27,6,"outline"],[19,27,2,"shell"],[21,27,1,"shellLight"],[22,27,1,"outline"],[23,27,1,"shellLight"],[24,27,1,"outline"],[25,27,2,"whiteLight"],[27,27,1,"outline"],[3,28,1,"outline"],[4,28,1,"whiteLight"],[5,28,2,"white"],[7,28,1,"whiteLight"],[8,28,2,"outline"],[10,28,2,"shell"],[12,28,1,"outline"],[13,28,6,"whiteLight"],[19,28,1,"outline"],[20,28,2,"shell"],[22,28,2,"outline"],[24,28,1,"whiteLight"],[25,28,2,"white"],[27,28,1,"whiteLight"],[28,28,1,"outline"],[3,29,1,"outline"],[4,29,1,"whiteDark"],[5,29,2,"white"],[7,29,1,"whiteDark"],[8,29,2,"outline"],[10,29,2,"shell"],[12,29,1,"outline"],[13,29,6,"whiteDark"],[19,29,1,"outline"],[20,29,2,"shell"],[22,29,2,"outline"],[24,29,1,"whiteDark"],[25,29,2,"white"],[27,29,1,"whiteDark"],[28,29,1,"outline"],[4,30,1,"outline"],[5,30,2,"whiteDark"],[7,30,1,"outline"],[9,30,1,"outline"],[10,30,1,"shellDark"],[11,30,2,"shell"],[13,30,6,"outline"],[19,30,2,"shell"],[21,30,1,"shellDark"],[22,30,1,"outline"],[24,30,1,"outline"],[25,30,2,"whiteDark"],[27,30,1,"outline"],[5,31,2,"outline"],[10,31,1,"outline"],[11,31,10,"shellDark"],[21,31,1,"outline"],[25,31,2,"outline"],[11,32,10,"outline"],[11,33,1,"outline"],[12,33,2,"shell"],[14,33,1,"outline"],[17,33,1,"outline"],[18,33,2,"shell"],[20,33,1,"outline"],[11,34,4,"outline"],[17,34,4,"outline"],[10,35,1,"outline"],[11,35,3,"whiteLight"],[14,35,1,"outline"],[17,35,1,"outline"],[18,35,3,"whiteLight"],[21,35,1,"outline"],[9,36,1,"outline"],[10,36,1,"whiteLight"],[11,36,3,"white"],[14,36,1,"whiteLight"],[15,36,2,"outline"],[17,36,1,"whiteLight"],[18,36,3,"white"],[21,36,1,"whiteLight"],[22,36,1,"outline"],[10,37,1,"outline"],[11,37,3,"whiteDark"],[14,37,1,"outline"],[17,37,1,"outline"],[18,37,3,"whiteDark"],[21,37,1,"outline"],[11,38,3,"outline"],[18,38,3,"outline"]],"faces":{"calm":[[11,16,2,"eye"],[19,16,2,"eye"],[11,17,2,"eye"],[19,17,2,"eye"]],"happy":[[11,16,2,"eye"],[19,16,2,"eye"],[10,17,1,"eye"],[13,17,1,"eye"],[18,17,1,"eye"],[21,17,1,"eye"],[8,19,2,"blush"],[22,19,2,"blush"]],"wink":[[11,15,2,"eye"],[11,16,2,"eye"],[19,16,2,"eye"],[11,17,2,"eye"],[18,17,1,"eye"],[21,17,1,"eye"]],"open":[[11,15,2,"eye"],[19,15,2,"eye"],[11,16,2,"eye"],[19,16,2,"eye"],[11,17,2,"eye"],[19,17,2,"eye"]],"closed":[[10,17,4,"eye"],[18,17,4,"eye"]]},"fixed":{"outline":"#1B1A3A","visor":"#17143A","glare":"#BFEAF7","white":"#F4F6FB","whiteLight":"#FFFFFF","whiteDark":"#AEB3CC","silver":"#C9CFDB","silverLight":"#E8EBF2","silverDark":"#8E95AB","tip":"#9FF0F7","tipLight":"#F0FFFF","tipDark":"#5FCFE0","eye":"#E8FFFF","blush":"#FF9AB2"},"colors":{"teal":"#2FB8B0","coral":"#F2766B","violet":"#8E6CE0","sun":"#F2B33D","sky":"#5B8DEF","leaf":"#5BBF6A"},"stickers":["star","heart","leaf","bolt"],"personalities":{"calm":{"label":"Calm","face":"calm","blurb":"Gentle and unhurried","sample":"No rush. Practice is at 5:30, and I'll remind you at 4:50."},"cheerful":{"label":"Cheerful","face":"happy","blurb":"Upbeat and encouraging","sample":"Good news! Practice is at 5:30. Want a reminder at 4:50?"},"funny":{"label":"Funny","face":"wink","blurb":"Light jokes, still useful","sample":"Practice at 5:30. I'll ping you at 4:50, before traffic does."},"brief":{"label":"Brief","face":"open","blurb":"Short and to the point","sample":"Practice 5:30. Reminder at 4:50?"}}};
+const STICKER_ART = {"star":"a509b7da6f93811f29bf9e84560af70f","heart":"ef08bdd73525cdfac56fe3c437a18b9c","leaf":"6729bb22fb50e334dd97a073fa44e53a","bolt":"f4bb0c6f1f0fcae62475f582a31df06e"};
+function hexToHsl(hex) {
+  const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255);
+  const max = Math.max(r, g, b), min = Math.min(r, g, b), l = (max + min) / 2;
+  if (max === min) return [0, 0, l];
+  const d = max - min, s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+  const h = max === r ? (g - b) / d + (g < b ? 6 : 0) : max === g ? (b - r) / d + 2 : (r - g) / d + 4;
+  return [h * 60, s, l];
+}
+
+function hslToHex(h, s, l) {
+  const k = (n) => (n + h / 30) % 12, a = s * Math.min(l, 1 - l);
+  const f = (n) => l - a * Math.max(-1, Math.min(k(n) - 3, 9 - k(n), 1));
+  return "#" + [0, 8, 4].map((n) => Math.round(f(n) * 255).toString(16).padStart(2, "0")).join("");
+}
+
+const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
+
+/** Light and dark shades of one colour, with a slight hue shift like hand-pixelled art. */
+function shades(hex) {
+  const [h, s, l] = hexToHsl(hex);
+  return {
+    light: hslToHex((h + 356) % 360, s, clamp(l + 0.13, 0, 0.92)),
+    dark: hslToHex((h + 8) % 360, s, clamp(l - 0.16, 0.08, 1)),
+  };
+}
+
+
+// Shared by boards that draw MEGAs live from template data (LOOKS, STICKER_ART, shades()).
+function paletteFor(hex) {
+  const { light, dark } = shades(hex);
+  return { ...LOOKS.fixed, shell: hex, shellLight: light, shellDark: dark };
+}
+// Pixel runs -> positioned boxes at `scale`, optionally only rows above `maxRow` (head crops).
+function draw(hex, face, scale, maxRow) {
+  const pal = paletteFor(hex);
+  const runs = [...LOOKS.body, ...(LOOKS.faces[face] || [])].filter((r) => maxRow === undefined || r[1] < maxRow);
+  return runs.map(([x, y, w, k]) => ({ l: x * scale, t: y * scale, w: w * scale, h: scale, c: pal[k] }));
+}
+function sprite(hex, face, sticker, scale, maxRow) {
+  const [gw, gh] = LOOKS.grid;
+  return { rects: draw(hex, face, scale, maxRow), hasSticker: sticker !== 'none', sticker: sticker === 'none' ? '' : '/_blob/' + STICKER_ART[sticker], w: gw * scale, h: gh * scale };
+}
+// Dark or light text on a coloured button, whichever reads better.
+function inkOn(hex) {
+  const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255);
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b > 0.45 ? '#0C0E11' : '#FFFFFF';
+}
+
+
+const STORE = {"antennaRows":8,"antennas":{"classic":[[15,0,2,"outline"],[14,1,1,"outline"],[15,1,2,"tipLight"],[17,1,1,"outline"],[13,2,1,"outline"],[14,2,1,"tipLight"],[15,2,2,"tip"],[17,2,1,"tipLight"],[18,2,1,"outline"],[14,3,1,"outline"],[15,3,2,"tipDark"],[17,3,1,"outline"],[14,4,4,"outline"],[14,5,1,"outline"],[15,5,2,"silver"],[17,5,1,"outline"],[14,6,1,"outline"],[15,6,2,"silver"],[17,6,1,"outline"],[6,7,20,"outline"]],"twin":[[10,0,2,"outline"],[20,0,2,"outline"],[9,1,1,"outline"],[10,1,2,"tipLight"],[12,1,1,"outline"],[19,1,1,"outline"],[20,1,2,"tipLight"],[22,1,1,"outline"],[8,2,1,"outline"],[9,2,1,"tipLight"],[10,2,2,"tip"],[12,2,1,"tipLight"],[13,2,1,"outline"],[18,2,1,"outline"],[19,2,1,"tipLight"],[20,2,2,"tip"],[22,2,1,"tipLight"],[23,2,1,"outline"],[9,3,1,"outline"],[10,3,2,"tipDark"],[12,3,1,"outline"],[19,3,1,"outline"],[20,3,2,"tipDark"],[22,3,1,"outline"],[9,4,4,"outline"],[19,4,4,"outline"],[9,5,1,"outline"],[10,5,2,"silver"],[12,5,1,"outline"],[19,5,1,"outline"],[20,5,2,"silver"],[22,5,1,"outline"],[9,6,1,"outline"],[10,6,2,"silver"],[12,6,1,"outline"],[19,6,1,"outline"],[20,6,2,"silver"],[22,6,1,"outline"],[6,7,20,"outline"]],"star":[[15,0,1,"outline"],[14,1,1,"outline"],[15,1,1,"starLight"],[16,1,1,"outline"],[13,2,1,"outline"],[14,2,1,"starLight"],[15,2,1,"star"],[16,2,1,"starLight"],[17,2,1,"outline"],[12,3,1,"outline"],[13,3,1,"starLight"],[14,3,3,"star"],[17,3,1,"starLight"],[18,3,1,"outline"],[13,4,1,"outline"],[14,4,1,"star"],[15,4,1,"starDark"],[16,4,1,"star"],[17,4,1,"outline"],[13,5,1,"outline"],[14,5,1,"starDark"],[15,5,1,"outline"],[16,5,1,"starDark"],[17,5,1,"outline"],[14,6,1,"outline"],[15,6,1,"silverLight"],[16,6,2,"outline"],[6,7,20,"outline"]],"sprout":[[19,0,2,"outline"],[11,1,2,"outline"],[18,1,1,"outline"],[19,1,2,"sproutLight"],[21,1,1,"outline"],[10,2,1,"outline"],[11,2,2,"sproutLight"],[13,2,1,"outline"],[17,2,1,"outline"],[18,2,1,"sproutLight"],[19,2,1,"sprout"],[20,2,1,"sproutDark"],[21,2,1,"outline"],[10,3,1,"outline"],[11,3,1,"sproutDark"],[12,3,1,"sprout"],[13,3,1,"sproutLight"],[14,3,3,"outline"],[17,3,1,"sproutLight"],[18,3,2,"sproutDark"],[20,3,1,"outline"],[11,4,1,"outline"],[12,4,2,"sproutDark"],[14,4,1,"sproutLight"],[15,4,1,"outline"],[16,4,1,"sproutLight"],[17,4,3,"outline"],[12,5,3,"outline"],[15,5,2,"sprout"],[17,5,1,"outline"],[14,6,1,"outline"],[15,6,2,"sprout"],[17,6,1,"outline"],[6,7,20,"outline"]]},"eyes":{"classic":[[11,15,2,"eye"],[19,15,2,"eye"],[11,16,2,"eye"],[19,16,2,"eye"],[11,17,2,"eye"],[19,17,2,"eye"]],"round":[[11,14,2,"eye"],[19,14,2,"eye"],[10,15,4,"eye"],[18,15,4,"eye"],[10,16,4,"eye"],[18,16,4,"eye"],[11,17,2,"eye"],[19,17,2,"eye"]],"heart":[[10,15,1,"eye"],[12,15,1,"eye"],[19,15,1,"eye"],[21,15,1,"eye"],[9,16,5,"eye"],[18,16,5,"eye"],[10,17,3,"eye"],[19,17,3,"eye"],[11,18,1,"eye"],[20,18,1,"eye"]],"sparkle":[[11,15,1,"eye"],[20,15,1,"eye"],[10,16,3,"eye"],[19,16,3,"eye"],[11,17,1,"eye"],[20,17,1,"eye"]]},"colors":{"star":"#FFD54A","starLight":"#ffdd8c","starDark":"#f7df00","sprout":"#5BBF6A","sproutLight":"#8bd291","sproutDark":"#389051"}};
+// Store parts on top of sprite-live.js: a MEGA with a bought antenna shape and eye design (STORE comes
+// from prototypes/megasprite → assets/looks/store.json), and the pixel Mega Bucks coin.
+function lookPalette(hex) {
+  return Object.assign(paletteFor(hex), STORE.colors);
+}
+// Like draw(), but swaps the antenna rows and the resting eyes for the look's Store parts.
+function drawLook(hex, face, look, scale, maxRow) {
+  const pal = lookPalette(hex);
+  const ant = look && look.antenna && look.antenna !== 'classic' ? STORE.antennas[look.antenna] : null;
+  const eyes = face === 'open' && look && look.eyes && look.eyes !== 'classic' ? STORE.eyes[look.eyes] : null;
+  const body = ant ? LOOKS.body.filter((r) => r[1] >= STORE.antennaRows).concat(ant) : LOOKS.body;
+  const runs = body.concat(eyes || LOOKS.faces[face] || []).filter((r) => maxRow === undefined || r[1] < maxRow);
+  return runs.map(([x, y, w, k]) => ({ l: x * scale, t: y * scale, w: w * scale, h: scale, c: pal[k] }));
+}
+function spriteLook(hex, face, look, scale, maxRow) {
+  const [gw, gh] = LOOKS.grid;
+  const sticker = (look && look.sticker) || 'none';
+  return { rects: drawLook(hex, face, look, scale, maxRow), hasSticker: sticker !== 'none', sticker: sticker === 'none' ? '' : '/_blob/' + STICKER_ART[sticker], w: gw * scale, h: (maxRow || gh) * scale };
+}
+
+// The Mega Bucks coin: 12×12 art pixels with an "M", outlined in the MEGA navy.
+const COIN_ROWS = [
+  '...oooooo...',
+  '.ooLLLLLLoo.',
+  '.oLyyyyyyDo.',
+  'oLyMyyyyMyDo',
+  'oLyMMyyMMyDo',
+  'oLyMyMMyMyDo',
+  'oLyMyyyyMyDo',
+  'oLyMyyyyMyDo',
+  'oLyyyyyyyyDo',
+  '.oyyyyyyyDo.',
+  '.ooDDDDDDoo.',
+  '...oooooo...',
+];
+const COIN_COLORS = { o: '#1B1A3A', L: '#FFF1A8', y: '#FFD54A', D: '#E0A21B', M: '#8A5A00' };
+function coin(scale) {
+  const rects = [];
+  COIN_ROWS.forEach((row, y) => {
+    for (let x = 0; x < row.length; ) {
+      const k = row[x];
+      let n = 1;
+      while (row[x + n] === k) n++;
+      if (k !== '.') rects.push({ l: x * scale, t: y * scale, w: n * scale, h: scale, c: COIN_COLORS[k] });
+      x += n;
+    }
+  });
+  return { rects, size: 12 * scale };
+}
+
+// Shared by boards that draw a chat thread (thread.html). Needs sprite-live.js and store-live.js.
+// Sample MEGAs; people are labelled by role only.
+const MEGAS = {
+  teal: { name: 'Teal', hex: '#2FB8B0', face: 'open', owner: 'Admin', mine: '#123B39' },
+  coral: { name: 'Coral', hex: '#F2766B', face: 'happy', owner: 'Partner', mine: '#3F1F1C' },
+  zap: { name: 'Zap', hex: '#8E6CE0', face: 'happy', owner: 'Twin 1', mine: '#2A2147', kid: true },
+  sunny: { name: 'Sunny', hex: '#F2B33D', face: 'happy', owner: 'Twin 2', mine: '#3A2B10', kid: true },
+  hub: { name: 'Hub', hex: '#5B8DEF', face: 'open', owner: 'the family', mine: '#10243F' },
+};
+// Kids get bigger text and targets, same as thread UI blocks in the app.
+const SIZES = { adult: { font: 17, btnH: 44, btnFont: 15, title: 17, body: 15 }, kid: { font: 20, btnH: 54, btnFont: 18, title: 21, body: 17 } };
+const SHEET = [
+  { n: 1, text: '1/2 + 1/4 =' }, { n: 2, text: '1/3 + 1/3 =' }, { n: 3, text: '3/4 − 1/4 =' },
+  { n: 4, text: '1/2 + 3/8 =' }, { n: 5, text: '2/5 + 1/10 =' }, { n: 6, text: '5/6 − 1/3 =' },
+];
+const BTN = {
+  primary: { bg: '#EDEFF2', fg: '#0C0E11', border: '#EDEFF2' },
+  ghost: { bg: 'transparent', fg: '#EDEFF2', border: '#3A414B' },
+};
+const btn = (label, pick, kind) => Object.assign({ label, pick }, BTN[kind || 'primary']);
+
+// The header, sizes and composer for one person's chat with their MEGA.
+function thread(megaId, items, extra) {
+  const m = MEGAS[megaId], size = SIZES[m.kid ? 'kid' : 'adult'];
+  return Object.assign({
+    head: sprite(m.hex, m.face, 'none', 1, 27), name: m.name, sub: m.kid ? m.owner + '’s MEGA' : 'Your MEGA',
+    accent: m.hex, mine: m.mine, font: size.font, btnH: size.btnH, btnFont: size.btnFont,
+    showCoin: false, coin: coin(2), balance: 0, camera: false, openCamera: () => {}, sheet: SHEET,
+    items: items.map((it) => card(it, size)),
+  }, extra || {});
+}
+
+// Fill every flag thread.html reads, so a card only names what it has.
+function card(it, size) {
+  const base = { isDay: false, isText: false, isMine: false, isPhoto: false, isCard: false };
+  if (it.day) return Object.assign(base, { isDay: true, text: it.day });
+  if (it.mine) return Object.assign(base, { isMine: true, text: it.mine });
+  if (it.photo) return Object.assign(base, { isPhoto: true, text: it.photo });
+  if (it.say) return Object.assign(base, { isText: true, who: MEGAS[it.from].name, whoColor: MEGAS[it.from].hex, text: it.say });
+  const c = Object.assign({ from: '', fromColor: '#9AA1AB', isAi: false, title: '', body: '', titleSize: size.title, bodySize: size.body, cols: 2 }, it.card);
+  return Object.assign(base, c, {
+    isCard: true, hasBody: !!c.body, hasProgress: !!c.dots, hasCompare: !!c.before, hasHint: !!c.hint, hasChips: !!c.chipRows, hasTags: !!c.tags,
+    hasChecks: !!c.checks, hasRows: !!c.rows, hasStepper: c.amount !== undefined, hasChoices: !!c.choices,
+    hasActions: !!(c.actions && c.actions.length), hasStatus: !!c.status, hasFoot: !!c.foot, statusColor: c.statusColor || '#9AA1AB',
+  });
+}
+// A chip row: options with one selected.
+function chipRow(label, options, selected, pick) {
+  return { label, chips: options.map((o) => ({ label: o, pressed: String(o === selected), pick: () => pick(o),
+    bg: o === selected ? '#EDEFF2' : 'transparent', fg: o === selected ? '#0C0E11' : '#EDEFF2', border: o === selected ? '#EDEFF2' : '#3A414B' })) };
+}
+// A checklist row.
+function check(label, sub, done, toggle, accent) {
+  return { label, sub, done, checked: String(done), toggle, strike: done ? 'line-through' : 'none',
+    bg: done ? '#14201F' : '#0C0E11', border: done ? accent : '#2E343D', boxBorder: done ? accent : '#6B727D', boxBg: done ? accent : 'transparent' };
+}
+
+
+// Practice MEGA writes from the worksheet photo: new questions like the sheet's, each with a guiding hint.
+const QUESTIONS = [
+  { q: 'What is 1/2 + 1/4?', choices: ['2/6', '3/4', '1/6', '2/8'], right: '3/4', hint: 'How many quarters fit in one half? Change 1/2 into quarters first.' },
+  { q: 'What is 1/3 + 1/3?', choices: ['2/6', '1/9', '2/3', '1/3'], right: '2/3', hint: 'The bottoms already match. What happens to the tops?' },
+  { q: 'What is 3/4 − 1/4?', choices: ['1/2', '4/4', '3/16', '2/0'], right: '1/2', hint: 'Take one quarter away from three quarters. Can you make the answer simpler?' },
+  { q: 'What is 1/2 + 3/8?', choices: ['4/10', '4/8', '7/8', '3/16'], right: '7/8', hint: 'How many eighths are in one half? Start there.' },
+  { q: 'What is 2/5 + 1/10?', choices: ['3/15', '1/2', '3/10', '2/50'], right: '1/2', hint: 'Turn fifths into tenths first. How many tenths is 2/5?' },
+];
+const MORNING = [
+  { title: 'Get dressed', short: 'Dressed', sub: 'Clothes are on your chair from last night.' },
+  { title: 'Brush your teeth', short: 'Teeth', sub: 'Two whole minutes. I’ll count with you!' },
+  { title: 'Eat breakfast', short: 'Breakfast', sub: 'Cereal or toast. Admin packed your lunch.' },
+  { title: 'Grab your backpack', short: 'Backpack', sub: 'Your library book goes back today.' },
+];
+const CHEERS = ['Nice!', 'Woo!', 'Yes!', 'All set!'];
+const BEDTIME = [['Cleats', 'In your closet'], ['Shin guards', 'Under the bed, maybe?'], ['Water bottle', 'Fill it in the morning'], ['Homework folder', 'The fractions sheet goes back']];
+
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = this.fresh(props);
+  }
+  fresh(p) {
+    const step = p.step || 'make';
+    return {
+      step, camera: step === 'snap', kid: 'Twin 1', count: '5', made: false,
+      q: p.hint === 'on' ? 3 : 1, hint: p.hint === 'on', miss: '', amount: step === 'choreApprove' ? 3 : 5, released: '',
+      choreDone: false, packed: [true, false, false, false], morning: 1, cheer: false, bucksGone: false,
+    };
+  }
+  componentDidUpdate(prev) {
+    if (prev.step !== this.props.step || prev.hint !== this.props.hint) this.setState(this.fresh(this.props));
+  }
+  componentWillUnmount() { clearTimeout(this.cheerT); }
+
+  pick(choice) {
+    const s = this.state, cur = QUESTIONS[s.q];
+    if (choice !== cur.right) return this.setState({ miss: choice });
+    if (s.q === QUESTIONS.length - 1) return this.setState({ step: 'done' });
+    this.setState({ q: s.q + 1, hint: false, miss: '' });
+  }
+  release(who) {
+    this.setState({ released: who });
+  }
+
+  items() {
+    const s = this.state, set = (o) => () => this.setState(o);
+    switch (s.step) {
+      case 'snap':
+      case 'make': {
+        const made = s.made;
+        return ['teal', [
+          { day: 'Today · 3:52 PM' },
+          ...(s.step === 'snap' ? [{ from: 'teal', say: 'Hi! Want me to make some practice from today’s homework? Snap a photo of the sheet.' }] : [
+            { photo: 'Homework photo' },
+            { from: 'teal', say: 'That’s a fractions worksheet: adding and taking away fractions, 6 problems.' },
+            { card: {
+              from: 'Teal', title: 'Make practice for one of the twins?',
+              body: 'I’ll write new questions like these at their level. They get hints, never the answers.',
+              chipRows: made ? null : [chipRow('For', ['Twin 1', 'Twin 2'], s.kid, (v) => this.setState({ kid: v })), chipRow('Questions', ['3', '4', '5'], s.count, (v) => this.setState({ count: v }))],
+              actions: made ? [] : [btn('Make practice', set({ made: true })), btn('Not now', () => {}, 'ghost')],
+              status: made ? 'Sent to ' + s.kid + '. ' + (s.kid === 'Twin 1' ? 'Zap' : 'Sunny') + ' starts when they open it.' : '', statusColor: '#2FB8B0',
+            } },
+          ]),
+        ], { camera: true, openCamera: set({ camera: true }) }];
+      }
+      case 'practice': {
+        const cur = QUESTIONS[s.q];
+        return ['zap', [
+          { from: 'zap', say: 'Admin sent you fractions practice from today’s homework. 5 questions. You’ve got this!' },
+          { mine: 'Ready!' },
+          { card: {
+            from: 'Zap · Practice', dots: QUESTIONS.map((_, i) => ({ bg: i < s.q ? '#8E6CE0' : i === s.q ? '#C4B2F5' : '#2E343D' })),
+            progressLabel: 'Question ' + (s.q + 1) + ' of ' + QUESTIONS.length, title: cur.q, titleSize: 26,
+            hint: s.hint ? cur.hint : '',
+            choices: cur.choices.map((c) => ({ label: c, pick: () => this.pick(c),
+              bg: c === s.miss ? '#2A1A1A' : '#0C0E11', border: c === s.miss ? '#E07A5F' : '#3A414B', fg: c === s.miss ? '#F2A08A' : '#EDEFF2' })),
+            actions: s.hint ? [] : [btn('Hint, please', set({ hint: true }), 'ghost')], cols: 1,
+            status: s.miss ? 'Not quite. ' + (s.hint ? 'Look at the hint and try again!' : 'Want a hint?') : '', statusColor: '#F2B33D',
+          } },
+        ], { showCoin: true, balance: 7 }];
+      }
+      case 'done':
+        return ['zap', [
+          { card: {
+            from: 'Zap · Practice', dots: QUESTIONS.map(() => ({ bg: '#8E6CE0' })), progressLabel: 'Finished',
+            title: 'You got 4 of 5!', titleSize: 26,
+            body: 'You used 2 hints. Fractions with different bottoms were the tricky ones, and you still got them.',
+            status: 'I told Admin how it went.', statusColor: '#C4B2F5',
+          } },
+          { from: 'zap', say: 'Admin decides about Mega Bucks. I’ll tell you the second they arrive!' },
+        ], { showCoin: true, balance: 7 }];
+      case 'summary':
+      case 'choreApprove': {
+        const chore = s.step === 'choreApprove', kid = chore ? 'Twin 2' : 'Twin 1', from = chore ? 'sunny' : 'zap';
+        const done = s.released;
+        return ['teal', [
+          { day: chore ? 'Today · 7:42 PM' : 'Today · 4:31 PM' },
+          { from: 'teal', say: chore ? 'Sunny says Twin 2 finished a chore.' : 'Zap says Twin 1 finished the fractions practice.' },
+          { card: {
+            from: MEGAS[from].name + ' → you · ' + (chore ? 'chore' : 'practice report'), fromColor: MEGAS[from].hex,
+            title: chore ? 'Twin 2 says the dishes are done' : 'Twin 1 got 4 of 5 · fractions were tricky',
+            body: chore ? 'Marked done at 7:42 PM. You set this chore at 3 Mega Bucks.' : 'Adding fractions with different bottoms took 2 hints. 12 minutes in all.',
+            amount: done ? undefined : s.amount,
+            dec: () => this.setState({ amount: Math.max(0, s.amount - 1) }), inc: () => this.setState({ amount: Math.min(20, s.amount + 1) }),
+            actions: done ? [] : [btn('Release ' + s.amount, () => this.release('yes')), btn(chore ? 'Not yet' : 'Not now', () => this.release('no'), 'ghost')],
+            status: done === 'yes' ? 'Released ' + s.amount + ' Mega Bucks to ' + kid + '. ' + MEGAS[from].name + ' told them.'
+              : done === 'no' ? (chore ? 'Not yet. Sunny will tell Twin 2 you’ll check again.' : 'Not released. You can do it later from Twin 1’s page.') : '',
+            statusColor: done === 'yes' ? '#2FB8B0' : '#9AA1AB',
+            foot: 'Only Admin and Partner can release Mega Bucks.',
+          } },
+        ]];
+      }
+      case 'chore':
+        return ['sunny', [
+          { day: 'Today · 7:15 PM' },
+          { from: 'sunny', say: 'Dinner’s done! Time for your chore.' },
+          { card: {
+            from: 'Sunny · Chore', title: 'Dishes after dinner', titleSize: 24,
+            body: 'Rinse and load the dishwasher. When Admin checks, you get 3 Mega Bucks.',
+            actions: s.choreDone ? [] : [btn('Done!', set({ choreDone: true })), btn('In 10 min', () => {}, 'ghost')],
+            status: s.choreDone ? 'Nice work! I told Admin. Your Mega Bucks come when they check.' : '', statusColor: '#F2B33D',
+          } },
+        ], { showCoin: true, balance: 4 }];
+      case 'bedtime': {
+        const n = s.packed.filter(Boolean).length, all = n === BEDTIME.length;
+        return ['zap', [
+          { day: 'Tonight · 8:15 PM' },
+          { from: 'zap', say: 'Big day tomorrow! Here’s what’s on the family calendar.' },
+          { card: {
+            from: 'Zap · Tomorrow', title: 'Soccer practice at 4:30', titleSize: 24,
+            body: 'Pack your bag tonight so the morning is easy. ' + n + ' of ' + BEDTIME.length + ' packed.',
+            checks: BEDTIME.map(([label, sub], i) => check(label, sub, s.packed[i], () => this.setState({ packed: s.packed.map((v, j) => (j === i ? !v : v)) }), '#8E6CE0')),
+            status: all ? 'All packed! Sleep well, see you at 7.' : '', statusColor: '#C4B2F5',
+          } },
+        ], { showCoin: true, balance: 12 }];
+      }
+      case 'bucks':
+        return ['zap', [
+          { day: 'Today · 4:33 PM' },
+          { from: 'zap', say: 'Psst. Check this out!' },
+        ], { showCoin: true, balance: 12 }];
+      default:
+        return ['zap', []];
+    }
+  }
+
+  renderVals() {
+    const s = this.state, step = s.step;
+    const [mega, items, extra] = this.items();
+    const finished = s.morning >= MORNING.length, cur = MORNING[Math.min(s.morning, MORNING.length - 1)];
+    return {
+      showThread: step !== 'morning',
+      th: thread(mega, items, extra),
+      cameraOpen: step === 'snap' && s.camera,
+      closeCamera: () => this.setState({ camera: false }),
+      shoot: () => this.setState({ step: 'make', camera: false }),
+      sheet: SHEET,
+      isMorning: step === 'morning',
+      morning: {
+        greeting: finished ? 'All set, Twin 1!' : 'Good morning, Twin 1!',
+        zap: sprite(MEGAS.zap.hex, s.cheer || finished ? 'happy' : 'open', 'none', 5),
+        cheer: s.cheer || finished, cheerText: finished ? 'All set!' : CHEERS[(s.morning - 1) % CHEERS.length],
+        dots: MORNING.map((_, i) => ({ bg: i < s.morning ? '#8E6CE0' : i === s.morning ? '#C4B2F5' : '#2E343D' })),
+        count: finished ? 'Done before 7:30!' : 'Step ' + (s.morning + 1) + ' of ' + MORNING.length,
+        title: finished ? 'Have a great day!' : cur.title, sub: finished ? 'Bus comes at 7:40. I’ll remind you at 7:30.' : cur.sub,
+        going: !finished, finished,
+        done: () => { this.setState({ morning: s.morning + 1, cheer: true }); clearTimeout(this.cheerT); this.cheerT = setTimeout(() => this.setState({ cheer: false }), 1400); },
+        restart: () => this.setState({ morning: 0, cheer: false }),
+        steps: MORNING.map((m, i) => ({ short: m.short, mark: i < s.morning ? '✓' : String(i + 1),
+          bg: i === s.morning ? '#1F1A33' : '#16191E', border: i === s.morning ? '#8E6CE0' : '#22262D',
+          dotBg: i < s.morning ? '#8E6CE0' : i === s.morning ? '#C4B2F5' : '#2E343D', opacity: i > s.morning ? 0.7 : 1 })),
+      },
+      isBucks: step === 'bucks' && !s.bucksGone,
+      bucks: {
+        amount: 5, balance: 12, coin: coin(8),
+        sparkles: [[6, 18, 0], [112, 8, 300], [120, 96, 600], [0, 100, 900], [60, 0, 450]].map(([l, t, delay]) => ({ l, t, delay })),
+        zap: sprite(MEGAS.zap.hex, 'happy', 'none', 3),
+        later: () => this.setState({ bucksGone: true }),
+      },
+    };
+  }
+}
+</script>
+</body>
+</html>

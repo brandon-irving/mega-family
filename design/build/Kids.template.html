@@ -1,0 +1,335 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Kids: homework, routines, Mega Bucks</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;family=Pixelify+Sans:wght@400;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#0C0E11}
+button{font-family:inherit;cursor:pointer}
+a{color:#EDEFF2;text-decoration:none}
+@keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
+.bob{animation:bob .9s ease-in-out infinite}
+@keyframes pop{0%{transform:scale(.4);opacity:0}60%{transform:scale(1.12);opacity:1}100%{transform:scale(1)}}
+.pop{animation:pop 520ms cubic-bezier(.2,.9,.3,1.2) both}
+@keyframes twinkle{0%,100%{opacity:0;transform:scale(.6)}50%{opacity:1;transform:scale(1)}}
+.twinkle{animation:twinkle 1.4s ease-in-out infinite}
+@media (prefers-reduced-motion: reduce){.bob,.pop,.twinkle{animation:none}}
+</style>
+</helmet>
+<div style="position: relative; width: 390px; height: 844px; overflow: hidden; background: #0C0E11; color: #EDEFF2; font-family: Inter, system-ui, sans-serif">
+
+<sc-if value="{{showThread}}" hint-placeholder-val="{{ true }}">
+__THREAD__
+</sc-if>
+
+  <!-- 1 · Parent snaps the homework: the camera sheet over Admin's chat. -->
+  <sc-if value="{{cameraOpen}}" hint-placeholder-val="{{ false }}">
+    <div style="position: absolute; inset: 0; background: #050607; display: flex; flex-direction: column">
+      <div style="display: flex; align-items: center; padding: 54px 8px 0; height: 44px">
+        <button type="button" aria-label="Close the camera" onClick="{{closeCamera}}" style="width: 44px; height: 44px; border: none; background: transparent; color: #EDEFF2; display: flex; align-items: center; justify-content: center">
+          <svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"></path></svg>
+        </button>
+        <div style="flex: 1; text-align: center; font-size: 17px; font-weight: 700; margin-right: 44px">Homework photo</div>
+      </div>
+      <div style="position: relative; margin: 28px 24px 0; height: 470px; border-radius: 24px; background: #2A2E35; overflow: hidden; display: flex; align-items: center; justify-content: center">
+        <div aria-label="A fractions worksheet in the camera" role="img" style="width: 250px; height: 330px; transform: rotate(-4deg); background: #F6F3EA; border-radius: 4px; padding: 20px; box-sizing: border-box; color: #2B2B33; display: flex; flex-direction: column; gap: 14px; box-shadow: 0 12px 30px rgba(0,0,0,0.4)">
+          <div style="display: flex; justify-content: space-between; font-size: 12px"><b style="font-size: 15px">Fractions · Sheet 4</b><span>Name <span style="display: inline-block; width: 56px; border-bottom: 1px solid #8A8F99"></span></span></div>
+          <sc-for list="{{sheet}}" as="q" hint-placeholder-count="6">
+            <div style="font-size: 15px; display: flex; gap: 8px"><span>{{q.n}}.</span><span style="flex: 1">{{q.text}}</span><span style="width: 44px; border-bottom: 1px solid #8A8F99"></span></div>
+          </sc-for>
+        </div>
+        <span style="position: absolute; left: 18px; top: 18px; width: 36px; height: 36px; border-top: 4px solid #EDEFF2; border-left: 4px solid #EDEFF2; border-top-left-radius: 14px"></span>
+        <span style="position: absolute; right: 18px; top: 18px; width: 36px; height: 36px; border-top: 4px solid #EDEFF2; border-right: 4px solid #EDEFF2; border-top-right-radius: 14px"></span>
+        <span style="position: absolute; left: 18px; bottom: 18px; width: 36px; height: 36px; border-bottom: 4px solid #EDEFF2; border-left: 4px solid #EDEFF2; border-bottom-left-radius: 14px"></span>
+        <span style="position: absolute; right: 18px; bottom: 18px; width: 36px; height: 36px; border-bottom: 4px solid #EDEFF2; border-right: 4px solid #EDEFF2; border-bottom-right-radius: 14px"></span>
+      </div>
+      <p style="margin: 18px 32px 0; font-size: 15px; line-height: 22px; color: #B4BAC3; text-align: center">Fit the whole page in the frame. Teal reads it and makes practice for the twins.</p>
+      <div style="flex: 1; display: flex; align-items: center; justify-content: center">
+        <button type="button" aria-label="Take the photo" onClick="{{shoot}}" style="width: 76px; height: 76px; border-radius: 38px; border: 4px solid #EDEFF2; background: transparent; padding: 4px">
+          <span style="display: block; width: 100%; height: 100%; border-radius: 30px; background: #EDEFF2"></span>
+        </button>
+      </div>
+      <div style="display: flex; align-items: center; justify-content: center; gap: 6px; padding-bottom: 30px; font-size: 12px; color: #9AA1AB">
+        <svg aria-hidden="true" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="10" rx="2"></rect><path d="M8 11V8a4 4 0 0 1 8 0v3"></path></svg>
+        Only Admin and Partner see homework photos.
+      </div>
+    </div>
+  </sc-if>
+
+  <!-- 8 · Morning routine: one step per tap, the kid's MEGA cheering. -->
+  <sc-if value="{{isMorning}}" hint-placeholder-val="{{ false }}">
+    <div style="position: absolute; inset: 0; display: flex; flex-direction: column; padding: 58px 16px 30px; box-sizing: border-box">
+      <div style="display: flex; align-items: center; gap: 10px">
+        <div style="flex: 1; display: flex; flex-direction: column; gap: 2px">
+          <div style="font-size: 14px; font-weight: 600; color: #9AA1AB">Monday · 7:05 AM</div>
+          <h1 style="margin: 0; font-size: 28px; line-height: 34px; font-weight: 800">{{morning.greeting}}</h1>
+        </div>
+      </div>
+      <div style="position: relative; height: 230px; display: flex; align-items: flex-end; justify-content: center">
+        <sc-if value="{{morning.cheer}}" hint-placeholder-val="{{ true }}">
+          <span class="pop" style="position: absolute; top: 6px; left: 50%; margin-left: 46px; padding: 6px 12px; border: 3px solid #1B1A3A; border-radius: 10px; background: #FFFFFF; color: #1B1A3A; font-family: 'Pixelify Sans', monospace; font-size: 20px; font-weight: 600">{{morning.cheerText}}</span>
+        </sc-if>
+        <div class="bob" style="position: relative; width: {{morning.zap.w}}px; height: {{morning.zap.h}}px">
+          <sc-for list="{{morning.zap.rects}}" as="r" hint-placeholder-count="240">
+            <span style="position: absolute; left: {{r.l}}px; top: {{r.t}}px; width: {{r.w}}px; height: {{r.h}}px; background: {{r.c}}"></span>
+          </sc-for>
+        </div>
+      </div>
+      <section aria-label="Current step" style="margin-top: 18px; border-radius: 24px; background: #16191E; border: 1px solid #2E343D; padding: 18px; display: flex; flex-direction: column; gap: 14px">
+        <div style="display: flex; align-items: center; gap: 6px">
+          <sc-for list="{{morning.dots}}" as="d" hint-placeholder-count="4">
+            <span style="flex: 1; height: 8px; border-radius: 4px; background: {{d.bg}}"></span>
+          </sc-for>
+        </div>
+        <div style="font-size: 14px; font-weight: 700; color: #C4B2F5">{{morning.count}}</div>
+        <div style="font-size: 30px; line-height: 36px; font-weight: 800">{{morning.title}}</div>
+        <div style="font-size: 18px; line-height: 26px; color: #B4BAC3">{{morning.sub}}</div>
+        <sc-if value="{{morning.going}}" hint-placeholder-val="{{ true }}">
+          <button type="button" onClick="{{morning.done}}" style="height: 64px; border-radius: 20px; border: none; background: #8E6CE0; color: #140A33; font-size: 22px; font-weight: 800">Done!</button>
+        </sc-if>
+        <sc-if value="{{morning.finished}}" hint-placeholder-val="{{ false }}">
+          <button type="button" onClick="{{morning.restart}}" style="height: 64px; border-radius: 20px; border: 1px solid #3A414B; background: transparent; color: #EDEFF2; font-size: 20px; font-weight: 700">Start over</button>
+        </sc-if>
+      </section>
+      <ol aria-label="Morning steps" style="list-style: none; margin: 16px 0 0; padding: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px">
+        <sc-for list="{{morning.steps}}" as="s" hint-placeholder-count="4">
+          <li style="display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 10px 4px; border-radius: 16px; background: {{s.bg}}; border: 1px solid {{s.border}}; opacity: {{s.opacity}}">
+            <span style="width: 30px; height: 30px; border-radius: 15px; background: {{s.dotBg}}; color: #140A33; display: flex; align-items: center; justify-content: center; font-size: 15px; font-weight: 800">{{s.mark}}</span>
+            <span style="font-size: 13px; font-weight: 600; text-align: center; line-height: 16px">{{s.short}}</span>
+          </li>
+        </sc-for>
+      </ol>
+    </div>
+  </sc-if>
+
+  <!-- 9 · Mega Bucks arrive: a parent released them. -->
+  <sc-if value="{{isBucks}}" hint-placeholder-val="{{ false }}">
+    <div style="position: absolute; inset: 0; background: rgba(6,7,9,0.82); display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 0 24px; gap: 0">
+      <section aria-label="Mega Bucks released" class="pop" style="position: relative; width: 100%; box-sizing: border-box; border-radius: 28px; background: #16191E; border: 1px solid #2E343D; padding: 28px 22px 22px; display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center">
+        <div style="position: relative; width: 132px; height: 132px; display: flex; align-items: center; justify-content: center">
+          <sc-for list="{{bucks.sparkles}}" as="p" hint-placeholder-count="5">
+            <span class="twinkle" style="position: absolute; left: {{p.l}}px; top: {{p.t}}px; width: 8px; height: 8px; background: #FFF1A8; animation-delay: {{p.delay}}ms"></span>
+          </sc-for>
+          <div style="position: relative; width: {{bucks.coin.size}}px; height: {{bucks.coin.size}}px">
+            <sc-for list="{{bucks.coin.rects}}" as="r" hint-placeholder-count="40">
+              <span style="position: absolute; left: {{r.l}}px; top: {{r.t}}px; width: {{r.w}}px; height: {{r.h}}px; background: {{r.c}}"></span>
+            </sc-for>
+          </div>
+        </div>
+        <div style="font-family: 'Pixelify Sans', monospace; font-size: 40px; font-weight: 600; color: #FFD54A">+{{bucks.amount}}</div>
+        <h1 style="margin: 0; font-size: 26px; line-height: 32px; font-weight: 800">Admin released {{bucks.amount}} Mega Bucks!</h1>
+        <p style="margin: 0; font-size: 18px; line-height: 26px; color: #B4BAC3">For your fractions practice. Nice work!</p>
+        <div style="margin-top: 6px; height: 44px; padding: 0 16px; border-radius: 22px; background: #0C0E11; border: 1px solid #2E343D; display: flex; align-items: center; gap: 8px; font-size: 16px; color: #B4BAC3">
+          You have <b style="font-family: 'Pixelify Sans', monospace; font-size: 22px; color: #FFD54A">{{bucks.balance}}</b> Mega Bucks
+        </div>
+        <a href="Store.dc.html" style="align-self: stretch; margin-top: 10px; height: 58px; border-radius: 20px; background: #8E6CE0; color: #140A33; font-size: 20px; font-weight: 800; display: flex; align-items: center; justify-content: center">Open the Store</a>
+        <button type="button" onClick="{{bucks.later}}" style="align-self: stretch; height: 52px; border-radius: 20px; border: 1px solid #3A414B; background: transparent; color: #EDEFF2; font-size: 18px; font-weight: 600">Later</button>
+      </section>
+      <div class="bob" style="position: relative; margin-top: -8px; width: {{bucks.zap.w}}px; height: {{bucks.zap.h}}px">
+        <sc-for list="{{bucks.zap.rects}}" as="r" hint-placeholder-count="240">
+          <span style="position: absolute; left: {{r.l}}px; top: {{r.t}}px; width: {{r.w}}px; height: {{r.h}}px; background: {{r.c}}"></span>
+        </sc-for>
+      </div>
+    </div>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"step":{"editor":"enum","options":["snap","make","practice","done","summary","chore","choreApprove","bedtime","morning","bucks"],"default":"make"},"hint":{"editor":"enum","options":["off","on"],"default":"off"},"$preview":{"width":390,"height":844}}'>
+// Generated from prototypes/megasprite (mega-template.mjs, pixel-paint.mjs, export-looks.mjs).
+__SPRITE_LIVE__
+const STORE = __STORE__;
+__STORE_LIVE__
+__THREAD_JS__
+
+// Practice MEGA writes from the worksheet photo: new questions like the sheet's, each with a guiding hint.
+const QUESTIONS = [
+  { q: 'What is 1/2 + 1/4?', choices: ['2/6', '3/4', '1/6', '2/8'], right: '3/4', hint: 'How many quarters fit in one half? Change 1/2 into quarters first.' },
+  { q: 'What is 1/3 + 1/3?', choices: ['2/6', '1/9', '2/3', '1/3'], right: '2/3', hint: 'The bottoms already match. What happens to the tops?' },
+  { q: 'What is 3/4 − 1/4?', choices: ['1/2', '4/4', '3/16', '2/0'], right: '1/2', hint: 'Take one quarter away from three quarters. Can you make the answer simpler?' },
+  { q: 'What is 1/2 + 3/8?', choices: ['4/10', '4/8', '7/8', '3/16'], right: '7/8', hint: 'How many eighths are in one half? Start there.' },
+  { q: 'What is 2/5 + 1/10?', choices: ['3/15', '1/2', '3/10', '2/50'], right: '1/2', hint: 'Turn fifths into tenths first. How many tenths is 2/5?' },
+];
+const MORNING = [
+  { title: 'Get dressed', short: 'Dressed', sub: 'Clothes are on your chair from last night.' },
+  { title: 'Brush your teeth', short: 'Teeth', sub: 'Two whole minutes. I’ll count with you!' },
+  { title: 'Eat breakfast', short: 'Breakfast', sub: 'Cereal or toast. Admin packed your lunch.' },
+  { title: 'Grab your backpack', short: 'Backpack', sub: 'Your library book goes back today.' },
+];
+const CHEERS = ['Nice!', 'Woo!', 'Yes!', 'All set!'];
+const BEDTIME = [['Cleats', 'In your closet'], ['Shin guards', 'Under the bed, maybe?'], ['Water bottle', 'Fill it in the morning'], ['Homework folder', 'The fractions sheet goes back']];
+
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = this.fresh(props);
+  }
+  fresh(p) {
+    const step = p.step || 'make';
+    return {
+      step, camera: step === 'snap', kid: 'Twin 1', count: '5', made: false,
+      q: p.hint === 'on' ? 3 : 1, hint: p.hint === 'on', miss: '', amount: step === 'choreApprove' ? 3 : 5, released: '',
+      choreDone: false, packed: [true, false, false, false], morning: 1, cheer: false, bucksGone: false,
+    };
+  }
+  componentDidUpdate(prev) {
+    if (prev.step !== this.props.step || prev.hint !== this.props.hint) this.setState(this.fresh(this.props));
+  }
+  componentWillUnmount() { clearTimeout(this.cheerT); }
+
+  pick(choice) {
+    const s = this.state, cur = QUESTIONS[s.q];
+    if (choice !== cur.right) return this.setState({ miss: choice });
+    if (s.q === QUESTIONS.length - 1) return this.setState({ step: 'done' });
+    this.setState({ q: s.q + 1, hint: false, miss: '' });
+  }
+  release(who) {
+    this.setState({ released: who });
+  }
+
+  items() {
+    const s = this.state, set = (o) => () => this.setState(o);
+    switch (s.step) {
+      case 'snap':
+      case 'make': {
+        const made = s.made;
+        return ['teal', [
+          { day: 'Today · 3:52 PM' },
+          ...(s.step === 'snap' ? [{ from: 'teal', say: 'Hi! Want me to make some practice from today’s homework? Snap a photo of the sheet.' }] : [
+            { photo: 'Homework photo' },
+            { from: 'teal', say: 'That’s a fractions worksheet: adding and taking away fractions, 6 problems.' },
+            { card: {
+              from: 'Teal', title: 'Make practice for one of the twins?',
+              body: 'I’ll write new questions like these at their level. They get hints, never the answers.',
+              chipRows: made ? null : [chipRow('For', ['Twin 1', 'Twin 2'], s.kid, (v) => this.setState({ kid: v })), chipRow('Questions', ['3', '4', '5'], s.count, (v) => this.setState({ count: v }))],
+              actions: made ? [] : [btn('Make practice', set({ made: true })), btn('Not now', () => {}, 'ghost')],
+              status: made ? 'Sent to ' + s.kid + '. ' + (s.kid === 'Twin 1' ? 'Zap' : 'Sunny') + ' starts when they open it.' : '', statusColor: '#2FB8B0',
+            } },
+          ]),
+        ], { camera: true, openCamera: set({ camera: true }) }];
+      }
+      case 'practice': {
+        const cur = QUESTIONS[s.q];
+        return ['zap', [
+          { from: 'zap', say: 'Admin sent you fractions practice from today’s homework. 5 questions. You’ve got this!' },
+          { mine: 'Ready!' },
+          { card: {
+            from: 'Zap · Practice', dots: QUESTIONS.map((_, i) => ({ bg: i < s.q ? '#8E6CE0' : i === s.q ? '#C4B2F5' : '#2E343D' })),
+            progressLabel: 'Question ' + (s.q + 1) + ' of ' + QUESTIONS.length, title: cur.q, titleSize: 26,
+            hint: s.hint ? cur.hint : '',
+            choices: cur.choices.map((c) => ({ label: c, pick: () => this.pick(c),
+              bg: c === s.miss ? '#2A1A1A' : '#0C0E11', border: c === s.miss ? '#E07A5F' : '#3A414B', fg: c === s.miss ? '#F2A08A' : '#EDEFF2' })),
+            actions: s.hint ? [] : [btn('Hint, please', set({ hint: true }), 'ghost')], cols: 1,
+            status: s.miss ? 'Not quite. ' + (s.hint ? 'Look at the hint and try again!' : 'Want a hint?') : '', statusColor: '#F2B33D',
+          } },
+        ], { showCoin: true, balance: 7 }];
+      }
+      case 'done':
+        return ['zap', [
+          { card: {
+            from: 'Zap · Practice', dots: QUESTIONS.map(() => ({ bg: '#8E6CE0' })), progressLabel: 'Finished',
+            title: 'You got 4 of 5!', titleSize: 26,
+            body: 'You used 2 hints. Fractions with different bottoms were the tricky ones, and you still got them.',
+            status: 'I told Admin how it went.', statusColor: '#C4B2F5',
+          } },
+          { from: 'zap', say: 'Admin decides about Mega Bucks. I’ll tell you the second they arrive!' },
+        ], { showCoin: true, balance: 7 }];
+      case 'summary':
+      case 'choreApprove': {
+        const chore = s.step === 'choreApprove', kid = chore ? 'Twin 2' : 'Twin 1', from = chore ? 'sunny' : 'zap';
+        const done = s.released;
+        return ['teal', [
+          { day: chore ? 'Today · 7:42 PM' : 'Today · 4:31 PM' },
+          { from: 'teal', say: chore ? 'Sunny says Twin 2 finished a chore.' : 'Zap says Twin 1 finished the fractions practice.' },
+          { card: {
+            from: MEGAS[from].name + ' → you · ' + (chore ? 'chore' : 'practice report'), fromColor: MEGAS[from].hex,
+            title: chore ? 'Twin 2 says the dishes are done' : 'Twin 1 got 4 of 5 · fractions were tricky',
+            body: chore ? 'Marked done at 7:42 PM. You set this chore at 3 Mega Bucks.' : 'Adding fractions with different bottoms took 2 hints. 12 minutes in all.',
+            amount: done ? undefined : s.amount,
+            dec: () => this.setState({ amount: Math.max(0, s.amount - 1) }), inc: () => this.setState({ amount: Math.min(20, s.amount + 1) }),
+            actions: done ? [] : [btn('Release ' + s.amount, () => this.release('yes')), btn(chore ? 'Not yet' : 'Not now', () => this.release('no'), 'ghost')],
+            status: done === 'yes' ? 'Released ' + s.amount + ' Mega Bucks to ' + kid + '. ' + MEGAS[from].name + ' told them.'
+              : done === 'no' ? (chore ? 'Not yet. Sunny will tell Twin 2 you’ll check again.' : 'Not released. You can do it later from Twin 1’s page.') : '',
+            statusColor: done === 'yes' ? '#2FB8B0' : '#9AA1AB',
+            foot: 'Only Admin and Partner can release Mega Bucks.',
+          } },
+        ]];
+      }
+      case 'chore':
+        return ['sunny', [
+          { day: 'Today · 7:15 PM' },
+          { from: 'sunny', say: 'Dinner’s done! Time for your chore.' },
+          { card: {
+            from: 'Sunny · Chore', title: 'Dishes after dinner', titleSize: 24,
+            body: 'Rinse and load the dishwasher. When Admin checks, you get 3 Mega Bucks.',
+            actions: s.choreDone ? [] : [btn('Done!', set({ choreDone: true })), btn('In 10 min', () => {}, 'ghost')],
+            status: s.choreDone ? 'Nice work! I told Admin. Your Mega Bucks come when they check.' : '', statusColor: '#F2B33D',
+          } },
+        ], { showCoin: true, balance: 4 }];
+      case 'bedtime': {
+        const n = s.packed.filter(Boolean).length, all = n === BEDTIME.length;
+        return ['zap', [
+          { day: 'Tonight · 8:15 PM' },
+          { from: 'zap', say: 'Big day tomorrow! Here’s what’s on the family calendar.' },
+          { card: {
+            from: 'Zap · Tomorrow', title: 'Soccer practice at 4:30', titleSize: 24,
+            body: 'Pack your bag tonight so the morning is easy. ' + n + ' of ' + BEDTIME.length + ' packed.',
+            checks: BEDTIME.map(([label, sub], i) => check(label, sub, s.packed[i], () => this.setState({ packed: s.packed.map((v, j) => (j === i ? !v : v)) }), '#8E6CE0')),
+            status: all ? 'All packed! Sleep well, see you at 7.' : '', statusColor: '#C4B2F5',
+          } },
+        ], { showCoin: true, balance: 12 }];
+      }
+      case 'bucks':
+        return ['zap', [
+          { day: 'Today · 4:33 PM' },
+          { from: 'zap', say: 'Psst. Check this out!' },
+        ], { showCoin: true, balance: 12 }];
+      default:
+        return ['zap', []];
+    }
+  }
+
+  renderVals() {
+    const s = this.state, step = s.step;
+    const [mega, items, extra] = this.items();
+    const finished = s.morning >= MORNING.length, cur = MORNING[Math.min(s.morning, MORNING.length - 1)];
+    return {
+      showThread: step !== 'morning',
+      th: thread(mega, items, extra),
+      cameraOpen: step === 'snap' && s.camera,
+      closeCamera: () => this.setState({ camera: false }),
+      shoot: () => this.setState({ step: 'make', camera: false }),
+      sheet: SHEET,
+      isMorning: step === 'morning',
+      morning: {
+        greeting: finished ? 'All set, Twin 1!' : 'Good morning, Twin 1!',
+        zap: sprite(MEGAS.zap.hex, s.cheer || finished ? 'happy' : 'open', 'none', 5),
+        cheer: s.cheer || finished, cheerText: finished ? 'All set!' : CHEERS[(s.morning - 1) % CHEERS.length],
+        dots: MORNING.map((_, i) => ({ bg: i < s.morning ? '#8E6CE0' : i === s.morning ? '#C4B2F5' : '#2E343D' })),
+        count: finished ? 'Done before 7:30!' : 'Step ' + (s.morning + 1) + ' of ' + MORNING.length,
+        title: finished ? 'Have a great day!' : cur.title, sub: finished ? 'Bus comes at 7:40. I’ll remind you at 7:30.' : cur.sub,
+        going: !finished, finished,
+        done: () => { this.setState({ morning: s.morning + 1, cheer: true }); clearTimeout(this.cheerT); this.cheerT = setTimeout(() => this.setState({ cheer: false }), 1400); },
+        restart: () => this.setState({ morning: 0, cheer: false }),
+        steps: MORNING.map((m, i) => ({ short: m.short, mark: i < s.morning ? '✓' : String(i + 1),
+          bg: i === s.morning ? '#1F1A33' : '#16191E', border: i === s.morning ? '#8E6CE0' : '#22262D',
+          dotBg: i < s.morning ? '#8E6CE0' : i === s.morning ? '#C4B2F5' : '#2E343D', opacity: i > s.morning ? 0.7 : 1 })),
+      },
+      isBucks: step === 'bucks' && !s.bucksGone,
+      bucks: {
+        amount: 5, balance: 12, coin: coin(8),
+        sparkles: [[6, 18, 0], [112, 8, 300], [120, 96, 600], [0, 100, 900], [60, 0, 450]].map(([l, t, delay]) => ({ l, t, delay })),
+        zap: sprite(MEGAS.zap.hex, 'happy', 'none', 3),
+        later: () => this.setState({ bucksGone: true }),
+      },
+    };
+  }
+}
+</script>
+</body>
+</html>

@@ -1,6 +1,6 @@
 // Renders a MEGA from the template data: no image generation involved.
 // renderMega(spec, options) -> { w, h, px }; toSvg (re-exported) turns that into crisp-edged SVG.
-import { BADGE, BADGE_PARTS, DECALS, DECAL_ANCHOR, EXPRESSIONS, FIXED_COLORS, FRAMES, GRID, STICKER, STICKER_STANDINS, VIEWS } from "./mega-template.mjs";
+import { ANTENNAS, BADGE, BADGE_PARTS, DECALS, DECAL_ANCHOR, EXPRESSIONS, EYE_STYLES, FIXED_COLORS, FRAMES, GRID, STICKER, STICKER_STANDINS, STORE_COLORS, VIEWS } from "./mega-template.mjs";
 import { blank, crop, mirror, onTile, paint, shades, withShades } from "./pixel-paint.mjs";
 
 export { toSvg } from "./pixel-paint.mjs";
@@ -8,26 +8,34 @@ export { toSvg } from "./pixel-paint.mjs";
 /** Shell shades derived from one colour: the family picks a hex, the rest follows. */
 export function palette(spec) {
   const { light, dark } = shades(spec.shell);
-  return { ...FIXED_COLORS, shell: spec.shell, shellLight: light, shellDark: dark, decal: spec.decalColor ?? "#FFD54A" };
+  return { ...FIXED_COLORS, ...STORE_COLORS, shell: spec.shell, shellLight: light, shellDark: dark, decal: spec.decalColor ?? "#FFD54A" };
 }
 
 const overlay = (id, fill, shapes) => shapes.map((shape) => ({ id, group: "body", fill, shape, shade: false, outline: false }));
 
+// Swap in the spec's antenna (default classic) where the template's antenna parts sit.
+function withAntenna(parts, name) {
+  if (!name || name === "classic") return parts;
+  const i = parts.findIndex((p) => p.id.startsWith("antenna"));
+  return [...parts.slice(0, i), ...(ANTENNAS[name] ?? ANTENNAS.classic), ...parts.slice(i).filter((p) => !p.id.startsWith("antenna"))];
+}
+
 function layersFor(spec, view, expression) {
-  const face = EXPRESSIONS[expression] ?? EXPRESSIONS.blank;
+  const eyes = expression === "open" && spec.eyes ? EYE_STYLES[spec.eyes] : null;
+  const face = eyes ? { ...EXPRESSIONS.open, ...eyes } : EXPRESSIONS[expression] ?? EXPRESSIONS.blank;
   if (view === "front")
     return [
-      ...VIEWS.front,
+      ...withAntenna(VIEWS.front, spec.antenna),
       ...(spec.decal === "none" ? [] : overlay("decal", "decal", [{ pattern: [...DECAL_ANCHOR, DECALS[spec.decal] ?? DECALS.star] }])),
       ...overlay("eyes", "eye", face.front),
       ...overlay("blush", "blush", face.blush ?? []),
     ];
-  if (view === "side") return [...VIEWS.side, ...overlay("eyes", "eye", face.side)];
-  return VIEWS[view];
+  if (view === "side") return [...withAntenna(VIEWS.side, spec.antenna), ...overlay("eyes", "eye", face.side)];
+  return withAntenna(VIEWS[view], spec.antenna);
 }
 
 /**
- * @param spec    { shell: "#2FB8B0", decal: "star" | "none", decalColor? }
+ * @param spec    { shell: "#2FB8B0", decal: "star" | "none", decalColor?, antenna?: keyof ANTENNAS, eyes?: keyof EYE_STYLES }
  * @param options { view: front|back|right|left, frame: stand|stepL|stepR, expression, badge, keys }
  */
 export function renderMega(spec, { view = "front", frame = "stand", expression = "open", badge = false, keys = false } = {}) {

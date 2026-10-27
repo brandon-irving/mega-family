@@ -1,0 +1,248 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Calendar and gift ideas</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;family=Pixelify+Sans:wght@400;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#0C0E11}
+button{font-family:inherit;cursor:pointer}
+a{color:#EDEFF2;text-decoration:none}
+</style>
+</helmet>
+<div style="position: relative; width: 390px; height: 844px; overflow: hidden; background: #0C0E11; color: #EDEFF2; font-family: Inter, system-ui, sans-serif">
+
+<sc-if value="{{showThread}}" hint-placeholder-val="{{ false }}">
+__THREAD__
+</sc-if>
+
+  <!-- Week view: the household layer plus the viewer's own private layer. -->
+  <sc-if value="{{showWeek}}" hint-placeholder-val="{{ true }}">
+    <section aria-label="Family calendar" style="position: absolute; inset: 0; display: flex; flex-direction: column; padding-top: 44px">
+      <header style="display: grid; grid-template-columns: 56px 1fr 56px; align-items: center; height: 56px; padding: 0 8px; flex-shrink: 0">
+        <button type="button" aria-label="Close calendar" style="width: 44px; height: 44px; border: none; background: transparent; color: #EDEFF2; display: flex; align-items: center; justify-content: center"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"></path></svg></button>
+        <h2 style="margin: 0; text-align: center; font-size: 17px; font-weight: 700">October 2026</h2>
+        <button type="button" onClick="{{goToday}}" style="justify-self: end; height: 36px; padding: 0 12px; border-radius: 18px; border: 1px solid #2E343D; background: transparent; color: #EDEFF2; font-size: 13px; font-weight: 600">Today</button>
+      </header>
+      <div style="display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; padding: 6px 10px 12px">
+        <sc-for list="{{days}}" as="d" hint-placeholder-count="7">
+          <button type="button" aria-pressed="{{d.on}}" aria-label="{{d.full}}" onClick="{{d.pick}}" style="display: flex; flex-direction: column; align-items: center; gap: 4px; height: 70px; padding: 6px 0; border-radius: 14px; border: none; background: {{d.bg}}; color: {{d.fg}}">
+            <span style="font-size: 12px; font-weight: 600; opacity: .8">{{d.dow}}</span>
+            <span style="font-size: 18px; font-weight: 800">{{d.num}}</span>
+            <span style="display: flex; gap: 3px; height: 6px">
+              <sc-for list="{{d.dots}}" as="c" hint-placeholder-count="2">
+                <span style="width: 6px; height: 6px; border-radius: 3px; background: {{c}}"></span>
+              </sc-for>
+            </span>
+          </button>
+        </sc-for>
+      </div>
+      <div style="display: flex; gap: 8px; padding: 0 16px 12px; border-bottom: 1px solid #22262D">
+        <sc-for list="{{layers}}" as="l" hint-placeholder-count="2">
+          <button type="button" aria-pressed="{{l.on}}" onClick="{{l.toggle}}" style="height: 40px; padding: 0 14px; border-radius: 20px; border: 1px solid {{l.border}}; background: {{l.bg}}; color: #EDEFF2; font-size: 14px; font-weight: 600; display: flex; align-items: center; gap: 8px; opacity: {{l.opacity}}">
+            <sc-if value="{{l.isPrivate}}" hint-placeholder-val="{{ false }}">
+              <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="10" rx="2"></rect><path d="M8 11V8a4 4 0 0 1 8 0v3"></path></svg>
+            </sc-if>
+            <sc-if value="{{l.isShared}}" hint-placeholder-val="{{ true }}">
+              <span style="width: 10px; height: 10px; border-radius: 5px; background: #5B8DEF"></span>
+            </sc-if>
+            {{l.label}}
+          </button>
+        </sc-for>
+      </div>
+      <div style="flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; padding: 14px 16px 24px">
+        <sc-if value="{{showClash}}" hint-placeholder-val="{{ true }}">
+          <a href="CalClash.dc.html" style="display: flex; align-items: center; gap: 12px; padding: 12px; margin-bottom: 10px; border-radius: 18px; background: #10243F; border: 1px solid #2B4A7A">
+            <span style="position: relative; width: 40px; height: 34px; flex-shrink: 0; border-radius: 9px; overflow: hidden; background: #FFFFFF">
+              <span style="position: absolute; left: 4px; top: 4px; width: 32px; height: 27px">
+                <sc-for list="{{hubHead.rects}}" as="r" hint-placeholder-count="150">
+                  <span style="position: absolute; left: {{r.l}}px; top: {{r.t}}px; width: {{r.w}}px; height: {{r.h}}px; background: {{r.c}}"></span>
+                </sc-for>
+              </span>
+            </span>
+            <span style="flex: 1; display: flex; flex-direction: column; gap: 2px">
+              <span style="font-size: 15px; font-weight: 700">Hub spotted a clash</span>
+              <span style="font-size: 13px; color: #C9D8F7">{{clashLine}}</span>
+            </span>
+            <span style="font-size: 14px; font-weight: 700; color: #9DBCF7">See the fix</span>
+          </a>
+        </sc-if>
+        <div style="font-size: 15px; font-weight: 700; margin-bottom: 6px">{{dayLabel}}</div>
+        <sc-if value="{{dayEmpty}}" hint-placeholder-val="{{ false }}">
+          <div style="font-size: 15px; color: #9AA1AB; padding: 12px 0">Nothing planned.</div>
+        </sc-if>
+        <sc-for list="{{agenda}}" as="e" hint-placeholder-count="5">
+          <div style="display: flex; gap: 14px; align-items: center; min-height: 62px; border-bottom: 1px solid #22262D">
+            <span style="width: 74px; display: flex; flex-direction: column; font-size: 14px; color: #9AA1AB; font-variant-numeric: tabular-nums"><span>{{e.time}}</span><span style="font-size: 12px; color: #6B727D">{{e.until}}</span></span>
+            <span aria-hidden="true" style="width: 4px; height: 38px; border-radius: 2px; background: {{e.bar}}; border: {{e.barBorder}}; box-sizing: border-box"></span>
+            <span style="display: flex; flex-direction: column; gap: 3px; flex: 1; min-width: 0">
+              <span style="display: flex; align-items: center; gap: 8px">
+                <span style="font-size: 16px; font-weight: 600">{{e.title}}</span>
+                <sc-if value="{{e.clash}}" hint-placeholder-val="{{ false }}">
+                  <span style="padding: 1px 7px; border-radius: 8px; background: #3A2B10; color: #F2B33D; font-size: 11px; font-weight: 800; letter-spacing: .04em">CLASH</span>
+                </sc-if>
+              </span>
+              <span style="display: flex; align-items: center; gap: 5px; font-size: 13px; color: #8A919B">
+                <sc-if value="{{e.private}}" hint-placeholder-val="{{ false }}">
+                  <svg aria-hidden="true" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="10" rx="2"></rect><path d="M8 11V8a4 4 0 0 1 8 0v3"></path></svg>
+                </sc-if>
+                {{e.who}}
+              </span>
+            </span>
+          </div>
+        </sc-for>
+        <div style="display: flex; flex-wrap: wrap; gap: 12px; margin-top: 14px">
+          <sc-for list="{{legend}}" as="g" hint-placeholder-count="4">
+            <span style="display: flex; align-items: center; gap: 6px; font-size: 13px; color: #9AA1AB"><span style="width: 10px; height: 10px; border-radius: 5px; background: {{g.color}}"></span>{{g.who}}</span>
+          </sc-for>
+        </div>
+        <div style="display: flex; gap: 6px; font-size: 13px; line-height: 18px; color: #8A919B; margin-top: 10px">
+          <svg aria-hidden="true" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0; margin-top: 2px"><rect x="5" y="11" width="14" height="10" rx="2"></rect><path d="M8 11V8a4 4 0 0 1 8 0v3"></path></svg>
+          <span>Private events stay on your calendar. Nobody else sees them, and Hub never checks them for clashes.</span>
+        </div>
+      </div>
+    </section>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"step":{"editor":"enum","options":["week","share","clash","gifts"],"default":"week"},"viewer":{"editor":"enum","options":["admin","partner"],"default":"admin"},"approved":{"editor":"enum","options":["no","yes"],"default":"no"},"$preview":{"width":390,"height":844}}'>
+// Generated from prototypes/megasprite (mega-template.mjs, pixel-paint.mjs, export-looks.mjs).
+__SPRITE_LIVE__
+const STORE = __STORE__;
+__STORE_LIVE__
+__THREAD_JS__
+__FAMILY_DATA__
+
+// Two layers: "household" (everyone sees it; the only layer Hub checks for clashes) and "private"
+// (only its owner sees it). Nothing moves from private to household without the owner's own Share tap.
+const COLORS = { Admin: '#2FB8B0', Partner: '#F2766B', Twins: '#8E6CE0', Family: '#9AA1AB' };
+const THU = 4;
+const THURSDAY = [
+  { id: 'haircut', start: 15 * 60, end: 15 * 60 + 45, title: 'Haircut', owner: 'Partner', layer: 'private' },
+  { id: 'dentist', start: 16 * 60, end: 17 * 60, title: 'Dentist', owner: 'Admin', layer: 'private' },
+  { id: 'practice', start: 16 * 60 + 30, end: 17 * 60 + 30, title: 'Soccer practice', owner: 'Twins', layer: 'household' },
+  { id: 'dinner', start: 17 * 60, end: 19 * 60, title: 'Work dinner', owner: 'Partner', layer: 'household' },
+  { id: 'pickup', start: 17 * 60 + 30, end: 17 * 60 + 45, title: 'Soccer pickup', owner: 'Partner', layer: 'household' },
+  { id: 'reading', start: 20 * 60 + 30, end: 21 * 60, title: 'Reading time', owner: 'Twins', layer: 'household' },
+];
+// Hub's clash check runs over household events only (the dentist/practice overlap is never seen).
+const CLASH = ['dinner', 'pickup'];
+const PEOPLE = { Admin: 'Admin', Partner: 'Partner', Twins: 'Twins', Family: 'Family' };
+const fromWeek = (d) => d.events.map(([start, title, who]) => ({ start, title, owner: who === 'You' ? 'Admin' : who, layer: 'household' }));
+
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = this.fresh(props);
+  }
+  fresh(p) {
+    return { day: THU, shared: true, mine: true, answer: p.approved === 'yes' ? 'approve' : '', share: '', added: [] };
+  }
+  componentDidUpdate(prev) {
+    if (['step', 'viewer', 'approved'].some((k) => prev[k] !== this.props[k])) this.setState(this.fresh(this.props));
+  }
+
+  events(viewer, dayIdx) {
+    const s = this.state, me = viewer === 'partner' ? 'Partner' : 'Admin';
+    const raw = dayIdx === THU ? THURSDAY : fromWeek(WEEK[dayIdx]);
+    return raw
+      .filter((e) => (e.layer === 'household' ? s.shared : s.mine && e.owner === me))
+      .map((e) => (e.id === 'pickup' && s.answer === 'approve' ? Object.assign({}, e, { owner: 'Admin' }) : e));
+  }
+
+  items() {
+    const s = this.state, step = this.props.step || 'week';
+    if (step === 'share') {
+      return ['teal', [
+        { day: 'Today · 11:20 AM' },
+        { mine: 'Dentist Thursday 4 to 5' },
+        { from: 'teal', say: 'Added Dentist to your calendar, Thursday 4:00–5:00 PM. Only you can see it.' },
+        { card: {
+          from: 'Teal', title: 'Share it with the household?',
+          body: 'Partner and the twins would see “Dentist · Thu 4:00–5:00 PM”. Right now it’s only on your calendar.',
+          actions: s.share ? [] : [btn('Share it', () => this.setState({ share: 'yes' })), btn('Keep private', () => this.setState({ share: 'no' }), 'ghost')],
+          status: s.share === 'yes' ? 'Shared with the household. Hub can plan around it now.' : s.share === 'no' ? 'Kept private. Only you see it.' : '',
+          statusColor: s.share === 'yes' ? '#5B8DEF' : '#9AA1AB',
+          foot: 'MEGA never shares anything unless you tap Share.',
+        } },
+      ]];
+    }
+    if (step === 'clash') {
+      const a = s.answer;
+      return ['teal', [
+        { day: 'Today · 6:02 PM' },
+        { from: 'teal', say: 'Hub found a clash in Thursday’s family plans.' },
+        { card: {
+          from: 'Hub · your family’s MEGA', fromColor: '#5B8DEF', isAi: true,
+          title: 'Partner can’t be at soccer pickup',
+          body: 'Partner’s work dinner (5:00–7:00 PM) overlaps soccer pickup at 5:30, which is Partner’s job. One fix:',
+          before: 'Pickup · Partner', beforeSub: 'Thu 5:30 PM, during the dinner',
+          after: 'Pickup · You', afterSub: 'Thu 5:30 PM, nothing else shared then',
+          actions: a ? [] : [btn('Approve', () => this.setState({ answer: 'approve' })), btn('Reject', () => this.setState({ answer: 'reject' }), 'ghost')],
+          status: a === 'approve' ? 'Approved. Pickup is yours now. Coral told Partner.' : a === 'reject' ? 'Rejected. Nothing changed. Want me to ask Partner for another fix?' : 'Waiting for you. Nothing has changed yet.',
+          statusColor: a === 'approve' ? '#2FB8B0' : a === 'reject' ? '#9AA1AB' : '#F2B33D',
+          foot: 'Hub only checks household events. Private ones are never looked at.',
+        } },
+      ]];
+    }
+    // gifts
+    const add = (id) => () => this.setState({ added: s.added.concat(id) });
+    const idea = (id, title, why) => {
+      const done = s.added.includes(id);
+      return { title, why, act: done ? () => {} : add(id), actLabel: done ? 'Added' : 'Add to list', aria: (done ? 'Added ' : 'Add ') + title + ' to the gift list',
+        bg: done ? '#123B39' : 'transparent', fg: done ? '#7FE0D8' : '#EDEFF2', border: done ? '#2FB8B0' : '#3A414B' };
+    };
+    return ['teal', [
+      { day: 'Today · 9:00 AM' },
+      { from: 'teal', say: 'Twin 1’s birthday is in 12 days (Sunday, November 8). Want some gift ideas?' },
+      { mine: 'Yes please' },
+      { card: {
+        from: 'Teal', title: 'Gift ideas for Twin 1',
+        tagsLabel: 'Based on what’s shared', tags: [{ text: 'Twin 1 shared: loves dinosaurs' }, { text: 'Family notes: into building sets' }, { text: 'Partner shared: about $40' }],
+        rows: [idea('set', 'Dinosaur skeleton building set', 'Dinosaurs + building · about $35'), idea('dig', 'Dig-your-own fossil kit', 'Loves dinosaurs · about $20'), idea('museum', 'Family day at the dinosaur hall', 'An outing for everyone · tickets about $40')],
+        foot: 'Only shared info is used. Private notes stay private.',
+      } },
+    ]];
+  }
+
+  renderVals() {
+    const s = this.state, step = this.props.step || 'week', viewer = this.props.viewer || 'admin';
+    const me = viewer === 'partner' ? 'Partner' : 'Admin';
+    const label = (owner) => (owner === me ? 'You' : PEOPLE[owner]);
+    const evs = this.events(viewer, s.day).slice().sort((a, b) => a.start - b.start);
+    const clashOpen = s.day === THU && s.shared && s.answer !== 'approve';
+    const agenda = evs.map((e) => {
+      const priv = e.layer === 'private';
+      return {
+        time: clock(e.start), until: e.end ? 'to ' + clock(e.end) : '', title: e.title, private: priv,
+        who: label(e.owner) + (priv ? ' · Only you' : ' · Household'),
+        bar: priv ? 'transparent' : COLORS[e.owner], barBorder: priv ? '2px dashed ' + COLORS[e.owner] : 'none',
+        clash: clashOpen && CLASH.includes(e.id),
+      };
+    });
+    const dayDots = (i) => [...new Set(this.events(viewer, i).map((e) => COLORS[e.owner]))].slice(0, 3);
+    const thread_ = step === 'week' ? null : this.items();
+    return {
+      showWeek: step === 'week', showThread: step !== 'week',
+      th: thread_ ? thread(thread_[0], thread_[1]) : thread('teal', []),
+      days: WEEK.map((d, i) => ({ dow: d.dow, num: d.num, full: d.full, on: String(i === s.day), pick: () => this.setState({ day: i }),
+        bg: i === s.day ? '#EDEFF2' : 'transparent', fg: i === s.day ? '#0C0E11' : '#EDEFF2', dots: dayDots(i) })),
+      goToday: () => this.setState({ day: 0 }),
+      layers: [
+        { label: 'Household', isShared: true, isPrivate: false, on: String(s.shared), toggle: () => this.setState({ shared: !s.shared }), bg: s.shared ? '#10243F' : 'transparent', border: s.shared ? '#2B4A7A' : '#3A414B', opacity: s.shared ? 1 : 0.7 },
+        { label: 'Only you', isShared: false, isPrivate: true, on: String(s.mine), toggle: () => this.setState({ mine: !s.mine }), bg: s.mine ? '#1E2228' : 'transparent', border: s.mine ? '#6B727D' : '#3A414B', opacity: s.mine ? 1 : 0.7 },
+      ],
+      showClash: clashOpen, clashLine: 'Work dinner overlaps soccer pickup · Thu', hubHead: sprite(MEGAS.hub.hex, 'open', 'none', 1, 27),
+      dayLabel: WEEK[s.day].full, dayEmpty: agenda.length === 0, agenda,
+      legend: Object.keys(COLORS).map((k) => ({ who: label(k), color: COLORS[k] })),
+    };
+  }
+}
+</script>
+</body>
+</html>

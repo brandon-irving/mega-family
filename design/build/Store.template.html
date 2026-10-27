@@ -1,0 +1,354 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>The Store</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;family=Pixelify+Sans:wght@400;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#0C0E11}
+button{font-family:inherit;cursor:pointer}
+a{color:#EDEFF2;text-decoration:none}
+@keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
+.bob{animation:bob .9s ease-in-out infinite}
+@keyframes pop{0%{transform:scale(.5);opacity:0}60%{transform:scale(1.1);opacity:1}100%{transform:scale(1)}}
+.pop{animation:pop 480ms cubic-bezier(.2,.9,.3,1.2) both}
+@media (prefers-reduced-motion: reduce){.bob,.pop{animation:none}}
+</style>
+</helmet>
+<div style="position: relative; width: 390px; height: 844px; overflow: hidden; background: #0C0E11; color: #EDEFF2; font-family: Inter, system-ui, sans-serif">
+
+  <!-- Twin 1's room: the way into the Store, and the Decorate tray where bought furniture lands. -->
+  <sc-if value="{{inRoom}}" hint-placeholder-val="{{ false }}">
+    <div style="position: absolute; inset: 0; display: flex; flex-direction: column">
+      <header style="display: flex; align-items: center; gap: 8px; height: 60px; padding: 44px 10px 0; flex-shrink: 0">
+        <button type="button" aria-label="Back to HQ" style="width: 44px; height: 44px; border: none; background: transparent; color: #EDEFF2; display: flex; align-items: center; justify-content: center">
+          <svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"></path></svg>
+        </button>
+        <h1 style="flex: 1; margin: 0; font-size: 19px; font-weight: 700">{{roomTitle}}</h1>
+        <sc-if value="{{viewing}}" hint-placeholder-val="{{ true }}">
+          <a href="Store.dc.html" aria-label="Store, {{balance}} Mega Bucks" style="height: 40px; padding: 0 14px 0 8px; border-radius: 20px; background: #8E6CE0; color: #140A33; display: flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 800">
+            <span style="position: relative; width: 24px; height: 24px">
+              <sc-for list="{{coinS.rects}}" as="r" hint-placeholder-count="40">
+                <span style="position: absolute; left: {{r.l}}px; top: {{r.t}}px; width: {{r.w}}px; height: {{r.h}}px; background: {{r.c}}"></span>
+              </sc-for>
+            </span>
+            Store · {{balance}}
+          </a>
+        </sc-if>
+        <sc-if value="{{decorating}}" hint-placeholder-val="{{ false }}">
+          <button type="button" onClick="{{finishDecorate}}" style="height: 40px; padding: 0 18px; border-radius: 20px; border: none; background: #EDEFF2; color: #0C0E11; font-size: 15px; font-weight: 700">Done</button>
+        </sc-if>
+      </header>
+      <div style="position: relative; width: 384px; height: 432px; margin: 8px 3px 0; flex-shrink: 0; overflow: hidden">
+        <img src="{{base}}" alt="Twin 1’s room" style="position: absolute; left: 0; top: 0; width: 384px; height: 432px; image-rendering: pixelated; display: block">
+        <sc-for list="{{pieces}}" as="p" hint-placeholder-count="8">
+          <img src="{{p.src}}" alt="" class="{{p.cls}}" style="position: absolute; left: {{p.left}}px; top: {{p.top}}px; width: {{p.w}}px; height: {{p.h}}px; z-index: {{p.z}}; pointer-events: none; image-rendering: pixelated">
+        </sc-for>
+        <img src="{{zapSrc}}" alt="Zap" style="position: absolute; left: 168px; top: 228px; width: 48px; height: 60px; z-index: 40; image-rendering: pixelated">
+        <span style="position: absolute; left: 196px; top: 196px; z-index: 60; padding: 2px 8px; border: 2px solid #1B1A3A; border-radius: 6px; background: #FFFFFF; color: #1B1A3A; font-family: 'Pixelify Sans', monospace; font-size: 15px; font-weight: 600; white-space: nowrap">{{zapSays}}</span>
+      </div>
+      <sc-if value="{{viewing}}" hint-placeholder-val="{{ true }}">
+        <div style="flex: 1; display: flex; flex-direction: column; gap: 12px; padding: 16px">
+          <div style="display: flex; align-items: center; gap: 12px; border-radius: 18px; background: #16191E; border: 1px solid #2E343D; padding: 12px 14px">
+            <span style="position: relative; width: 36px; height: 36px; flex-shrink: 0">
+              <sc-for list="{{coinM.rects}}" as="r" hint-placeholder-count="40">
+                <span style="position: absolute; left: {{r.l}}px; top: {{r.t}}px; width: {{r.w}}px; height: {{r.h}}px; background: {{r.c}}"></span>
+              </sc-for>
+            </span>
+            <span style="flex: 1; display: flex; flex-direction: column; gap: 2px">
+              <span style="font-size: 16px; font-weight: 700">You have {{balance}} Mega Bucks</span>
+              <span style="font-size: 13px; color: #9AA1AB">Earn more with chores and practice.</span>
+            </span>
+          </div>
+          <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px">
+            <button type="button" onClick="{{startDecorate}}" style="height: 54px; border-radius: 18px; border: 1px solid #3A414B; background: transparent; color: #EDEFF2; font-size: 17px; font-weight: 700">Decorate</button>
+            <a href="Store.dc.html" style="height: 54px; border-radius: 18px; background: #8E6CE0; color: #140A33; font-size: 17px; font-weight: 800; display: flex; align-items: center; justify-content: center">Open the Store</a>
+          </div>
+        </div>
+      </sc-if>
+      <sc-if value="{{decorating}}" hint-placeholder-val="{{ false }}">
+        <div style="flex: 1; display: flex; flex-direction: column; gap: 10px; padding: 12px 0 0; background: #16191E; border-top: 1px solid #2E343D; border-radius: 22px 22px 0 0">
+          <div style="padding: 0 16px; font-size: 13px; font-weight: 700; color: #9AA1AB; letter-spacing: .04em; text-transform: uppercase">Your furniture · tap to add</div>
+          <div style="display: flex; gap: 10px; overflow-x: auto; padding: 0 16px 16px">
+            <sc-for list="{{tray}}" as="k" hint-placeholder-count="6">
+              <button type="button" onClick="{{k.add}}" aria-label="Add {{k.label}}" style="position: relative; flex-shrink: 0; width: 84px; height: 112px; border-radius: 16px; border: 1px solid {{k.border}}; background: #1C2026; color: #EDEFF2; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 6px; padding: 8px 4px">
+                <sc-if value="{{k.isNew}}" hint-placeholder-val="{{ false }}">
+                  <span style="position: absolute; top: 6px; right: 6px; padding: 1px 6px; border-radius: 6px; background: #FFD54A; color: #1B1A3A; font-size: 11px; font-weight: 800">NEW</span>
+                </sc-if>
+                <img src="{{k.src}}" alt="" style="width: {{k.w}}px; height: {{k.h}}px; image-rendering: pixelated">
+                <span style="font-size: 13px; font-weight: 600">{{k.label}}</span>
+              </button>
+            </sc-for>
+          </div>
+        </div>
+      </sc-if>
+    </div>
+  </sc-if>
+
+  <!-- The Store: tabs, try-on, items with prices. -->
+  <sc-if value="{{inStore}}" hint-placeholder-val="{{ true }}">
+    <div style="position: absolute; inset: 0; display: flex; flex-direction: column">
+      <header style="display: flex; align-items: center; gap: 8px; height: 60px; padding: 44px 10px 0; flex-shrink: 0">
+        <a href="StoreRoom.dc.html" aria-label="Back to your room" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center">
+          <svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"></path></svg>
+        </a>
+        <h1 style="flex: 1; margin: 0; font-family: 'Pixelify Sans', monospace; font-size: 26px; font-weight: 600">Store</h1>
+        <span aria-label="{{balance}} Mega Bucks" style="height: 40px; padding: 0 14px 0 8px; border-radius: 20px; background: #1E2228; border: 1px solid #2E343D; display: flex; align-items: center; gap: 8px; font-family: 'Pixelify Sans', monospace; font-size: 20px; font-weight: 600; color: #FFD54A">
+          <span style="position: relative; width: 24px; height: 24px">
+            <sc-for list="{{coinS.rects}}" as="r" hint-placeholder-count="40">
+              <span style="position: absolute; left: {{r.l}}px; top: {{r.t}}px; width: {{r.w}}px; height: {{r.h}}px; background: {{r.c}}"></span>
+            </sc-for>
+          </span>
+          {{balance}}
+        </span>
+      </header>
+
+      <div role="tablist" aria-label="Store sections" style="display: flex; gap: 6px; overflow-x: auto; padding: 14px 16px 4px; flex-shrink: 0">
+        <sc-for list="{{tabs}}" as="t" hint-placeholder-count="5">
+          <button type="button" role="tab" aria-selected="{{t.on}}" onClick="{{t.pick}}" style="flex-shrink: 0; height: 40px; padding: 0 14px; border-radius: 20px; border: 1px solid {{t.border}}; background: {{t.bg}}; color: {{t.fg}}; font-size: 15px; font-weight: 700">{{t.label}}</button>
+        </sc-for>
+      </div>
+
+      <sc-if value="{{tryOn}}" hint-placeholder-val="{{ true }}">
+        <div style="position: relative; margin: 10px 16px 0; height: 236px; border-radius: 24px; background: #16191E; border: 1px solid #2E343D; flex-shrink: 0; overflow: hidden">
+          <div style="position: absolute; left: 0; right: 0; bottom: 0; height: 52px; background: #1C2026; border-top: 1px solid #2E343D"></div>
+          <div class="bob" style="position: absolute; left: 50%; top: 18px; margin-left: -80px; width: 160px; height: 200px">
+            <sc-for list="{{stage.rects}}" as="r" hint-placeholder-count="260">
+              <span style="position: absolute; left: {{r.l}}px; top: {{r.t}}px; width: {{r.w}}px; height: {{r.h}}px; background: {{r.c}}"></span>
+            </sc-for>
+            <sc-if value="{{stage.hasSticker}}" hint-placeholder-val="{{ false }}">
+              <img src="{{stage.sticker}}" alt="" style="position: absolute; inset: 0; width: 160px; height: 200px; image-rendering: pixelated">
+            </sc-if>
+          </div>
+          <div style="position: absolute; left: 14px; top: 12px; display: flex; flex-direction: column; gap: 2px">
+            <span style="font-size: 12px; font-weight: 700; color: #9AA1AB; letter-spacing: .04em; text-transform: uppercase">{{stageEyebrow}}</span>
+            <span style="font-size: 16px; font-weight: 700">{{stageTitle}}</span>
+          </div>
+        </div>
+      </sc-if>
+
+      <div style="flex: 1; min-height: 0; overflow-y: auto; padding: 14px 16px 16px">
+        <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px">
+          <sc-for list="{{tiles}}" as="k" hint-placeholder-count="6">
+            <button type="button" aria-pressed="{{k.pressed}}" aria-label="{{k.aria}}" onClick="{{k.pick}}" style="position: relative; height: {{tileH}}px; border-radius: 18px; border: 2px solid {{k.border}}; background: {{k.bg}}; color: #EDEFF2; padding: 8px 4px; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 6px">
+              <span style="position: relative; width: {{k.artW}}px; height: {{k.artH}}px; flex-shrink: 0">
+                <sc-if value="{{k.isImg}}" hint-placeholder-val="{{ true }}">
+                  <img src="{{k.src}}" alt="" style="position: absolute; inset: 0; width: 100%; height: 100%; image-rendering: pixelated">
+                </sc-if>
+                <sc-for list="{{k.rects}}" as="r" hint-placeholder-count="120">
+                  <span style="position: absolute; left: {{r.l}}px; top: {{r.t}}px; width: {{r.w}}px; height: {{r.h}}px; background: {{r.c}}"></span>
+                </sc-for>
+              </span>
+              <span style="font-size: 13px; font-weight: 700; line-height: 16px">{{k.label}}</span>
+              <span style="height: 22px; padding: 0 8px; border-radius: 11px; background: {{k.tagBg}}; color: {{k.tagFg}}; display: flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 700; opacity: {{k.tagOpacity}}">
+                <sc-if value="{{k.priced}}" hint-placeholder-val="{{ true }}">
+                  <span style="position: relative; width: 12px; height: 12px">
+                    <sc-for list="{{coinXS.rects}}" as="r" hint-placeholder-count="40">
+                      <span style="position: absolute; left: {{r.l}}px; top: {{r.t}}px; width: {{r.w}}px; height: {{r.h}}px; background: {{r.c}}"></span>
+                    </sc-for>
+                  </span>
+                </sc-if>
+                {{k.tag}}
+              </span>
+            </button>
+          </sc-for>
+        </div>
+      </div>
+
+      <div style="padding: 12px 16px 30px; border-top: 1px solid #22262D; background: #0C0E11; display: flex; flex-direction: column; gap: 6px; flex-shrink: 0">
+        <button type="button" disabled="{{bar.disabled}}" onClick="{{bar.act}}" style="height: 56px; border-radius: 18px; border: 1px solid {{bar.border}}; background: {{bar.bg}}; color: {{bar.fg}}; font-size: 18px; font-weight: 800">{{bar.label}}</button>
+        <sc-if value="{{bar.hasNote}}" hint-placeholder-val="{{ false }}">
+          <div style="text-align: center; font-size: 13px; color: #9AA1AB">{{bar.note}}</div>
+        </sc-if>
+      </div>
+
+      <!-- Buy sheet: confirm, then "It's yours!". -->
+      <sc-if value="{{sheetOpen}}" hint-placeholder-val="{{ false }}">
+        <button type="button" aria-label="Close" onClick="{{closeSheet}}" style="position: absolute; inset: 0; border: none; background: rgba(6,7,9,0.6)"></button>
+        <section aria-label="{{sheet.title}}" style="position: absolute; left: 0; right: 0; bottom: 0; border-radius: 28px 28px 0 0; background: #16191E; border-top: 1px solid #2E343D; padding: 12px 20px 30px; display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center">
+          <span style="width: 40px; height: 5px; border-radius: 3px; background: #3A414B"></span>
+          <div class="{{sheet.cls}}" style="position: relative; width: {{sheet.artW}}px; height: {{sheet.artH}}px; margin-top: 8px">
+            <sc-if value="{{sheet.isImg}}" hint-placeholder-val="{{ false }}">
+              <img src="{{sheet.src}}" alt="" style="position: absolute; inset: 0; width: 100%; height: 100%; image-rendering: pixelated">
+            </sc-if>
+            <sc-for list="{{sheet.rects}}" as="r" hint-placeholder-count="200">
+              <span style="position: absolute; left: {{r.l}}px; top: {{r.t}}px; width: {{r.w}}px; height: {{r.h}}px; background: {{r.c}}"></span>
+            </sc-for>
+            <sc-if value="{{sheet.hasSticker}}" hint-placeholder-val="{{ false }}">
+              <img src="{{sheet.sticker}}" alt="" style="position: absolute; inset: 0; width: 100%; height: 100%; image-rendering: pixelated">
+            </sc-if>
+          </div>
+          <h2 style="margin: 4px 0 0; font-size: 24px; line-height: 30px; font-weight: 800">{{sheet.title}}</h2>
+          <p style="margin: 0; font-size: 17px; line-height: 24px; color: #B4BAC3">{{sheet.body}}</p>
+          <div style="align-self: stretch; display: flex; flex-direction: column; gap: 8px; margin-top: 10px">
+            <sc-for list="{{sheet.actions}}" as="a" hint-placeholder-count="2">
+              <button type="button" onClick="{{a.pick}}" style="height: 56px; border-radius: 18px; border: 1px solid {{a.border}}; background: {{a.bg}}; color: {{a.fg}}; font-size: 18px; font-weight: 800">{{a.label}}</button>
+            </sc-for>
+          </div>
+        </section>
+      </sc-if>
+    </div>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"step":{"editor":"enum","options":["room","store","tray"],"default":"store"},"tab":{"editor":"enum","options":["furniture","stickers","colors","antennas","eyes"],"default":"furniture"},"sheet":{"editor":"enum","options":["none","confirm","bought"],"default":"none"},"balance":{"editor":"enum","options":["12","3"],"default":"12"},"$preview":{"width":390,"height":844}}'>
+// Generated from prototypes/megasprite (mega-template.mjs, pixel-paint.mjs, export-looks.mjs, export-room.mjs).
+__SPRITE_LIVE__
+const STORE = __STORE__;
+__STORE_LIVE__
+const ROOM = __ROOM__;
+const ITEM_ART = __ITEMS__;
+const BASE = __BASE__;
+const ZAP = __ZAP__;
+
+// The kid's MEGA as it is now (Twin 1's Zap).
+const MINE = { hex: '#8E6CE0', antenna: 'classic', eyes: 'classic', sticker: 'bolt' };
+// The catalog: prices in Mega Bucks (config in the app). A basic furniture set is free from the start.
+const CATALOG = {
+  furniture: [
+    { id: 'bed', label: 'Bed', price: 0, owned: true }, { id: 'desk', label: 'Desk', price: 0, owned: true },
+    { id: 'lamp', label: 'Lamp', price: 0, owned: true }, { id: 'rugSmall', label: 'Rug', price: 0, owned: true },
+    { id: 'plant', label: 'Plant', price: 4, owned: true }, { id: 'toybox', label: 'Toy box', price: 6 },
+    { id: 'beanbag', label: 'Beanbag', price: 8, color: 2 },
+  ],
+  stickers: [
+    { id: 'bolt', label: 'Bolt', price: 5, owned: true }, { id: 'star', label: 'Star', price: 5 },
+    { id: 'heart', label: 'Heart', price: 5 }, { id: 'leaf', label: 'Leaf', price: 5 },
+  ],
+  colors: [
+    { id: 'violet', label: 'Violet', hex: '#8E6CE0', price: 0, owned: true }, { id: 'bubblegum', label: 'Bubblegum', hex: '#F28AC0', price: 10 },
+    { id: 'lime', label: 'Lime', hex: '#9ED24A', price: 10 }, { id: 'lava', label: 'Lava', hex: '#E8553B', price: 10 },
+    { id: 'ocean', label: 'Ocean', hex: '#2F6FD6', price: 10 }, { id: 'cocoa', label: 'Cocoa', hex: '#9A6B4F', price: 10 },
+  ],
+  antennas: [
+    { id: 'classic', label: 'Classic', price: 0, owned: true }, { id: 'twin', label: 'Twin', price: 12 },
+    { id: 'star', label: 'Star', price: 12 }, { id: 'sprout', label: 'Sprout', price: 12 },
+  ],
+  eyes: [
+    { id: 'classic', label: 'Classic', price: 0, owned: true }, { id: 'round', label: 'Round', price: 12 },
+    { id: 'heart', label: 'Hearts', price: 15 }, { id: 'sparkle', label: 'Sparkle', price: 15 },
+  ],
+};
+const TABS = [['furniture', 'Furniture'], ['stickers', 'Stickers'], ['colors', 'Colors'], ['antennas', 'Antennas'], ['eyes', 'Eyes']];
+const NOUN = { furniture: '', stickers: ' sticker', colors: ' color', antennas: ' antenna', eyes: ' eyes' };
+const FIRST_PICK = { furniture: 'beanbag', stickers: 'star', colors: 'bubblegum', antennas: 'star', eyes: 'heart' };
+const LOOK_KEY = { stickers: 'sticker', colors: 'hex', antennas: 'antenna', eyes: 'eyes' };
+
+const S = 1.5, PX = ROOM.tile * S;
+const sizeOf = (kind) => ROOM.decor[kind].size;
+const art = (kind, color) => '/_blob/' + ITEM_ART[kind + '_' + (ROOM.decor[kind].colorable ? color || 0 : 0)];
+// The look with one Store item tried on.
+function lookWith(tab, item) {
+  const look = Object.assign({}, MINE);
+  if (tab === 'colors') look.hex = item.hex;
+  else if (LOOK_KEY[tab]) look[LOOK_KEY[tab]] = item.id;
+  return look;
+}
+const wearing = (tab, item) => tab !== 'furniture' && MINE[LOOK_KEY[tab]] === (tab === 'colors' ? item.hex : item.id);
+
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = this.fresh(props);
+  }
+  fresh(p) {
+    const tab = p.tab || 'furniture', bought = p.sheet === 'bought';
+    const price = CATALOG[tab].find((c) => c.id === FIRST_PICK[tab]).price;
+    return { step: p.step || 'store', tab, sel: FIRST_PICK[tab], sheet: p.sheet || 'none', balance: Number(p.balance || 12) - (bought ? price : 0),
+      bought: bought ? [FIRST_PICK[tab]] : [], decorating: p.step === 'tray', placed: false };
+  }
+  componentDidUpdate(prev) {
+    if (['step', 'tab', 'sheet', 'balance'].some((k) => prev[k] !== this.props[k])) this.setState(this.fresh(this.props));
+  }
+  item(tab, id) { return CATALOG[tab].find((c) => c.id === id); }
+  owns(tab, it) { return !!it.owned || this.state.bought.includes(it.id); }
+
+  renderVals() {
+    const s = this.state, tab = s.tab, sel = this.item(tab, s.sel) || CATALOG[tab][0];
+    const lookTab = tab !== 'furniture';
+    const ownsSel = this.owns(tab, sel), short = sel.price - s.balance;
+
+    const tiles = CATALOG[tab].map((it) => {
+      const owned = this.owns(tab, it), on = it.id === sel.id, afford = it.price <= s.balance;
+      const look = lookWith(tab, it);
+      const base = { label: it.label, pressed: String(on), pick: () => this.setState({ sel: it.id }),
+        border: on ? '#C4B2F5' : '#22262D', bg: on ? '#1F1A33' : '#16191E' };
+      const tag = wearing(tab, it) ? { tag: 'Wearing', priced: false } : owned ? { tag: it.price ? 'Owned' : (tab === 'furniture' ? 'Free' : 'Yours'), priced: false } : { tag: String(it.price), priced: true };
+      const tagStyle = tag.priced ? { tagBg: '#2A2410', tagFg: '#FFD54A', tagOpacity: afford ? 1 : 0.5 } : { tagBg: '#22262D', tagFg: '#B4BAC3', tagOpacity: 1 };
+      let artVals;
+      if (tab === 'furniture') {
+        const [w, h] = sizeOf(it.id), k = Math.min(56 / (w * 32), 64 / ((h + 1) * 32));
+        artVals = { isImg: true, src: art(it.id, it.color), rects: [], artW: Math.round(w * 32 * k), artH: Math.round((h + 1) * 32 * k) };
+      } else if (tab === 'stickers') {
+        artVals = { isImg: true, src: '/_blob/' + STICKER_ART[it.id], rects: [], artW: 64, artH: 80 };
+      } else {
+        const head = spriteLook(look.hex, 'open', look, 2, 27);
+        artVals = { isImg: false, src: '', rects: head.rects, artW: 64, artH: 54 };
+      }
+      return Object.assign(base, tag, tagStyle, artVals, { aria: it.label + NOUN[tab] + ', ' + (tag.priced ? it.price + ' Mega Bucks' : tag.tag) });
+    });
+
+    const tryLook = lookWith(tab, sel);
+    const stage = spriteLook(tryLook.hex, 'open', tryLook, 5);
+    const name = sel.label + NOUN[tab];
+    const bar = wearing(tab, sel) || (tab === 'furniture' && ownsSel)
+      ? { label: tab === 'furniture' ? 'In your room' : 'Wearing it', disabled: true, act: () => {}, bg: '#16191E', fg: '#9AA1AB', border: '#2E343D', hasNote: false, note: '' }
+      : ownsSel
+        ? { label: 'Wear it', disabled: false, bg: '#EDEFF2', fg: '#0C0E11', border: '#EDEFF2', act: () => {}, hasNote: false, note: '' }
+        : short > 0
+          ? { label: 'Need ' + short + ' more', disabled: true, act: () => {}, bg: '#16191E', fg: '#9AA1AB', border: '#2E343D', hasNote: true, note: 'Earn Mega Bucks with chores and practice. Admin releases them.' }
+          : { label: 'Buy for ' + sel.price, disabled: false, bg: '#8E6CE0', fg: '#140A33', border: '#8E6CE0', act: () => this.setState({ sheet: 'confirm' }), hasNote: true, note: 'You have ' + s.balance + '. You’d have ' + (s.balance - sel.price) + ' left.' };
+
+    const sheetArt = tab === 'furniture'
+      ? (() => { const [w, h] = sizeOf(sel.id); return { isImg: true, src: art(sel.id, sel.color), rects: [], hasSticker: false, artW: w * 64, artH: (h + 1) * 64 }; })()
+      : tab === 'stickers' ? { isImg: true, src: '/_blob/' + STICKER_ART[sel.id], rects: [], hasSticker: false, artW: 96, artH: 120 }
+        : Object.assign({ isImg: false, src: '', artW: 96, artH: 120 }, spriteLook(tryLook.hex, s.sheet === 'bought' ? 'happy' : 'open', tryLook, 3));
+    const after = s.balance - (s.sheet === 'bought' ? 0 : sel.price);
+    const sheet = s.sheet === 'confirm'
+      ? Object.assign({}, sheetArt, { cls: '', title: 'Buy ' + name + '?', body: sel.price + ' Mega Bucks. You’ll have ' + after + ' left.',
+          actions: [{ label: 'Buy it', bg: '#8E6CE0', fg: '#140A33', border: '#8E6CE0', pick: () => this.setState({ sheet: 'bought', bought: s.bought.concat(sel.id), balance: s.balance - sel.price }) },
+            { label: 'Not now', bg: 'transparent', fg: '#EDEFF2', border: '#3A414B', pick: () => this.setState({ sheet: 'none' }) }] })
+      : Object.assign({}, sheetArt, { cls: 'pop', title: 'It’s yours!',
+          body: tab === 'furniture' ? 'Find the ' + sel.label.toLowerCase() + ' in Decorate and put it anywhere in your room.' : 'Zap is wearing the ' + name.toLowerCase() + '. You can switch back any time.',
+          actions: tab === 'furniture'
+            ? [{ label: 'Decorate now', bg: '#8E6CE0', fg: '#140A33', border: '#8E6CE0', pick: () => this.setState({ step: 'tray', decorating: true, sheet: 'none' }) },
+               { label: 'Keep shopping', bg: 'transparent', fg: '#EDEFF2', border: '#3A414B', pick: () => this.setState({ sheet: 'none' }) }]
+            : [{ label: 'Done', bg: '#EDEFF2', fg: '#0C0E11', border: '#EDEFF2', pick: () => this.setState({ sheet: 'none' }) }] });
+
+    // Room: the free set plus anything bought (the beanbag lands in the tray first).
+    const inRoom = s.step === 'room' || s.step === 'tray';
+    const roomItems = ROOM.items.filter((it) => !['beanbag', 'toybox'].includes(it.kind) || (it.kind === 'beanbag' && s.placed));
+    const pieces = roomItems.map((it) => {
+      const [w, h] = sizeOf(it.kind);
+      const z = ROOM.decor[it.kind].layer === 'floor' ? 10 + (it.tile[1] + h - 1) * 2 : 2;
+      return { src: art(it.kind, it.color), left: it.tile[0] * PX, top: (it.tile[1] - 1) * PX, w: w * PX, h: (h + 1) * PX, z, cls: it.kind === 'beanbag' ? 'pop' : '' };
+    });
+    const tray = ['beanbag', 'bed', 'desk', 'lamp', 'rugSmall', 'plant'].map((kind) => {
+      const [w, h] = sizeOf(kind), k = 56 / Math.max(w * 32, (h + 1) * 32);
+      return { label: ROOM.decor[kind].label, src: art(kind, kind === 'beanbag' ? 2 : 0), w: Math.round(w * 32 * k), h: Math.round((h + 1) * 32 * k),
+        isNew: kind === 'beanbag' && !s.placed, border: kind === 'beanbag' && !s.placed ? '#FFD54A' : '#2A3038',
+        add: kind === 'beanbag' ? () => this.setState({ placed: true }) : () => {} };
+    });
+
+    return {
+      inRoom, inStore: !inRoom, viewing: inRoom && !s.decorating, decorating: inRoom && s.decorating,
+      roomTitle: s.decorating ? 'Decorate' : 'Twin 1’s room', base: '/_blob/' + BASE, pieces, tray,
+      zapSrc: '/_blob/' + ZAP[s.placed ? 'front_happy' : 'front_stand'], zapSays: s.decorating ? (s.placed ? 'Comfy!' : 'Put it by me!') : 'I’ve got ' + s.balance + '!',
+      startDecorate: () => this.setState({ decorating: true }), finishDecorate: () => this.setState({ decorating: false }),
+      balance: s.balance, coinS: coin(2), coinM: coin(3), coinXS: coin(1),
+      tabs: TABS.map(([id, label]) => ({ label, on: String(id === tab), pick: () => this.setState({ tab: id, sel: FIRST_PICK[id], sheet: 'none' }),
+        bg: id === tab ? '#EDEFF2' : 'transparent', fg: id === tab ? '#0C0E11' : '#EDEFF2', border: id === tab ? '#EDEFF2' : '#3A414B' })),
+      tryOn: lookTab, stage, stageEyebrow: wearing(tab, sel) ? 'Wearing now' : 'Trying on', stageTitle: name,
+      tiles, tileH: tab === 'furniture' ? 132 : 126, bar,
+      sheetOpen: s.sheet !== 'none', sheet, closeSheet: () => this.setState({ sheet: 'none' }),
+    };
+  }
+}
+</script>
+</body>
+</html>

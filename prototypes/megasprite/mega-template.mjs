@@ -4,7 +4,7 @@
 // Parts draw in order; each outlined part gets a 1px navy border drawn over
 // whatever is beneath it, which is what separates an arm from the torso.
 
-import { flat, part } from "./pixel-paint.mjs";
+import { flat, part, withShades } from "./pixel-paint.mjs";
 
 export const GRID = { w: 32, h: 40 };
 
@@ -20,10 +20,42 @@ export const FIXED_COLORS = {
 };
 
 
-const antenna = [
-  part("antennaStem", "body", "silver", { rect: [15, 4, 2, 4] }),
-  part("antennaTip", "body", "tip", { round: [14, 1, 4, 3, 1] }),
-];
+// Antenna shapes (bought in the Store). Every part id starts with "antenna" and stays above row 8
+// (the head's top edge), so a renderer can swap the antenna without touching the rest of the body.
+// "classic" is the default every MEGA starts with.
+export const ANTENNAS = {
+  classic: [
+    part("antennaStem", "body", "silver", { rect: [15, 4, 2, 4] }),
+    part("antennaTip", "body", "tip", { round: [14, 1, 4, 3, 1] }),
+  ],
+  twin: [
+    part("antennaStemL", "body", "silver", { rect: [10, 4, 2, 4] }),
+    part("antennaStemR", "body", "silver", { rect: [20, 4, 2, 4] }),
+    part("antennaTipL", "body", "tip", { round: [9, 1, 4, 3, 1] }),
+    part("antennaTipR", "body", "tip", { round: [19, 1, 4, 3, 1] }),
+  ],
+  star: [
+    part("antennaStem", "body", "silver", { rect: [15, 6, 2, 2] }),
+    part("antennaStar", "body", "star", { pattern: [13, 1, ["..#..", ".###.", "#####", ".###.", ".#.#."]] }),
+  ],
+  sprout: [
+    part("antennaStem", "body", "sprout", { rect: [15, 4, 2, 4] }),
+    part("antennaLeafL", "body", "sprout", { pattern: [11, 2, ["##..", "###.", ".###"]] }),
+    part("antennaLeafR", "body", "sprout", { pattern: [17, 1, ["..##", ".###", "###."]] }),
+  ],
+};
+const antenna = ANTENNAS.classic;
+// Colours only Store parts use (with their light and dark shades), kept apart from FIXED_COLORS.
+export const STORE_COLORS = withShades({ star: "#FFD54A", sprout: "#5BBF6A" });
+
+// Eye designs (bought in the Store) replace the resting "open" eyes; other expressions keep their own.
+// "classic" is the default.
+export const EYE_STYLES = {
+  classic: { front: [{ rect: [11, 15, 2, 3] }, { rect: [19, 15, 2, 3] }], side: [{ rect: [23, 15, 1, 3] }] },
+  round: { front: [{ round: [10, 14, 4, 4, 1] }, { round: [18, 14, 4, 4, 1] }], side: [{ rect: [23, 15, 1, 3] }] },
+  heart: { front: [{ pattern: [9, 15, [".#.#.", "#####", ".###.", "..#.."]] }, { pattern: [18, 15, [".#.#.", "#####", ".###.", "..#.."]] }], side: [{ px: [[23, 15], [22, 16], [23, 16], [23, 17]] }] },
+  sparkle: { front: [{ pattern: [10, 15, [".#.", "###", ".#."]] }, { pattern: [19, 15, [".#.", "###", ".#."]] }], side: [{ px: [[23, 15], [22, 16], [23, 16], [23, 17]] }] },
+};
 
 export const VIEWS = {
   front: [

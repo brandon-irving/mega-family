@@ -1,0 +1,206 @@
+  <!-- Chat thread (shared by the Kids and Calendar boards; filled by thread.js). -->
+  <div style="position: absolute; inset: 0; display: flex; flex-direction: column; background: #0C0E11">
+    <header style="display: flex; align-items: center; gap: 12px; padding: 54px 16px 12px; border-bottom: 1px solid #22262D; flex-shrink: 0">
+      <span style="position: relative; width: 44px; height: 38px; flex-shrink: 0; border-radius: 10px; overflow: hidden; background: #FFFFFF">
+        <span style="position: absolute; left: 6px; top: 6px; width: 32px; height: 27px">
+          <sc-for list="{{th.head.rects}}" as="r" hint-placeholder-count="150">
+            <span style="position: absolute; left: {{r.l}}px; top: {{r.t}}px; width: {{r.w}}px; height: {{r.h}}px; background: {{r.c}}"></span>
+          </sc-for>
+        </span>
+      </span>
+      <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px">
+        <div style="font-size: 18px; font-weight: 700">{{th.name}}</div>
+        <div style="font-size: 13px; color: #9AA1AB">{{th.sub}}</div>
+      </div>
+      <sc-if value="{{th.showCoin}}" hint-placeholder-val="{{ false }}">
+        <span aria-label="{{th.balance}} Mega Bucks" style="height: 36px; padding: 0 12px 0 8px; border-radius: 18px; background: #1E2228; border: 1px solid #2E343D; display: flex; align-items: center; gap: 7px; font-family: 'Pixelify Sans', monospace; font-size: 18px; font-weight: 600; color: #FFD54A">
+          <span style="position: relative; width: 24px; height: 24px">
+            <sc-for list="{{th.coin.rects}}" as="r" hint-placeholder-count="40">
+              <span style="position: absolute; left: {{r.l}}px; top: {{r.t}}px; width: {{r.w}}px; height: {{r.h}}px; background: {{r.c}}"></span>
+            </sc-for>
+          </span>
+          {{th.balance}}
+        </span>
+      </sc-if>
+    </header>
+
+    <div style="flex: 1; min-height: 0; overflow: hidden; display: flex; flex-direction: column; justify-content: flex-end; gap: 14px; padding: 16px">
+      <sc-for list="{{th.items}}" as="m" hint-placeholder-count="4">
+        <sc-if value="{{m.isDay}}" hint-placeholder-val="{{ false }}">
+          <div style="align-self: center; font-size: 12px; font-weight: 600; color: #9AA1AB; padding: 4px 10px; border-radius: 10px; background: #16191E">{{m.text}}</div>
+        </sc-if>
+        <sc-if value="{{m.isText}}" hint-placeholder-val="{{ true }}">
+          <div style="display: flex; flex-direction: column; gap: 4px; max-width: 330px">
+            <div style="font-size: 12px; font-weight: 700; color: {{m.whoColor}}">{{m.who}}</div>
+            <div style="font-size: {{th.font}}px; line-height: 1.4">{{m.text}}</div>
+          </div>
+        </sc-if>
+        <sc-if value="{{m.isMine}}" hint-placeholder-val="{{ false }}">
+          <div style="align-self: flex-end; max-width: 270px; padding: 10px 15px; border-radius: 18px 18px 4px 18px; background: {{th.mine}}; font-size: {{th.font}}px; line-height: 1.35">{{m.text}}</div>
+        </sc-if>
+        <sc-if value="{{m.isPhoto}}" hint-placeholder-val="{{ false }}">
+          <div style="align-self: flex-end; display: flex; flex-direction: column; align-items: flex-end; gap: 6px">
+            <div aria-label="Photo of a fractions worksheet" role="img" style="width: 168px; height: 200px; border-radius: 16px; overflow: hidden; background: #3A3F47; display: flex; align-items: center; justify-content: center">
+              <div style="width: 132px; height: 172px; transform: rotate(-3deg); background: #F6F3EA; border-radius: 3px; padding: 10px; box-sizing: border-box; color: #2B2B33; display: flex; flex-direction: column; gap: 7px">
+                <div style="font-size: 10px; font-weight: 800">Fractions · Sheet 4</div>
+                <sc-for list="{{th.sheet}}" as="q" hint-placeholder-count="6">
+                  <div style="font-size: 9px; display: flex; gap: 4px"><span>{{q.n}}.</span><span style="flex: 1">{{q.text}}</span><span style="width: 22px; border-bottom: 1px solid #8A8F99"></span></div>
+                </sc-for>
+              </div>
+            </div>
+            <div style="font-size: 12px; color: #9AA1AB">{{m.text}}</div>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{m.isCard}}" hint-placeholder-val="{{ false }}">
+          <section aria-label="{{m.title}}" style="border-radius: 20px; background: #16191E; border: 1px solid #2E343D; padding: 14px; display: flex; flex-direction: column; gap: 12px">
+            <div style="display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 700; color: {{m.fromColor}}">
+              <span>{{m.from}}</span>
+              <sc-if value="{{m.isAi}}" hint-placeholder-val="{{ false }}">
+                <span style="padding: 1px 6px; border-radius: 6px; border: 1px solid #3A414B; color: #B4BAC3; font-size: 11px; font-weight: 700; letter-spacing: .04em">AI</span>
+              </sc-if>
+            </div>
+            <sc-if value="{{m.hasProgress}}" hint-placeholder-val="{{ false }}">
+              <div style="display: flex; align-items: center; gap: 6px">
+                <sc-for list="{{m.dots}}" as="d" hint-placeholder-count="4">
+                  <span style="width: 28px; height: 6px; border-radius: 3px; background: {{d.bg}}"></span>
+                </sc-for>
+                <span style="margin-left: 4px; font-size: 13px; color: #9AA1AB">{{m.progressLabel}}</span>
+              </div>
+            </sc-if>
+            <div style="display: flex; flex-direction: column; gap: 4px">
+              <div style="font-size: {{m.titleSize}}px; line-height: 1.3; font-weight: 700">{{m.title}}</div>
+              <sc-if value="{{m.hasBody}}" hint-placeholder-val="{{ true }}">
+                <div style="font-size: {{m.bodySize}}px; line-height: 1.45; color: #B4BAC3">{{m.body}}</div>
+              </sc-if>
+            </div>
+            <sc-if value="{{m.hasCompare}}" hint-placeholder-val="{{ false }}">
+              <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px">
+                <div style="border-radius: 14px; background: #0C0E11; border: 1px solid #2E343D; padding: 10px; display: flex; flex-direction: column; gap: 3px">
+                  <span style="font-size: 11px; font-weight: 700; color: #9AA1AB; letter-spacing: .05em; text-transform: uppercase">Now</span>
+                  <span style="font-size: 14px; font-weight: 600">{{m.before}}</span>
+                  <span style="font-size: 12px; color: #9AA1AB">{{m.beforeSub}}</span>
+                </div>
+                <div style="border-radius: 14px; background: #10243F; border: 1px solid #5B8DEF; padding: 10px; display: flex; flex-direction: column; gap: 3px">
+                  <span style="font-size: 11px; font-weight: 700; color: #9DBCF7; letter-spacing: .05em; text-transform: uppercase">After you approve</span>
+                  <span style="font-size: 14px; font-weight: 600">{{m.after}}</span>
+                  <span style="font-size: 12px; color: #B4BAC3">{{m.afterSub}}</span>
+                </div>
+              </div>
+            </sc-if>
+            <sc-if value="{{m.hasHint}}" hint-placeholder-val="{{ false }}">
+              <div role="note" style="display: flex; gap: 10px; align-items: flex-start; border-radius: 14px; background: #1F1A33; border: 1px solid #8E6CE0; padding: 12px">
+                <svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#C4B2F5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0; margin-top: 2px"><path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9c.6.4 1 1.1 1 1.8V16h5v-.3c0-.7.4-1.4 1-1.8A6 6 0 0 0 12 3z"></path></svg>
+                <span style="font-size: {{m.bodySize}}px; line-height: 1.4">{{m.hint}}</span>
+              </div>
+            </sc-if>
+            <sc-if value="{{m.hasTags}}" hint-placeholder-val="{{ false }}">
+              <div style="display: flex; flex-direction: column; gap: 6px">
+                <span style="font-size: 12px; font-weight: 700; color: #9AA1AB; letter-spacing: .04em; text-transform: uppercase">{{m.tagsLabel}}</span>
+                <div style="display: flex; flex-wrap: wrap; gap: 6px">
+                  <sc-for list="{{m.tags}}" as="t" hint-placeholder-count="3">
+                    <span style="padding: 5px 10px; border-radius: 12px; background: #10243F; border: 1px solid #2B4A7A; color: #C9D8F7; font-size: 13px; line-height: 18px">{{t.text}}</span>
+                  </sc-for>
+                </div>
+              </div>
+            </sc-if>
+            <sc-if value="{{m.hasChips}}" hint-placeholder-val="{{ false }}">
+              <div style="display: flex; flex-direction: column; gap: 8px">
+                <sc-for list="{{m.chipRows}}" as="row" hint-placeholder-count="1">
+                  <div style="display: flex; flex-direction: column; gap: 6px">
+                    <span style="font-size: 12px; font-weight: 700; color: #9AA1AB; letter-spacing: .04em; text-transform: uppercase">{{row.label}}</span>
+                    <div style="display: flex; flex-wrap: wrap; gap: 8px">
+                      <sc-for list="{{row.chips}}" as="k" hint-placeholder-count="3">
+                        <button type="button" aria-pressed="{{k.pressed}}" onClick="{{k.pick}}" style="min-height: 40px; padding: 6px 14px; border-radius: 20px; border: 1px solid {{k.border}}; background: {{k.bg}}; color: {{k.fg}}; font-size: 14px; font-weight: 600; display: flex; align-items: center; gap: 6px">{{k.label}}</button>
+                      </sc-for>
+                    </div>
+                  </div>
+                </sc-for>
+              </div>
+            </sc-if>
+            <sc-if value="{{m.hasChecks}}" hint-placeholder-val="{{ false }}">
+              <div style="display: flex; flex-direction: column; gap: 8px">
+                <sc-for list="{{m.checks}}" as="k" hint-placeholder-count="3">
+                  <button type="button" role="checkbox" aria-checked="{{k.checked}}" onClick="{{k.toggle}}" style="min-height: {{th.btnH}}px; padding: 8px 14px; border-radius: 16px; border: 1px solid {{k.border}}; background: {{k.bg}}; color: #EDEFF2; display: flex; align-items: center; gap: 12px; text-align: left">
+                    <span style="width: 26px; height: 26px; flex-shrink: 0; border-radius: 8px; border: 2px solid {{k.boxBorder}}; background: {{k.boxBg}}; color: #0C0E11; display: flex; align-items: center; justify-content: center">
+                      <sc-if value="{{k.done}}" hint-placeholder-val="{{ false }}">
+                        <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"></path></svg>
+                      </sc-if>
+                    </span>
+                    <span style="flex: 1; display: flex; flex-direction: column; gap: 1px">
+                      <span style="font-size: {{th.btnFont}}px; font-weight: 600; text-decoration: {{k.strike}}">{{k.label}}</span>
+                      <span style="font-size: 13px; color: #9AA1AB">{{k.sub}}</span>
+                    </span>
+                  </button>
+                </sc-for>
+              </div>
+            </sc-if>
+            <sc-if value="{{m.hasRows}}" hint-placeholder-val="{{ false }}">
+              <div style="display: flex; flex-direction: column; gap: 8px">
+                <sc-for list="{{m.rows}}" as="g" hint-placeholder-count="3">
+                  <div style="display: flex; align-items: center; gap: 12px; border-radius: 14px; background: #0C0E11; border: 1px solid #22262D; padding: 10px 10px 10px 12px">
+                    <span style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px">
+                      <span style="font-size: 15px; font-weight: 700">{{g.title}}</span>
+                      <span style="font-size: 13px; color: #9AA1AB">{{g.why}}</span>
+                    </span>
+                    <button type="button" onClick="{{g.act}}" aria-label="{{g.aria}}" style="height: 40px; padding: 0 12px; border-radius: 20px; border: 1px solid {{g.border}}; background: {{g.bg}}; color: {{g.fg}}; font-size: 13px; font-weight: 700; flex-shrink: 0">{{g.actLabel}}</button>
+                  </div>
+                </sc-for>
+              </div>
+            </sc-if>
+            <sc-if value="{{m.hasStepper}}" hint-placeholder-val="{{ false }}">
+              <div style="display: flex; align-items: center; gap: 12px; border-radius: 16px; background: #0C0E11; border: 1px solid #2E343D; padding: 8px 8px 8px 14px">
+                <span style="position: relative; width: 24px; height: 24px; flex-shrink: 0">
+                  <sc-for list="{{th.coin.rects}}" as="r" hint-placeholder-count="40">
+                    <span style="position: absolute; left: {{r.l}}px; top: {{r.t}}px; width: {{r.w}}px; height: {{r.h}}px; background: {{r.c}}"></span>
+                  </sc-for>
+                </span>
+                <span style="flex: 1; font-size: 15px; color: #B4BAC3">Mega Bucks</span>
+                <button type="button" aria-label="Fewer" onClick="{{m.dec}}" style="width: 44px; height: 44px; border-radius: 22px; border: 1px solid #2E343D; background: #16191E; color: #EDEFF2; font-size: 22px; font-weight: 600">−</button>
+                <span aria-live="polite" style="min-width: 32px; text-align: center; font-family: 'Pixelify Sans', monospace; font-size: 24px; font-weight: 600; color: #FFD54A">{{m.amount}}</span>
+                <button type="button" aria-label="More" onClick="{{m.inc}}" style="width: 44px; height: 44px; border-radius: 22px; border: 1px solid #2E343D; background: #16191E; color: #EDEFF2; font-size: 22px; font-weight: 600">+</button>
+              </div>
+            </sc-if>
+            <sc-if value="{{m.hasChoices}}" hint-placeholder-val="{{ false }}">
+              <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px">
+                <sc-for list="{{m.choices}}" as="k" hint-placeholder-count="4">
+                  <button type="button" onClick="{{k.pick}}" style="height: 64px; border-radius: 16px; border: 2px solid {{k.border}}; background: {{k.bg}}; color: {{k.fg}}; font-family: 'Pixelify Sans', monospace; font-size: 26px; font-weight: 600">{{k.label}}</button>
+                </sc-for>
+              </div>
+            </sc-if>
+            <sc-if value="{{m.hasActions}}" hint-placeholder-val="{{ true }}">
+              <div style="display: grid; grid-template-columns: repeat({{m.cols}}, minmax(0, 1fr)); gap: 8px">
+                <sc-for list="{{m.actions}}" as="a" hint-placeholder-count="2">
+                  <button type="button" onClick="{{a.pick}}" style="height: {{th.btnH}}px; border-radius: 14px; border: 1px solid {{a.border}}; background: {{a.bg}}; color: {{a.fg}}; font-size: {{th.btnFont}}px; font-weight: 700">{{a.label}}</button>
+                </sc-for>
+              </div>
+            </sc-if>
+            <sc-if value="{{m.hasStatus}}" hint-placeholder-val="{{ false }}">
+              <div role="status" style="display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 600; color: {{m.statusColor}}">
+                <span style="width: 8px; height: 8px; border-radius: 4px; background: {{m.statusColor}}; flex-shrink: 0"></span>{{m.status}}
+              </div>
+            </sc-if>
+            <sc-if value="{{m.hasFoot}}" hint-placeholder-val="{{ false }}">
+              <div style="display: flex; align-items: center; gap: 6px; font-size: 12px; color: #9AA1AB">
+                <svg aria-hidden="true" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0"><rect x="5" y="11" width="14" height="10" rx="2"></rect><path d="M8 11V8a4 4 0 0 1 8 0v3"></path></svg>
+                {{m.foot}}
+              </div>
+            </sc-if>
+          </section>
+        </sc-if>
+      </sc-for>
+    </div>
+
+    <div style="display: flex; align-items: center; gap: 8px; padding: 10px 16px 30px; flex-shrink: 0">
+      <sc-if value="{{th.camera}}" hint-placeholder-val="{{ false }}">
+        <button type="button" aria-label="Take a photo" onClick="{{th.openCamera}}" style="width: 48px; height: 48px; flex-shrink: 0; border-radius: 24px; border: 1px solid #2E343D; background: #16191E; color: #EDEFF2; display: flex; align-items: center; justify-content: center">
+          <svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h3l2-3h6l2 3h3a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z"></path><circle cx="12" cy="13.5" r="3.5"></circle></svg>
+        </button>
+      </sc-if>
+      <label for="composer" style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0)">Message {{th.name}}</label>
+      <input id="composer" type="text" placeholder="Message {{th.name}}…" style="flex: 1; min-width: 0; height: 48px; box-sizing: border-box; border-radius: 24px; border: 1px solid #2E343D; background: #16191E; color: #EDEFF2; padding: 0 16px; font-size: 15px; font-family: inherit">
+      <button type="button" aria-label="Talk" style="width: 48px; height: 48px; flex-shrink: 0; border-radius: 24px; border: none; background: {{th.accent}}; color: #0C0E11; display: flex; align-items: center; justify-content: center">
+        <svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"></rect><path d="M5 11a7 7 0 0 0 14 0M12 18v3"></path></svg>
+      </button>
+    </div>
+  </div>

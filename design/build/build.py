@@ -98,7 +98,7 @@ body{{margin:0;background:#0C0E11}}
 </style>
 </helmet>
 <div style="width: 390px; height: 844px; overflow: hidden; background: #0C0E11">
-  <dc-import name="Login"{attrs} hint-size="390px,844px"></dc-import>
+  <dc-import name="{name}"{attrs} hint-size="390px,844px"></dc-import>
 </div>
 </x-dc>
 <script type="text/x-dc" data-dc-script data-props='{{"$preview":{{"width":390,"height":844}}}}'>
@@ -111,11 +111,13 @@ class Component extends DCLogic {{
 </body>
 </html>
 '''
-for stem, title, props in LOGIN_BOARDS:
-    if stem == 'Login':
-        continue
-    attrs = ''.join(f' {k}="{v}"' for k, v in props.items())
-    open(f'{S}/mega-screens/project/{stem}.dc.html', 'w').write(WRAPPER.format(title=title.replace('&', '&amp;'), attrs=attrs))
+def write_wrappers(name, boards):
+    for stem, title, props in boards:
+        if stem == name:
+            continue
+        attrs = ''.join(f' {k}="{v}"' for k, v in props.items())
+        open(f'{S}/mega-screens/project/{stem}.dc.html', 'w').write(WRAPPER.format(name=name, title=title.replace('&', '&amp;'), attrs=attrs))
+write_wrappers('Login', LOGIN_BOARDS)
 
 ROW_Y, GAP = 10112, 470
 cpath = S + '/mega-screens/project/canvas.json'
@@ -128,3 +130,73 @@ for i, (stem, title, _) in enumerate(LOGIN_BOARDS):
 canvas['notes']['screen9'] = {'x': 0, 'y': ROW_Y - 260, 'text': 'Screen 9 · Sign in and joining', 'kind': 'title1', 'maxW': len(LOGIN_BOARDS) * GAP - 80}
 json.dump(canvas, open(cpath, 'w'), ensure_ascii=False)
 print('built login')
+
+# Screens 10–12 (Oct 27): kids (homework, routines, Mega Bucks), the Store, calendar layers and gift ideas.
+# Same shape as the sign-in row: one template per row plus thin wrapper boards, all listed here.
+store_parts = compact(json.load(open(A + '/looks/store.json')))
+store_live = open('store-live.js').read()
+thread_html, thread_js = open('thread.html').read(), open('thread.js').read()
+def fill(name, extra=()):
+    t = open(name + '.template.html').read().replace('__THREAD__\n', thread_html).replace('__THREAD_JS__', thread_js)
+    t = t.replace('__SPRITE_LIVE__', live).replace('__STORE__', store_parts).replace('__STORE_LIVE__', store_live).replace('__FAMILY_DATA__', family_data)
+    for k, v in extra:
+        t = t.replace(k, v)
+    open(f'{S}/mega-screens/project/{name}.dc.html', 'w').write(t)
+    assert '__' not in t.replace('__proto', ''), name
+fill('Kids')
+fill('Store', [('__ROOM__', compact(json.load(open(A + '/room/room.json')))), ('__ITEMS__', compact(items)), ('__BASE__', json.dumps(bases[0])), ('__ZAP__', compact(zap))])
+fill('Calendar')
+
+KIDS_BOARDS = [
+    ('KidsSnap', '1 · Parent snaps the homework', {'step': 'snap'}),
+    ('Kids', '2 · MEGA reads it → make practice', {}),
+    ('KidsPractice', '3 · Kid practice, one question at a time', {'step': 'practice'}),
+    ('KidsHint', '3b · Hint: a guiding question, never the answer', {'step': 'practice', 'hint': 'on'}),
+    ('KidsDone', '4 · Practice finished (kid)', {'step': 'done'}),
+    ('KidsSummary', '5 · Parent summary → release Mega Bucks', {'step': 'summary'}),
+    ('KidsChore', '6 · Chore reminder with Done (kid)', {'step': 'chore'}),
+    ('KidsChoreApprove', '6b · Parent checks the chore → release', {'step': 'choreApprove'}),
+    ('KidsBedtime', '7 · Bedtime: pack for tomorrow', {'step': 'bedtime'}),
+    ('KidsMorning', '8 · Morning routine, one step per tap', {'step': 'morning'}),
+    ('KidsBucks', '9 · Mega Bucks arrive (kid)', {'step': 'bucks'}),
+]
+STORE_BOARDS = [
+    ('StoreRoom', '1 · Twin 1’s room → Store', {'step': 'room'}),
+    ('Store', '2 · Furniture (basic set free)', {}),
+    ('StoreStickers', '3 · Stickers', {'tab': 'stickers'}),
+    ('StoreColors', '4 · Colors: try it on before buying', {'tab': 'colors'}),
+    ('StoreAntennas', '5 · Antennas', {'tab': 'antennas'}),
+    ('StoreEyes', '6 · Eyes · not enough Mega Bucks yet', {'tab': 'eyes', 'balance': '3'}),
+    ('StoreConfirm', '7 · Buy sheet', {'tab': 'antennas', 'sheet': 'confirm'}),
+    ('StoreBought', '8 · Bought furniture → Decorate', {'sheet': 'bought'}),
+    ('StoreTray', '9 · New furniture in the Decorate tray', {'step': 'tray', 'sheet': 'bought'}),
+]
+CAL_BOARDS = [
+    ('Calendar', '1 · Week: household + your private layer (Admin)', {}),
+    ('CalPartner', '1b · Same day, Partner’s view (no Dentist)', {'viewer': 'partner'}),
+    ('CalShare', '2 · Share suggestion (owner taps)', {'step': 'share'}),
+    ('CalClash', '3 · Clash → one fix, waiting for approval', {'step': 'clash'}),
+    ('CalClashDone', '3b · Approved', {'step': 'clash', 'approved': 'yes'}),
+    ('CalAfter', '3c · Calendar after approval', {'approved': 'yes'}),
+    ('CalGifts', '4 · Birthday gift ideas from shared info', {'step': 'gifts'}),
+]
+NOTES = {
+    'screen10': ('Screen 10 · Kids: homework, routines, Mega Bucks', KIDS_BOARDS,
+        'Defaults to confirm\n• Homework: a parent photographs the sheet in their own chat; MEGA (Muse Spark, image input) writes 3–5 new questions at the kid\'s level.\n• Kids get hints (a guiding question), never the answer.\n• Parents get a summary card and choose how many Mega Bucks to release (practice 5, chore 3 by default). Only Admin and Partner can release.\n• Bedtime prep reads tomorrow\'s household events; the morning routine is 4 steps set by a parent.\n• The chore push uses the Screen 6 kid push (54pt buttons, quiet hours).'),
+    'screen11': ('Screen 11 · The Store', STORE_BOARDS,
+        'Defaults to confirm\n• Reached from the kid\'s own room (Store button with the balance).\n• Free from the start: bed, desk, lamp, rug, and the 6 shell colors on offer today. Store-only: other furniture (4–8), stickers (5), new colors (10), antennas (12), eyes (12–15). Prices are config.\n• Colors, antennas and eyes are tried on live on the kid\'s own MEGA before buying (real sprite engine: 4 antennas, 4 eye designs).\n• Eye designs change the resting eyes; happy/wink/closed faces stay as they are.\n• Bought furniture lands in the Decorate tray marked NEW.\n• Adults don\'t have a Store (their MEGA looks stay free).'),
+    'screen12': ('Screen 12 · Calendar and gift ideas', CAL_BOARDS,
+        'Defaults to confirm\n• Two layers: Household (everyone) and Only you (private, dashed, lock). Partner\'s view never shows Admin\'s Dentist.\n• MEGA may suggest sharing; only the owner\'s tap shares.\n• Hub checks household events only. The Dentist overlapping soccer practice is never flagged (the negative control).\n• A clash gets one fix, labelled as from Hub (AI), with before/after. The person the fix moves the job to approves; nothing changes until then.\n• Gift ideas use only shared info; products come from web search (G4).'),
+}
+GAP = 470
+for (note_id, (heading, boards, sticky)), row_y, name in zip(NOTES.items(), (11376, 12640, 13904), ('Kids', 'Store', 'Calendar')):
+    write_wrappers(name, boards)
+    for i, (stem, title, _) in enumerate(boards):
+        f = stem + '.dc.html'
+        canvas['boards'][f] = {'x': i * GAP, 'y': row_y, 'w': 390, 'h': 844, 'title': title, 'is_interactive': True}
+        if f not in canvas['order']:
+            canvas['order'].append(f)
+    canvas['notes'][note_id] = {'x': 0, 'y': row_y - 260, 'text': heading, 'kind': 'title1', 'maxW': len(boards) * GAP - 80}
+    canvas['notes'][note_id + 'defaults'] = {'x': len(boards) * GAP, 'y': row_y, 'w': 420, 'text': sticky, 'fill': 'orange', 'size': 's'}
+json.dump(canvas, open(cpath, 'w'), ensure_ascii=False)
+print('built kids, store, calendar')
