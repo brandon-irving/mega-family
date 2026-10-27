@@ -118,7 +118,7 @@ A full-screen walkie-talkie, so there's no guessing when someone has finished ta
 - **Own rooms (decided Oct 25):**
   - Open to the whole family for now; no knocking.
   - **Only the owner decorates their room;** HQ's layout is fixed.
-  - **Every furniture item is available from the start, and each can be recolored.** No unlocks, currency or rewards: game mechanics belong to **Mega Pets**, a separate game of the user's that may get an integration later.
+  - **Mega Bucks and the Store (owner, Oct 27; replaces "no unlocks, currency or rewards"):** parents release Mega Bucks to a kid (for practice questions answered or a chore done, always the parent's tap). Kids spend them in the **Store** on furniture, stickers, MEGA shell colors, antenna shapes and eye designs, all pixel art drawn in code. A basic furniture set stays free from the start, and bought furniture can still be recolored. Prices and the catalog are config.
   - **Posters are made with Muse Image:** the owner describes one, it's generated in pixel style, and tapping a poster on the wall shows the full image.
   - Furniture carries its own station (a desk's station is the tile in front of it), so the MEGA's routes follow the furniture wherever it's placed.
 
