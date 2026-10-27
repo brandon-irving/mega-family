@@ -85,9 +85,53 @@ describe('ResultCard', () => {
     expect(screen.queryByText(/quiet hours/)).toBeNull();
   });
 
+  // G3 review fix (HIGH, kid button sizes): the board's 2-up grid, not a single wrapped row — each
+  // button takes roughly half the row (flexBasis) so two sit side by side.
+  test('notification buttons lay out 2-up, like the design board', async () => {
+    const flexBasisOf = (style: unknown): string | number | undefined => {
+      const flat = (Array.isArray(style) ? style : [style]).filter(Boolean) as Record<string, unknown>[];
+      return flat.find((s) => s.flexBasis !== undefined)?.flexBasis as string | number | undefined;
+    };
+    const rendered = await renderWithTheme(<ResultCard card={CARDS_BY_KIND.notification} notification={NOTIFICATION_FIXTURE} onAnswerNotification={() => {}} />);
+    for (const button of rendered.getAllByRole('button')) {
+      expect(flexBasisOf(button.props.style)).toBeDefined();
+    }
+  });
+
+  // G3 review fix (HIGH, reminder card title): the backend now sends a real headline in
+  // notification.title — rendered unless it's just the MEGA's name again (legacy rows), since that name
+  // is already shown in the chat header (ChatHeader.tsx) and would otherwise show twice.
+  describe('notification card title vs. the chat header MEGA name', () => {
+    test('a real headline (not the MEGA name) renders', async () => {
+      await renderWithTheme(<ResultCard card={CARDS_BY_KIND.notification} notification={NOTIFICATION_FIXTURE} megaName="Teal" />);
+      expect(screen.getByText('Coral asks')).toBeTruthy();
+    });
+
+    test('a legacy row whose title is just the MEGA name again hides the title line', async () => {
+      const legacy = { ...NOTIFICATION_FIXTURE, title: 'Teal' };
+      await renderWithTheme(<ResultCard card={CARDS_BY_KIND.notification} notification={legacy} megaName="Teal" />);
+      expect(screen.queryByText('Teal')).toBeNull();
+      expect(screen.getByText('Can you grab milk on your way home?')).toBeTruthy(); // body still shows
+    });
+
+    test('with no megaName known yet, the title still shows (never hidden by mistake)', async () => {
+      await renderWithTheme(<ResultCard card={CARDS_BY_KIND.notification} notification={NOTIFICATION_FIXTURE} />);
+      expect(screen.getByText('Coral asks')).toBeTruthy();
+    });
+  });
+
   // G3 scope: "kid: reminders only with bigger buttons" — sizing comes for free from the theme's
   // role-based tokens (src/ui/theme.tsx resolveSizing), so a kid viewer's buttons are simply taller.
-  test('a kid viewer sees bigger notification buttons than an adult', async () => {
+  //
+  // G3 review fix (HIGH, kid button sizes): now the exact design-board pair (shared/config/theme.ts
+  // BUTTON_SIZES, from design/build/Push.template.html's SIZES: adult 44pt, kid 54pt) rather than the
+  // generic touch-target scale.
+  //
+  // Kept last in the file: this test's explicit `.unmount()` between two renders leaves the RNTL/RN
+  // test renderer in a state that breaks `screen`-based queries in whatever test runs after it in this
+  // file (a pre-existing harness quirk, not something introduced here) — observed when tests were added
+  // after it; keeping it last avoids that rather than papering over it per-test.
+  test('a kid viewer sees bigger notification buttons than an adult, matching the design board', async () => {
     const minHeightOf = (style: unknown): number => {
       const flat = (Array.isArray(style) ? style : [style]).filter(Boolean) as Record<string, unknown>[];
       const found = flat.find((s) => typeof s.minHeight === 'number');
@@ -99,6 +143,7 @@ describe('ResultCard', () => {
     adult.unmount();
     const kid = await renderWithTheme(<ResultCard card={CARDS_BY_KIND.notification} notification={NOTIFICATION_FIXTURE} onAnswerNotification={() => {}} />, { role: 'kid' });
     const kidHeight = minHeightOf(kid.getAllByRole('button')[0].props.style);
-    expect(kidHeight).toBeGreaterThan(adultHeight);
+    expect(adultHeight).toBe(44);
+    expect(kidHeight).toBe(54);
   });
 });

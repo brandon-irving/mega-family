@@ -17,6 +17,7 @@ import * as Notifications from 'expo-notifications';
 import { AndroidImportance, IosAuthorizationStatus, PermissionStatus } from 'expo-notifications';
 import type { EventSubscription } from 'expo-modules-core';
 import { IDENTITY } from '@shared/config/identity';
+import { PUSH_CONFIG } from '@shared/config/notifications';
 import type { Platform as PlatformEnum } from '@shared/domain/enums';
 import { androidChannelsFromConfig, notificationCategoriesFromConfig } from './notificationConfig';
 import { isChatFocused } from './chatFocus';
@@ -26,11 +27,17 @@ const IMPORTANCE: Record<'high' | 'low', AndroidImportance> = {
   low: AndroidImportance.LOW,
 };
 
-/** CONTRACT §5: categories registered from BUTTON_SETS at startup, `opensAppToForeground: false`. Safe
- * to call every launch — `setNotificationCategoryAsync` upserts by identifier. */
+/** CONTRACT §5: categories registered from BUTTON_SETS at startup, `opensAppToForeground: false` by
+ * default. Safe to call every launch — `setNotificationCategoryAsync` upserts by identifier.
+ *
+ * G3 review fix (HIGH, "iOS force-quit answers"): `PUSH_CONFIG.iosActionsOpenApp`
+ * (shared/config/notifications.ts) only ever affects iOS — Android's killed-app coverage is the
+ * `expo-task-manager` background task (backgroundNotificationTask.ts), which needs `false` to run at
+ * all, so this never changes what Android registers. */
 export async function registerNotificationCategories(): Promise<void> {
   if (Platform.OS === 'web') return;
-  for (const category of notificationCategoriesFromConfig()) {
+  const opensAppToForeground = Platform.OS === 'ios' && PUSH_CONFIG.iosActionsOpenApp;
+  for (const category of notificationCategoriesFromConfig(opensAppToForeground)) {
     await Notifications.setNotificationCategoryAsync(category.identifier, category.actions);
   }
 }

@@ -53,6 +53,21 @@ describe('MessageRow', () => {
     expect(screen.getByText('From a notification · 2m ago')).toBeTruthy();
   });
 
+  // G3 review fix (BLOCKER, "From a notification" notice — CONTRACT §6).
+  test('noticeSentAt renders the "From a notification" pill above the row', async () => {
+    await renderWithTheme(
+      <MessageRow message={MESSAGES_BY_TYPE.text} isMine mega={null} onAnswerBlock={noop} onReact={noop} onChangeMemoryScope={noop} onForgetMemory={noop} noticeSentAt={Date.now() - 2 * 60_000} />,
+    );
+    expect(screen.getByText('From a notification · 2m ago')).toBeTruthy();
+  });
+
+  test('no noticeSentAt renders no pill', async () => {
+    await renderWithTheme(
+      <MessageRow message={MESSAGES_BY_TYPE.text} isMine mega={null} onAnswerBlock={noop} onReact={noop} onChangeMemoryScope={noop} onForgetMemory={noop} />,
+    );
+    expect(screen.queryByText(/From a notification/)).toBeNull();
+  });
+
   test('answering a block end to end: tapping an option calls onAnswerBlock, and the answered message collapses into the answer bubble (G2 §3)', async () => {
     const onAnswerBlock = jest.fn();
     const { rerender } = await renderWithTheme(

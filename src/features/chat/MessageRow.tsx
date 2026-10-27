@@ -17,6 +17,7 @@ import type { MegaInfo } from '@/features/shell/megaInfo';
 import type { NotificationDoc } from '@/data/useNotifications';
 import { AnsweredBlock, Block } from './Blocks';
 import { ResultCard } from './Cards';
+import { NotificationNotice } from './NotificationNotice';
 import { SaveChip } from './SaveChip';
 
 export type MessageDoc = Infer<typeof messageDoc>;
@@ -38,6 +39,11 @@ export type MessageRowProps = {
    * accent color so "scrolled to" reads as a deliberate highlight, not just a jump. MessageList owns the
    * timer that flips this back to false, which is what lets Reanimated's `exiting` play the fade-out. */
   highlighted?: boolean;
+  /** G3 review fix (BLOCKER, "From a notification" notice): when the chat was entered for *this*
+   * message (CONTRACT §6), the `sentAt` of the notification it came from — renders the notice pill
+   * above the row. `undefined`/`null` renders nothing (MessageList only ever passes a value for the one
+   * deep-linked row, CONTRACT §2 `messages.fromNotificationId`). */
+  noticeSentAt?: number | null;
 };
 
 /** Memoized (React.memo): MessageList re-renders on every new message, but a row's own props only
@@ -55,17 +61,19 @@ export const MessageRow = memo(function MessageRow({
   notification,
   chipsReadOnly = false,
   highlighted = false,
+  noticeSentAt,
 }: MessageRowProps) {
   const tokens = useTokens();
   const reducedMotion = useReducedMotion();
   const showBadge = message.author.kind === 'mega';
-  const content = <Body message={message} isMine={isMine} onAnswerBlock={onAnswerBlock} onRespondRequest={onRespondRequest} onAnswerNotification={onAnswerNotification} notification={notification} />;
+  const content = <Body message={message} isMine={isMine} mega={mega} onAnswerBlock={onAnswerBlock} onRespondRequest={onRespondRequest} onAnswerNotification={onAnswerNotification} notification={notification} />;
 
   return (
     // A new row mounts once per message (FlatList keeps existing rows mounted as more load in), so
     // `entering` plays exactly once, the moment this message first appears — not on every re-render —
     // which is what makes a freshly sent/received message slide in without replaying for the whole list.
     <Animated.View entering={reducedMotion ? undefined : FadeInDown.duration(tokens.durations.base).springify().damping(18)} style={{ marginBottom: tokens.spacing.md }}>
+      {noticeSentAt != null && <NotificationNotice sentAt={noticeSentAt} />}
       {highlighted && (
         // CONTRACT §6 "From a notification" deep link: a brief accent wash so the scrolled-to message
         // reads as deliberately found, not just the list happening to land there. `exiting` only plays
@@ -109,6 +117,7 @@ export const MessageRow = memo(function MessageRow({
 function Body({
   message,
   isMine,
+  mega,
   onAnswerBlock,
   onRespondRequest,
   onAnswerNotification,
@@ -116,6 +125,7 @@ function Body({
 }: {
   message: MessageDoc;
   isMine: boolean;
+  mega: MegaInfo | null;
   onAnswerBlock: (answer: BlockAnswer) => void;
   onRespondRequest?: (accept: boolean) => void;
   onAnswerNotification?: (buttonId: string) => void;
@@ -149,7 +159,7 @@ function Body({
         </Bubble>
       );
     case 'card':
-      return <ResultCard card={body.card} onRespondRequest={onRespondRequest} onAnswerNotification={onAnswerNotification} notification={notification} />;
+      return <ResultCard card={body.card} onRespondRequest={onRespondRequest} onAnswerNotification={onAnswerNotification} notification={notification} megaName={mega?.name} />;
     case 'image':
       return <Image source={{ uri: `/_storage/${body.storageId}` }} accessibilityLabel={body.caption ?? 'Shared photo'} style={{ width: 220, height: 220, borderRadius: 12 }} />;
     case 'notice':

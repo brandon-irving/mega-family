@@ -4,11 +4,14 @@
 // `jest.requireActual` — so this measures exactly what matters: does a row whose own `message` is
 // unchanged bail out of re-rendering when a *different* row's text updates in a fresh `messages` array
 // (the same shape a streamed reply produces via `chat.thread`'s paginated query updating).
-import { act } from '@testing-library/react-native';
+import type { ReactElement } from 'react';
+import { act, screen } from '@testing-library/react-native';
+import type { Id } from '@shared/domain/validators';
+import { LIMITS } from '@shared/config/limits';
 import { ThemeProvider } from '@/ui/theme';
-import { MESSAGES_BY_TYPE, FIXTURE_IDS, TEAL_INFO } from '@/test/fixtures';
+import { MESSAGES_BY_TYPE, FIXTURE_IDS, NOTIFICATION_FIXTURE, TEAL_INFO } from '@/test/fixtures';
 import { renderWithTheme } from '@/test/renderWithTheme';
-import { MessageList } from './MessageList';
+import { MessageList, type MessageDoc } from './MessageList';
 
 // jest's babel-plugin-jest-hoist moves this `jest.mock` call above every import above, including
 // `./MessageList`'s — so MessageList picks up the mocked `./MessageRow` even though this call reads
@@ -118,5 +121,125 @@ describe('MessageList scroll-to-message highlight', () => {
     const target = MESSAGES_BY_TYPE.notice;
     await renderWithTheme(<MessageList messages={[target]} isMine={isMine} megaById={megaById} onAnswerBlock={noop} onReact={noop} onChangeMemoryScope={noop} onForgetMemory={noop} />);
     expect(mockLastProps[target._id]?.highlighted).toBe(false);
+  });
+});
+
+// G3 review fix (BLOCKER, deep link to an older message): MessageList.tsx used to return silently
+// (MessageList.tsx ~122-134) when `scrollToMessageId` wasn't in the first loaded page. It must instead
+// call `onLoadMore` repeatedly — bounded by LIMITS.chat.deepLinkMaxLoadMorePages — until the target
+// turns up or pagination is exhausted, then show a small notice if it's never found.
+describe('MessageList deep-link load-more search', () => {
+  const other = MESSAGES_BY_TYPE.text;
+  const target = MESSAGES_BY_TYPE.notice;
+
+  /** One decoy message per "older page" so each render passes a messages array with a different
+   * identity/content than the last — the same shape a real `onLoadMore` resolving another page of
+   * `chat.thread` produces, and what the search effect actually keys its re-run off of. */
+  function pageWithDecoys(count: number): MessageDoc[] {
+    const decoys = Array.from({ length: count }, (_, i) => ({ ...other, _id: `decoy_${i}` as Id<'messages'> }));
+    return [other, ...decoys];
+  }
+
+  beforeEach(() => {
+    for (const key of Object.keys(mockRenderCounts)) delete mockRenderCounts[key];
+    for (const key of Object.keys(mockLastProps)) delete mockLastProps[key];
+  });
+
+  async function rerenderWith(rerender: (ui: ReactElement) => Promise<void> | void, messages: MessageDoc[], onLoadMore: () => void, paginationExhausted = false) {
+    await act(async () => {
+      await rerender(
+        <ThemeProvider initialRole="adult">
+          <MessageList messages={messages} isMine={isMine} megaById={megaById} onAnswerBlock={noop} onReact={noop} onChangeMemoryScope={noop} onForgetMemory={noop} scrollToMessageId={target._id} onLoadMore={onLoadMore} paginationExhausted={paginationExhausted} />
+        </ThemeProvider>,
+      );
+    });
+  }
+
+  test('target absent: calls onLoadMore, and once a later page includes it, scrolls and highlights — without ever showing the not-found notice', async () => {
+    const onLoadMore = jest.fn();
+    const { rerender } = await renderWithTheme(
+      <MessageList messages={pageWithDecoys(1)} isMine={isMine} megaById={megaById} onAnswerBlock={noop} onReact={noop} onChangeMemoryScope={noop} onForgetMemory={noop} scrollToMessageId={target._id} onLoadMore={onLoadMore} />,
+    );
+    expect(onLoadMore).toHaveBeenCalledTimes(1);
+    expect(mockLastProps[target._id]).toBeUndefined(); // not loaded yet — nothing to highlight
+
+    // A second page arrives, still without the target — onLoadMore is called again.
+    await rerenderWith(rerender, pageWithDecoys(2), onLoadMore);
+    expect(onLoadMore).toHaveBeenCalledTimes(2);
+
+    // A third page finally includes the target.
+    await rerenderWith(rerender, [...pageWithDecoys(2), target], onLoadMore);
+    expect(onLoadMore).toHaveBeenCalledTimes(2); // found — no further calls
+    expect(mockLastProps[target._id]?.highlighted).toBe(true);
+    expect(screen.queryByText("Couldn’t find that message")).toBeNull();
+  });
+
+  test('pagination exhausted before the target ever appears shows a "couldn\'t find" notice instead of nothing', async () => {
+    const onLoadMore = jest.fn();
+    await renderWithTheme(
+      <MessageList messages={pageWithDecoys(1)} isMine={isMine} megaById={megaById} onAnswerBlock={noop} onReact={noop} onChangeMemoryScope={noop} onForgetMemory={noop} scrollToMessageId={target._id} onLoadMore={onLoadMore} paginationExhausted />,
+    );
+
+    expect(onLoadMore).not.toHaveBeenCalled(); // already exhausted — nothing left to load
+    expect(screen.getByText("Couldn’t find that message")).toBeTruthy();
+  });
+
+  test('the search is bounded even if pagination never reports exhausted', async () => {
+    const onLoadMore = jest.fn();
+    const { rerender } = await renderWithTheme(
+      <MessageList messages={pageWithDecoys(1)} isMine={isMine} megaById={megaById} onAnswerBlock={noop} onReact={noop} onChangeMemoryScope={noop} onForgetMemory={noop} scrollToMessageId={target._id} onLoadMore={onLoadMore} />,
+    );
+
+    for (let page = 2; page <= LIMITS.chat.deepLinkMaxLoadMorePages + 3; page++) {
+      await rerenderWith(rerender, pageWithDecoys(page), onLoadMore);
+    }
+
+    expect(onLoadMore).toHaveBeenCalledTimes(LIMITS.chat.deepLinkMaxLoadMorePages);
+    expect(screen.getByText("Couldn’t find that message")).toBeTruthy();
+  });
+});
+
+// G3 review fix (BLOCKER, "From a notification" notice — CONTRACT §6): integration through the real
+// MessageList -> MessageRow -> NotificationNotice path (not just the pill component in isolation),
+// confirming the pill only shows above the one message the deep link was actually for.
+describe('MessageList "From a notification" notice', () => {
+  test('the deep-linked message carrying fromNotificationId shows the pill; an unrelated message does not', async () => {
+    const target = { ...MESSAGES_BY_TYPE.text, _id: 'messages_target' as Id<'messages'>, fromNotificationId: NOTIFICATION_FIXTURE._id };
+    const other = MESSAGES_BY_TYPE.card;
+
+    await renderWithTheme(
+      <MessageList
+        messages={[other, target]}
+        isMine={isMine}
+        megaById={megaById}
+        onAnswerBlock={noop}
+        onReact={noop}
+        onChangeMemoryScope={noop}
+        onForgetMemory={noop}
+        scrollToMessageId={target._id}
+        notificationsById={{ [NOTIFICATION_FIXTURE._id]: NOTIFICATION_FIXTURE }}
+      />,
+    );
+
+    expect(screen.getByText(/From a notification/)).toBeTruthy();
+  });
+
+  test('a message with fromNotificationId that is NOT the deep-link target shows no pill', async () => {
+    const notTarget = { ...MESSAGES_BY_TYPE.text, _id: 'messages_other' as Id<'messages'>, fromNotificationId: NOTIFICATION_FIXTURE._id };
+
+    await renderWithTheme(
+      <MessageList
+        messages={[notTarget]}
+        isMine={isMine}
+        megaById={megaById}
+        onAnswerBlock={noop}
+        onReact={noop}
+        onChangeMemoryScope={noop}
+        onForgetMemory={noop}
+        notificationsById={{ [NOTIFICATION_FIXTURE._id]: NOTIFICATION_FIXTURE }}
+      />,
+    );
+
+    expect(screen.queryByText(/From a notification/)).toBeNull();
   });
 });

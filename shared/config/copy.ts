@@ -5,6 +5,13 @@ import type { ErrorCode } from '../domain/enums';
 
 export type RetryCopyKey = ErrorCode | 'error' | 'timeout' | 'default';
 
+/** G3 review fix (MEDIUM): the chat header's status line is a placeholder — its live version comes from
+ * HQ job events in G5 (not built yet; see the header comment at the call site,
+ * src/app/(tabs)/chat/index.tsx, and ChatHeader.tsx). A config string, not a literal in the component,
+ * per "change behavior through config" — swapping in the real copy later (or restyling it) is a config
+ * edit at the call site, not a hunt through JSX. */
+export const CHAT_STATUS_PLACEHOLDER = 'Ready to help';
+
 export const ERROR_COPY: Record<RetryCopyKey, string> = {
   UNAUTHENTICATED: "You've been signed out. Sign in again to keep chatting.",
   NOT_A_MEMBER: "That didn't go through — try again in a moment.",

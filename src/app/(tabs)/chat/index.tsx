@@ -8,6 +8,7 @@ import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import Animated, { FadeIn, FadeOut, LinearTransition, useAnimatedStyle, useReducedMotion, useSharedValue, withRepeat, withSequence, withTiming } from 'react-native-reanimated';
 import type { Id } from '@shared/domain/validators';
 import { ROLES_CONFIG } from '@shared/config/roles';
+import { CHAT_STATUS_PLACEHOLDER } from '@shared/config/copy';
 import { LINKS } from '@shared/domain/api';
 import { useViewer } from '@/data/useViewer';
 import { useAnswerBlock, useChatThread, useReactToMessage, useSendMessage, useStreamBody } from '@/data/useChat';
@@ -122,9 +123,14 @@ export default function ChatRoute() {
     // keyboard rises, instead of RN core's version jumping on Android / over-shooting on iOS.
     <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding">
       <Screen padded={false}>
+        {/* G3 review fix (MEDIUM): the status line is a placeholder — PLAN.md's live version ("from the
+            same job event that drives HQ", ChatHeader.tsx's own header comment) is G5 scope, not built
+            yet. The canvas is the spec (STATUS.md): this says so here rather than silently shipping as
+            if it were final, and the copy itself lives in config (CHAT_STATUS_PLACEHOLDER), not a
+            literal, so swapping in the real line is a config edit at this one call site. */}
         <ChatHeader
           mega={mega}
-          statusLine={viewer.mega ? 'Ready to help' : ''}
+          statusLine={viewer.mega ? CHAT_STATUS_PLACEHOLDER : ''}
           todayCount={todayCount}
           onOpenProfile={() => router.push('/mega-profile' as never)}
           onOpenToday={() => router.push(toPath(LINKS.today()) as never)}
@@ -136,6 +142,7 @@ export default function ChatRoute() {
             viewerRole={viewer.member.role}
             megaById={megaById}
             onLoadMore={thread.status === 'CanLoadMore' ? () => thread.loadMore(30) : undefined}
+            paginationExhausted={thread.status === 'Exhausted'}
             onAnswerBlock={(id, answer) => answerBlock(id, answer, 'text')}
             onReact={(id, reaction) => react({ messageId: id, reaction })}
             onChangeMemoryScope={(memoryId, scope) => changeMemoryScope({ memoryId, scope })}

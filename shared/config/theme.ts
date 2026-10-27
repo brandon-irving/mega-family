@@ -122,3 +122,21 @@ export function resolveSizing(bigTargets: boolean) {
     hitSlop: bigTargets ? HIT_SLOP.big : HIT_SLOP.normal,
   };
 }
+
+/** G3 review fix (HIGH, kid button sizes): notification/request/choice-block action-button sizing, from
+ * the approved design board (`design/build/Push.template.html` ~line 197: `SIZES = { adult: { btnH: 44,
+ * btnFont: 15 }, kid: { btnH: 54, btnFont: 18 } }`). Deliberately its own pair, not a reuse of
+ * `TOUCH_TARGET`/`TYPE_SCALE` — those are the generic 44/56pt floor and type scale every other control
+ * uses, and don't match the board's exact values here. Single source of truth: `Button`/`ButtonRow`
+ * (src/ui) resolve a size from the viewer's role through this, never a per-call magic number, and the
+ * same pair drives the board's 2-up pill layout (ButtonRow). */
+export const BUTTON_SIZES = {
+  adult: { height: 44, fontSize: 15 },
+  kid: { height: 54, fontSize: 18 },
+} as const;
+export type ButtonSize = (typeof BUTTON_SIZES)[keyof typeof BUTTON_SIZES];
+
+/** `bigTargets` comes from ROLES_CONFIG[role].bigTargets, same switch `resolveSizing` reads. */
+export function resolveButtonSizing(bigTargets: boolean): ButtonSize {
+  return bigTargets ? BUTTON_SIZES.kid : BUTTON_SIZES.adult;
+}

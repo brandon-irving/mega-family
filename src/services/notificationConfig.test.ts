@@ -28,6 +28,18 @@ describe('notificationCategoriesFromConfig', () => {
     expect(reminder.actions).toEqual(BUTTON_SETS['reminder.default'].map((b) => ({ identifier: b.id, buttonTitle: b.label, options: { opensAppToForeground: false } })));
   });
 
+  // G3 review fix (HIGH, "iOS force-quit answers"): PUSH_CONFIG.iosActionsOpenApp (src/services/push.ts)
+  // flips this for iOS only, as an escape valve if a device test shows the background-delivery
+  // assumption backgroundNotificationTask.ts relies on doesn't hold.
+  test('an explicit opensAppToForeground overrides the default on every action', () => {
+    const categories = notificationCategoriesFromConfig(true);
+    for (const category of categories) {
+      for (const action of category.actions) {
+        expect(action.options.opensAppToForeground).toBe(true);
+      }
+    }
+  });
+
   test('adding a button to config shows up here with no other code change (single source of truth)', () => {
     // Guards the "config edit, not a code edit" rule: this test only reads BUTTON_SETS, so a future
     // button added to shared/config/notifications.ts is reflected automatically.

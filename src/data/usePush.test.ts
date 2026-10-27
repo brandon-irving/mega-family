@@ -12,6 +12,7 @@ import * as push from '@/services/push';
 import * as pendingAnswers from '@/services/pendingAnswers';
 import * as notificationReply from '@/services/notificationReply';
 import { answerGuard } from '@/services/answerGuard';
+import { isNotificationListenerMounted } from '@/services/notificationListenerState';
 import { usePushRegistration, useNotificationRouting } from './usePush';
 
 const pushData = { v: 1, notificationId: 'notifications:1', kind: 'reminder', threadId: 'threads:1', messageId: 'messages:1', answerToken: 'tok_abc' };
@@ -177,6 +178,24 @@ describe('useNotificationRouting', () => {
       renderHook(() => useNotificationRouting());
     });
     expect(mockedPending.drainPendingAnswers).toHaveBeenCalledTimes(1);
+  });
+
+  // G3 review fix (HIGH, "iOS force-quit answers"): this hook mounting is exactly the signal
+  // backgroundNotificationTask.ts's module-scope iOS listener reads to decide whether to defer to it
+  // instead of answering through the unauthenticated token route.
+  test('marks the notification listener as mounted while active, and unmarks it on cleanup', async () => {
+    expect(isNotificationListenerMounted()).toBe(false);
+
+    let result: Awaited<ReturnType<typeof renderHook>>;
+    await act(async () => {
+      result = await renderHook(() => useNotificationRouting());
+    });
+    expect(isNotificationListenerMounted()).toBe(true);
+
+    await act(async () => {
+      result!.unmount();
+    });
+    expect(isNotificationListenerMounted()).toBe(false);
   });
 
   test('ignoring an unrelated/malformed notification answers nothing and navigates nowhere', async () => {

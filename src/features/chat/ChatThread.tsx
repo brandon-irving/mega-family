@@ -28,6 +28,10 @@ export type ChatThreadProps = {
   notificationsById?: Record<string, NotificationDoc>;
   /** CONTRACT §6: a deep-link tap scrolls the thread to this message and briefly highlights it. */
   scrollToMessageId?: Id<'messages'>;
+  /** G3 review fix (BLOCKER, deep link to an older message): true once pagination has no more pages —
+   * see MessageList.tsx's `paginationExhausted` for why this is distinct from `onLoadMore` being
+   * momentarily undefined between pages. */
+  paginationExhausted?: boolean;
 };
 
 export function ChatThread({
@@ -44,6 +48,7 @@ export function ChatThread({
   onAnswerNotification,
   notificationsById,
   scrollToMessageId,
+  paginationExhausted,
 }: ChatThreadProps) {
   // G2 fix item 4: a stable identity (not a fresh closure every render) so MessageList's own renderItem
   // useCallback deps don't change on every ChatThread re-render — see MessageList.tsx's docstring.
@@ -64,6 +69,7 @@ export function ChatThread({
       chipsReadOnly={viewerRole === 'kid'}
       emptyLabel="No messages yet. Say hello."
       scrollToMessageId={scrollToMessageId}
+      paginationExhausted={paginationExhausted}
     />
   );
 }

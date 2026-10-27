@@ -6,20 +6,24 @@
 import { ANDROID_CHANNELS, BUTTON_SETS } from '@shared/config/notifications';
 import { BUTTON_SET_IDS } from '@shared/config/ids';
 
-// `opensAppToForeground: false` nests under each action's own `options` (not a top-level field) —
+// `opensAppToForeground` nests under each action's own `options` (not a top-level field) —
 // expo-notifications' `NotificationAction.options.opensAppToForeground`. Per its own docs: "If `false`
 // and your app is killed (not just backgrounded), NotificationResponseReceived listeners will not be
 // triggered when a user selects this action" — exactly why answers also need the background task +
 // pending-answer queue (src/services/backgroundNotificationTask.ts, src/services/pendingAnswers.ts).
-export type CategoryAction = { identifier: string; buttonTitle: string; options: { opensAppToForeground: false } };
+export type CategoryAction = { identifier: string; buttonTitle: string; options: { opensAppToForeground: boolean } };
 export type NotificationCategorySpec = { identifier: string; actions: CategoryAction[] };
 
 /** One category per button set that actually has buttons (`tip.default`/`update.default` are empty —
- * CONTRACT §5 — registering a category with zero actions would be a no-op gesture, not a real category). */
-export function notificationCategoriesFromConfig(): NotificationCategorySpec[] {
+ * CONTRACT §5 — registering a category with zero actions would be a no-op gesture, not a real category).
+ * `opensAppToForeground` defaults to `false` (CONTRACT §5's "a button tap never opens the app") —
+ * src/services/push.ts passes `true` instead on iOS when `PUSH_CONFIG.iosActionsOpenApp` is set (G3
+ * review fix, HIGH: "iOS force-quit answers" — the owner's escape valve if a device test shows the
+ * background-delivery assumption below doesn't hold for this app/device). */
+export function notificationCategoriesFromConfig(opensAppToForeground = false): NotificationCategorySpec[] {
   return BUTTON_SET_IDS.filter((id) => BUTTON_SETS[id].length > 0).map((id) => ({
     identifier: id,
-    actions: BUTTON_SETS[id].map((b) => ({ identifier: b.id, buttonTitle: b.label, options: { opensAppToForeground: false as const } })),
+    actions: BUTTON_SETS[id].map((b) => ({ identifier: b.id, buttonTitle: b.label, options: { opensAppToForeground } })),
   }));
 }
 
