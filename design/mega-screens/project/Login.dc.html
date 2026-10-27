@@ -41,8 +41,9 @@ a{color:#EDEFF2;text-decoration:none}
         <span style="height: 30px; padding: 0 12px; border-radius: 15px; border: 1px dashed #2E343D; color: #9AA1AB; font-size: 13px; font-weight: 600; display: flex; align-items: center">Demo</span>
       </button>
     </sc-if>
-    <h1 style="position: absolute; top: 400px; left: 24px; right: 24px; margin: 0; height: 38px; font-size: 30px; line-height: 38px; font-weight: 800; text-align: center">Welcome to MEGA</h1>
-    <p style="position: absolute; top: 448px; left: 32px; right: 32px; margin: 0; font-size: 17px; line-height: 25px; color: #B4BAC3; text-align: center">Everyone in your family gets their own helper. Let’s start with yours, and it’ll help you set up the rest.</p>
+    <!-- The wordmark (owner, Oct 27): MEGA in large letters, and the one tagline on any sign-in screen. The tops of its capitals (y 411 at 80px Inter) are the "head" ledge. -->
+    <h1 style="position: absolute; top: 400px; left: 24px; right: 24px; margin: 0; height: 80px; font-size: 80px; line-height: 80px; font-weight: 900; letter-spacing: 0.06em; text-align: center">MEGA</h1>
+    <p style="position: absolute; top: 498px; left: 32px; right: 32px; margin: 0; font-size: 18px; line-height: 26px; color: #B4BAC3; text-align: center">A little help for the whole family</p>
     <button type="button" onClick="{{openSignIn}}" style="position: absolute; top: 610px; left: 24px; right: 24px; height: 58px; border-radius: 29px; border: none; background: #EDEFF2; color: #0C0E11; font-size: 18px; font-weight: 800; transform: {{dip.make}}; box-shadow: {{glow.make}}; transition: transform 120ms ease, box-shadow 200ms ease">Make my MEGA</button>
     <button type="button" onClick="{{toInvite}}" style="position: absolute; top: 682px; left: 24px; right: 24px; height: 52px; border-radius: 26px; border: 1px solid #2E343D; background: transparent; color: #EDEFF2; font-size: 16px; font-weight: 600">I have an invite</button>
     <div style="position: absolute; top: 750px; left: 24px; right: 24px; height: 44px; display: flex; align-items: center; justify-content: center; gap: 2px; font-size: 15px; color: #9AA1AB">
@@ -181,8 +182,7 @@ a{color:#EDEFF2;text-decoration:none}
   <div style="position: absolute; left: 0; right: 0; top: 478px; height: 366px; z-index: 40; box-sizing: border-box; padding: 10px 24px 34px; border-radius: 28px 28px 0 0; background: #16191E; border-top: 1px solid #2E343D; display: flex; flex-direction: column; gap: 12px; transform: translateY({{sheetUi.offset}}px); transition: transform 280ms cubic-bezier(.2, .8, .2, 1)">
     <span aria-hidden="true" style="align-self: center; width: 36px; height: 5px; border-radius: 3px; background: #2E343D; margin-bottom: 8px"></span>
     <sc-if value="{{sheetUi.signin}}" hint-placeholder-val="{{ true }}">
-      <h2 style="margin: 0; font-size: 22px; line-height: 28px; font-weight: 800">Sign in to save your family</h2>
-      <p style="margin: 0 0 6px; font-size: 15px; line-height: 21px; color: #9AA1AB">Your MEGAs remember things for your family. An account keeps it safe and on every device.</p>
+      <h2 style="margin: 0 0 6px; font-size: 22px; line-height: 28px; font-weight: 800">Sign in to save your family</h2>
       <sc-if value="{{showApple}}" hint-placeholder-val="{{ true }}">
         <button type="button" onClick="{{signInApple}}" style="height: 52px; border-radius: 26px; border: none; background: #FFFFFF; color: #000000; font-size: 17px; font-weight: 700; display: flex; align-items: center; justify-content: center; gap: 10px">
           <sc-if value="{{busy.apple}}" hint-placeholder-val="{{ false }}"><span class="spin" aria-hidden="true" style="width: 18px; height: 18px; border-radius: 9px; border: 2px solid #00000033; border-top-color: #000000; box-sizing: border-box"></span></sc-if>
@@ -291,7 +291,7 @@ function inkOn(hex) {
 const NAMES = { teal: 'Teal', coral: 'Coral', violet: 'Zap' };
 const TICK = 40, SPEED = 2, FOREVER = 1e9;
 // Ledges: the y of the top edge a MEGA's feet stand on. Each matches an element's `top` in the markup.
-const Y = { floor: 360, head: 400, make: 610, signin: 794, sheet: 478, scanCard: 236, cont: 610, reticle: 492, card: 120, lock: 330, start: 240, join: 450, opening: 470 };
+const Y = { floor: 360, head: 411, make: 610, signin: 794, sheet: 478, scanCard: 236, cont: 610, reticle: 492, card: 120, lock: 330, start: 240, join: 450, opening: 470 };
 // Ledges that are pressable: they dip 2px while a MEGA stands on them. [y, fromX, toX]
 const DIPS = {
   welcome: { make: [Y.make, 24, 366] },

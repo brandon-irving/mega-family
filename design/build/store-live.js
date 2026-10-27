@@ -1,11 +1,14 @@
-// Store parts on top of sprite-live.js: a MEGA with a bought antenna shape and eye design (STORE comes
+// Store parts on top of sprite-live.js: a MEGA with a bought antenna shape, eye design and eye colour (STORE comes
 // from prototypes/megasprite → assets/looks/store.json), and the pixel Mega Bucks coin.
-function lookPalette(hex) {
-  return Object.assign(paletteFor(hex), STORE.colors);
+function lookPalette(hex, look) {
+  const pal = Object.assign(paletteFor(hex), STORE.colors);
+  // A bought eye colour recolours the "eye" key, so every face (open, happy, wink, closed) follows.
+  if (look && look.eyeColor && STORE.eyeColors[look.eyeColor]) pal.eye = STORE.eyeColors[look.eyeColor];
+  return pal;
 }
-// Like draw(), but swaps the antenna rows and the resting eyes for the look's Store parts.
+// Like draw(), but swaps the antenna rows, the resting eyes and the eye colour for the look's Store parts.
 function drawLook(hex, face, look, scale, maxRow) {
-  const pal = lookPalette(hex);
+  const pal = lookPalette(hex, look);
   const ant = look && look.antenna && look.antenna !== 'classic' ? STORE.antennas[look.antenna] : null;
   const eyes = face === 'open' && look && look.eyes && look.eyes !== 'classic' ? STORE.eyes[look.eyes] : null;
   const body = ant ? LOOKS.body.filter((r) => r[1] >= STORE.antennaRows).concat(ant) : LOOKS.body;

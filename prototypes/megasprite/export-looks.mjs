@@ -5,7 +5,7 @@
 // usage: node export-looks.mjs <outDir>
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { ANTENNAS, EYE_STYLES, FIXED_COLORS, PERSONALITIES, SHELL_COLORS, STICKER_STANDINS, STORE_COLORS } from "./mega-template.mjs";
+import { ANTENNAS, EYE_COLORS, EYE_STYLES, FIXED_COLORS, PERSONALITIES, SHELL_COLORS, STICKER_STANDINS, STORE_COLORS } from "./mega-template.mjs";
 import { renderMega, renderStickerStandin, toSvg } from "./mega-sprite.mjs";
 
 const outDir = process.argv[2] ?? "out/looks";
@@ -37,11 +37,12 @@ writeFileSync(join(outDir, "looks.json"), JSON.stringify(looks));
 console.log("body runs", looks.body.length, "faces", Object.keys(faces).join(","), "stickers", looks.stickers.length);
 
 // Store parts: each antenna as runs above the head (row < ANTENNA_ROWS, which a client drops from
-// `body` before adding the chosen one), and each eye design as an overlay on the blank face.
+// `body` before adding the chosen one), each eye design as an overlay on the blank face, and the eye
+// colours (a client swaps the palette's "eye" entry).
 const ANTENNA_ROWS = 8;
 const antennas = {};
 for (const name of Object.keys(ANTENNAS)) antennas[name] = runs(renderMega({ shell: "#000000", decal: "none", antenna: name }, { expression: "blank", keys: true })).filter((r) => r[1] < ANTENNA_ROWS);
 const eyes = {};
 for (const name of Object.keys(EYE_STYLES)) eyes[name] = runs(renderMega({ shell: "#000000", decal: "none", eyes: name }, { expression: "open", keys: true }), body);
-writeFileSync(join(outDir, "store.json"), JSON.stringify({ antennaRows: ANTENNA_ROWS, antennas, eyes, colors: STORE_COLORS }));
+writeFileSync(join(outDir, "store.json"), JSON.stringify({ antennaRows: ANTENNA_ROWS, antennas, eyes, eyeColors: EYE_COLORS, colors: STORE_COLORS }));
 console.log("antennas", Object.keys(antennas).join(","), "eyes", Object.keys(eyes).join(","));

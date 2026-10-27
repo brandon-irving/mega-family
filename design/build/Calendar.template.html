@@ -184,7 +184,7 @@ class Component extends DCLogic {
           before: 'Pickup · Partner', beforeSub: 'Thu 5:30 PM, during the dinner',
           after: 'Pickup · You', afterSub: 'Thu 5:30 PM, nothing else shared then',
           actions: a ? [] : [btn('Approve', () => this.setState({ answer: 'approve' })), btn('Reject', () => this.setState({ answer: 'reject' }), 'ghost')],
-          status: a === 'approve' ? 'Approved. Pickup is yours now. Coral told Partner.' : a === 'reject' ? 'Rejected. Nothing changed. Want me to ask Partner for another fix?' : 'Waiting for you. Nothing has changed yet.',
+          status: a === 'approve' ? 'Approved by Admin. Pickup is yours now. Coral told Partner.' : a === 'reject' ? 'Rejected. Nothing changed. Want me to ask Partner for another fix?' : 'Waiting for Admin (you) to approve. Nothing has changed yet.',
           statusColor: a === 'approve' ? '#2FB8B0' : a === 'reject' ? '#9AA1AB' : '#F2B33D',
           foot: 'Hub only checks household events. Private ones are never looked at.',
         } },

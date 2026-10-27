@@ -207,7 +207,7 @@ const BASE = __BASE__;
 const ZAP = __ZAP__;
 
 // The kid's MEGA as it is now (Twin 1's Zap).
-const MINE = { hex: '#8E6CE0', antenna: 'classic', eyes: 'classic', sticker: 'bolt' };
+const MINE = { hex: '#8E6CE0', antenna: 'classic', eyes: 'classic', eyeColor: 'classic', sticker: 'bolt' };
 // The catalog: prices in Mega Bucks (config in the app). A basic furniture set is free from the start.
 const CATALOG = {
   furniture: [
@@ -230,14 +230,17 @@ const CATALOG = {
     { id: 'star', label: 'Star', price: 12 }, { id: 'sprout', label: 'Sprout', price: 12 },
   ],
   eyes: [
-    { id: 'classic', label: 'Classic', price: 0, owned: true }, { id: 'round', label: 'Round', price: 12 },
-    { id: 'heart', label: 'Hearts', price: 15 }, { id: 'sparkle', label: 'Sparkle', price: 15 },
+    // Anime eyes were made once with Muse Image and swap the resting eyes; an eye colour recolours every face.
+    { id: 'classic', label: 'Classic', price: 0, owned: true }, { id: 'anime', label: 'Anime', price: 15 },
+    { id: 'pink', label: 'Pink', price: 10, eyeColor: 'pink' }, { id: 'gold', label: 'Gold', price: 10, eyeColor: 'gold' },
+    { id: 'mint', label: 'Mint', price: 10, eyeColor: 'mint' }, { id: 'lilac', label: 'Lilac', price: 10, eyeColor: 'lilac' },
+    { id: 'ember', label: 'Ember', price: 10, eyeColor: 'ember' },
   ],
 };
 const TABS = [['furniture', 'Furniture'], ['stickers', 'Stickers'], ['colors', 'Colors'], ['antennas', 'Antennas'], ['eyes', 'Eyes']];
 const NOUN = { furniture: '', stickers: ' sticker', colors: ' color', antennas: ' antenna', eyes: ' eyes' };
-const FIRST_PICK = { furniture: 'beanbag', stickers: 'star', colors: 'bubblegum', antennas: 'star', eyes: 'heart' };
-const LOOK_KEY = { stickers: 'sticker', colors: 'hex', antennas: 'antenna', eyes: 'eyes' };
+const FIRST_PICK = { furniture: 'beanbag', stickers: 'star', colors: 'bubblegum', antennas: 'star', eyes: 'anime' };
+const LOOK_KEY = { stickers: 'sticker', colors: 'hex', antennas: 'antenna' };
 
 const S = 1.5, PX = ROOM.tile * S;
 const sizeOf = (kind) => ROOM.decor[kind].size;
@@ -246,10 +249,15 @@ const art = (kind, color) => '/_blob/' + ITEM_ART[kind + '_' + (ROOM.decor[kind]
 function lookWith(tab, item) {
   const look = Object.assign({}, MINE);
   if (tab === 'colors') look.hex = item.hex;
+  else if (tab === 'eyes') { look.eyes = item.id === 'anime' ? 'anime' : 'classic'; look.eyeColor = item.eyeColor || 'classic'; }
   else if (LOOK_KEY[tab]) look[LOOK_KEY[tab]] = item.id;
   return look;
 }
-const wearing = (tab, item) => tab !== 'furniture' && MINE[LOOK_KEY[tab]] === (tab === 'colors' ? item.hex : item.id);
+function wearing(tab, item) {
+  if (tab === 'furniture') return false;
+  if (tab === 'eyes') { const l = lookWith(tab, item); return l.eyes === MINE.eyes && l.eyeColor === MINE.eyeColor; }
+  return MINE[LOOK_KEY[tab]] === (tab === 'colors' ? item.hex : item.id);
+}
 
 class Component extends DCLogic {
   constructor(props) {

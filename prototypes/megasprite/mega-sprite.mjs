@@ -1,6 +1,6 @@
 // Renders a MEGA from the template data: no image generation involved.
 // renderMega(spec, options) -> { w, h, px }; toSvg (re-exported) turns that into crisp-edged SVG.
-import { ANTENNAS, BADGE, BADGE_PARTS, DECALS, DECAL_ANCHOR, EXPRESSIONS, EYE_STYLES, FIXED_COLORS, FRAMES, GRID, STICKER, STICKER_STANDINS, STORE_COLORS, VIEWS } from "./mega-template.mjs";
+import { ANTENNAS, BADGE, BADGE_PARTS, DECALS, DECAL_ANCHOR, EXPRESSIONS, EYE_COLORS, EYE_STYLES, FIXED_COLORS, FRAMES, GRID, STICKER, STICKER_STANDINS, STORE_COLORS, VIEWS } from "./mega-template.mjs";
 import { blank, crop, mirror, onTile, paint, shades, withShades } from "./pixel-paint.mjs";
 
 export { toSvg } from "./pixel-paint.mjs";
@@ -8,7 +8,7 @@ export { toSvg } from "./pixel-paint.mjs";
 /** Shell shades derived from one colour: the family picks a hex, the rest follows. */
 export function palette(spec) {
   const { light, dark } = shades(spec.shell);
-  return { ...FIXED_COLORS, ...STORE_COLORS, shell: spec.shell, shellLight: light, shellDark: dark, decal: spec.decalColor ?? "#FFD54A" };
+  return { ...FIXED_COLORS, ...STORE_COLORS, eye: EYE_COLORS[spec.eyeColor] ?? FIXED_COLORS.eye, shell: spec.shell, shellLight: light, shellDark: dark, decal: spec.decalColor ?? "#FFD54A" };
 }
 
 const overlay = (id, fill, shapes) => shapes.map((shape) => ({ id, group: "body", fill, shape, shade: false, outline: false }));
@@ -28,6 +28,7 @@ function layersFor(spec, view, expression) {
       ...withAntenna(VIEWS.front, spec.antenna),
       ...(spec.decal === "none" ? [] : overlay("decal", "decal", [{ pattern: [...DECAL_ANCHOR, DECALS[spec.decal] ?? DECALS.star] }])),
       ...overlay("eyes", "eye", face.front),
+      ...(face.paint ?? []).flatMap(({ fill, shape }) => overlay("eyes", fill, [shape])),
       ...overlay("blush", "blush", face.blush ?? []),
     ];
   if (view === "side") return [...withAntenna(VIEWS.side, spec.antenna), ...overlay("eyes", "eye", face.side)];
@@ -35,7 +36,7 @@ function layersFor(spec, view, expression) {
 }
 
 /**
- * @param spec    { shell: "#2FB8B0", decal: "star" | "none", decalColor?, antenna?: keyof ANTENNAS, eyes?: keyof EYE_STYLES }
+ * @param spec    { shell: "#2FB8B0", decal: "star" | "none", decalColor?, antenna?: keyof ANTENNAS, eyes?: keyof EYE_STYLES, eyeColor?: keyof EYE_COLORS }
  * @param options { view: front|back|right|left, frame: stand|stepL|stepR, expression, badge, keys }
  */
 export function renderMega(spec, { view = "front", frame = "stand", expression = "open", badge = false, keys = false } = {}) {

@@ -46,15 +46,36 @@ export const ANTENNAS = {
 };
 const antenna = ANTENNAS.classic;
 // Colours only Store parts use (with their light and dark shades), kept apart from FIXED_COLORS.
-export const STORE_COLORS = withShades({ star: "#FFD54A", sprout: "#5BBF6A" });
+// The anime* colours come from the Muse Image eyes (see ANIME_EYE below).
+export const STORE_COLORS = withShades({
+  star: "#FFD54A", sprout: "#5BBF6A",
+  animeBlue: "#0157B7", animeTeal: "#02A0BC", animeCyan: "#00CCC6", animeAqua: "#00F2CF", animePupil: "#15123D", animeShine: "#FFFFFF",
+});
 
-// Eye designs (bought in the Store) replace the resting "open" eyes; other expressions keep their own.
-// "classic" is the default.
+// Eye colours (bought in the Store) recolour the standard eyes in every expression: a renderer swaps
+// the "eye" palette entry, so open, happy, wink and closed all follow. "classic" is the default.
+export const EYE_COLORS = { classic: FIXED_COLORS.eye, pink: "#FF9AD5", gold: "#FFD54A", mint: "#7DF2B0", lilac: "#C7A6FF", ember: "#FF8A5B" };
+
+// Anime eyes: made once with Muse Image (Oct 27; source design/mega-screens/assets/looks/source/
+// anime-eyes-muse.png) and downscaled to the visor grid, one 7x6 eye drawn twice. Each letter is a
+// palette key; "." is the visor showing through (the generated lash line is dark, so it is dropped).
+export const ANIME_EYE = {
+  at: [[8, 14], [17, 14]],
+  rows: ["..bbb..", ".bbpwbb", "ttppwtt", "ccpppcc", ".aacaa.", "..aaa.."],
+  keys: { b: "animeBlue", t: "animeTeal", c: "animeCyan", a: "animeAqua", p: "animePupil", w: "animeShine" },
+};
+/** ANIME_EYE as one-colour patterns per palette key, at both eye positions. */
+function animeFront() {
+  return ANIME_EYE.at.flatMap(([x, y]) => Object.entries(ANIME_EYE.keys).map(([ch, fill]) => ({
+    fill, shape: { pattern: [x, y, ANIME_EYE.rows.map((r) => [...r].map((c) => (c === ch ? "#" : ".")).join(""))] },
+  })));
+}
+
+// Eye designs (bought in the Store) replace only the resting "open" eyes; other expressions keep
+// their own. "classic" is the default. A design's `paint` pieces carry their own palette key.
 export const EYE_STYLES = {
   classic: { front: [{ rect: [11, 15, 2, 3] }, { rect: [19, 15, 2, 3] }], side: [{ rect: [23, 15, 1, 3] }] },
-  round: { front: [{ round: [10, 14, 4, 4, 1] }, { round: [18, 14, 4, 4, 1] }], side: [{ rect: [23, 15, 1, 3] }] },
-  heart: { front: [{ pattern: [9, 15, [".#.#.", "#####", ".###.", "..#.."]] }, { pattern: [18, 15, [".#.#.", "#####", ".###.", "..#.."]] }], side: [{ px: [[23, 15], [22, 16], [23, 16], [23, 17]] }] },
-  sparkle: { front: [{ pattern: [10, 15, [".#.", "###", ".#."]] }, { pattern: [19, 15, [".#.", "###", ".#."]] }], side: [{ px: [[23, 15], [22, 16], [23, 16], [23, 17]] }] },
+  anime: { front: [], paint: animeFront(), side: [{ rect: [23, 15, 1, 3] }] },
 };
 
 export const VIEWS = {

@@ -1,7 +1,7 @@
 # Design canvas (mockups)
 
 The approved screen mockups, published as a private Design-canvas artifact:
-https://claude.ai/artifact/Wa23YjuTXtEhL3hy8PvZZV (version 27 after the Kids, Store and Calendar rows on Oct 27).
+https://claude.ai/artifact/Wa23YjuTXtEhL3hy8PvZZV (version 30 after the Store eyes, Admin-approves-clashes and sign-in wordmark updates on Oct 27).
 
 - `mega-screens/project/*.dc.html` — one board per screen state; `canvas.json` places the boards (rows per
   screen: Chat, HQ, Profile, Family, Onboarding, Push, Settings, Widgets, Sign in, Kids, Store,
@@ -24,6 +24,12 @@ Kids, Store and Calendar rows (Screens 10–12, Oct 27): `build/Kids.template.ht
 `Calendar.template.html`, with wrappers from `KIDS_BOARDS`, `STORE_BOARDS` and `CAL_BOARDS` in `build.py`
 (which also writes each row's title and a "Defaults to confirm" sticky). The chat boards share
 `build/thread.html` + `thread.js` (header, messages and one data-driven card: chips, checklist, stepper,
-before/after, choices, ideas). `store-live.js` draws a MEGA with a bought antenna shape and eye design from
-`assets/looks/store.json` (written by `prototypes/megasprite/export-looks.mjs`; `ANTENNAS`, `EYE_STYLES` and
-`STORE_COLORS` in `mega-template.mjs`, defaults unchanged) and the pixel Mega Bucks coin.
+before/after, choices, ideas). `store-live.js` draws a MEGA with a bought antenna shape, eye design and eye
+colour from `assets/looks/store.json` (written by `prototypes/megasprite/export-looks.mjs`; `ANTENNAS`,
+`EYE_STYLES`, `EYE_COLORS`, `ANIME_EYE` and `STORE_COLORS` in `mega-template.mjs`, defaults unchanged) and the
+pixel Mega Bucks coin. The anime eyes were generated once with Muse Image (`muse-image-1.0`, Oct 27, $0.01;
+source `assets/looks/source/anime-eyes-muse.png`) and downscaled by hand-checked nearest-colour sampling to
+one 7x6 eye drawn twice on the visor.
+
+Sign-in wordmark (owner, Oct 27): the Welcome board shows "MEGA" in large letters and the only tagline on any
+sign-in screen, "A little help for the whole family". The capitals' top edge (y 411) is the `head` ledge.
