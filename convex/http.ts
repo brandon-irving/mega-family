@@ -47,15 +47,27 @@ http.route({
     try {
       const notificationId = body.notificationId as Id<'notifications'>;
       const context = await ctx.runQuery(internal.pushAnswer.loadForToken, { notificationId });
-      if (!context || context.lockedOut) return genericError();
+      const usable = !!context && !context.lockedOut;
+      // S4 (LOW, G3 security review): always run the HMAC verify — even for a notification that doesn't
+      // exist or is already locked out — using a placeholder recipient when there's no real `context`, so
+      // a "not found"/"locked out" response costs the same CPU time (one `crypto.subtle.verify` call) as a
+      // "wrong token" response. Before this, those two cases returned `genericError()` immediately, before
+      // ever touching the HMAC — identical response BODIES, but measurably different response TIMES, which
+      // is itself an oracle an attacker can use to tell "this notification doesn't exist" apart from "it
+      // exists but my token's wrong" without the body ever saying so. `now: 0` for the placeholder case is
+      // deliberately inert (any real token's `expiresAt` is a future epoch ms, so the "not expired" check
+      // still passes and the real signature comparison still runs) — never `Date.now()`, since the point is
+      // only to match the real branch's shape of work, not to compute a real instant.
+      const placeholderRecipientId = notificationId as unknown as Id<'members'>;
+      const valid = await verifyAnswerToken(body.answerToken, notificationId, context?.recipientId ?? placeholderRecipientId, context?.now ?? 0);
+      if (!usable) return genericError();
 
-      const valid = await verifyAnswerToken(body.answerToken, notificationId, context.recipientId, context.now);
       if (!valid) {
         await ctx.runMutation(internal.pushAnswer.recordFailedAttempt, { notificationId });
         return genericError();
       }
 
-      const result = await ctx.runMutation(internal.pushAnswer.answerViaToken, { notificationId, buttonId: body.buttonId, now: context.now });
+      const result = await ctx.runMutation(internal.pushAnswer.answerViaToken, { notificationId, buttonId: body.buttonId, now: context!.now });
       if (!result) return genericError();
       return new Response(JSON.stringify({ reply: result.reply }), { status: 200, headers: { 'Content-Type': 'application/json' } });
     } catch {

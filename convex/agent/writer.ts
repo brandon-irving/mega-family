@@ -7,8 +7,7 @@ import { v } from 'convex/values';
 import { LIMITS } from '../../shared/config';
 import { CONCERN_CATEGORIES as SERVER_CONCERN_CATEGORIES } from '../../shared/config/learning';
 import { chatCostCents, estimateChatCostCents } from '../../shared/config/pricing';
-import { LEARNING_TRIGGERS, MEMORY_KINDS, SCOPES } from '../../shared/domain/enums';
-import { role as roleValidator } from '../../shared/domain/enums';
+import { LEARNING_TRIGGERS, MEMORY_KINDS, SCOPES, role as roleValidator } from '../../shared/domain/enums';
 import { literals } from '../../shared/domain/validators';
 import type { Doc, Id } from '../_generated/dataModel';
 import { internal } from '../_generated/api';
@@ -16,7 +15,8 @@ import { internalAction, internalMutation, internalQuery } from '../_generated/s
 import { getChatModel } from '../adapters/registry';
 import { applyLearningDecision } from '../model/applyLearning';
 import { gateByServerConcern, isConcernCategory, logDroppedConcern } from '../model/concernGate';
-import { decideLearning, type LearningOp } from '../model/learningPolicy';
+import { decideLearning, type LearningDecision, type LearningOp } from '../model/learningPolicy';
+import { canSeeScoped } from '../model/visibility';
 import { clock } from '../ports/clock';
 import { ChatModelError } from '../ports/chatModel';
 
@@ -199,6 +199,25 @@ export const rosterFor = internalQuery({
   },
 });
 
+/** S1: the visibility half of the mattersTo trigger gate. The proposer (`ownerId`) is NEVER the target
+ * (the call site already checked `targetId !== args.memberId`), so a `personal` decision — whose owner is
+ * always the proposer — can never be visible to the target; this matches the intent exactly ("a personal
+ * fact should never become a cross-member trigger"). `shared` is visible only when the target is one of
+ * the members actually being shared with. `queueForProfiler` (no scope was even decided yet) is treated as
+ * not visible — there's nothing confirmed to show anyone. */
+function mattersToTriggerVisibleToTarget(decision: LearningDecision, target: { memberId: Id<'members'>; role: Doc<'members'>['role'] }, ownerId: Id<'members'>): boolean {
+  switch (decision.action) {
+    case 'saveConfirmed':
+    case 'saveUnconfirmed':
+      return canSeeScoped(decision.scope, target, { ownerId, who: decision.action === 'saveConfirmed' ? decision.shareWithMemberIds : undefined });
+    case 'askBeforeSharing':
+      return canSeeScoped(decision.scope, target, { ownerId, who: decision.shareWithMemberIds });
+    case 'queueForProfiler':
+    case 'drop':
+      return false;
+  }
+}
+
 export const applyProposals = internalMutation({
   args: {
     familyId: v.id('families'),
@@ -282,16 +301,30 @@ export const applyProposals = internalMutation({
       // trusted for anything about the fact's own content — only this one pointer, and only once it
       // resolves to a real, different member of this family. convex/model/proactive.ts's cross-member
       // trigger (`scanFamilyEventTriggers`) picks this up and runs it through the full draft+judge pipeline.
+      //
+      // S1 (BLOCKER, G3 security review): this used to fire unconditionally off the model's own
+      // `mattersToMemberId` label, even for a proposal the concern gate just dropped (a concerning guess
+      // about THIS member) or one scoped `personal`/`shared`-not-including-the-target (private content the
+      // target was never meant to see). A personal fact, a concern-flagged one, or a dropped one must never
+      // become a cross-member trigger — so the SAME three things that decided whether this got saved as a
+      // memory (never trusting the model's own labels) also gate whether it can ever reach another member
+      // as a notification: the proposal has to have actually passed the gate (`decision.action !== 'drop'`
+      // and the independent `serverConcern === 'ok'`), AND the content has to be visible to the target
+      // under the normal scope/sharing rules (`canSeeScoped`, reused rather than re-derived) — e.g. a
+      // `personal` memory is never visible to anyone but its own owner, so it can never trigger here either.
       if (p.mattersToMemberId) {
         const targetId = await loadMemberId(ctx, args.familyId, p.mattersToMemberId);
-        if (targetId && targetId !== args.memberId) {
-          await ctx.db.insert('familyEvents', {
-            familyId: args.familyId,
-            at: now,
-            type: 'said',
-            payload: { mattersToMemberId: targetId, fromMemberId: args.memberId, text: p.text },
-            processed: { memory: true, profiler: false, triggers: false },
-          });
+        if (targetId && targetId !== args.memberId && decision.action !== 'drop' && p.serverConcern === 'ok') {
+          const target = await ctx.db.get(targetId);
+          if (target && mattersToTriggerVisibleToTarget(decision, { memberId: targetId, role: target.role }, args.memberId)) {
+            await ctx.db.insert('familyEvents', {
+              familyId: args.familyId,
+              at: now,
+              type: 'said',
+              payload: { mattersToMemberId: targetId, fromMemberId: args.memberId, text: p.text },
+              processed: { memory: true, profiler: false, triggers: false },
+            });
+          }
         }
       }
     }

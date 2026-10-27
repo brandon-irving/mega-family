@@ -18,6 +18,10 @@ export const LIMITS = {
      * once a notification has this many failed verification attempts, every further attempt against it —
      * right token or not — gets the same generic error. */
     maxAnswerTokenAttempts: 10,
+    /** C7: how long after a push send to poll Expo's `getReceipts` for delivery errors not visible in the
+     * immediate send ticket (per the current Expo push docs, `DeviceNotRegistered` and other delivery
+     * failures can surface here ~15 minutes after send, separate from the synchronous ticket response). */
+    receiptCheckDelayMinutes: 15,
   },
   quietHours: { adult: { start: '22:00', end: '07:00' }, kid: { start: '20:30', end: '07:00' } },
   spend: { centsPerFamilyPerDay: 100, centsTotalUntilG6: 500 },

@@ -23,6 +23,14 @@ export const get = query({
   },
 });
 
+// S4 (LOW, G3 security review): unlike `POST /push/answer` (convex/pushAnswer.ts), this mutation needs no
+// brute-force lockout of its own. `pushAnswer`'s guard protects a SECRET the caller must present
+// (`answerToken`, an HMAC the caller doesn't already know and could try to guess/forge) — the lockout
+// exists because repeated wrong guesses are the attack. Here, `requireViewer` has already independently
+// proven who's calling (a signed-in session, not a token derived from this notification), and `buttonId`
+// is never a secret to guess — it's one of a handful of public, fixed strings (`'yes'`/`'on_my_way'`/…)
+// that do nothing without also being this specific notification's own recipient. There is nothing to brute
+// force here, so no lockout is added.
 export const answer = mutation({
   ...pick(API.notifications.answer),
   handler: async (ctx, args) => {

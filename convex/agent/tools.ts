@@ -292,6 +292,11 @@ async function toolAskMember(ctx: any, caller: Caller, raw: Record<string, unkno
   if (caller.role === 'kid') throw new Error("kids can't ask another member's MEGA");
   const target = await loadMember(ctx, caller.familyId, raw.toMemberId, 'toMemberId');
   if (target._id === caller.memberId) throw new Error("can't ask yourself");
+  // S2 (HIGH, G3 security review): a kid can never be the TARGET of an ask either — otherwise a request
+  // card and a push with Yes/No buttons reach a kid's own thread/lock screen even though kids can't send
+  // asks themselves. A clear, model-relayable error (the model can tell the asking member "I can't ask
+  // [kid] directly") rather than a silent no-op, so the asking member finds out immediately.
+  if (target.role === 'kid') throw new Error("can't ask a kid's MEGA directly — ask a parent instead");
   const text = str(raw.text, 'text');
   const onAccept = optOnAccept(raw.onAccept);
   const requestId = await ctx.db.insert('requests', { familyId: caller.familyId, fromMemberId: caller.memberId, toMemberId: target._id, text, status: 'open', onAccept });
