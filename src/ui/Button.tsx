@@ -9,10 +9,16 @@ export type ButtonProps = Omit<PressableProps, 'style'> & {
   loading?: boolean;
   accessibilityLabel?: string;
   style?: StyleProp<ViewStyle>;
+  /** G3 review fix (HIGH, kid button sizes): an explicit height + label font size, overriding the
+   * default `tokens.touchTarget`/type-scale pair — `ButtonRow` passes `tokens.buttonSize` (resolved from
+   * the viewer's role, shared/config/theme.ts BUTTON_SIZES) for notification/request/choice-block action
+   * buttons, which the design board sizes exactly (44/54pt, 15/18pt) rather than the generic scale every
+   * other button uses. Never a per-call magic number — always a token. */
+  size?: { height: number; fontSize: number };
 };
 
 /** The one tappable-button primitive; every screen's buttons go through this. */
-export function Button({ label, variant = 'primary', loading, accessibilityLabel, disabled, style, ...rest }: ButtonProps) {
+export function Button({ label, variant = 'primary', loading, accessibilityLabel, disabled, style, size, ...rest }: ButtonProps) {
   const tokens = useTokens();
   const isPrimary = variant === 'primary';
   const isGhost = variant === 'ghost';
@@ -28,7 +34,7 @@ export function Button({ label, variant = 'primary', loading, accessibilityLabel
       disabled={disabled || loading}
       style={({ pressed }) => [
         {
-          minHeight: tokens.touchTarget,
+          minHeight: size?.height ?? tokens.touchTarget,
           paddingHorizontal: tokens.spacing.lg,
           borderRadius: tokens.radii.md,
           alignItems: 'center',
@@ -45,7 +51,7 @@ export function Button({ label, variant = 'primary', loading, accessibilityLabel
       {...rest}
     >
       {loading && <ActivityIndicator color={isPrimary ? onAccentText : tokens.accent} />}
-      <Text variant="label" style={{ color: isPrimary ? onAccentText : isGhost ? tokens.accent : tokens.text }}>
+      <Text variant="label" style={[{ color: isPrimary ? onAccentText : isGhost ? tokens.accent : tokens.text }, size ? { fontSize: size.fontSize, lineHeight: size.fontSize + 5 } : undefined]}>
         {label}
       </Text>
     </Pressable>

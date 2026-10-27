@@ -17,6 +17,10 @@ export type CardProps = {
   /** The resolved notification doc for a `{ kind: 'notification' }` card (loaded via `notifications.get` —
    * the card itself only carries an id, CONTRACT §3). Undefined while it's still loading. */
   notification?: NotificationDoc;
+  /** G3 review fix (HIGH, reminder card title): the MEGA's name already shown in the chat header
+   * (ChatHeader.tsx) — a notification card hides its own `title` when it's just that same name again
+   * (legacy rows backfilled before the backend sent a real headline). */
+  megaName?: string;
 };
 
 const scopeLabel = { family: 'Family', adults: 'Adults', personal: 'Only me', shared: 'Shared' } as const;
@@ -27,7 +31,7 @@ const scopeLabel = { family: 'Family', adults: 'Adults', personal: 'Only me', sh
 // would carry them (G1 fix #3: this used to hardcode "I can't" before "Yes", the reverse of BUTTON_SETS).
 const REQUEST_BUTTONS = BUTTON_SETS['request.default'];
 
-export function ResultCard({ card, onRespondRequest, onAnswerNotification, notification }: CardProps) {
+export function ResultCard({ card, onRespondRequest, onAnswerNotification, notification, megaName }: CardProps) {
   const tokens = useTokens();
   const visibleTo = 'visibleTo' in card ? <VisibleTo scope={card.visibleTo} /> : null;
 
@@ -98,7 +102,7 @@ export function ResultCard({ card, onRespondRequest, onAnswerNotification, notif
         </Card>
       );
     case 'notification':
-      return <NotificationCard notification={notification} onAnswerNotification={onAnswerNotification} />;
+      return <NotificationCard notification={notification} onAnswerNotification={onAnswerNotification} megaName={megaName} />;
   }
 }
 
@@ -116,7 +120,19 @@ function VisibleTo({ scope }: { scope: keyof typeof scopeLabel }) {
  * request" without a second lookup) and its buttons, in the order stored on the notification (BUTTON_SETS
  * order, G1 fix #3, via the shared ButtonRow). Once answered, the buttons are replaced by the answer —
  * same collapse pattern as an answered thread block (Blocks.tsx's AnsweredBlock). */
-function NotificationCard({ notification, onAnswerNotification }: { notification?: NotificationDoc; onAnswerNotification?: (buttonId: string) => void }) {
+/** G3 review fix (HIGH, reminder card title): the backend now sends a real headline in
+ * `notification.title` (CONTRACT §2) — rendered per the board as headline, then body. Never duplicates
+ * the MEGA's name already shown in the chat header (ChatHeader.tsx): a legacy row whose `title` is just
+ * that same name again (backfilled before this change) hides the title line rather than showing the
+ * name twice on screen at once. Trimmed, case-sensitive-on-the-rest comparison — the exact string the
+ * backend used to send, not a loose match. */
+function shouldShowNotificationTitle(title: string, megaName: string | undefined): boolean {
+  if (!title.trim()) return false;
+  if (!megaName) return true;
+  return title.trim() !== megaName.trim();
+}
+
+function NotificationCard({ notification, onAnswerNotification, megaName }: { notification?: NotificationDoc; onAnswerNotification?: (buttonId: string) => void; megaName?: string }) {
   const tokens = useTokens();
   if (!notification) {
     return (
@@ -127,11 +143,14 @@ function NotificationCard({ notification, onAnswerNotification }: { notification
   }
   const answer = notification.answer;
   const answeredLabel = answer ? notification.buttons.find((b) => b.id === answer.buttonId)?.label : undefined;
+  const showTitle = shouldShowNotificationTitle(notification.title, megaName);
   return (
     <Card>
-      <Text variant="label" style={{ marginBottom: tokens.spacing.xs }}>
-        {notification.title}
-      </Text>
+      {showTitle && (
+        <Text variant="label" style={{ marginBottom: tokens.spacing.xs }}>
+          {notification.title}
+        </Text>
+      )}
       <Text color="muted" style={{ marginBottom: tokens.spacing.sm }}>
         {notification.body}
       </Text>

@@ -27,4 +27,31 @@ describe('ButtonRow', () => {
     await fireEvent.press(screen.getByText('On my way'));
     expect(onPress).toHaveBeenCalledWith('on_my_way');
   });
+
+  test('lays buttons out 2-up (flexBasis ~half), like the design board', async () => {
+    await renderWithTheme(<ButtonRow buttons={[{ id: 'yes', label: 'Yes' }, { id: 'cant', label: "I can't" }]} onPress={() => {}} />);
+    for (const button of screen.getAllByRole('button')) {
+      const flat = (Array.isArray(button.props.style) ? button.props.style : [button.props.style]).filter(Boolean) as Record<string, unknown>[];
+      expect(flat.some((s) => s.flexBasis !== undefined)).toBe(true);
+    }
+  });
+
+  // G3 review fix (HIGH, kid button sizes): shared/config/theme.ts BUTTON_SIZES, from the design board
+  // (design/build/Push.template.html SIZES: adult 44pt/15pt, kid 54pt/18pt) — never a per-call magic
+  // number, resolved from the viewer's role.
+  //
+  // Kept last in the file: the explicit `.unmount()` between two renders leaves the RN test renderer in
+  // a state that breaks `screen`-based queries in whatever test runs after it (a pre-existing harness
+  // quirk — see the same note in Cards.test.tsx, where this pattern already existed before this fix).
+  test('sizes buttons from the viewer role (adult 44pt, kid 54pt), not a per-call magic number', async () => {
+    const minHeightOf = (style: unknown) => {
+      const flat = (Array.isArray(style) ? style : [style]).filter(Boolean) as Record<string, unknown>[];
+      return flat.find((s) => typeof s.minHeight === 'number')?.minHeight as number;
+    };
+    const adult = await renderWithTheme(<ButtonRow buttons={[{ id: 'yes', label: 'Yes' }]} onPress={() => {}} />, { role: 'adult' });
+    expect(minHeightOf(adult.getByRole('button').props.style)).toBe(44);
+    adult.unmount();
+    const kid = await renderWithTheme(<ButtonRow buttons={[{ id: 'yes', label: 'Yes' }]} onPress={() => {}} />, { role: 'kid' });
+    expect(minHeightOf(kid.getByRole('button').props.style)).toBe(54);
+  });
 });

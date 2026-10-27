@@ -76,9 +76,12 @@ function ChoiceBlock({ block, onAnswer }: { block: Extract<UIBlock, { kind: 'cho
       <Text variant="label" style={{ marginBottom: tokens.spacing.sm }}>
         {block.prompt}
       </Text>
+      {/* G3 review fix (HIGH, kid button sizes): sized from the viewer's role (tokens.buttonSize) and
+          laid out 2-up like the design board's action-button grid — same treatment ButtonRow gives
+          notification/request cards (DRY: both read the same shared/config/theme.ts BUTTON_SIZES). */}
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: tokens.spacing.sm }}>
         {block.options.map((o) => (
-          <Chip key={o.id} label={o.label} selected={selected.includes(o.id)} onPress={() => toggle(o.id)} />
+          <Chip key={o.id} label={o.label} selected={selected.includes(o.id)} onPress={() => toggle(o.id)} size={tokens.buttonSize} style={{ flexBasis: '45%', flexGrow: 1, alignSelf: 'stretch' }} />
         ))}
       </View>
       {block.multi && <Button label="Done" variant="secondary" onPress={() => onAnswer({ optionIds: selected })} style={{ marginTop: tokens.spacing.sm }} />}

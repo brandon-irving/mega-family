@@ -4,7 +4,7 @@
 import { createContext, type ReactNode, useContext, useEffect, useMemo, useState } from 'react';
 import { Platform } from 'react-native';
 import * as SystemUI from 'expo-system-ui';
-import { DEFAULT_THEME, DURATIONS, RADII, resolveAccent, resolveSizing, SPACING, THEMES, type ThemeTokens } from '@shared/config/theme';
+import { DEFAULT_THEME, DURATIONS, RADII, resolveAccent, resolveButtonSizing, resolveSizing, SPACING, THEMES, type ButtonSize, type ThemeTokens } from '@shared/config/theme';
 import type { Role, ThemeName } from '@shared/domain/enums';
 import { ROLES_CONFIG } from '@shared/config/roles';
 
@@ -20,6 +20,10 @@ export type Tokens = ThemeTokens & {
   hitSlop: number;
   bigTargets: boolean;
   accent: string;
+  /** G3 review fix (HIGH, kid button sizes): notification/request/choice-block action-button sizing
+   * from the design board (shared/config/theme.ts BUTTON_SIZES / resolveButtonSizing) — `Button`/
+   * `ButtonRow` read this for those three card kinds instead of a per-call magic number. */
+  buttonSize: ButtonSize;
 };
 
 type ThemeCtx = {
@@ -71,6 +75,7 @@ export function ThemeProvider({
       touchTarget: sizing.touchTarget,
       hitSlop: sizing.hitSlop,
       bigTargets: ROLES_CONFIG[role].bigTargets,
+      buttonSize: resolveButtonSizing(ROLES_CONFIG[role].bigTargets),
     };
   }, [themeName, role, accent, megaHex]);
 

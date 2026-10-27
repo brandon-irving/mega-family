@@ -10,6 +10,7 @@ import * as Notifications from 'expo-notifications';
 import { useMutation } from 'convex/react';
 import type { Id } from '@shared/domain/validators';
 import { answerGuard } from '@/services/answerGuard';
+import { setNotificationListenerMounted } from '@/services/notificationListenerState';
 import { drainPendingAnswers } from '@/services/pendingAnswers';
 import { configureForegroundNotificationHandler, registerAndroidChannels, registerNotificationCategories, requestPushRegistration, subscribeToPushTokenChanges } from '@/services/push';
 import { interpretNotificationResponse, type NotificationResponseLike } from '@/services/notificationResponse';
@@ -78,6 +79,13 @@ export function useNotificationRouting(): void {
   useEffect(() => {
     if (Platform.OS === 'web') return;
 
+    // G3 review fix (HIGH, "iOS force-quit answers"): this effect existing at all is the signal
+    // src/services/notificationListenerState.ts / backgroundNotificationTask.ts's module-scope listener
+    // reads — "true" means a response landing right now has a real, mounted, authenticated path to go
+    // through (this listener, below), so that module-scope path should defer to it instead of answering
+    // through the unauthenticated token route.
+    setNotificationListenerMounted(true);
+
     // `originalIdentifier`/`threadIdentifier` are only known for a *live* tap (from the response itself);
     // a queue-drained answer (the app relaunching after being killed) omits them, since the app is
     // already open again by then — PLAN §6's "lock screen shows the reply" doesn't apply once there's no
@@ -108,7 +116,10 @@ export function useNotificationRouting(): void {
     void drainPendingAnswers(sendAnswer);
 
     const subscription = Notifications.addNotificationResponseReceivedListener(handleResponse);
-    return () => subscription.remove();
+    return () => {
+      setNotificationListenerMounted(false);
+      subscription.remove();
+    };
   }, []);
 }
 

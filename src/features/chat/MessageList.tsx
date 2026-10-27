@@ -12,6 +12,7 @@ import { FlatList, View } from 'react-native';
 import type { Id } from '@shared/domain/validators';
 import type { BlockAnswer, SaveChip } from '@shared/domain/messages';
 import type { Reaction, Scope } from '@shared/domain/enums';
+import { LIMITS } from '@shared/config/limits';
 import { Button } from '@/ui/Button';
 import { Text } from '@/ui/Text';
 import { useTokens } from '@/ui/theme';
@@ -82,8 +83,16 @@ export type MessageListProps = {
   chipsReadOnly?: boolean;
   emptyLabel?: string;
   /** CONTRACT §6: a deep-link tap (`mega://chat/<messageId>`) lands here once that message is loaded —
-   * scrolls the inverted FlatList to it and briefly highlights the row (MessageRow's `highlighted`). */
+   * scrolls the inverted FlatList to it and briefly highlights the row (MessageRow's `highlighted`). If
+   * it isn't in the first loaded page, `onLoadMore` is called repeatedly (bounded by
+   * LIMITS.chat.deepLinkMaxLoadMorePages) until it turns up or pagination runs out. */
   scrollToMessageId?: Id<'messages'>;
+  /** G3 review fix (BLOCKER, deep link to an older message): true once `chat.thread`'s pagination has
+   * no more pages to fetch (`usePaginatedQuery`'s `status === 'Exhausted'`) — distinct from `onLoadMore`
+   * being momentarily `undefined` while a page is already in flight (`'LoadingMore'`), which just means
+   * "wait for the next page," not "give up." Omitted (default false) by callers that don't support
+   * `scrollToMessageId` in the first place, where it's never consulted anyway. */
+  paginationExhausted?: boolean;
 };
 
 /** How long the "scrolled to from a notification" highlight stays before fading — long enough to be
@@ -105,6 +114,7 @@ export function MessageList({
   chipsReadOnly = false,
   emptyLabel = 'No messages yet.',
   scrollToMessageId,
+  paginationExhausted = false,
 }: MessageListProps) {
   const tokens = useTokens();
   const listRef = useRef<FlatList<MessageDoc>>(null);
@@ -116,22 +126,67 @@ export function MessageList({
   const [clearedHighlightId, setClearedHighlightId] = useState<Id<'messages'> | null>(null);
   const highlightedId = scrollToMessageId && scrollToMessageId !== clearedHighlightId ? scrollToMessageId : null;
 
+  // G3 review fix (BLOCKER, deep link to an older message): a target that isn't in the first loaded
+  // page used to just silently give up. `loadMoreAttempts` counts actual `onLoadMore()` calls made
+  // while searching *for this one target* (reset the moment the target id changes), bounded by
+  // LIMITS.chat.deepLinkMaxLoadMorePages — a ref, not state, since it's bookkeeping the search effect
+  // itself owns and nothing else needs to read or re-render on.
+  const loadMoreAttempts = useRef(0);
+  const searchingFor = useRef<Id<'messages'> | null>(null);
+  // "Never found" shown as a small notice rather than nothing — cleared the moment a *different* target
+  // is requested, or the same one is finally found.
+  const [notFoundId, setNotFoundId] = useState<Id<'messages'> | null>(null);
+
   // CONTRACT §6: lands once the target message is actually in `messages` (it may still be loading on
   // the first render after a cold-start deep link) — re-runs if the id changes to a different message
-  // (tapping a second notification while the first's highlight hasn't faded yet).
+  // (tapping a second notification while the first's highlight hasn't faded yet), or as more pages load
+  // in while still searching for it.
   useEffect(() => {
-    if (!scrollToMessageId) return;
-    const index = messages.findIndex((m) => m._id === scrollToMessageId);
-    if (index === -1) return;
-    try {
-      listRef.current?.scrollToIndex({ index, viewPosition: 0.5, animated: true });
-    } catch {
-      // onScrollToIndexFailed (below) covers the "not measured yet" case; anything else shouldn't stop
-      // the highlight itself from showing.
+    if (!scrollToMessageId) {
+      loadMoreAttempts.current = 0;
+      searchingFor.current = null;
+      return;
     }
-    const timer = setTimeout(() => setClearedHighlightId(scrollToMessageId), HIGHLIGHT_DURATION_MS);
-    return () => clearTimeout(timer);
-  }, [scrollToMessageId, messages]);
+    if (searchingFor.current !== scrollToMessageId) {
+      searchingFor.current = scrollToMessageId;
+      loadMoreAttempts.current = 0;
+      setNotFoundId(null);
+    }
+
+    const index = messages.findIndex((m) => m._id === scrollToMessageId);
+    if (index !== -1) {
+      // Clearing a *previously shown* not-found notice the instant this same target turns up after all
+      // (e.g. it arrives through a live update rather than the load-more path below) — same "escape
+      // hatch" the project already uses in src/app/(tabs)/family/calendar.tsx, justified the same way:
+      // synchronizing UI state with this effect's own search outcome, not spawning new work off of it.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setNotFoundId(null);
+      try {
+        listRef.current?.scrollToIndex({ index, viewPosition: 0.5, animated: true });
+      } catch {
+        // onScrollToIndexFailed (below) covers the "not measured yet" case; anything else shouldn't stop
+        // the highlight itself from showing.
+      }
+      const timer = setTimeout(() => setClearedHighlightId(scrollToMessageId), HIGHLIGHT_DURATION_MS);
+      return () => clearTimeout(timer);
+    }
+
+    // Not found in the loaded page(s) yet. Keep paging — bounded, and stopping the instant pagination
+    // itself is exhausted — rather than returning silently. No scroll/jump happens while this runs: the
+    // list stays wherever it already was (the inverted FlatList's own bottom anchor), so there's nothing
+    // to flicker.
+    if (paginationExhausted || loadMoreAttempts.current >= LIMITS.chat.deepLinkMaxLoadMorePages) {
+      setNotFoundId(scrollToMessageId);
+      return;
+    }
+    if (onLoadMore) {
+      loadMoreAttempts.current += 1;
+      onLoadMore();
+    }
+    // else: a page is already loading (the caller's onLoadMore is momentarily undefined while
+    // `status === 'LoadingMore'`) — wait for `messages` to update again rather than counting this as a
+    // wasted attempt.
+  }, [scrollToMessageId, messages, onLoadMore, paginationExhausted]);
 
   const getAnswerBlockCallback = useRowCallback<BlockAnswer>((id, answer) => onAnswerBlock(id as Id<'messages'>, answer));
   const getReactCallback = useRowCallback<Reaction | null>((id, reaction) => onReact(id as Id<'messages'>, reaction));
@@ -152,6 +207,12 @@ export function MessageList({
       const card = item.body.type === 'card' ? item.body.card : null;
       const requestId = card?.kind === 'request' ? card.requestId : null;
       const notificationId = card?.kind === 'notification' ? card.notificationId : null;
+      // G3 review fix (BLOCKER, "From a notification" notice — CONTRACT §6, PLAN §6, design board
+      // Push.template.html ~125): shown above the one message the chat was actually entered for (tap,
+      // cold start, or a deep link with a messageId that carries `fromNotificationId`, CONTRACT §2) —
+      // tied to `scrollToMessageId` itself (the route param), not the highlight wash, so it stays for as
+      // long as that deep link is the reason this screen is open, past the highlight's own fade.
+      const noticeSentAt = item._id === scrollToMessageId && item.fromNotificationId ? notificationsById?.[item.fromNotificationId]?.sentAt : undefined;
       return (
         <MessageRow
           message={item}
@@ -166,10 +227,11 @@ export function MessageList({
           notification={notificationId ? notificationsById?.[notificationId] : undefined}
           chipsReadOnly={chipsReadOnly}
           highlighted={item._id === highlightedId}
+          noticeSentAt={noticeSentAt}
         />
       );
     },
-    [isMine, megaById, getAnswerBlockCallback, getReactCallback, stableChangeMemoryScope, stableForgetMemory, getRespondRequestCallback, getAnswerNotificationCallback, notificationsById, chipsReadOnly, highlightedId],
+    [isMine, megaById, getAnswerBlockCallback, getReactCallback, stableChangeMemoryScope, stableForgetMemory, getRespondRequestCallback, getAnswerNotificationCallback, notificationsById, chipsReadOnly, highlightedId, scrollToMessageId],
   );
 
   if (messages.length === 0) {
@@ -181,21 +243,35 @@ export function MessageList({
   }
 
   return (
-    <FlatList
-      ref={listRef}
-      data={messages}
-      inverted
-      keyExtractor={(m) => m._id}
-      contentContainerStyle={{ padding: tokens.spacing.lg }}
-      ListFooterComponent={onLoadMore ? <Button label="Load earlier messages" variant="ghost" onPress={onLoadMore} /> : undefined}
-      renderItem={renderItem}
-      // No `getItemLayout` (messages have variable height), so a `scrollToIndex` call made before that
-      // row has actually been measured can fail — RN's documented fallback is to retry once layout
-      // catches up, rather than leaving the deep link looking like it silently did nothing.
-      onScrollToIndexFailed={(info) => {
-        setTimeout(() => listRef.current?.scrollToIndex({ index: info.index, viewPosition: 0.5, animated: true }), 100);
-      }}
-    />
+    <View style={{ flex: 1 }}>
+      <FlatList
+        ref={listRef}
+        data={messages}
+        inverted
+        keyExtractor={(m) => m._id}
+        contentContainerStyle={{ padding: tokens.spacing.lg }}
+        ListFooterComponent={onLoadMore ? <Button label="Load earlier messages" variant="ghost" onPress={onLoadMore} /> : undefined}
+        renderItem={renderItem}
+        // No `getItemLayout` (messages have variable height), so a `scrollToIndex` call made before that
+        // row has actually been measured can fail — RN's documented fallback is to retry once layout
+        // catches up, rather than leaving the deep link looking like it silently did nothing.
+        onScrollToIndexFailed={(info) => {
+          setTimeout(() => listRef.current?.scrollToIndex({ index: info.index, viewPosition: 0.5, animated: true }), 100);
+        }}
+      />
+      {/* G3 review fix (BLOCKER, deep link to an older message): shown instead of nothing once the
+          target is never found (pagination exhausted or the page bound is hit) — a floating overlay, not
+          part of the scrollable content, so it can't itself cause a layout jump in the list below it. */}
+      {notFoundId && (
+        <View pointerEvents="none" style={{ position: 'absolute', top: tokens.spacing.sm, left: tokens.spacing.lg, right: tokens.spacing.lg, alignItems: 'center' }}>
+          <View style={{ backgroundColor: tokens.surface, borderColor: tokens.line, borderWidth: 1, borderRadius: tokens.radii.pill, paddingVertical: tokens.spacing.xs, paddingHorizontal: tokens.spacing.md }}>
+            <Text variant="caption" color="muted">
+              Couldn&rsquo;t find that message
+            </Text>
+          </View>
+        </View>
+      )}
+    </View>
   );
 }
 
