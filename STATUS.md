@@ -11,13 +11,21 @@ _Last updated: Oct 26 (Day 1 of the build)._
 | G0 | Scaffold, contract as code (`shared/`), schema, sample family seed, test harness, secrets script | ✅ committed |
 | G1 | Real reads + stubs for every API function, Better Auth sign-in (Apple/Google/invite+parent code/demo), app shell and screens, privacy test grid | ✅ tag `g1` |
 | G2 | Real Muse Spark agent loop with tools, memory writer + learning policy + save chips, talk mode (WAV), transcription, spend guard | ✅ tag `g2` (UX fixes `fab39d5`; talk mode still needs an on-device visual pass) |
-| G3 | Proactive engine (triggers → draft → judge → timing → deliver), push with buttons (expo-notifications categories), answers → effects, MEGA-to-MEGA requests, widget timeline / Today statements | next |
+| G3 | Proactive engine (triggers → draft → judge → timing → deliver), push with buttons (expo-notifications categories), answers → effects, MEGA-to-MEGA requests, widget timeline / Today statements | ✅ tag `g3` (needs owner device test: new dev build for expo-task-manager) |
 | G4 | Web search with kid filter, weather + NWS alerts, travel time (Mapbox) | |
 | G5 | Onboarding chat, Settings (theme/wallpaper), HQ tile room + own rooms, ICS + device calendar import, nightly profiler + check questions | |
 | G6 | Full end-to-end on web + iPhone, demo script, polish | |
 | G8 | Widgets (needs one more native build: expo-widgets) | |
 
 **In flight when this was written:** a background agent fixing the G2 UX review findings: white flash on load/sign-in, tabs reflashing loading states (switch all `src/data/*` queries to `useStableQuery` + a lint test), accent text contrast (WCAG-derived `readableOn`), MessageList memoization, hit targets. It then checks choice blocks, talk mode, the kid shell and desktop. When it commits, verify (all checks below), then `git tag -a g2` and start G3.
+
+## Hackathon brief (released Oct 26) — read this before planning any gate
+
+- **Track: Startup** (applied by mistake instead of Indie; the change request to the organizers went unanswered). Judged on technical execution and whether it holds up in production. Rubric: Impact 30%, Use of Meta AI tooling 25%, Demo 25%, Technical depth 20%. Bonus to aim for: Best Agentic Use-Case.
+- **Owner decision (Oct 26):** keep MEGA and this repo; the **brief's collision scenario is the demo's centerpiece**. Two members share a household calendar layer and each keeps a private layer. MEGA spots a collision between **shared** items only and proposes one fix (wording: Muse Wonder; everything else: Muse Spark). Nothing changes until a human approves (the pending proposal shows before and after). The agent's identity is disclosed. **Negative control:** A's private event that overlaps B's shared one is never flagged.
+- **Sharing rule (owner, Oct 26): explicit share only.** Nothing crosses from private to shared without the owner's own share action (a ShareAction record). The assistant may *suggest* sharing ("Share this with the household?" → the owner taps yes); it must never act on a guess. No "looks household-related" heuristic, no auto-promotion, no surfacing "just in case". This applies to MEGA's memory too: the writer's "matters to" becomes a share suggestion the owner approves, never an automatic trigger.
+- **Rules:** a PUBLIC repo; **synthetic data only** (the organizers get a perpetual licence with no confidentiality), so scrub the real names and home paths still in the design boards, `shared/config/identity.ts`, tests, PLAN/STATUS and `design/build/build.py` before publishing; mark what was built before Oct 26 (`prototypes/megasprite`, the design canvas from Oct 24); the demo must genuinely call Meta models (no mocks); a **3-minute demo video** is a primary artifact, so plan it early.
+- **Owner-only gates:** claim the $150 Meta credits (form; a card on the account) and verify the key; **employment-IP check** (Credit Acceptance, Infernored) before submitting; due **Nov 4, 9 PM ET** via the Cerebral Valley portal.
 
 ## Next up (as of the context clear on Oct 26)
 
