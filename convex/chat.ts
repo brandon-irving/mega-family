@@ -13,6 +13,7 @@ import { describeBlockAnswer, requireReadableStream } from './model/chat';
 import { pick } from './model/define';
 import { fail } from './model/errors';
 import { detectSpokenMentions } from './model/mentions';
+import { bumpProfileCount } from './model/proactive';
 import { clock } from './ports/clock';
 import { requireViewer } from './model/viewer';
 
@@ -185,6 +186,13 @@ export const react = mutation({
     const thread = await ctx.db.get(message.threadId);
     if (!thread || thread.ownerId !== viewer.member._id) fail('FORBIDDEN');
     await ctx.db.patch(message._id, { reaction: args.reaction ?? undefined });
+    // PLAN.md -> Proactive engine: "👍/👎 feedback that tunes future messages" — a reaction on the card a
+    // notification was mirrored into (CONTRACT §2 `messages.fromNotificationId`) feeds the judge's
+    // per-kind counts (convex/model/proactive.ts `loadDraftContextFor`'s `reactionSummary`).
+    if ((args.reaction === 'up' || args.reaction === 'down') && message.fromNotificationId) {
+      const notification = await ctx.db.get(message.fromNotificationId);
+      if (notification) await bumpProfileCount(ctx, viewer.member.familyId, viewer.member._id, notification.kind, args.reaction);
+    }
     return null;
   },
 });

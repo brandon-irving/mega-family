@@ -5,6 +5,7 @@ import { API } from '../shared/domain/api';
 import { mutation, query } from './_generated/server';
 import { pick } from './model/define';
 import { fail } from './model/errors';
+import { tickFamilyLogic } from './model/proactive';
 import { requireAdmin, requireViewer } from './model/viewer';
 import { clock } from './ports/clock';
 
@@ -28,21 +29,11 @@ export const jump = mutation({
     if (process.env[DEMO.envVar] !== 'true') fail('FORBIDDEN', 'demo mode is off on this deployment');
     await clock.jumpTo(ctx, viewer.member.familyId, args.to);
 
-    // "fires due jobs through the same code" (CONTRACT §4): the one concrete effect in scope for G1 is
-    // releasing notifications a kid's quiet hours were holding back (seed.ts's held reminder exercises
-    // this). The rest of the proactive pipeline (candidates → judge → deliver) isn't built yet.
-    const now = await clock.now(ctx, viewer.member.familyId);
-    const members = await ctx.db
-      .query('members')
-      .withIndex('by_family', (q) => q.eq('familyId', viewer.member.familyId))
-      .collect();
-    for (const member of members) {
-      const held = await ctx.db
-        .query('notifications')
-        .withIndex('by_family_recipient', (q) => q.eq('familyId', viewer.member.familyId).eq('recipientId', member._id))
-        .collect();
-      for (const n of held) if (n.sentAt === undefined && n.heldUntil !== undefined && n.heldUntil <= now) await ctx.db.patch(n._id, { sentAt: now });
-    }
+    // "fires due jobs through the same code" (CONTRACT §4): `tickFamilyLogic` (convex/model/proactive.ts)
+    // is the exact same per-family sweep the production cron (convex/crons.ts) runs on a timer — releasing
+    // held notifications, firing any candidate whose `deliverAt` the jump leapt past, and scanning every
+    // trigger source (reminders, cross-member "matters to", daily check-in) for new candidates.
+    await tickFamilyLogic(ctx, viewer.member.familyId);
     return null;
   },
 });

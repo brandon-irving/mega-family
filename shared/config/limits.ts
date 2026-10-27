@@ -6,7 +6,19 @@ export const LIMITS = {
   // Muse Spark is a reasoning model: hidden reasoning counts against max tokens, so limits leave room for it
   // and `effort` stays low (G2 live check: default effort spent all 1,200 tokens reasoning and replied with nothing).
   agent: { maxSteps: 6, maxTokensReply: 4000, maxTokensTool: 800, maxTokensStructured: 1500, effort: 'low' as const },
-  push: { dailyCapAdult: 8, dailyCapKid: 4 },
+  push: {
+    dailyCapAdult: 8,
+    dailyCapKid: 4,
+    /** How long a push payload's `answerToken` (CONTRACT §5 v0.11) stays valid — the HMAC-signed,
+     * notification-scoped token that lets the background notification-response task (no signed-in
+     * session) call `POST /push/answer` after the app has been killed. Matches the notification's own
+     * practical shelf life; there's no reason to answer a week-old reminder by then. */
+    answerTokenTtlDays: 7,
+    /** `POST /push/answer`'s brute-force guard (same shape as `invites.redeem`'s `maxParentCodeAttempts`):
+     * once a notification has this many failed verification attempts, every further attempt against it —
+     * right token or not — gets the same generic error. */
+    maxAnswerTokenAttempts: 10,
+  },
   quietHours: { adult: { start: '22:00', end: '07:00' }, kid: { start: '20:30', end: '07:00' } },
   spend: { centsPerFamilyPerDay: 100, centsTotalUntilG6: 500 },
   comingUpWindowMin: 120,

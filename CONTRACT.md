@@ -7,6 +7,8 @@ This is the agreement both build tracks follow. The backend owns `convex/`, the 
 ## Changelog
 | Version | Date | Change |
 |---|---|---|
+| 0.11 | Oct 26 | **Pending approval.** Killed-app push answers: iOS's background notification-response task runs headless with no signed-in Better Auth session, so it can't call `notifications.answer`. Additive: push payload `data` gains `answerToken?: string` (§5) — an HMAC-SHA256 token (`convex/model/pushAnswerToken.ts`), scoped to one `(notificationId, recipientId)` pair, expiring with the notification (`LIMITS.push.answerTokenTtlDays`, 7 days default); nothing is persisted for it (it's self-contained — recomputing and `crypto.subtle.verify`-comparing the signature IS the check). New HTTP route `POST /push/answer` (`h`, convex/http.ts) — body `{ notificationId, buttonId, answerToken }`, returns `{ reply: string }` on success, a fixed generic `{ error }` (HTTP 400) on every failure (unknown notification, wrong/expired token, unknown button, locked out) so no response lets a caller tell those apart. Runs the exact same idempotent apply path `notifications.answer` does (`convex/model/notificationAnswer.ts`) — an already-answered notification just returns its stored reply again. Brute-force guard: additive `notifications.answerFailedAttempts?: number` (§2), same shape as `invites.failedAttempts` — `LIMITS.push.maxAnswerTokenAttempts` (10) failed verifications lock out further attempts against that notification. New secret `PUSH_ANSWER_SECRET` (scripts/env.manifest.json, gate G3) — generate with `node scripts/secrets.mjs gen PUSH_ANSWER_SECRET`, then `sync-convex`. |
+| 0.10 | Oct 26 | **Pending approval.** G3 backend build: the proactive engine (PLAN.md -> Proactive engine) is real — triggers (cross-member "matters to", reminders due, a daily check-in greeting, MEGA-to-MEGA requests) -> candidate (`convex/model/proactive.ts`) -> draft+judge (one combined Muse Spark structured call; requests skip it, their text is already written by the asking member) -> timing (quiet hours, daily cap, `ctx.scheduler.runAt`/`cancel`) -> deliver (push via a new `PushSender` port + Expo adapter, mirrored into the recipient's thread) -> `notifications.answer`/`requests.respond` now run real effects (tell the requester, run the request's declared `onAccept` through the SAME tool dispatcher a chat tool call uses, reschedule/acknowledge a reminder), idempotently, and record `👍`/`👎` into `profiles.proactive` via `chat.react`. Day-1 status: `requests.respond` and `notifications.answer` move from `stub` to `real`. Additive schema fields: `candidates.source` (which trigger produced it), `notifications.reminderId`/`requestId` (back-links an answer button acts on), `requests.onAccept` (what accepting it actually does — only `lists_add` for now). New config: `shared/config/proactive.ts` (check-in time, trigger windows, dedupe-key builders). New internal-only module `convex/proactive.ts` + `convex/crons.ts` (no public API change — CONTRACT §4 lists no `proactive.*` functions, delivery is automatic). `clock.jump` now fires the exact same per-family sweep the production cron runs, instead of its old inline "release held notifications" snippet. |
 | 0.9 | Oct 26 | **Pending approval.** G2 security review fix, additive: `usage.reservedCents?: number` (§2) — the spend guard's `requireBudget` (convex/model/spend.ts) used to be check-then-act (it only read already-*recorded* cents, and the real model call happens in between the check and recording the real cost, so two concurrent turns could each pass and together overshoot a cap); it now reserves its estimate on this field atomically with the check, and `recordUsage`/the new `releaseReservation` release it. Internal plumbing only (`convex/spend.ts`'s internal mutations) — no public-API shape change. |
 | 0.8 | Oct 26 | **Pending approval.** G2 backend build. Additive: `chat.answerBlock` returns gain `streamId?: string` — when answering a block feeds the answer back into the agent loop and the same MEGA replies (G2: the loop is real now), this is that reply's persistent-text-streaming stream id, so talk mode can caption it exactly like a normal `chat.send` reply; `undefined` when there was no MEGA to reply as. Day-1 status corrected (not a shape change): `chat.send`, `chat.answerBlock` and `talk.transcribe` move from `stub` to `real` — the agent loop, memory writer and a real Transcriber/ChatModel call are wired in (convex/agent/*, convex/adapters/*). `talk.transcribe` also now validates the uploaded recording's format: the frontend records AAC `.m4a` (iOS/Android) or `audio/webm` (web) since `expo-audio` can't record WAV cross-platform, but Meta's `/v1/asr/transcribe` only accepts WAV (mono 16-bit PCM, 16/24 kHz, checked against the Voice API reference Oct 26) — a non-WAV upload is refused with `VALIDATION` rather than transcoded or silently sent wrong. |
 | 0.7 | Oct 26 | Removed the `chat.stream` HTTP route: replies are server-driven (`chat.send` schedules the reply; clients watch `chat.streamBody`). Found in the G1 browser check: the client-driven route never ran, so replies stuck at "…" (pending approval) |
@@ -105,13 +107,13 @@ Every row in a family-owned table has `familyId`, and every index starts with `f
 **familyEvents** (the log): `familyId`, `at`, `type` (`said` · `calendar.changed` · `list.changed` · `reminder.due` · `weather.alert` · `notification.answered` · `clock.tick` · `job.changed`), `payload: any`, `processed: { memory, profiler, triggers }`
 - index: `by_family_at`
 
-**candidates**: `familyId`, `recipientId`, `kind: NotificationKind`, `dedupeKey`, `draft: { text, buttons: ButtonSetId }`, `score?: number`, `reason?`, `delivery?: Delivery`, `window: { from, to }`, `deliverAt?`, `scheduledId?`, `status: "new" | "scheduled" | "delivered" | "dropped" | "cancelled"`
+**candidates**: `familyId`, `recipientId`, `kind: NotificationKind`, `dedupeKey`, `draft: { text, buttons: ButtonSetId }`, `score?: number`, `reason?`, `delivery?: Delivery`, `window: { from, to }`, `deliverAt?`, `scheduledId?`, `status: "new" | "scheduled" | "delivered" | "dropped" | "cancelled"`, `source?: { kind: "reminder", reminderId } | { kind: "request", requestId } | { kind: "checkin", memberId } | { kind: "mattersTo", fromMemberId, familyEventId }` (v0.10, additive — which trigger produced it; internal only, never returned by any API function)
 - indexes: `by_family_dedupeKey`, `by_family_status`
 
-**notifications**: `familyId`, `recipientId`, `candidateId?`, `kind`, `loudness: Loudness`, `title`, `body`, `megaId`, `buttons: Button[]`, `messageId?` (the same card in the thread), `sentAt?` (empty while held), `heldUntil?` (kid quiet hours), `answer?: { buttonId, at, via: Via }`, `reply?: string` (lock-screen reply)
+**notifications**: `familyId`, `recipientId`, `candidateId?`, `kind`, `loudness: Loudness`, `title`, `body`, `megaId`, `buttons: Button[]`, `messageId?` (the same card in the thread), `sentAt?` (empty while held), `heldUntil?` (kid quiet hours), `answer?: { buttonId, at, via: Via }`, `reply?: string` (lock-screen reply), `reminderId?`, `requestId?` (v0.10, additive — back-links the row a button's real effect, `notifications.answer`, acts on)
 - index: `by_family_recipient` (familyId, recipientId, sentAt)
 
-**requests** (MEGA to MEGA): `familyId`, `fromMemberId`, `toMemberId`, `text`, `status: "open" | "accepted" | "declined" | "done"`, `notificationId?`
+**requests** (MEGA to MEGA): `familyId`, `fromMemberId`, `toMemberId`, `text`, `status: "open" | "accepted" | "declined" | "done"`, `notificationId?`, `onAccept?: { tool: "lists_add", listName, text }` (v0.10, additive — what accepting it actually does, declared by the `ask_member` tool call that created it, never inferred from `text` at answer time)
 - index: `by_family_to`
 
 ### Places, art and system
@@ -230,7 +232,7 @@ This section is mirrored exactly by `shared/domain/api.ts`; `tests/contract.test
 | `events.create` / `.update` / `.cancel` | m | event fields / `{ eventId, patch }` / `{ eventId }` | `id` / `null` / `null` | real |
 | `lists.all` | q | — | `{ list, items }[]` | real |
 | `lists.addItem` / `.check` / `.remove` | m | `{ listId, text }` / `{ itemId, checked }` / `{ itemId }` | `id` / `null` / `null` | real |
-| `requests.respond` | m | `{ requestId, accept: boolean }` | `null` | stub effects |
+| `requests.respond` | m | `{ requestId, accept: boolean }` | `null` | real (G3: real effects, idempotent) |
 
 ### HQ and rooms
 | Function | Type | Args | Returns | Day 1 |
@@ -245,7 +247,7 @@ This section is mirrored exactly by `shared/domain/api.ts`; `tests/contract.test
 |---|---|---|---|---|
 | `settings.set` | m | `{ theme?, accent?, wallpaper?, notify? }` (adult fields refused for kids) | `null` | real |
 | `push.register` | m | `{ token, platform }` | `null` | real |
-| `notifications.answer` | m | `{ notificationId, buttonId, via: "push" \| "block" \| "widget" }` | `{ reply: string }` (shown on the lock screen) | stub effects |
+| `notifications.answer` | m | `{ notificationId, buttonId, via: "push" \| "block" \| "widget" }` | `{ reply: string }` (shown on the lock screen) | real (G3: real effects, idempotent — see risk note below) |
 | `notifications.get` | q | `{ notificationId }` | `notificationDoc` (recipient only) | real |
 
 ### Demo
@@ -258,13 +260,13 @@ This section is mirrored exactly by `shared/domain/api.ts`; `tests/contract.test
 ---
 
 ## 5. Push notifications
-- **Payload `data`** (every push): `{ v: 1, notificationId, kind: NotificationKind, threadId, messageId }`
+- **Payload `data`** (every push): `{ v: 1, notificationId, kind: NotificationKind, threadId, messageId, answerToken?: string }`. `answerToken` (v0.11, additive) is an HMAC token scoped to this one notification + recipient, for `POST /push/answer` below — the only way to answer when the app has been killed and there's no signed-in session.
 - **Category id** = `ButtonSetId` from config, registered by the app at start with `setNotificationCategoryAsync`. Each button: `{ id, label, opensApp: false }`. Placeholders until we decide the sets:
   - `reminder.default`: `on_my_way` "On my way" · `snooze_5` "Snooze 5 min"
   - `request.default`: `yes` "Yes" · `cant` "I can't"
   - `tip.default` and `update.default`: no buttons
 - **Loudness → platform:** `timeSensitive` / `active` / `passive` → iOS `interruptionLevel`; Android channels `mega.loud` and `mega.quiet` (ids in config).
-- **Answer path:** a button tap calls `notifications.answer` (from the response listener, or from a background task if the app was killed; checked on day 3). The thread block uses the same button ids, so both paths run the same code.
+- **Answer path:** a button tap calls `notifications.answer` while the app is running (from the response listener), or **`POST /push/answer`** (v0.11, `h`) when it's been killed — the background notification-response task has no signed-in session, so it sends `{ notificationId, buttonId, answerToken }` (the token from the payload above) instead of relying on auth. The thread block, `notifications.answer`, and `POST /push/answer` all run the same per-kind effect dispatcher (`convex/model/notificationEffects.ts`), so every answer path is recorded the same way. **Idempotent (G3):** an already-answered notification (`answer` already set) returns its stored `reply` again rather than re-running the button's effect — safe for a retried call from either path.
 
 ## 6. Deep links and widgets
 **Routes:**
@@ -297,6 +299,7 @@ The rule (events in the next 2 hours first, otherwise the top statement) is appl
 - `furniture`, `stations`
 - `notifications.kinds` (loudness, button set, thresholds `push` and `widget`)
 - `buttonSets`
+- `proactive` (G3: daily check-in time/window, reminder grace period, cross-member trigger window, production sweep interval, dedupe-key builders)
 - `limits` (daily caps, quiet hours defaults, agent max steps, spend per family per day)
 - `learningPolicy` (trigger × kind → save now / save unconfirmed / queue / ask / drop, default scope, pattern N and window, fade half-life)
 - `kidSafety` (age bands, blocked categories, domains)
