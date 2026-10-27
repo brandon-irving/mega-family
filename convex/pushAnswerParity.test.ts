@@ -20,6 +20,9 @@ beforeEach(() => {
   process.env.PUSH_ANSWER_SECRET = 'test-secret-do-not-use-in-prod';
 });
 afterEach(() => {
+  // Restore spies even when a test fails or times out, so its leftover verify calls can't inflate the next
+  // test's count (a timed-out first test once made the next two report 2 and 3 calls).
+  vi.restoreAllMocks();
   vi.useRealTimers();
   __setChatModelForTests(null);
   __setPushSenderForTests(null);
