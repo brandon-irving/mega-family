@@ -3,7 +3,7 @@
 // PLAN §1); only the viewer's own messages are bubbles.
 import { memo } from 'react';
 import { Image, View } from 'react-native';
-import Animated, { FadeIn, FadeInDown, LinearTransition, useReducedMotion } from 'react-native-reanimated';
+import Animated, { FadeIn, FadeInDown, FadeOut, LinearTransition, useReducedMotion } from 'react-native-reanimated';
 import type { Infer } from 'convex/values';
 import type { messageDoc } from '@shared/domain/api';
 import type { BlockAnswer } from '@shared/domain/messages';
@@ -34,6 +34,10 @@ export type MessageRowProps = {
   notification?: NotificationDoc;
   /** Kids' save chips are read-only (PLAN "MEGA profile": no sharing/memory controls for kids). */
   chipsReadOnly?: boolean;
+  /** CONTRACT §6: a deep-link tap scrolls the thread to this message — this briefly washes it in the
+   * accent color so "scrolled to" reads as a deliberate highlight, not just a jump. MessageList owns the
+   * timer that flips this back to false, which is what lets Reanimated's `exiting` play the fade-out. */
+  highlighted?: boolean;
 };
 
 /** Memoized (React.memo): MessageList re-renders on every new message, but a row's own props only
@@ -50,6 +54,7 @@ export const MessageRow = memo(function MessageRow({
   onAnswerNotification,
   notification,
   chipsReadOnly = false,
+  highlighted = false,
 }: MessageRowProps) {
   const tokens = useTokens();
   const reducedMotion = useReducedMotion();
@@ -61,6 +66,18 @@ export const MessageRow = memo(function MessageRow({
     // `entering` plays exactly once, the moment this message first appears — not on every re-render —
     // which is what makes a freshly sent/received message slide in without replaying for the whole list.
     <Animated.View entering={reducedMotion ? undefined : FadeInDown.duration(tokens.durations.base).springify().damping(18)} style={{ marginBottom: tokens.spacing.md }}>
+      {highlighted && (
+        // CONTRACT §6 "From a notification" deep link: a brief accent wash so the scrolled-to message
+        // reads as deliberately found, not just the list happening to land there. `exiting` only plays
+        // because MessageList flips `highlighted` back to false on a timer rather than unmounting this
+        // row outright — reduced motion renders the same wash with no animation either way (a flat color,
+        // not motion, so there's nothing to suppress for that preference).
+        <Animated.View
+          pointerEvents="none"
+          exiting={reducedMotion ? undefined : FadeOut.duration(tokens.durations.slow)}
+          style={{ position: 'absolute', top: -tokens.spacing.xs, bottom: -tokens.spacing.xs, left: -tokens.spacing.sm, right: -tokens.spacing.sm, backgroundColor: tokens.accent, opacity: 0.16, borderRadius: tokens.radii.md }}
+        />
+      )}
       <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: tokens.spacing.sm, justifyContent: isMine ? 'flex-end' : 'flex-start' }}>
         {showBadge && mega && <MegaBadge hex={mega.hex} sticker={mega.sticker} face={mega.face} size={32} accessibilityLabel={mega.name} />}
         <View style={{ flex: showBadge ? 1 : undefined, maxWidth: showBadge ? '82%' : undefined }}>

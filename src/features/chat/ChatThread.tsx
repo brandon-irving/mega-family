@@ -26,6 +26,8 @@ export type ChatThreadProps = {
   onRespondRequest?: (requestId: string, accept: boolean) => void;
   onAnswerNotification?: (notificationId: string, buttonId: string) => void;
   notificationsById?: Record<string, NotificationDoc>;
+  /** CONTRACT §6: a deep-link tap scrolls the thread to this message and briefly highlights it. */
+  scrollToMessageId?: Id<'messages'>;
 };
 
 export function ChatThread({
@@ -41,6 +43,7 @@ export function ChatThread({
   onRespondRequest,
   onAnswerNotification,
   notificationsById,
+  scrollToMessageId,
 }: ChatThreadProps) {
   // G2 fix item 4: a stable identity (not a fresh closure every render) so MessageList's own renderItem
   // useCallback deps don't change on every ChatThread re-render — see MessageList.tsx's docstring.
@@ -60,6 +63,7 @@ export function ChatThread({
       notificationsById={notificationsById}
       chipsReadOnly={viewerRole === 'kid'}
       emptyLabel="No messages yet. Say hello."
+      scrollToMessageId={scrollToMessageId}
     />
   );
 }

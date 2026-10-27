@@ -7,7 +7,7 @@
 // index 0 (not appended), the list stays pinned there on its own; no scrollToEnd/ref bookkeeping needed.
 // "Load earlier" fetches the page *after* the oldest loaded message, which an inverted list draws at the
 // visual top, so it's the ListFooterComponent (not the header — that would render at the visual bottom).
-import { useCallback, useLayoutEffect, useRef } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { FlatList, View } from 'react-native';
 import type { Id } from '@shared/domain/validators';
 import type { BlockAnswer, SaveChip } from '@shared/domain/messages';
@@ -81,7 +81,14 @@ export type MessageListProps = {
    * is only ever reading, never editing a kid's memories. */
   chipsReadOnly?: boolean;
   emptyLabel?: string;
+  /** CONTRACT §6: a deep-link tap (`mega://chat/<messageId>`) lands here once that message is loaded —
+   * scrolls the inverted FlatList to it and briefly highlights the row (MessageRow's `highlighted`). */
+  scrollToMessageId?: Id<'messages'>;
 };
+
+/** How long the "scrolled to from a notification" highlight stays before fading — long enough to be
+ * seen after the scroll settles, short enough not to linger like a permanent marker. */
+const HIGHLIGHT_DURATION_MS = 2200;
 
 export function MessageList({
   messages,
@@ -97,8 +104,34 @@ export function MessageList({
   notificationsById,
   chipsReadOnly = false,
   emptyLabel = 'No messages yet.',
+  scrollToMessageId,
 }: MessageListProps) {
   const tokens = useTokens();
+  const listRef = useRef<FlatList<MessageDoc>>(null);
+  // Only tracks when a highlight was *cleared* (by its own timeout) — whether a message is currently
+  // highlighted is derived below, not stored, which is what lets a new `scrollToMessageId` light up
+  // immediately without this effect calling setState synchronously on its own first run (the project's
+  // react-hooks/set-state-in-effect rule: an effect should only set state from a later callback,
+  // reacting to an external system, not synchronously in its own body).
+  const [clearedHighlightId, setClearedHighlightId] = useState<Id<'messages'> | null>(null);
+  const highlightedId = scrollToMessageId && scrollToMessageId !== clearedHighlightId ? scrollToMessageId : null;
+
+  // CONTRACT §6: lands once the target message is actually in `messages` (it may still be loading on
+  // the first render after a cold-start deep link) — re-runs if the id changes to a different message
+  // (tapping a second notification while the first's highlight hasn't faded yet).
+  useEffect(() => {
+    if (!scrollToMessageId) return;
+    const index = messages.findIndex((m) => m._id === scrollToMessageId);
+    if (index === -1) return;
+    try {
+      listRef.current?.scrollToIndex({ index, viewPosition: 0.5, animated: true });
+    } catch {
+      // onScrollToIndexFailed (below) covers the "not measured yet" case; anything else shouldn't stop
+      // the highlight itself from showing.
+    }
+    const timer = setTimeout(() => setClearedHighlightId(scrollToMessageId), HIGHLIGHT_DURATION_MS);
+    return () => clearTimeout(timer);
+  }, [scrollToMessageId, messages]);
 
   const getAnswerBlockCallback = useRowCallback<BlockAnswer>((id, answer) => onAnswerBlock(id as Id<'messages'>, answer));
   const getReactCallback = useRowCallback<Reaction | null>((id, reaction) => onReact(id as Id<'messages'>, reaction));
@@ -132,10 +165,11 @@ export function MessageList({
           onAnswerNotification={notificationId ? getAnswerNotificationCallback(notificationId) : undefined}
           notification={notificationId ? notificationsById?.[notificationId] : undefined}
           chipsReadOnly={chipsReadOnly}
+          highlighted={item._id === highlightedId}
         />
       );
     },
-    [isMine, megaById, getAnswerBlockCallback, getReactCallback, stableChangeMemoryScope, stableForgetMemory, getRespondRequestCallback, getAnswerNotificationCallback, notificationsById, chipsReadOnly],
+    [isMine, megaById, getAnswerBlockCallback, getReactCallback, stableChangeMemoryScope, stableForgetMemory, getRespondRequestCallback, getAnswerNotificationCallback, notificationsById, chipsReadOnly, highlightedId],
   );
 
   if (messages.length === 0) {
@@ -148,12 +182,19 @@ export function MessageList({
 
   return (
     <FlatList
+      ref={listRef}
       data={messages}
       inverted
       keyExtractor={(m) => m._id}
       contentContainerStyle={{ padding: tokens.spacing.lg }}
       ListFooterComponent={onLoadMore ? <Button label="Load earlier messages" variant="ghost" onPress={onLoadMore} /> : undefined}
       renderItem={renderItem}
+      // No `getItemLayout` (messages have variable height), so a `scrollToIndex` call made before that
+      // row has actually been measured can fail — RN's documented fallback is to retry once layout
+      // catches up, rather than leaving the deep link looking like it silently did nothing.
+      onScrollToIndexFailed={(info) => {
+        setTimeout(() => listRef.current?.scrollToIndex({ index: info.index, viewPosition: 0.5, animated: true }), 100);
+      }}
     />
   );
 }

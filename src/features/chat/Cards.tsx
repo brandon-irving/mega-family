@@ -135,6 +135,7 @@ function NotificationCard({ notification, onAnswerNotification }: { notification
       <Text color="muted" style={{ marginBottom: tokens.spacing.sm }}>
         {notification.body}
       </Text>
+      {notification.heldUntil != null && <HeldNotice createdAt={notification._creationTime} />}
       {answer ? (
         <Text style={{ color: tokens.muted, fontStyle: 'italic' }} accessibilityLabel={`Answered: ${notification.reply ?? answeredLabel ?? 'Answered'}`}>
           {notification.reply ?? answeredLabel ?? 'Answered'}
@@ -143,5 +144,22 @@ function NotificationCard({ notification, onAnswerNotification }: { notification
         <ButtonRow buttons={notification.buttons} onPress={(buttonId) => onAnswerNotification?.(buttonId)} />
       )}
     </Card>
+  );
+}
+
+/** PLAN §6 / design board (Push.template.html "held" row): "Anything due during quiet hours is held and
+ * sent when they end" — shown on the board as "Saved from 9:10 PM · quiet hours". `heldUntil` (CONTRACT
+ * §2, `notifications.heldUntil`) is *when quiet hours end and the held notification actually sends* —
+ * the moment the board's text is about is when it was first due, which for a held notification is when
+ * the row itself was created (`_creationTime`), so that's what's formatted here. Frontend assumption for
+ * the backend to confirm (see the G3 report): a notification only ever carries `heldUntil` while it was
+ * (or still is) held for quiet hours. */
+export function HeldNotice({ createdAt }: { createdAt: number }) {
+  const tokens = useTokens();
+  const time = new Date(createdAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  return (
+    <Text variant="caption" color="muted" style={{ marginBottom: tokens.spacing.sm, fontStyle: 'italic' }}>
+      Saved from {time} · quiet hours
+    </Text>
   );
 }

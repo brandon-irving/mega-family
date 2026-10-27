@@ -10,12 +10,9 @@ import { expoClient } from '@better-auth/expo/client';
 import { anonymousClient } from 'better-auth/client/plugins';
 import { convexClient, crossDomainClient } from '@convex-dev/better-auth/client/plugins';
 import { IDENTITY } from '@shared/config/identity';
+import { CONVEX_SITE_URL } from './convexConfig';
 
-const baseURL = process.env.EXPO_PUBLIC_CONVEX_SITE_URL;
-
-if (!baseURL && __DEV__) {
-  console.warn('EXPO_PUBLIC_CONVEX_SITE_URL is not set — sign-in will fail until .env.local is configured.');
-}
+const baseURL = CONVEX_SITE_URL;
 
 const scheme = (Constants.expoConfig?.scheme as string | undefined) ?? IDENTITY.scheme;
 

@@ -1,7 +1,7 @@
 // Renders every result Card kind (CONTRACT §3).
 import { fireEvent, screen } from '@testing-library/react-native';
 import { renderWithTheme } from '@/test/renderWithTheme';
-import { CARDS_BY_KIND, NOTIFICATION_FIXTURE } from '@/test/fixtures';
+import { CARDS_BY_KIND, NOTIFICATION_FIXTURE, NOTIFICATION_HELD_FIXTURE } from '@/test/fixtures';
 import { ResultCard } from './Cards';
 
 describe('ResultCard', () => {
@@ -71,5 +71,34 @@ describe('ResultCard', () => {
     await renderWithTheme(<ResultCard card={CARDS_BY_KIND.notification} notification={answered} />);
     expect(screen.getByText('Yes')).toBeTruthy();
     expect(screen.queryAllByRole('button')).toHaveLength(0);
+  });
+
+  // G3 scope: "kid: held for quiet hours" (design board: "Saved from 9:10 PM · quiet hours").
+  test('a held notification shows the quiet-hours notice alongside its buttons', async () => {
+    await renderWithTheme(<ResultCard card={{ kind: 'notification', notificationId: NOTIFICATION_HELD_FIXTURE._id }} notification={NOTIFICATION_HELD_FIXTURE} />);
+    expect(screen.getByText(/Saved from .* · quiet hours/)).toBeTruthy();
+    expect(screen.getByText('On my way')).toBeTruthy();
+  });
+
+  test('an unheld notification shows no quiet-hours notice', async () => {
+    await renderWithTheme(<ResultCard card={CARDS_BY_KIND.notification} notification={NOTIFICATION_FIXTURE} />);
+    expect(screen.queryByText(/quiet hours/)).toBeNull();
+  });
+
+  // G3 scope: "kid: reminders only with bigger buttons" — sizing comes for free from the theme's
+  // role-based tokens (src/ui/theme.tsx resolveSizing), so a kid viewer's buttons are simply taller.
+  test('a kid viewer sees bigger notification buttons than an adult', async () => {
+    const minHeightOf = (style: unknown): number => {
+      const flat = (Array.isArray(style) ? style : [style]).filter(Boolean) as Record<string, unknown>[];
+      const found = flat.find((s) => typeof s.minHeight === 'number');
+      return found?.minHeight as number;
+    };
+
+    const adult = await renderWithTheme(<ResultCard card={CARDS_BY_KIND.notification} notification={NOTIFICATION_FIXTURE} onAnswerNotification={() => {}} />, { role: 'adult' });
+    const adultHeight = minHeightOf(adult.getAllByRole('button')[0].props.style);
+    adult.unmount();
+    const kid = await renderWithTheme(<ResultCard card={CARDS_BY_KIND.notification} notification={NOTIFICATION_FIXTURE} onAnswerNotification={() => {}} />, { role: 'kid' });
+    const kidHeight = minHeightOf(kid.getAllByRole('button')[0].props.style);
+    expect(kidHeight).toBeGreaterThan(adultHeight);
   });
 });

@@ -2,7 +2,7 @@
 // usePaginatedQuery(chat.thread); composer with + / text+@ / mic. Reads data only through the
 // small hooks in src/data/.
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { router, useLocalSearchParams } from 'expo-router';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { View } from 'react-native';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import Animated, { FadeIn, FadeOut, LinearTransition, useAnimatedStyle, useReducedMotion, useSharedValue, withRepeat, withSequence, withTiming } from 'react-native-reanimated';
@@ -15,6 +15,8 @@ import { useToday, useAnswerNotification } from '@/data/useToday';
 import { useNotificationsFor } from '@/data/useNotifications';
 import { useChangeMemoryScope, useForgetMemory } from '@/data/useMega';
 import { useMegaDirectory } from '@/data/useMegaDirectory';
+import { usePushNotifications } from '@/data/usePush';
+import { setChatFocused } from '@/services/chatFocus';
 import { errorCopyFor, streamStatusCopy } from '@/data/errorCopy';
 import { Screen } from '@/ui/Screen';
 import { LoadingScreen } from '@/ui/LoadingScreen';
@@ -44,6 +46,20 @@ export default function ChatRoute() {
   const stream = useStreamBody(pendingStreamId);
   const [sendError, setSendError] = useState<{ line: string; retryText: string } | null>(null);
   const reducedMotion = useReducedMotion();
+
+  // G3 scope: permission prompt "at a sensible moment" — right here, the first time someone actually
+  // lands in their own chat (never from welcome/invite/onboarding), plus the response listener/cold-start
+  // deep-link handling (CONTRACT §5/§6). See src/data/usePush.ts.
+  usePushNotifications();
+
+  // G3 scope: "a push arriving while that chat is open should not double-show" — chatFocus.ts's module
+  // flag is what push.ts's foreground notification handler reads (it can't read React context).
+  useFocusEffect(
+    useCallback(() => {
+      setChatFocused(true);
+      return () => setChatFocused(false);
+    }, []),
+  );
 
   // Every `{ kind: 'notification' }` card in the loaded page, resolved to its real content (G1 fix: the
   // card only ever carried an id, so it rendered just the word "Notification").
@@ -126,6 +142,7 @@ export default function ChatRoute() {
             onForgetMemory={(memoryId) => forgetMemory({ memoryId })}
             onAnswerNotification={(notificationId, buttonId) => answerNotification({ notificationId: notificationId as Id<'notifications'>, buttonId, via: 'block' })}
             notificationsById={notificationsById}
+            scrollToMessageId={messageId as Id<'messages'> | undefined}
           />
         </View>
         {showStreamBanner && stream && <StreamingBanner mega={mega} text={stream.text} reducedMotion={reducedMotion} />}

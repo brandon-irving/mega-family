@@ -9,6 +9,7 @@ import { ButtonRow } from '@/ui/ButtonRow';
 import { Card } from '@/ui/Card';
 import { Text } from '@/ui/Text';
 import { useTokens } from '@/ui/theme';
+import { HeldNotice } from '@/features/chat/Cards';
 
 export type Today = Infer<(typeof API)['today']['get']['returns']>;
 
@@ -65,6 +66,7 @@ export function TodayContent({ today, onRespondRequest, onAnswerNotification }: 
                 <Text color="muted" style={{ marginBottom: tokens.spacing.sm }}>
                   {w.notification.body}
                 </Text>
+                {w.notification.heldUntil != null && <HeldNotice createdAt={w.notification._creationTime} />}
                 <ButtonRow buttons={w.notification.buttons} onPress={(buttonId) => onAnswerNotification(w.notification._id, buttonId)} />
               </Card>
             ),

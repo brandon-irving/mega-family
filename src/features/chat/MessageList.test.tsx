@@ -15,6 +15,7 @@ import { MessageList } from './MessageList';
 // textually after the real imports (the repo's established pattern; see AuthGate.test.tsx). The hoist
 // plugin only allows a factory to close over out-of-scope identifiers named `mock*`, hence `mockRenderCounts`.
 const mockRenderCounts: Record<string, number> = {};
+const mockLastProps: Record<string, Record<string, unknown>> = {};
 
 jest.mock('./MessageRow', () => {
   // babel-plugin-jest-hoist only allow-lists `require` (plus `mock*`-prefixed identifiers) inside a
@@ -26,6 +27,7 @@ jest.mock('./MessageRow', () => {
   const Inner = actual.MessageRow.type; // the unmemoized function React.memo(...) wraps
   const MessageRow = React.memo(function MessageRowSpy(props: Record<string, unknown> & { message: { _id: string } }) {
     mockRenderCounts[props.message._id] = (mockRenderCounts[props.message._id] ?? 0) + 1;
+    mockLastProps[props.message._id] = props;
     return React.createElement(Inner, props);
   });
   return { ...actual, MessageRow };
@@ -63,5 +65,58 @@ describe('MessageList row stability', () => {
 
     expect(mockRenderCounts[streaming._id]).toBe(2); // the row that actually changed re-renders — expected
     expect(mockRenderCounts[stable._id]).toBe(1); // the untouched row must NOT re-render
+  });
+});
+
+// CONTRACT §6: "mega://chat/<messageId> (scrolls to the message, adds a notice)" — scrollToMessageId
+// drives MessageRow's `highlighted` prop, which fades out on its own timer (MessageList.tsx's
+// HIGHLIGHT_DURATION_MS).
+describe('MessageList scroll-to-message highlight', () => {
+  beforeEach(() => {
+    for (const key of Object.keys(mockRenderCounts)) delete mockRenderCounts[key];
+    for (const key of Object.keys(mockLastProps)) delete mockLastProps[key];
+    jest.useFakeTimers();
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  test('the target message is highlighted, others are not', async () => {
+    const target = MESSAGES_BY_TYPE.notice;
+    const other = MESSAGES_BY_TYPE.text;
+    await renderWithTheme(
+      <MessageList
+        messages={[other, target]}
+        isMine={isMine}
+        megaById={megaById}
+        onAnswerBlock={noop}
+        onReact={noop}
+        onChangeMemoryScope={noop}
+        onForgetMemory={noop}
+        scrollToMessageId={target._id}
+      />,
+    );
+    expect(mockLastProps[target._id]?.highlighted).toBe(true);
+    expect(mockLastProps[other._id]?.highlighted).toBe(false);
+  });
+
+  test('the highlight clears on its own after HIGHLIGHT_DURATION_MS', async () => {
+    const target = MESSAGES_BY_TYPE.notice;
+    await renderWithTheme(
+      <MessageList messages={[target]} isMine={isMine} megaById={megaById} onAnswerBlock={noop} onReact={noop} onChangeMemoryScope={noop} onForgetMemory={noop} scrollToMessageId={target._id} />,
+    );
+    expect(mockLastProps[target._id]?.highlighted).toBe(true);
+
+    await act(async () => {
+      jest.advanceTimersByTime(3000);
+    });
+    expect(mockLastProps[target._id]?.highlighted).toBe(false);
+  });
+
+  test('no scrollToMessageId means nothing is highlighted', async () => {
+    const target = MESSAGES_BY_TYPE.notice;
+    await renderWithTheme(<MessageList messages={[target]} isMine={isMine} megaById={megaById} onAnswerBlock={noop} onReact={noop} onChangeMemoryScope={noop} onForgetMemory={noop} />);
+    expect(mockLastProps[target._id]?.highlighted).toBe(false);
   });
 });

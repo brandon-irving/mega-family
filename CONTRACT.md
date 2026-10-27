@@ -261,6 +261,7 @@ This section is mirrored exactly by `shared/domain/api.ts`; `tests/contract.test
 
 ## 5. Push notifications
 - **Payload `data`** (every push): `{ v: 1, notificationId, kind: NotificationKind, threadId, messageId, answerToken?: string }`. `answerToken` (v0.11, additive) is an HMAC token scoped to this one notification + recipient, for `POST /push/answer` below — the only way to answer when the app has been killed and there's no signed-in session.
+- **Answering a killed app:** `POST <CONVEX_SITE_URL>/push/answer` with JSON `{ notificationId, buttonId, answerToken }` → `{ reply: string }` (fixed 400 `{ error: "invalid request" }` on any failure; idempotent — an already-answered notification returns its existing reply). Used only by the background task (`src/services/backgroundNotificationTask.ts`) when the app was killed; every other answer path still uses `notifications.answer`.
 - **Category id** = `ButtonSetId` from config, registered by the app at start with `setNotificationCategoryAsync`. Each button: `{ id, label, opensApp: false }`. Placeholders until we decide the sets:
   - `reminder.default`: `on_my_way` "On my way" · `snooze_5` "Snooze 5 min"
   - `request.default`: `yes` "Yes" · `cant` "I can't"

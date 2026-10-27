@@ -1,3 +1,7 @@
+// G3 "APP KILLED" handling: must be imported first and at module scope (not inside a component) — the
+// background notification task (src/services/backgroundNotificationTask.ts) has to be defined and
+// registered before any screen renders, per expo-notifications' own docs on where this can safely run.
+import '@/services/backgroundNotificationTask';
 import { KeyboardProvider } from 'react-native-keyboard-controller';
 import { DataProvider } from '@/data/client';
 import { AppThemeProvider } from '@/features/shell/AppThemeProvider';
