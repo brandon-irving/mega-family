@@ -17,6 +17,9 @@ export interface PushMessage {
   /** iOS only, mapped from `Loudness` (CONTRACT §5). */
   interruptionLevel?: 'active' | 'passive' | 'time-sensitive' | 'critical';
   sound?: 'default' | null;
+  /** iOS only (UX4, `shared/config/notifications.ts` `pushThreadIdFor`): groups notifications sharing the
+   * same value into one visual stack (`aps.thread-id`) instead of each showing separately. */
+  threadId?: string;
 }
 
 export interface PushSendResult {
@@ -25,8 +28,23 @@ export interface PushSendResult {
   /** Expo's `details.error` code (e.g. "DeviceNotRegistered") when `ok` is false, so the caller can decide
    * whether to prune the token. */
   error?: string;
+  /** The Expo push ticket's Receipt ID (C7) — present when `ok`. Passed to `getReceipts` later (scheduled
+   * ~`LIMITS.push.receiptCheckDelayMinutes` after send) to catch delivery failures that don't show up in
+   * the immediate send response. */
+  id?: string;
+}
+
+/** C7: the result of polling Expo's `getReceipts` for a previously-sent ticket. */
+export interface PushReceiptResult {
+  id: string;
+  ok: boolean;
+  /** Expo's `details.error` code (e.g. "DeviceNotRegistered") when `ok` is false. */
+  error?: string;
 }
 
 export interface PushSender {
   send(messages: PushMessage[]): Promise<PushSendResult[]>;
+  /** C7: checks delivery receipts for previously-sent ticket ids (per the current Expo push docs, some
+   * failures — notably `DeviceNotRegistered` — only surface here, not in the immediate send ticket). */
+  getReceipts(ticketIds: string[]): Promise<PushReceiptResult[]>;
 }

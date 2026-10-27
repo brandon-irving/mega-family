@@ -17,6 +17,11 @@ export const respond = mutation({
     const request = await ctx.db.get(args.requestId);
     if (!request || request.familyId !== viewer.member.familyId) fail('NOT_FOUND');
     if (request.toMemberId !== viewer.member._id) fail('FORBIDDEN');
+    // S2 (HIGH, G3 security review): checked independently of `toolAskMember`'s refusal to TARGET a kid
+    // with an ask (convex/agent/tools.ts) — this is the server boundary a kid could still hit directly
+    // (an old request from before that fix, a bypassed client, a future caller of this mutation), so it
+    // can't rely on the tool-level refusal alone. A kid is never a valid request responder.
+    if (viewer.member.role === 'kid') fail('FORBIDDEN', "kids can't respond to MEGA-to-MEGA requests");
     const now = await clock.now(ctx, viewer.member.familyId);
     await respondToRequest(ctx, { requestId: request._id, accept: args.accept, now });
     return null;

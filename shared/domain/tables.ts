@@ -250,7 +250,11 @@ export const candidates = {
   recipientId: memberId,
   kind: notificationKind,
   dedupeKey: v.string(),
-  draft: v.object({ text: v.string(), buttons: buttonSetId }),
+  /** `title` (G3 UX review, UX6, additive/optional): the item's own headline ("Return the library book"),
+   * sanitized/length-capped draft+judge output — never the MEGA's name. Optional so a candidate written
+   * before this field existed (or a hand-seeded row) just falls back to the MEGA's name at delivery time
+   * (convex/model/proactive.ts `deliverCandidateLogic`). */
+  draft: v.object({ text: v.string(), title: v.optional(v.string()), buttons: buttonSetId }),
   score: v.optional(v.number()),
   reason: v.optional(v.string()),
   delivery: v.optional(delivery),

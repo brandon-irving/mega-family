@@ -46,9 +46,14 @@ export async function respondToRequest(ctx: MutationCtx, params: { requestId: Id
   // "add milk to Groceries" — the declared onAccept effect, run through the SAME tool handler a chat
   // `ask_member` call's follow-up would use (convex/agent/tools.ts `dispatchTool`), as the ACCEPTING
   // member (they're the one actually doing it).
+  let autoEffectFailed = false;
   if (params.accept && request.onAccept?.tool === 'lists_add') {
     const toThread = await getOrCreateOwnThread(ctx, request.familyId, request.toMemberId, toMega?._id ?? null, params.now);
-    await dispatchTool(ctx, {
+    // C5 (MEDIUM, G3 correctness review): this used to fire-and-forget `dispatchTool`'s result — a failure
+    // (a malformed `onAccept.listName`, a future tool that starts validating harder) silently told the
+    // accepting member "you'll handle it" while never actually adding anything. Check `ok` and reflect a
+    // failure in both the reply AND a logged record, instead of a silent no-op.
+    const toolResult = await dispatchTool(ctx, {
       familyId: request.familyId,
       memberId: request.toMemberId,
       megaId: toMega?._id,
@@ -56,7 +61,20 @@ export async function respondToRequest(ctx: MutationCtx, params: { requestId: Id
       name: 'lists_add',
       argumentsJson: JSON.stringify({ listName: request.onAccept.listName, text: request.onAccept.text }),
     });
+    if (!toolResult.ok) {
+      autoEffectFailed = true;
+      await ctx.db.insert('familyEvents', {
+        familyId: request.familyId,
+        at: params.now,
+        type: 'said',
+        payload: { requestOnAcceptFailed: { requestId: request._id, tool: request.onAccept.tool, reason: toolResult.resultText } },
+        processed: { memory: true, profiler: true, triggers: true },
+      });
+    }
   }
 
-  return params.accept ? `Told ${fromMember?.name ?? 'them'} you'll handle it.` : `Told ${fromMember?.name ?? 'them'} you can't right now.`;
+  if (!params.accept) return `Told ${fromMember?.name ?? 'them'} you can't right now.`;
+  return autoEffectFailed
+    ? `Told ${fromMember?.name ?? 'them'} you'll handle it, but couldn't do it automatically — you'll need to do it yourself.`
+    : `Told ${fromMember?.name ?? 'them'} you'll handle it.`;
 }

@@ -9,6 +9,7 @@ import { internal } from './_generated/api';
 import type { Doc } from './_generated/dataModel';
 import { internalAction, internalMutation, internalQuery } from './_generated/server';
 import { getChatModel, getPushSender } from './adapters/registry';
+import { isConcernCategory, logDroppedConcern } from './model/concernGate';
 import {
   buildDraftJudgePrompt,
   buildPushMessages,
@@ -92,7 +93,22 @@ export const processCandidate = internalAction({
       });
       reserved = false;
 
-      const parsed = parseDraftJudgeResult(result.text, fallbackKind, allowedKinds);
+      const parsed = parseDraftJudgeResult(result.text, fallbackKind, allowedKinds, data.seedText);
+
+      // C6 (MEDIUM) / UX7 (HIGH): a kid-targeted draft gets the SAME independent, content-only concern
+      // gate a memory save does (convex/model/concernGate.ts) before it's ever scheduled for delivery — a
+      // mattersTo-sourced tip/update could easily carry concerning content about (or said by) a DIFFERENT
+      // member into a kid's own notification tray ("Twin 1 is struggling at school" relayed straight to
+      // Twin 1), which the draft+judge model call alone was never asked to screen for. Dropped + logged the
+      // same way a concerning memory proposal is, never silently delivered.
+      if (data.recipientRole === 'kid') {
+        const { category } = await ctx.runAction(internal.agent.concernClassifier.classify, { familyId: data.familyId, text: `${parsed.title}. ${parsed.text}`, aboutNames: [] });
+        if (isConcernCategory(category) && category !== 'ok') {
+          await ctx.runMutation(internal.proactive.dropKidConcernCandidate, { candidateId: args.candidateId, category, text: parsed.text });
+          return null;
+        }
+      }
+
       await ctx.runMutation(internal.proactive.finalizeCandidate, { candidateId: args.candidateId, ...parsed });
     } catch (e) {
       if (reserved) await ctx.runMutation(internal.spend.releaseReservation, { familyId: data.familyId, estimatedCents });
@@ -113,16 +129,17 @@ const DRAFT_JUDGE_JSON_SCHEMA = {
   type: 'object',
   properties: {
     kind: { type: 'string', enum: ['reminder', 'request', 'tip', 'update'] },
+    title: { type: 'string' },
     text: { type: 'string' },
     score: { type: 'number' },
     reason: { type: 'string' },
   },
-  required: ['kind', 'text', 'score', 'reason'],
+  required: ['kind', 'title', 'text', 'score', 'reason'],
   additionalProperties: false,
 } as const;
 
 export const finalizeCandidate = internalMutation({
-  args: { candidateId: v.id('candidates'), kind: notificationKind, text: v.string(), score: v.number(), reason: v.string(), forcedDelivery: v.optional(deliveryValidator) },
+  args: { candidateId: v.id('candidates'), kind: notificationKind, title: v.string(), text: v.string(), score: v.number(), reason: v.string(), forcedDelivery: v.optional(deliveryValidator) },
   returns: v.null(),
   handler: async (ctx, args) => {
     await finalizeCandidateLogic(ctx, args);
@@ -136,6 +153,23 @@ export const dropCandidate = internalMutation({
   handler: async (ctx, args) => {
     const candidate = await ctx.db.get(args.candidateId);
     if (candidate && candidate.status === 'new') await ctx.db.patch(candidate._id, { status: 'dropped', reason: args.reason, delivery: 'drop' });
+    return null;
+  },
+});
+
+/** C6/UX7: the one atomic step behind a kid-targeted draft that failed the independent concern gate —
+ * loads the candidate fresh (so it has a real `familyId`/`recipientId` to log against, rather than trusting
+ * anything `processCandidate` computed earlier) and both logs and drops it together. */
+export const dropKidConcernCandidate = internalMutation({
+  args: { candidateId: v.id('candidates'), category: v.string(), text: v.string() },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const candidate = await ctx.db.get(args.candidateId);
+    if (!candidate || candidate.status !== 'new') return null;
+    if (!isConcernCategory(args.category)) return null;
+    const now = await clock.now(ctx, candidate.familyId);
+    await logDroppedConcern(ctx, { familyId: candidate.familyId, memberId: candidate.recipientId, now }, args.text, args.category, 'kid-targeted draft failed the independent concern gate');
+    await ctx.db.patch(candidate._id, { status: 'dropped', reason: `never-send: ${args.category} concern in a kid-targeted draft`, delivery: 'drop' });
     return null;
   },
 });
@@ -165,6 +199,7 @@ export const loadPushContext = internalQuery({
       settingsId: v.id('settings'),
       tokens: v.array(v.object({ token: v.string(), platform: v.union(v.literal('ios'), v.literal('android'), v.literal('web')) })),
       answerToken: v.string(),
+      sourceKind: v.optional(v.union(v.literal('reminder'), v.literal('request'), v.literal('checkin'), v.literal('mattersTo'))),
     }),
     v.null(),
   ),
@@ -189,6 +224,9 @@ export const loadPushContext = internalQuery({
     } catch (e) {
       console.log(`[proactive] notification ${notification._id}: couldn't create an answerToken (${e instanceof Error ? e.message : String(e)}) — sending push without one`);
     }
+    // S5/UX4: which trigger produced this (if any), for the lock-screen redaction + grouping decisions
+    // `buildPushMessages` makes — a legacy/hand-seeded notification with no candidate just gets neither.
+    const candidate = notification.candidateId ? await ctx.db.get(notification.candidateId) : null;
     return {
       notification,
       megaName: mega.name,
@@ -198,6 +236,7 @@ export const loadPushContext = internalQuery({
       settingsId: settings._id,
       tokens: settings.pushTokens,
       answerToken,
+      sourceKind: candidate?.source?.kind,
     };
   },
 });
@@ -226,11 +265,43 @@ export const sendPush = internalAction({
       return null;
     }
     const notification = data.notification as Doc<'notifications'>;
-    const messages = buildPushMessages(notification, data.megaName, data.threadId, data.messageId, data.tokens, data.answerToken);
+    const messages = buildPushMessages(notification, data.megaName, data.threadId, data.messageId, data.tokens, data.answerToken, data.sourceKind);
     const results = await getPushSender().send(messages);
     const deadTokens = results.filter((r) => !r.ok && r.error === 'DeviceNotRegistered').map((r) => r.token);
     if (deadTokens.length) await ctx.runMutation(internal.proactive.pruneTokens, { settingsId: data.settingsId, deadTokens });
     console.log(`[proactive] notification ${args.notificationId}: push sent to ${results.filter((r) => r.ok).length}/${messages.length} token(s), pruned ${deadTokens.length}`);
+
+    // C7: an "ok" send ticket isn't proof of delivery — Expo's docs describe `DeviceNotRegistered` (and
+    // other failures) sometimes only showing up ~`LIMITS.push.receiptCheckDelayMinutes` later, in a
+    // separate `getReceipts` poll. The ticket ids themselves are stored durably as this scheduled call's
+    // own args (Convex persists scheduled-function args), so nothing needs a new table just to remember them.
+    const tickets = results.filter((r) => r.ok && r.id).map((r) => ({ token: r.token, id: r.id! }));
+    if (tickets.length) {
+      await ctx.scheduler.runAfter(LIMITS.push.receiptCheckDelayMinutes * 60_000, internal.proactive.checkPushReceipts, { settingsId: data.settingsId, tickets });
+    }
+    return null;
+  },
+});
+
+/** C7: the delayed half of Expo's two-phase delivery check — scheduled by `sendPush` above,
+ * `LIMITS.push.receiptCheckDelayMinutes` after the initial send. Prunes a token whose receipt comes back
+ * `DeviceNotRegistered` (the same real effect the immediate-ticket path already has); any OTHER receipt
+ * error is logged rather than silently dropped, since it isn't necessarily "this token is dead." */
+export const checkPushReceipts = internalAction({
+  args: { settingsId: v.id('settings'), tickets: v.array(v.object({ token: v.string(), id: v.string() })) },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    if (args.tickets.length === 0) return null;
+    const receipts = await getPushSender().getReceipts(args.tickets.map((t) => t.id));
+    const byId = new Map(receipts.map((r) => [r.id, r]));
+    const deadTokens: string[] = [];
+    for (const ticket of args.tickets) {
+      const receipt = byId.get(ticket.id);
+      if (!receipt || receipt.ok) continue;
+      if (receipt.error === 'DeviceNotRegistered') deadTokens.push(ticket.token);
+      else console.log(`[proactive] push receipt ${ticket.id}: ${receipt.error ?? 'unknown error'}`);
+    }
+    if (deadTokens.length) await ctx.runMutation(internal.proactive.pruneTokens, { settingsId: args.settingsId, deadTokens });
     return null;
   },
 });
