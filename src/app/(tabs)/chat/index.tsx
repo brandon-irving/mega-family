@@ -21,7 +21,7 @@ import { usePushNotifications } from '@/data/usePush';
 import { setChatFocused } from '@/services/chatFocus';
 import { errorCopyFor, streamStatusCopy } from '@/data/errorCopy';
 import { Screen } from '@/ui/Screen';
-import { LoadingScreen } from '@/ui/LoadingScreen';
+import { MegaLoader } from '@/features/walkers';
 import { Text } from '@/ui/Text';
 import { Button } from '@/ui/Button';
 import { MegaBadge } from '@/ui/MegaBadge';
@@ -112,7 +112,7 @@ export default function ChatRoute() {
 
   const mega = useMemo(() => (viewer?.mega ? megaInfo(viewer.mega) : null), [viewer]);
 
-  if (viewer === undefined || thread.status === 'LoadingFirstPage') return <LoadingScreen label={CHAT_COPY.opening} />; // TODO(MegaLoader)
+  if (viewer === undefined || thread.status === 'LoadingFirstPage') return <MegaLoader text={CHAT_COPY.opening} testID="chat-loading" />;
   if (!viewer || !mega) {
     return (
       <Screen>

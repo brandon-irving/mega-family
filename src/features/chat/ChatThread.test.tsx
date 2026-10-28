@@ -56,5 +56,7 @@ describe('ChatThread with no messages yet', () => {
     await renderWithTheme(<ChatThread messages={[]} viewerMemberId={FIXTURE_IDS.admin} megaById={megaById} onAnswerBlock={noop} onReact={noop} onChangeMemoryScope={noop} onForgetMemory={noop} />);
     expect(screen.queryByText(/No messages yet/)).toBeNull();
     expect(screen.getByText('Opening chat…')).toBeTruthy();
+    // The shared walking-MEGA loader (owner, Oct 28), not a spinner.
+    expect(screen.getByTestId('thread-starting').props.accessibilityRole).toBe('progressbar');
   });
 });
