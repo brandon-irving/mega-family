@@ -183,6 +183,11 @@ export const HIT_SLOP = { normal: 8, big: 12 } as const;
 
 export const DURATIONS = { fast: 120, base: 200, slow: 400, greeting: 2000 } as const;
 
+/** The sign-in wordmark (Screen 9 boards, owner Oct 27: "MEGA in large letters"). Its own token rather
+ * than a TYPE_SCALE step: it appears once, on the welcome screen, and the walking MEGAs stand on the tops
+ * of its capitals (`capTop` is where those tops sit below the line box's top, as a fraction of fontSize). */
+export const WORDMARK = { fontSize: 80, lineHeight: 80, fontWeight: '900', letterSpacingEm: 0.06, capTop: 0.14 } as const;
+
 /** Resolves the sizing a member sees: `bigTargets` comes from ROLES_CONFIG[role].bigTargets. */
 export function resolveSizing(bigTargets: boolean) {
   return {
@@ -204,6 +209,12 @@ export const BUTTON_SIZES = {
   kid: { height: 54, fontSize: 18 },
 } as const;
 export type ButtonSize = (typeof BUTTON_SIZES)[keyof typeof BUTTON_SIZES];
+
+/** The sign-in screens' full-width pill buttons (Screen 9 boards: "Make my MEGA" 58/18, the rest 52/16). */
+export const CTA_SIZES = {
+  hero: { height: 58, fontSize: 18 },
+  normal: { height: 52, fontSize: 16 },
+} as const;
 
 /** `bigTargets` comes from ROLES_CONFIG[role].bigTargets, same switch `resolveSizing` reads. */
 export function resolveButtonSizing(bigTargets: boolean): ButtonSize {

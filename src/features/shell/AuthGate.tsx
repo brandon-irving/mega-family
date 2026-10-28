@@ -5,7 +5,7 @@
 import { Stack } from 'expo-router';
 import { useViewer } from '@/data/useViewer';
 import { useAuthState } from '@/services/auth';
-import { LoadingScreen } from '@/ui/LoadingScreen';
+import { OpeningScreen } from '@/features/signin/OpeningScreen';
 import { useThemedStackOptions } from '@/features/shell/stackOptions';
 
 export function AuthGate() {
@@ -13,8 +13,9 @@ export function AuthGate() {
   const viewer = useViewer();
   const screenOptions = useThemedStackOptions();
 
-  if (authState.status === 'loading') return <LoadingScreen />;
-  if (authState.status === 'signedIn' && viewer === undefined) return <LoadingScreen label="Loading your family…" />;
+  // Both loading phases render the same OpeningScreen at the same position, so it isn't remounted between
+  // them (a fast returning user sees only the background, then chat; a slow one sees the MEGAs walk in).
+  if (authState.status === 'loading' || (authState.status === 'signedIn' && viewer === undefined)) return <OpeningScreen />;
 
   const signedOut = authState.status === 'signedOut';
   const needsFamily = authState.status === 'signedIn' && viewer === null;

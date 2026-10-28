@@ -2,7 +2,7 @@
 // and the full sprite in HQ, the profile sheet and the Store's try-on stage. Renders shared/sprite's pixel
 // picture through PixelArt (crisp SVG rects, one per horizontal run of equal color).
 import { useMemo } from 'react';
-import type { ExpressionName, View as SpriteView } from '@shared/sprite';
+import type { ExpressionName, FrameName, View as SpriteView } from '@shared/sprite';
 import { renderMega } from '@shared/sprite';
 import type { StickerId } from '@shared/config/looks';
 import type { AntennaId, EyeColorId, EyeStyleId } from '@shared/config/store';
@@ -16,14 +16,16 @@ export type MegaSpriteProps = {
   sticker: StickerId;
   face?: ExpressionName;
   view?: SpriteView;
+  /** A walk-cycle frame (the walking MEGAs, src/features/walkers). */
+  frame?: FrameName;
   badge?: boolean;
   scale?: number;
   accessibilityLabel?: string;
   parts?: LookParts;
 };
 
-export function MegaSprite({ hex, sticker, face = 'open', view = 'front', badge = false, scale = 4, accessibilityLabel, parts }: MegaSpriteProps) {
+export function MegaSprite({ hex, sticker, face = 'open', view = 'front', frame = 'stand', badge = false, scale = 4, accessibilityLabel, parts }: MegaSpriteProps) {
   const { antenna, eyes, eyeColor } = parts ?? {};
-  const picture = useMemo(() => renderMega({ shell: hex, sticker, antenna, eyes, eyeColor }, { view, expression: face, badge }), [hex, sticker, antenna, eyes, eyeColor, view, face, badge]);
+  const picture = useMemo(() => renderMega({ shell: hex, sticker, antenna, eyes, eyeColor }, { view, frame, expression: face, badge }), [hex, sticker, antenna, eyes, eyeColor, view, frame, face, badge]);
   return <PixelArt picture={picture} scale={scale} accessibilityLabel={accessibilityLabel ?? 'MEGA'} />;
 }

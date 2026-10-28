@@ -2,7 +2,8 @@
 export const IDENTITY = {
   name: 'MEGA',
   expansion: 'My Everyday Guidance Agent',
-  tagline: "Your family's AI assistants",
+  // Owner, Oct 27: the one tagline on any sign-in screen (Screen 9 boards).
+  tagline: 'A little help for the whole family',
   slug: 'mega',
   scheme: 'mega',
   bundleId: 'com.megafamily.app',
