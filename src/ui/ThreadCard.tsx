@@ -13,6 +13,7 @@ import { Button } from './Button';
 import { buttonLines } from './ButtonRow';
 import { Text } from './Text';
 import { useTokens, type Tokens } from './theme';
+import { hiddenFromA11y } from './a11y';
 
 export type StatusTone = 'success' | 'warn' | 'muted' | 'hint' | 'household' | 'bucks';
 
@@ -123,7 +124,7 @@ export function LockNote({ text }: { text: string }) {
 /** A tiny code-drawn padlock (the boards' lock icon) — two Views, no icon font. */
 export function LockGlyph({ color, size = 12 }: { color: string; size?: number }) {
   return (
-    <View style={{ width: size, height: size, alignItems: 'center', marginTop: 2 }} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+    <View style={{ width: size, height: size, alignItems: 'center', marginTop: 2 }} {...hiddenFromA11y()}>
       <View style={{ width: size * 0.6, height: size * 0.45, borderWidth: 1.5, borderBottomWidth: 0, borderColor: color, borderTopLeftRadius: size, borderTopRightRadius: size }} />
       <View style={{ width: size, height: size * 0.55, borderRadius: 2, backgroundColor: color }} />
     </View>
@@ -341,8 +342,9 @@ export function IdeaRow({ title, why, actionLabel, done, onPress, loading }: { t
         accessibilityLabel={`${actionLabel}: ${title}`}
         accessibilityState={{ disabled: done || !!loading }}
         hitSlop={tokens.hitSlop}
+        // Kid-sized for kids (BUTTON_SIZES via the theme), never under the 44pt floor (UX review, Oct 28).
         style={{
-          height: 40,
+          height: tokens.buttonSize.height,
           paddingHorizontal: tokens.spacing.md,
           borderRadius: tokens.radii.pill,
           borderWidth: 1,
@@ -351,7 +353,7 @@ export function IdeaRow({ title, why, actionLabel, done, onPress, loading }: { t
           opacity: loading ? 0.6 : 1,
         }}
       >
-        <Text variant="caption" weight="700" style={{ color: done ? tokens.success : tokens.text }}>
+        <Text variant="caption" weight="700" style={{ fontSize: tokens.buttonSize.fontSize, color: done ? tokens.success : tokens.text }}>
           {actionLabel}
         </Text>
       </Pressable>

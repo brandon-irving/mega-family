@@ -15,6 +15,7 @@ import { readableOn } from '@shared/config/theme';
 import { Text } from '@/ui/Text';
 import { useTokens } from '@/ui/theme';
 import { LockGlyph } from '@/ui/ThreadCard';
+import { hiddenFromA11y } from '@/ui/a11y';
 
 export type EventDoc = Infer<typeof eventDoc>;
 export type CalendarMember = { _id: string; name: string; hex: string };
@@ -142,7 +143,7 @@ export function CalendarContent({ weekStart, todayIndex = null, events, members,
                   ) : null}
                 </View>
                 <View
-                  accessibilityElementsHidden
+                  {...hiddenFromA11y()}
                   style={{ width: 4, height: 38, borderRadius: 2, backgroundColor: priv ? 'transparent' : color, borderWidth: priv ? 2 : 0, borderStyle: priv ? 'dashed' : 'solid', borderColor: color }}
                 />
                 <View style={{ flex: 1, gap: 3 }}>
@@ -199,23 +200,32 @@ function LayerToggle({ label, on, onPress, kind }: { label: string; on: boolean;
     <Pressable
       onPress={onPress}
       accessibilityRole="switch"
+      // `aria-checked` is what react-native-web puts on the page; accessibilityState is what native reads.
       accessibilityState={{ checked: on }}
+      aria-checked={on}
       accessibilityLabel={label}
+      // On: filled, solid border, filled dot. Off: see-through, dashed border, hollow dot, muted words.
       style={{
         height: 40,
         paddingHorizontal: 14,
         borderRadius: 20,
-        borderWidth: 1,
+        borderWidth: on ? 1 : 1.5,
+        borderStyle: on ? 'solid' : 'dashed',
         borderColor: on ? (household ? tokens.householdLine : tokens.muted) : tokens.line,
         backgroundColor: on ? (household ? tokens.householdSurface : tokens.surface) : 'transparent',
         flexDirection: 'row',
         alignItems: 'center',
         gap: 6,
-        opacity: on ? 1 : 0.7,
       }}
     >
-      {household ? <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: tokens.household }} /> : <LockGlyph color={tokens.text} size={14} />}
-      <Text variant="label">{label}</Text>
+      {household ? (
+        <View style={{ width: 10, height: 10, borderRadius: 5, borderWidth: 2, borderColor: tokens.household, backgroundColor: on ? tokens.household : 'transparent' }} />
+      ) : (
+        <LockGlyph color={on ? tokens.text : tokens.muted} size={14} />
+      )}
+      <Text variant="label" color={on ? undefined : 'muted'}>
+        {label}
+      </Text>
     </Pressable>
   );
 }

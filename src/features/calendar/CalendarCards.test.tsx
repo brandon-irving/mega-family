@@ -33,6 +33,23 @@ describe('CalendarContent layers (boards Calendar / CalPartner)', () => {
     expect(screen.queryByText('Soccer practice')).toBeNull();
   });
 
+  // GD UX review MEDIUM: the switches never set aria-checked on web (react-native-web 0.21 maps only aria-*
+  // props), and off looked almost the same as on. On and off must differ to the eye and to screen readers
+  // (natively RN folds aria-checked into accessibilityState; the web attribute is checked in the live run).
+  test('each layer switch shows its on/off state visibly and as aria-checked', async () => {
+    await render();
+    const before = screen.getByLabelText('Only you');
+    expect(before.props.accessibilityState).toEqual(expect.objectContaining({ checked: true }));
+    const onStyle = before.props.style;
+    await fireEvent.press(before);
+    const after = screen.getByLabelText('Only you');
+    expect(after.props.accessibilityState).toEqual(expect.objectContaining({ checked: false }));
+    expect(after.props.style.backgroundColor).toBe('transparent');
+    expect(after.props.style.borderStyle).toBe('dashed');
+    expect(onStyle.backgroundColor).not.toBe('transparent');
+    expect(onStyle.borderStyle).toBe('solid');
+  });
+
   test('an open clash shows Hub’s banner and tags the event its fix changes', async () => {
     const onSeeClash = jest.fn();
     await render({ clash: { eventIds: ['ev_pickup'], line: 'Partner can’t be at soccer pickup', messageId: 'msg_1' }, onSeeClash });

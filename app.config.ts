@@ -55,7 +55,10 @@ const config: ExpoConfig = {
   },
   web: { output: 'server', favicon: './assets/images/favicon.png' },
   plugins: [
-    'expo-router',
+    // SDK 58 turns async routes on for web by default; they show Expo's blank fallback while a route's bundle
+    // loads and ignore custom ones, which left blank frames between sign-in and chat. Off on web, the root
+    // layout's SuspenseFallback (the walking-MEGA loader) shows instead. Native already loads synchronously.
+    ['expo-router', { asyncRoutes: { web: false } }],
     'expo-secure-store',
     'expo-apple-authentication',
     // Config plugin only (the `backgroundColor`/`ios.backgroundColor` above are what it reads) — the

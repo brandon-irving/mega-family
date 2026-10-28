@@ -115,6 +115,23 @@ describe('chores (boards KidsChore / KidsChoreApprove)', () => {
     expect(onDone).toHaveBeenCalled();
   });
 
+  // GD UX review MEDIUM (board KidsChore): the card offers "In 10 min" next to Done!, like the push does.
+  test('the kid can put a chore off for 10 minutes, and the card says when it’ll remind them', async () => {
+    const onSnooze = jest.fn();
+    await renderWithTheme(<KidChoreView view={CHORE_DUE} megaName="Sunny" onDone={noop} onSnooze={onSnooze} />, { role: 'kid' });
+    await fireEvent.press(screen.getByText('In 10 min'));
+    expect(onSnooze).toHaveBeenCalled();
+  });
+
+  test('after snoozing, the card says when it’ll remind them and keeps Done!', async () => {
+    const onSnooze = jest.fn();
+    const remindAt = new Date(2026, 9, 29, 19, 10).getTime();
+    await renderWithTheme(<KidChoreView view={CHORE_DUE} megaName="Sunny" onDone={noop} onSnooze={onSnooze} snoozedUntil={remindAt} />, { role: 'kid' });
+    expect(screen.getByText(/I’ll remind you again at 7:10/)).toBeTruthy();
+    expect(screen.queryByText('In 10 min')).toBeNull();
+    expect(screen.getByText('Done!')).toBeTruthy();
+  });
+
   test('a claimed chore tells the kid it’s waiting on a grown-up', async () => {
     await renderWithTheme(<KidChoreView view={CHORE_CLAIMED} megaName="Sunny" onDone={noop} />, { role: 'kid' });
     expect(screen.queryByText('Done!')).toBeNull();
@@ -152,6 +169,16 @@ describe('routines (boards KidsBedtime / KidsMorning)', () => {
     expect(bedtimeTitle(plain)).toBe('Get ready for tomorrow');
     await renderWithTheme(<BedtimeView megaName="Zap" title="Soccer practice tomorrow" steps={[{ id: 'a', label: 'Cleats', done: false }]} onToggle={noop} />, { role: 'kid' });
     expect(screen.getByText('Soccer practice tomorrow')).toBeTruthy();
+  });
+
+  // GD UX review MEDIUM: the board's title has the event's time; the step's `source.start` is shown in the
+  // family's time zone, not the phone's.
+  test('bedtime title adds the event’s time in the family’s time zone when the step carries it', () => {
+    const start = Date.UTC(2026, 9, 29, 20, 30); // 4:30 PM in New York (EDT)
+    const steps = [{ id: 'a', label: 'Cleats', done: false, source: { eventId: 'ev1', title: 'Soccer practice', start } }];
+    expect(bedtimeTitle(steps, 'America/New_York')).toBe('Soccer practice tomorrow at 4:30 PM');
+    expect(bedtimeTitle(steps, 'America/Los_Angeles')).toBe('Soccer practice tomorrow at 1:30 PM');
+    expect(bedtimeTitle(steps)).toBe('Soccer practice tomorrow');
   });
 
   const morningSteps = [

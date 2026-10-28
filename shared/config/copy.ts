@@ -24,7 +24,8 @@ export const COMPOSER_COPY = {
   typeInstead: 'Type instead',
   talkInstead: 'Talk instead',
   kidPlaceholder: 'Type to {mega}…',
-  adultPlaceholder: 'Message {mega}… (@ to mention)',
+  // Short enough to fit at 390pt beside the buttons (a placeholder can't ellipsize on web; UX review Oct 28).
+  adultPlaceholder: 'Message {mega}…',
   fieldLabel: 'Message {mega}',
   send: 'Send message',
 } as const;
@@ -109,6 +110,8 @@ export const KIDS_COPY = {
   choreFrom: '{mega} · Chore',
   choreBody: 'When a grown-up checks, you get {n} Mega Bucks.',
   choreDone: 'Done!',
+  choreSnooze: 'In 10 min',
+  choreSnoozed: 'Okay! I’ll remind you again at {time}.',
   choreClaimed: 'Nice work! I told your grown-ups. Your Mega Bucks come when they check.',
   choreApproved: 'Checked! {n} Mega Bucks are yours.',
   choreDeclinedKid: 'A grown-up says not yet. Give it another go!',
@@ -119,6 +122,7 @@ export const KIDS_COPY = {
   bedtimeFrom: '{mega} · Tomorrow',
   bedtimeTitle: 'Get ready for tomorrow',
   bedtimeTitleEvent: '{event} tomorrow',
+  bedtimeTitleEventAt: '{event} tomorrow at {time}',
   bedtimeBody: 'Pack your bag tonight so the morning is easy. {n} of {total} packed.',
   bedtimeAllPacked: 'All packed! Sleep well.',
   morningFrom: '{mega} · Morning',

@@ -19,6 +19,7 @@ import { Button } from '@/ui/Button';
 import { Text } from '@/ui/Text';
 import { useTokens } from '@/ui/theme';
 import { LockGlyph } from '@/ui/ThreadCard';
+import { hiddenFromA11y } from '@/ui/a11y';
 
 const PICKER_OPTIONS: ImagePicker.ImagePickerOptions = { mediaTypes: ['images'], quality: 0.7, allowsEditing: false };
 
@@ -76,7 +77,7 @@ export function HomeworkSnapView({ megaName, phase, onShoot, onChoose, onClose }
 function WorksheetIllustration() {
   const tokens = useTokens();
   return (
-    <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={{ width: '62%', aspectRatio: 0.76, transform: [{ rotate: '-4deg' }], backgroundColor: tokens.text, borderRadius: 4, padding: tokens.spacing.lg, gap: 14 }}>
+    <View {...hiddenFromA11y()} style={{ width: '62%', aspectRatio: 0.76, transform: [{ rotate: '-4deg' }], backgroundColor: tokens.text, borderRadius: 4, padding: tokens.spacing.lg, gap: 14 }}>
       <View style={{ height: 10, width: '55%', borderRadius: 2, backgroundColor: tokens.muted }} />
       {Array.from({ length: 6 }, (_, i) => (
         <View key={i} style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>

@@ -8,6 +8,9 @@ import { AppThemeProvider } from '@/features/shell/AppThemeProvider';
 import { AuthGate } from '@/features/shell/AuthGate';
 import { NavigationThemeBridge } from '@/features/shell/NavigationThemeBridge';
 
+// While any route is still loading, show the walking-MEGA loader instead of an empty frame (owner, Oct 28).
+export { RouteLoading as SuspenseFallback } from '@/features/shell/RouteLoading';
+
 export default function RootLayout() {
   return (
     // KeyboardProvider (react-native-keyboard-controller) wraps the whole app so every screen can use

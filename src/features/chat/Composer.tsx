@@ -13,6 +13,7 @@ import { COMPOSER_SIZES, readableOn } from '@shared/config/theme';
 import { Button } from '@/ui/Button';
 import { Text } from '@/ui/Text';
 import { useTokens } from '@/ui/theme';
+import { hiddenFromA11y } from '@/ui/a11y';
 
 export type ComposerProps = {
   megaName: string;
@@ -146,7 +147,7 @@ export function Composer({ megaName, bigTalkButton = false, onSend, onOpenTalk, 
 
 // Drawn icons, paths from the canvas board (design/build/thread.html), in the given color.
 type IconProps = { size: number; color: string };
-const iconA11y = { accessibilityElementsHidden: true, importantForAccessibility: 'no-hide-descendants' as const };
+const iconA11y = hiddenFromA11y();
 
 function MicIcon({ size, color }: IconProps) {
   return (

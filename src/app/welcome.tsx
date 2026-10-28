@@ -18,6 +18,7 @@ import { SIGNIN_SCENES } from '@/features/signin/scenes';
 import { BottomSheet, DemoSheetBody, SignInSheetBody, type DEMO_KEYS, type SignInMode } from '@/features/signin/sheets';
 import { Ledge } from '@/features/walkers';
 import { signInAnonymously, signInWithApple, signInWithEmail, signInWithGoogle, signUpWithEmail } from '@/services/auth';
+import { withSignInHold } from '@/services/signInHold';
 import { MegaSprite } from '@/ui/MegaSprite';
 import { Text } from '@/ui/Text';
 import { useTokens } from '@/ui/theme';
@@ -68,8 +69,11 @@ export default function WelcomeRoute({ demoMode = process.env.EXPO_PUBLIC_DEMO_M
   });
   const onDemo = (key: (typeof DEMO_KEYS)[number]) =>
     run(key, async () => {
-      await signInAnonymously();
-      await withFreshSession(() => signInAs({ as: key }));
+      // Held so the gate shows the loader, not "join or start", between the two steps.
+      await withSignInHold(async () => {
+        await signInAnonymously();
+        await withFreshSession(() => signInAs({ as: key }));
+      });
     })();
   const onEmail = (as: SignInMode, email: string, password: string) => run('email', () => (as === 'create' ? signUpWithEmail(email, password) : signInWithEmail(email, password)))();
 

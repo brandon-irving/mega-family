@@ -10,14 +10,34 @@ import { MEGA_BUCKS } from '@shared/config/store';
 import { useChoreActions, useChoreClaim, useReleaseBucks } from '@/data/useKids';
 import { useFamilyDirectory } from '@/features/shell/familyDirectory';
 import { useRunAction } from '@/features/shell/useRunAction';
-import { BucksStepper, CardActions, ThreadCard } from '@/ui/ThreadCard';
+import { BucksStepper, type CardAction, CardActions, ThreadCard } from '@/ui/ThreadCard';
 import { CardFallback } from './CardFallback';
 
 export type ChoreView = Infer<typeof choreView>;
 
 const clock = (ms: number) => new Date(ms).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
 
-export function KidChoreView({ view, megaName, busy, error, onDone }: { view: ChoreView; megaName: string; busy?: boolean; error?: string | null; onDone: () => void }) {
+export function KidChoreView({
+  view,
+  megaName,
+  busy,
+  error,
+  onDone,
+  onSnooze,
+  snoozing,
+  snoozedUntil,
+}: {
+  view: ChoreView;
+  megaName: string;
+  busy?: boolean;
+  error?: string | null;
+  onDone: () => void;
+  /** Board KidsChore: "In 10 min" (`chores.snooze`). */
+  onSnooze?: () => void;
+  snoozing?: boolean;
+  /** When the snoozed reminder is due; the card says so and drops the button. */
+  snoozedUntil?: number | null;
+}) {
   const claim = view.today;
   const state = claim?.status ?? 'due';
   const status =
@@ -29,11 +49,15 @@ export function KidChoreView({ view, megaName, busy, error, onDone }: { view: Ch
           ? { text: KIDS_COPY.choreDeclinedKid, tone: 'muted' as const }
           : error
             ? { text: error, tone: 'warn' as const }
-            : undefined;
+            : snoozedUntil
+              ? { text: fillCopy(KIDS_COPY.choreSnoozed, { time: clock(snoozedUntil) }), tone: 'muted' as const }
+              : undefined;
   const canClaim = state === 'due' || state === 'declined';
+  const actions: CardAction[] = [{ id: 'done', label: KIDS_COPY.choreDone, onPress: onDone, loading: busy }];
+  if (onSnooze && !snoozedUntil) actions.push({ id: 'snooze', label: KIDS_COPY.choreSnooze, onPress: onSnooze, loading: snoozing, variant: 'ghost' });
   return (
     <ThreadCard from={fillCopy(KIDS_COPY.choreFrom, { mega: megaName })} title={view.chore.title} big body={fillCopy(KIDS_COPY.choreBody, { n: view.chore.bucks })} status={status}>
-      {canClaim && <CardActions cols={1} actions={[{ id: 'done', label: KIDS_COPY.choreDone, onPress: onDone, loading: busy }]} />}
+      {canClaim && <CardActions cols={1} actions={actions} />}
     </ThreadCard>
   );
 }
@@ -99,15 +123,27 @@ export function ChoreApproveView({
 export function ChoreCard({ claimId, megaName }: { claimId: Id<'choreClaims'>; megaName: string }) {
   const state = useChoreClaim(claimId);
   const dir = useFamilyDirectory();
-  const { markDone, decline } = useChoreActions();
+  const { markDone, decline, snooze } = useChoreActions();
   const release = useReleaseBucks();
   const { busy, error, run } = useRunAction();
   const [amount, setAmount] = useState<number | null>(null);
+  const [snoozedUntil, setSnoozedUntil] = useState<number | null>(null);
   if (state.status !== 'ok') return <CardFallback state={state} from={megaName} />;
   const view = state.data;
   const kidId = view.chore.forMemberId;
   if (dir.me?.id === kidId) {
-    return <KidChoreView view={view} megaName={dir.megaNameOf(kidId) || megaName} busy={busy === 'done'} error={error} onDone={() => run('done', () => markDone({ choreId: view.chore._id }))} />;
+    return (
+      <KidChoreView
+        view={view}
+        megaName={dir.megaNameOf(kidId) || megaName}
+        busy={busy === 'done'}
+        error={error}
+        onDone={() => run('done', () => markDone({ choreId: view.chore._id }))}
+        snoozing={busy === 'snooze'}
+        snoozedUntil={snoozedUntil}
+        onSnooze={() => run('snooze', async () => setSnoozedUntil((await snooze({ choreId: view.chore._id })).remindAt))}
+      />
+    );
   }
   const value = amount ?? view.chore.bucks ?? MEGA_BUCKS.defaults.chore;
   return (

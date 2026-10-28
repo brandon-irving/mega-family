@@ -15,6 +15,18 @@ describe('StoreScreenView', () => {
     expect(screen.getByText('You have 12. You’d have 4 left.')).toBeTruthy();
   });
 
+  // GD UX review HIGH: the tab row scrolled, so picking Eyes pushed Furniture off-screen with no sign it
+  // was there. All five tabs share one fixed row (an even split cut "Furniture" short, so each tab is sized
+  // to its label and they share what's left); the live check measures that no label is clipped.
+  test('all five tabs sit in one fixed row, each sized to its label and sharing the rest', async () => {
+    await renderWithTheme(<StoreScreenView megaName="Zap" balance={3} items={CATALOG} look={ZAP_LOOK} initialTab="eyes" onClose={noop} onBuy={async () => true} onWear={noop} onDecorate={noop} />, { role: 'kid' });
+    const list = screen.getByTestId('store-tabs');
+    expect(list.props.horizontal).toBeUndefined(); // not a ScrollView
+    const tabs = screen.getAllByRole('tab');
+    expect(tabs).toHaveLength(5);
+    for (const t of tabs) expect(t.props.style).toEqual(expect.objectContaining({ flexGrow: 1, flexShrink: 1 }));
+  });
+
   test('Eyes tab with 3 Mega Bucks: anime eyes need 12 more and the bar is disabled', async () => {
     await renderWithTheme(<StoreScreenView megaName="Zap" balance={3} items={CATALOG} look={ZAP_LOOK} initialTab="eyes" onClose={noop} onBuy={async () => true} onWear={noop} onDecorate={noop} />, { role: 'kid' });
     expect(screen.getByText('Trying on'.toUpperCase())).toBeTruthy();
@@ -26,11 +38,12 @@ describe('StoreScreenView', () => {
     const onBuy = jest.fn(async () => true);
     await renderWithTheme(<StoreScreenView megaName="Zap" balance={20} items={CATALOG} look={ZAP_LOOK} initialTab="antennas" onClose={noop} onBuy={onBuy} onWear={noop} onDecorate={noop} />, { role: 'kid' });
     await fireEvent.press(screen.getByText('Buy for 12'));
-    expect(screen.getByText('Buy Star antenna?')).toBeTruthy();
+    // Wait for each step rather than assuming it rendered on the same tick (flaked under a full parallel run).
+    expect(await screen.findByText('Buy Star antenna?')).toBeTruthy();
     expect(screen.getByText('12 Mega Bucks. You’ll have 8 left.')).toBeTruthy();
     await fireEvent.press(screen.getByText('Buy it'));
+    expect(await screen.findByText('It’s yours!')).toBeTruthy();
     expect(onBuy).toHaveBeenCalledWith(expect.objectContaining({ key: 'antenna:star' }));
-    expect(screen.getByText('It’s yours!')).toBeTruthy();
   });
 
   test('a refused purchase keeps the confirm sheet open', async () => {

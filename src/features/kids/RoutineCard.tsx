@@ -8,7 +8,9 @@ import type { Infer } from 'convex/values';
 import type { routineRunDoc } from '@shared/domain/api';
 import type { Id } from '@shared/domain/validators';
 import { fillCopy, KIDS_COPY } from '@shared/config/copy';
+import { formatLocalTime } from '@shared/time';
 import { useCheckRoutineStep, useRoutineRun } from '@/data/useKids';
+import { useViewer } from '@/data/useViewer';
 import { useFamilyDirectory } from '@/features/shell/familyDirectory';
 import { useRunAction } from '@/features/shell/useRunAction';
 import { CardActions, CheckList, ThreadCard } from '@/ui/ThreadCard';
@@ -23,11 +25,14 @@ export function useOptimisticSteps(run: RoutineRun | null) {
   return { steps, setStep: (id: string, done: boolean) => setLocal((m) => ({ ...m, [id]: done })) };
 }
 
-/** Board KidsBedtime's title names tomorrow's household event ("Soccer practice tomorrow"); a run with no
- * calendar-sourced step gets the generic line. */
-export function bedtimeTitle<S extends { source?: { title?: string } }>(steps: readonly S[]): string {
-  const event = steps.find((s) => s.source?.title)?.source?.title;
-  return event ? fillCopy(KIDS_COPY.bedtimeTitleEvent, { event }) : KIDS_COPY.bedtimeTitle;
+/** Board KidsBedtime's title names tomorrow's household event and its time ("Soccer practice tomorrow at
+ * 4:30 PM", in the family's time zone `tz`); without a time it's "Soccer practice tomorrow", and a run with
+ * no calendar-sourced step gets the generic line. */
+export function bedtimeTitle<S extends { source?: { title?: string; start?: number } }>(steps: readonly S[], tz?: string): string {
+  const source = steps.find((s) => s.source?.title)?.source;
+  if (!source?.title) return KIDS_COPY.bedtimeTitle;
+  if (source.start !== undefined && tz) return fillCopy(KIDS_COPY.bedtimeTitleEventAt, { event: source.title, time: formatLocalTime(source.start, tz) });
+  return fillCopy(KIDS_COPY.bedtimeTitleEvent, { event: source.title });
 }
 
 export function BedtimeView({ megaName, title = KIDS_COPY.bedtimeTitle, steps, error, onToggle }: { megaName: string; title?: string; steps: { id: string; label: string; detail?: string; done: boolean }[]; error?: string | null; onToggle: (id: string, done: boolean) => void }) {
@@ -61,6 +66,7 @@ export function MorningCardView({ megaName, done, total, onOpen }: { megaName: s
 
 export function RoutineCard({ runId, megaName }: { runId: Id<'routineRuns'>; megaName: string }) {
   const state = useRoutineRun(runId);
+  const viewer = useViewer();
   const dir = useFamilyDirectory();
   const check = useCheckRoutineStep();
   const { error, run } = useRunAction();
@@ -74,7 +80,7 @@ export function RoutineCard({ runId, megaName }: { runId: Id<'routineRuns'>; meg
   return (
     <BedtimeView
       megaName={kidMega}
-      title={bedtimeTitle(found.steps)}
+      title={bedtimeTitle(found.steps, viewer?.family.timezone)}
       steps={steps}
       error={error}
       onToggle={(id, done) => {
