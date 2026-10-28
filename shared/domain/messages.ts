@@ -51,6 +51,16 @@ export const card = v.union(
   v.object({ kind: v.literal('travel'), to: v.string(), leaveBy: v.number(), minutes: v.number() }),
   v.object({ kind: v.literal('request'), requestId: v.id('requests') }),
   v.object({ kind: v.literal('notification'), notificationId: v.id('notifications') }),
+  // GD (CONTRACT v0.13, additive). Each card holds only an id; the app loads it with the matching query,
+  // which re-checks the viewer, so a card in a thread never carries content its reader can't see.
+  v.object({ kind: v.literal('homework'), sheetId: v.id('homeworkSheets') }), // parent: "That's a fractions worksheet… make practice?"
+  v.object({ kind: v.literal('practice'), setId: v.id('practiceSets') }), // kid: the practice thread; parent: the summary + release
+  v.object({ kind: v.literal('chore'), claimId: v.id('choreClaims') }), // kid: Done; parent: approve + release
+  v.object({ kind: v.literal('routine'), runId: v.id('routineRuns') }), // kid: morning steps / bedtime prep
+  v.object({ kind: v.literal('bucks'), ledgerId: v.id('bucksLedger') }), // kid: "Admin released 5 Mega Bucks!"
+  v.object({ kind: v.literal('shareSuggestion'), suggestionId: v.id('shareSuggestions') }), // owner only
+  v.object({ kind: v.literal('proposal'), proposalId: v.id('proposals') }), // Hub's clash fix, before/after
+  v.object({ kind: v.literal('gifts'), giftIdeasId: v.id('giftIdeas') }), // adults, never the birthday person
 );
 export type Card = Infer<typeof card>;
 

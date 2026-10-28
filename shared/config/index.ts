@@ -1,6 +1,8 @@
+export * from './calendar';
 export * from './copy';
 export * from './demo';
 export * from './identity';
+export * from './kids';
 export * from './kidSafety';
 export * from './learning';
 export * from './limits';
@@ -12,5 +14,6 @@ export * from './proactive';
 export * from './roles';
 export * from './rooms';
 export * from './speaker';
+export * from './store';
 export * from './talk';
 export * from './theme';
