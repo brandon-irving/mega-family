@@ -5,7 +5,10 @@ import { makeFakeChatModel, textReply } from './fakeChatModel';
 import { makeFakeTranscriber } from './fakeTranscriber';
 import { metaChatModel } from './metaChatModel';
 import { metaTranscriber } from './metaTranscriber';
-import { __setChatModelForTests, __setTranscriberForTests, getChatModel, getTranscriber } from './registry';
+import { mapboxDirections, mapboxGeocoder } from './mapbox';
+import { metaWebSearch } from './metaWebSearch';
+import { openMeteoNwsWeather } from './openMeteoNwsWeather';
+import { __setChatModelForTests, __setTranscriberForTests, getChatModel, getDirections, getGeocoder, getTranscriber, getWeather, getWebSearch } from './registry';
 
 describe('adapters/registry', () => {
   afterEach(() => {
@@ -23,6 +26,16 @@ describe('adapters/registry', () => {
     vi.stubEnv('MEGA_MODEL_ADAPTER', 'real');
     expect(getChatModel()).toBe(metaChatModel);
     expect(getTranscriber()).toBe(metaTranscriber);
+  });
+
+  test('G4: real mode uses the real integration adapters (they fail closed by themselves), else fakes', () => {
+    expect(getWebSearch()).not.toBe(metaWebSearch);
+    expect(getDirections()).not.toBe(mapboxDirections);
+    vi.stubEnv('MEGA_MODEL_ADAPTER', 'real');
+    expect(getWebSearch()).toBe(metaWebSearch);
+    expect(getWeather()).toBe(openMeteoNwsWeather);
+    expect(getDirections()).toBe(mapboxDirections);
+    expect(getGeocoder()).toBe(mapboxGeocoder);
   });
 
   test('a test override always wins, even with MEGA_MODEL_ADAPTER=real set', async () => {

@@ -20,6 +20,7 @@ import { internal } from './_generated/api';
 import { internalAction, internalMutation, type MutationCtx } from './_generated/server';
 import { sanitizeDraftText } from './model/proactive';
 import { seedGd } from './model/seedGd';
+import { seedG4 } from './model/seedG4';
 import { FRACTIONS_SHEET } from '../shared/fixtures/homework/fractionsSheet';
 import { scopeKey } from './model/scopes';
 import { randomToken } from './model/random';
@@ -366,6 +367,8 @@ async function createSampleFamily(ctx: MutationCtx, weekOf: string | undefined, 
     // GD (Screens 10–12): layers, the clash + negative control, chores, homework, routines, Mega Bucks, gifts.
     // The homework sheet needs a stored photo; `seed.resetDemo` stores the synthetic worksheet and passes it.
     await seedGd(ctx, { familyId, m, hubId: mega.family, sunday, at, now: demoNow, homeworkStorageId });
+    // G4: events linked to saved places, past kid searches, Thursday's pickup travel check (docs/gates/G4.md).
+    await seedG4(ctx, { familyId, m, now: demoNow });
 
     return { familyId, members: m };
 }

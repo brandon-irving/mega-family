@@ -161,4 +161,16 @@ export const SAMPLE_FAMILY = {
     /** Today's morning list for Twin 1, half done (board KidsMorning). */
     morningRun: { for: 'twin1' as SampleKey, doneSteps: ['dressed', 'teeth'] },
   },
+  /** G4 (CONTRACT v0.15). Which events sit at which saved place (by title, case-insensitive substring), and one
+   * past search per kid so `search.log` and the parents' view have data (Twin 2's was blocked). */
+  g4: {
+    eventPlaces: [
+      { titleIncludes: 'soccer', place: 'field' },
+      { titleIncludes: 'school drop-off', place: 'school' },
+    ] as { titleIncludes: string; place: string }[],
+    searches: [
+      { for: 'twin1', query: 'how many hearts does an octopus have', outcome: 'answered', sourceCount: 2, minutesAgo: 90 },
+      { for: 'twin2', query: 'scary videos of real accidents', outcome: 'blocked', category: 'violence', decidedBy: 'model:muse-spark-1.3', sourceCount: 0, minutesAgo: 45 },
+    ] as { for: SampleKey; query: string; outcome: 'answered' | 'rephrased' | 'blocked'; category?: string; decidedBy?: string; sourceCount: number; minutesAgo: number }[],
+  },
 };
