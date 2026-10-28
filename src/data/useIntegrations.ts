@@ -36,6 +36,11 @@ export function useKidSearchLog(memberId: Id<'members'> | null) {
 }
 
 /** Set or clear an event's saved place (`events.update` with `placeId`; v0.15). */
+/** CONTRACT v0.15a: a travel card's On my way / Snooze 5 min / Remind me 30 min before. */
+export function useTravelAnswer() {
+  return useMutation(api.travel.answer);
+}
+
 export function useSetEventPlace() {
   return useMutation(api.events.update);
 }

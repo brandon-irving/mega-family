@@ -4,17 +4,19 @@
 // the viewer's timezone and role. Kid sizing comes from tokens (type scale, buttonSize), never a per-card number.
 // Fail closed (G4 invariant 7): a travel card with `failure` never shows minutes; a weather card without data
 // shows only its summary line.
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Pressable, View } from 'react-native';
 import type { Card as CardKind } from '@shared/domain/messages';
 import { G4_COPY, fillCopy } from '@shared/config/copy';
 import { INTEGRATION_COPY } from '@shared/config/integrations';
 import { WEATHER_CARD, weatherIconFor } from '@shared/config/weatherIcons';
 import { formatLocalHour, formatLocalTime } from '@shared/time';
+import { useTravelAnswer } from '@/data/useIntegrations';
 import { useViewer } from '@/data/useViewer';
+import { useRunAction } from '@/features/shell/useRunAction';
 import { domainOf, openLink } from '@/services/openLink';
 import { Text } from '@/ui/Text';
-import { LockNote } from '@/ui/ThreadCard';
+import { type CardAction, CardActions, LockNote } from '@/ui/ThreadCard';
 import { useTokens, type Tokens } from '@/ui/theme';
 import { Glyph, WeatherIcon, type GlyphName } from './glyphs';
 
@@ -72,7 +74,7 @@ export function SearchCardView({ card, megaName, isKid, onOpenSource }: { card: 
           ))}
         </View>
       ) : null}
-      {blocked && isKid ? <LockNote text={G4_COPY.searchKidBlockedNote} /> : null}
+      {blocked && isKid && card.parentsTold === true ? <LockNote text={G4_COPY.searchKidBlockedNote} /> : null}
     </G4Card>
   );
 }
@@ -127,8 +129,9 @@ export function WeatherCardView({ card, tz }: { card: WeatherCard; tz: string })
   const tokens = useTokens();
   const place = card.placeLabel ?? '';
   const hours = (card.hours ?? []).slice(0, WEATHER_CARD.hours);
-  // "Now" is the forecast hour the card was written in (Open-Meteo hourly data), never a made-up reading.
-  const now = hours[0];
+  // "Now" is the live current temperature (v0.15a `nowF`, Open-Meteo's current block); older cards fall back to
+  // the forecast hour the card was written in. Never a made-up reading.
+  const nowTempF = card.nowF ?? hours[0]?.tempF;
   const alert = card.alert;
   const sev = alert ? severityColors(tokens, alert.severity) : null;
   return (
@@ -158,9 +161,9 @@ export function WeatherCardView({ card, tz }: { card: WeatherCard; tz: string })
           ) : null}
           <Text color="muted">{card.summary}</Text>
         </View>
-        {now ? (
-          <Text variant="display" accessibilityLabel={`${now.tempF} degrees`}>
-            {`${Math.round(now.tempF)}°`}
+        {nowTempF !== undefined ? (
+          <Text variant="display" accessibilityLabel={`${Math.round(nowTempF)} degrees`}>
+            {`${Math.round(nowTempF)}°`}
           </Text>
         ) : null}
       </View>
@@ -199,24 +202,63 @@ export function WeatherCardView({ card, tz }: { card: WeatherCard; tz: string })
 
 // ---------- Travel ----------
 
-/** The line a failed travel check shows instead of numbers (fail closed, G4 invariant 7). */
-export function travelFailureText(failure: NonNullable<TravelCard['failure']>): { title: string; body?: string } {
-  if (failure === 'not_configured') return { title: INTEGRATION_COPY.travelNotConfigured, body: G4_COPY.travelNotSetUpBody };
+/** The travel card's buttons (CONTRACT v0.15a `travel.answer`). */
+export type TravelAction = 'on_my_way' | 'snooze_5' | 'remind_30_before';
+
+/** The line a failed travel check shows instead of numbers (fail closed, G4 invariant 7). With the event known
+ * (v0.15a), the not-set-up line names it and its start ("Soccer pickup starts at 5:30 PM."). */
+export function travelFailureText(failure: NonNullable<TravelCard['failure']>, event?: { title: string; start: string }): { title: string; body?: string } {
+  if (failure === 'not_configured')
+    return { title: INTEGRATION_COPY.travelNotConfigured, body: event ? fillCopy(G4_COPY.travelNotSetUpBodyEvent, { event: event.title, time: event.start }) : G4_COPY.travelNotSetUpBody };
   if (failure === 'no_result') return { title: G4_COPY.travelNoRoute };
   return { title: G4_COPY.travelTryLater };
 }
 
-export function TravelCardView({ card, tz, megaName }: { card: TravelCard; tz: string; megaName: string }) {
+/** The reply line under the buttons once `travel.answer` returns (board: the accent status dot). */
+function TravelStatus({ text }: { text: string }) {
+  const tokens = useTokens();
+  return (
+    <View accessibilityRole="text" style={{ flexDirection: 'row', alignItems: 'center', gap: tokens.spacing.sm }}>
+      <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: tokens.accent }} />
+      <Text variant="label" style={{ color: tokens.accent, flexShrink: 1 }}>
+        {text}
+      </Text>
+    </View>
+  );
+}
+
+export function TravelCardView({
+  card,
+  tz,
+  megaName,
+  onAnswer,
+  busy,
+  status,
+}: {
+  card: TravelCard;
+  tz: string;
+  megaName: string;
+  /** Wired by TravelResultCard to `travel.answer`; the buttons only show when the card has a check to answer. */
+  onAnswer?: (action: TravelAction) => void;
+  busy?: TravelAction | null;
+  /** The server's reply (or a friendly error) after a tap. */
+  status?: string | null;
+}) {
   const tokens = useTokens();
   const from = fillCopy(G4_COPY.travelFrom, { mega: megaName });
+  const canAnswer = !!onAnswer && !!card.checkId;
+  const action = (id: TravelAction, label: string, variant?: 'ghost'): CardAction => ({ id, label, onPress: () => onAnswer?.(id), loading: busy === id, disabled: !!busy && busy !== id, variant });
   if (card.failure) {
-    const f = travelFailureText(card.failure);
+    const event = card.eventTitle && card.eventStart !== undefined ? { title: card.eventTitle, start: formatLocalTime(card.eventStart, tz) } : undefined;
+    const f = travelFailureText(card.failure, event);
     return (
       <G4Card label={f.title} from={from} fromIcon="car" testID="travel-card">
         <View style={{ gap: tokens.spacing.xs }}>
           <Text variant="title">{f.title}</Text>
           {f.body ? <Text color="muted">{f.body}</Text> : null}
         </View>
+        {canAnswer && card.failure === 'not_configured' && !status ? <CardActions cols={1} actions={[action('remind_30_before', G4_COPY.travelRemind30)]} /> : null}
+        {status ? <TravelStatus text={status} /> : null}
       </G4Card>
     );
   }
@@ -225,11 +267,12 @@ export function TravelCardView({ card, tz, megaName }: { card: TravelCard; tz: s
     card.typicalMinutes !== undefined
       ? fillCopy(G4_COPY.travelMinutes, { minutes: card.minutes, typical: card.typicalMinutes })
       : fillCopy(G4_COPY.travelMinutesNoTypical, { minutes: card.minutes });
+  const minutesLine = card.eventTitle ? fillCopy(G4_COPY.travelWithEvent, { line: minutes, event: card.eventTitle }) : minutes;
   return (
     <G4Card label={leaveBy} from={from} fromIcon="car" testID="travel-card">
       <View style={{ gap: tokens.spacing.xs }}>
         <Text variant="headline">{leaveBy}</Text>
-        <Text color="muted">{minutes}</Text>
+        <Text color="muted">{minutesLine}</Text>
       </View>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: tokens.spacing.md, borderRadius: tokens.radii.lg, backgroundColor: tokens.bg, borderWidth: 1, borderColor: tokens.line, paddingVertical: tokens.spacing.sm, paddingHorizontal: tokens.spacing.md }}>
         <View style={{ alignItems: 'center', gap: 2 }}>
@@ -248,6 +291,8 @@ export function TravelCardView({ card, tz, megaName }: { card: TravelCard; tz: s
           </Text>
         </View>
       </View>
+      {canAnswer ? <CardActions actions={[action('on_my_way', G4_COPY.travelOnMyWay), action('snooze_5', G4_COPY.travelSnooze, 'ghost')]} /> : null}
+      {status ? <TravelStatus text={status} /> : null}
     </G4Card>
   );
 }
@@ -266,5 +311,12 @@ export function WeatherResultCard({ card }: { card: WeatherCard }) {
 
 export function TravelResultCard({ card, megaName }: { card: TravelCard; megaName: string }) {
   const viewer = useViewer();
-  return <TravelCardView card={card} tz={viewer?.family.timezone ?? 'UTC'} megaName={megaName} />;
+  const answer = useTravelAnswer();
+  const { busy, error, run } = useRunAction();
+  const [reply, setReply] = useState<string | null>(null);
+  const checkId = card.checkId;
+  const onAnswer = checkId
+    ? (action: TravelAction) => void run(action, async () => setReply((await answer({ travelCheckId: checkId, action })).message))
+    : undefined;
+  return <TravelCardView card={card} tz={viewer?.family.timezone ?? 'UTC'} megaName={megaName} onAnswer={onAnswer} busy={busy as TravelAction | null} status={reply ?? error} />;
 }

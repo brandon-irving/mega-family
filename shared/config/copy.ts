@@ -399,7 +399,14 @@ export const G4_COPY = {
   travelLeaveBy: 'Leave by {time}',
   travelMinutes: '{minutes} min with traffic (usually {typical})',
   travelMinutesNoTypical: '{minutes} min with traffic',
+  /** The minutes line when the card knows its event (v0.15a `eventTitle`). */
+  travelWithEvent: '{line} · {event}',
   travelNotSetUpBody: 'I can’t check traffic until your family admin turns on travel time, so I won’t guess a leave-by time.',
+  /** TravelNotSetUp with the event known (v0.15a `eventTitle` + `eventStart`). */
+  travelNotSetUpBodyEvent: '{event} starts at {time}. I can’t check traffic until your family admin turns on travel time, so I won’t guess a leave-by time.',
+  travelOnMyWay: 'On my way',
+  travelSnooze: 'Snooze 5 min',
+  travelRemind30: 'Remind me 30 min before',
   travelNoRoute: 'I couldn’t find a route there. Check the place’s address under Family → Places.',
   travelTryLater: 'I couldn’t check traffic right now. I’ll try again soon.',
   placesTitle: 'Places',
