@@ -4,7 +4,7 @@
 // (a malformed listName/text) silently told the accepting member "you'll handle it" while nothing was
 // actually added anywhere. It must check `ok`, say so in the reply, and record the failure.
 import { convexTest } from 'convex-test';
-import { describe, expect, test } from 'vitest';
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { jsonReply, makeFakeChatModel } from './adapters/fakeChatModel';
 import { __setChatModelForTests } from './adapters/registry';
 import { api, internal } from './_generated/api';
@@ -14,6 +14,15 @@ import schema from './schema';
 
 const modules = import.meta.glob('./**/*.ts');
 const WEEK = '2026-10-25';
+
+// `ask_member` schedules the push pipeline, which logs ("no registered push tokens…"). On real timers that
+// ran after a test had already finished and, under the full parallel run, after the worker tore down
+// (EnvironmentTeardownError). Fake timers keep scheduled work inside the test, which drains it itself.
+beforeEach(() => vi.useFakeTimers());
+afterEach(() => {
+  vi.useRealTimers();
+  __setChatModelForTests(null);
+});
 
 async function seededWithOpenRequest() {
   const t = convexTest(schema, modules);
@@ -64,6 +73,7 @@ describe('C5: a failed onAccept tool effect is reflected in the reply and record
       (r) => (r.payload as any)?.requestOnAcceptFailed?.requestId === request._id,
     );
     expect(failureLog).toBeDefined(); // the failure is recorded, not silently dropped
+    await t.finishAllScheduledFunctions(vi.runAllTimers);
   });
 
   test('control: a well-formed onAccept still succeeds and reports success normally', async () => {
@@ -72,5 +82,6 @@ describe('C5: a failed onAccept tool effect is reflected in the reply and record
     await admin.mutation(api.requests.respond, { requestId: request._id, accept: true });
     const updated = await t.run((ctx) => ctx.db.get(request._id));
     expect(updated!.status).toBe('accepted');
+    await t.finishAllScheduledFunctions(vi.runAllTimers);
   });
 });

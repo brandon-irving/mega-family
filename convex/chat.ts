@@ -232,7 +232,7 @@ export const start = mutation({
     if (viewer.member.role === 'kid') {
       const admin = (await ctx.db.query('members').withIndex('by_family', (q) => q.eq('familyId', familyId)).take(LIMITS.chat.starterLookback)).find((m) => m.role === 'admin');
       const slots = { name: viewer.member.name, mega: mega.name, admin: admin?.name ?? '' };
-      await ctx.db.insert('messages', { ...base, at: now, body: { type: 'text', text: fillCopy(KID_INTRO.hello, slots) } });
+      await ctx.db.insert('messages', { ...base, at: now, body: { type: 'text', text: fillCopy(admin ? KID_INTRO.hello : KID_INTRO.helloNoAdmin, slots) } });
       await ctx.db.insert('messages', { ...base, at: now + 1, body: { type: 'card', card: { kind: 'intro' } } });
       await ctx.db.insert('messages', { ...base, at: now + 2, body: { type: 'text', text: fillCopy(KID_INTRO.tip, slots) } });
       await ctx.db.patch(thread._id, { lastAt: now + 2 });

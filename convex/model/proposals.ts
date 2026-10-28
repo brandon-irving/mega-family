@@ -87,8 +87,11 @@ export async function insertProposal(
   return proposalId;
 }
 
-function sameSnapshot(event: Doc<'events'>, snap: Doc<'proposals'>['before']): boolean {
-  return event.title === snap.title && event.start === snap.start && event.end === snap.end && event.who.length === snap.who.length && event.who.every((id, i) => id === snap.who[i]);
+/** Whether the event is still what the proposal was made on. People are compared as a set (GD review): a
+ * reorder of the same people is not a change. */
+export function sameSnapshot(event: Doc<'events'>, snap: Doc<'proposals'>['before']): boolean {
+  const samePeople = event.who.length === snap.who.length && event.who.every((id) => snap.who.includes(id));
+  return event.title === snap.title && event.start === snap.start && event.end === snap.end && samePeople;
 }
 
 /** The Admin's decision. Approve applies the fix through `patchEvent` (the same path as `events.update`) and

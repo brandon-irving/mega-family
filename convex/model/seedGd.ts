@@ -202,7 +202,7 @@ export async function seedGd(
     .first();
   const bedtimeEvent = G.events.find((e) => e.key === B.event);
   if (bedtime && bedtimeEvent) {
-    const source = { eventId: ev[B.event], title: bedtimeEvent.title };
+    const source = { eventId: ev[B.event], title: bedtimeEvent.title, start: at(bedtimeEvent.day, bedtimeEvent.start) };
     const runId = await ctx.db.insert('routineRuns', {
       familyId,
       routineId: bedtime._id,

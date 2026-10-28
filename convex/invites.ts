@@ -182,6 +182,15 @@ export const finishRedeem = internalMutation({
     const member = await ctx.db.get(args.memberId);
     const invite = await ctx.db.get(args.inviteId);
     if (!member || !invite) fail('INVALID_INVITE');
+    // Re-checked here, inside the one transaction that writes (GD review): `redeem` reads in
+    // `prepareRedeem` and writes here, so two concurrent redeems could both pass the read. Convex
+    // serializes these mutations, so the second sees the first's claim and is refused.
+    if (invite.redeemedAt || member.authId) fail('INVALID_INVITE');
+    const alreadyMember = await ctx.db
+      .query('members')
+      .withIndex('by_authId', (q) => q.eq('authId', args.authSubject))
+      .first();
+    if (alreadyMember) fail('VALIDATION');
     const now = await clock.now(ctx, member.familyId);
     await ctx.db.patch(args.inviteId, { redeemedAt: now });
     await ctx.db.patch(args.memberId, { authId: args.authSubject, joinedAt: now, hasMega: true });
