@@ -13,7 +13,7 @@ import { makeFakePushSender } from './adapters/fakePushSender';
 import { __setChatModelForTests, __setPushSenderForTests } from './adapters/registry';
 import { api, internal } from './_generated/api';
 import type { Id } from './_generated/dataModel';
-import { buildDraftJudgePrompt, loadDraftContextFor } from './model/proactive';
+import { buildDraftJudgePrompt, insertCandidateIfNew, loadDraftContextFor } from './model/proactive';
 import { clock } from './ports/clock';
 import schema from './schema';
 
@@ -36,13 +36,20 @@ async function seeded() {
 describe('C6/UX7: a kid-targeted draft passes the same independent concern gate as a memory save', () => {
   test('a concerning mattersTo-sourced draft about a kid never reaches that kid as a notification', async () => {
     const { t, familyId, members } = await seeded();
+    // GD: the cross-member "matters to" trigger is gone (explicit share only), but the concern gate still
+    // guards every draft a kid can receive. Queue the same candidate that trigger used to make, directly.
     const eventId = await t.run((ctx) =>
-      ctx.db.insert('familyEvents', {
+      ctx.db.insert('familyEvents', { familyId, at: Date.now(), type: 'said', payload: {}, processed: { memory: true, profiler: true, triggers: true } }),
+    );
+    const queuedId = await t.run((ctx) =>
+      insertCandidateIfNew(ctx, {
         familyId,
-        at: Date.now(),
-        type: 'said',
-        payload: { mattersToMemberId: members.twin1, fromMemberId: members.admin, text: 'Twin 1 got suspended from school today and seems really upset about it.' },
-        processed: { memory: true, profiler: false, triggers: false },
+        recipientId: members.twin1,
+        kind: 'tip',
+        dedupeKey: `mattersTo:${eventId}`,
+        draftText: 'Twin 1 got suspended from school today and seems really upset about it.',
+        window: { from: Date.now(), to: Date.now() + 3_600_000 },
+        source: { kind: 'mattersTo', fromMemberId: members.admin, familyEventId: eventId },
       }),
     );
 
@@ -57,7 +64,7 @@ describe('C6/UX7: a kid-targeted draft passes the same independent concern gate 
     const pushSender = makeFakePushSender();
     __setPushSenderForTests(pushSender);
 
-    await t.mutation(internal.proactive.tickFamily, { familyId });
+    await t.action(internal.proactive.processCandidate, { candidateId: queuedId! });
     await t.finishAllScheduledFunctions(vi.runAllTimers);
 
 
@@ -80,13 +87,20 @@ describe('C6/UX7: a kid-targeted draft passes the same independent concern gate 
 
   test("control: an ordinary (non-concerning) mattersTo draft targeting a kid is NOT caught by the concern gate (it's dropped later only because tip/update kinds aren't pushed to kids at all — shared/config/notifications.ts kidsGetIt — a separate, pre-existing policy)", async () => {
     const { t, familyId, members } = await seeded();
+    // GD: the cross-member "matters to" trigger is gone (explicit share only), but the concern gate still
+    // guards every draft a kid can receive. Queue the same candidate that trigger used to make, directly.
     const eventId = await t.run((ctx) =>
-      ctx.db.insert('familyEvents', {
+      ctx.db.insert('familyEvents', { familyId, at: Date.now(), type: 'said', payload: {}, processed: { memory: true, profiler: true, triggers: true } }),
+    );
+    const queuedId = await t.run((ctx) =>
+      insertCandidateIfNew(ctx, {
         familyId,
-        at: Date.now(),
-        type: 'said',
-        payload: { mattersToMemberId: members.twin1, fromMemberId: members.admin, text: 'Soccer practice moved to 5pm today.' },
-        processed: { memory: true, profiler: false, triggers: false },
+        recipientId: members.twin1,
+        kind: 'tip',
+        dedupeKey: `mattersTo:${eventId}`,
+        draftText: 'Soccer practice moved to 5pm today.',
+        window: { from: Date.now(), to: Date.now() + 3_600_000 },
+        source: { kind: 'mattersTo', fromMemberId: members.admin, familyEventId: eventId },
       }),
     );
 
@@ -97,7 +111,7 @@ describe('C6/UX7: a kid-targeted draft passes the same independent concern gate 
       }),
     );
 
-    await t.mutation(internal.proactive.tickFamily, { familyId });
+    await t.action(internal.proactive.processCandidate, { candidateId: queuedId! });
     await t.finishAllScheduledFunctions(vi.runAllTimers);
 
     const candidate = (await t.run((ctx) => ctx.db.query('candidates').withIndex('by_family_dedupeKey', (q) => q.eq('familyId', familyId).eq('dedupeKey', `mattersTo:${eventId}`)).collect()))[0];
