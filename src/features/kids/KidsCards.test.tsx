@@ -2,6 +2,7 @@
 import { StyleSheet } from 'react-native';
 import { fireEvent, screen } from '@testing-library/react-native';
 import { BUTTON_SIZES } from '@shared/config/theme';
+import { HOMEWORK } from '@shared/config/kids';
 import { renderWithTheme } from '@/test/renderWithTheme';
 import { CHORE_CLAIMED, CHORE_DUE, PRACTICE_DONE, PRACTICE_HINTED, PRACTICE_READY } from '@/test/gdFixtures';
 import { BucksMomentView } from './BucksCard';
@@ -38,6 +39,13 @@ describe('HomeworkCardView (board Kids)', () => {
 describe('KidPracticeView (boards KidsPractice / KidsHint / KidsDone)', () => {
   test('starts on the first question not yet answered correctly', () => {
     expect(currentQuestionIndex(PRACTICE_READY)).toBe(1);
+  });
+
+  test('a question missed on every allowed try is settled, so the kid moves on (live check: kid was stuck)', () => {
+    const missed = { ...PRACTICE_READY, questions: PRACTICE_READY.questions.map((q, i) => (i === 0 ? { ...q, answered: { correct: false, tries: HOMEWORK.maxTriesPerQuestion } } : { ...q, answered: null })) };
+    expect(currentQuestionIndex(missed)).toBe(1);
+    const once = { ...missed, questions: missed.questions.map((q, i) => (i === 0 ? { ...q, answered: { correct: false, tries: 1 } } : q)) };
+    expect(currentQuestionIndex(once)).toBe(0); // one wrong try can still be retried
   });
 
   test('shows the question, its choices and "Hint, please"; a choice reports its index', async () => {
