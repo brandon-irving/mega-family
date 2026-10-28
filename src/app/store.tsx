@@ -2,7 +2,6 @@
 // (STORE_RULES.shoppers): an adult sees one line explaining that grown-ups' MEGAs wear anything for free.
 import { router } from 'expo-router';
 import { View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { STORE_COPY } from '@shared/config/copy';
 import { useBuy, useStoreCatalog, useUpdateMyMega } from '@/data/useStore';
 import { useViewer } from '@/data/useViewer';
@@ -11,6 +10,7 @@ import { StoreScreenView } from '@/features/store/StoreScreen';
 import { tryOn, type Look } from '@/features/store/storeModel';
 import { Button } from '@/ui/Button';
 import { LoadingScreen } from '@/ui/LoadingScreen';
+import { Screen } from '@/ui/Screen';
 import { Text } from '@/ui/Text';
 import { useTokens } from '@/ui/theme';
 
@@ -26,19 +26,19 @@ export default function StoreRoute() {
   const mega = viewer?.mega;
   if (!viewer || !mega || viewer.member.role !== 'kid' || catalog.status === 'error') {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: tokens.bg }}>
+      <Screen padded={false}>
         <View style={{ padding: tokens.spacing.lg, gap: tokens.spacing.lg }}>
           <Text variant="headline">{STORE_COPY.title}</Text>
           <Text color="muted">{viewer?.member.role === 'kid' ? STORE_COPY.unavailable : STORE_COPY.kidsOnly}</Text>
           <Button label={STORE_COPY.done} variant="secondary" onPress={close} />
         </View>
-      </SafeAreaView>
+      </Screen>
     );
   }
   const look: Look = mega.look;
   const wear = (next: Look) => run('wear', () => updateMega({ look: next }));
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: tokens.bg }}>
+    <Screen padded={false}>
       <StoreScreenView
         megaName={mega.name}
         balance={catalog.data.balance}
@@ -58,6 +58,6 @@ export default function StoreRoute() {
           return ok;
         }}
       />
-    </SafeAreaView>
+    </Screen>
   );
 }

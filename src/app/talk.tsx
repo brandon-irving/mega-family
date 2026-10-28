@@ -11,6 +11,7 @@ import { useVoiceService, VOICE_UNSUPPORTED_MESSAGE } from '@/services/voice';
 import { speaker } from '@/services/speaker';
 import { turnEnd, turnStart } from '@/services/talkFeedback';
 import { LoadingScreen } from '@/ui/LoadingScreen';
+import { Screen } from '@/ui/Screen';
 import { megaInfo } from '@/features/shell/megaInfo';
 import { TalkContent } from '@/features/talk/TalkContent';
 import { initialTalkState, talkReducer } from '@/features/talk/talkMachine';
@@ -138,6 +139,7 @@ export default function TalkRoute() {
   if (!viewer?.mega) return <LoadingScreen label="No MEGA yet" />;
 
   return (
+    <Screen padded={false}>
     <TalkContent
       mega={megaInfo(viewer.mega)}
       phase={state.phase}
@@ -152,5 +154,6 @@ export default function TalkRoute() {
       onSend={onSend}
       onClose={onClose}
     />
+    </Screen>
   );
 }
