@@ -1,7 +1,7 @@
 # Design canvas (mockups)
 
 The approved screen mockups, published as a private Design-canvas artifact:
-https://claude.ai/artifact/Wa23YjuTXtEhL3hy8PvZZV (version 33 after the Oct 28 sign-in redesign and the shared kid composer).
+https://claude.ai/artifact/Wa23YjuTXtEhL3hy8PvZZV (version 35 after the Oct 28 onboarding chat row, Screen 13).
 
 - `mega-screens/project/*.dc.html` — one board per screen state; `canvas.json` places the boards (rows per
   screen: Chat, HQ, Profile, Family, Onboarding, Push, Settings, Widgets, Sign in, Kids, Store,
@@ -19,6 +19,11 @@ Sign-in row (Screen 9): `build/Login.template.html` → `Login.dc.html` plus thi
 `LOGIN_BOARDS` in `build.py` (which also writes their canvas.json row). MEGAs walk on *ledges* (the top edge
 of a button, card, headline or the scanner reticle), dip buttons they stand on, react to presses, and say hi
 when tapped; the `motion: reduced` tweak shows the reduced-motion behavior (they stand still).
+
+Onboarding chat row (Screen 13, Oct 28): `build/OnboardChat.template.html` on the shared thread, with wrappers
+from `ONBOARD_CHAT_BOARDS` in `build.py`: sign up → "What should I call you?" → Gmail, calendar and .ics cards
+(each with Not now; findings go to the private layer with a share suggestion) → hand-off to the Screen 5 family
+steps.
 
 Kids, Store and Calendar rows (Screens 10–12, Oct 27): `build/Kids.template.html`, `Store.template.html` and
 `Calendar.template.html`, with wrappers from `KIDS_BOARDS`, `STORE_BOARDS` and `CAL_BOARDS` in `build.py`

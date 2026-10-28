@@ -211,3 +211,30 @@ for (note_id, (heading, boards, sticky)), row_y, name in zip(NOTES.items(), (113
     canvas['notes'][note_id + 'defaults'] = {'x': len(boards) * GAP, 'y': row_y, 'w': 420, 'text': sticky, 'fill': 'orange', 'size': 's'}
 json.dump(canvas, open(cpath, 'w'), ensure_ascii=False)
 print('built kids, store, calendar')
+
+# Screen 13 (owner, Oct 28): the onboarding chat. Sign up → the admin's MEGA opens the chat and asks what to
+# call them → offers integrations one at a time (Gmail first, then a calendar, then schedule links) → hands
+# off to the family steps (the Screen 5 Onboard boards). Same thread system as the Kids/Calendar rows.
+fill('OnboardChat')
+ONBOARD_CHAT_BOARDS = [
+    ('OnboardChat', '1 · Right after sign-up: MEGA says hi and asks what to call you', {}),
+    ('OnboardChatNamed', '2 · You answer; MEGA uses your name from now on', {'step': 'named'}),
+    ('OnboardGmail', '3 · Gmail first: what MEGA reads, private until you share', {'step': 'gmail'}),
+    ('OnboardGmailConnected', '3b · Connected (after Google’s consent screen)', {'step': 'gmailConnected'}),
+    ('OnboardGmailFound', '4 · What it found → your private calendar · share suggestion', {'step': 'gmailFound'}),
+    ('OnboardCalendar', '5 · A calendar: Google or this phone’s', {'step': 'calendar'}),
+    ('OnboardIcs', '6 · Schedule links (school, teams)', {'step': 'ics'}),
+    ('OnboardNext', '7 · On to the family (Screen 5 boards)', {'step': 'next'}),
+]
+write_wrappers('OnboardChat', ONBOARD_CHAT_BOARDS)
+ROW13 = 15168
+for i, (stem, title, _) in enumerate(ONBOARD_CHAT_BOARDS):
+    f = stem + '.dc.html'
+    canvas['boards'][f] = {'x': i * GAP, 'y': ROW13, 'w': 390, 'h': 844, 'title': title, 'is_interactive': True}
+    if f not in canvas['order']:
+        canvas['order'].append(f)
+canvas['notes']['screen13'] = {'x': 0, 'y': ROW13 - 260, 'text': 'Screen 13 · Onboarding chat (sign up → name → integrations)', 'kind': 'title1', 'maxW': len(ONBOARD_CHAT_BOARDS) * GAP - 80}
+canvas['notes']['screen13defaults'] = {'x': len(ONBOARD_CHAT_BOARDS) * GAP, 'y': ROW13, 'w': 420, 'fill': 'orange', 'size': 's', 'text':
+    'Defaults to confirm\n• Flow (owner, Oct 28): sign up → chat opens → "What should I call you?" → integrations one at a time → family steps (Screen 5).\n• Your MEGA starts with a default look; tap its badge in the chat header to customize it (Profile).\n• Gmail first, read-only (gmail.readonly). Google shows an "unverified app" warning while the app is in testing; only listed test users can connect, and access lapses after 7 days until re-consent.\n• Calendar: Google Calendar (calendar.readonly) or this phone\'s calendar (expo-calendar, already in the build). Then .ics links from schools and teams.\n• Everything found lands on YOUR private calendar. MEGA may suggest sharing; only your tap shares.\n• Each card has Not now; skipping never blocks the next step. Everything is also in Settings later.\n• Demo uses a synthetic Gmail account with made-up school, dentist and bill emails (hackathon rule: synthetic data only).'}
+json.dump(canvas, open(cpath, 'w'), ensure_ascii=False)
+print('built onboarding chat')
