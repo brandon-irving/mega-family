@@ -61,7 +61,6 @@ export function useSwipeDown(onClose: () => void): { handlers: GestureResponderH
   // The plain responder props (not PanResponder): a drag that moves more down than sideways claims it, so
   // taps on the sheet's buttons and sideways scrolling still go to them.
   const handlers: GestureResponderHandlers = {
-    onStartShouldSetResponder: () => false,
     onMoveShouldSetResponder: (e) => {
       if (!e?.nativeEvent) return false; // asked without a touch (a capability probe): never claim
       if (!start.current) start.current = { y: e.nativeEvent.pageY, t: e.nativeEvent.timestamp };
