@@ -4,6 +4,8 @@ import { ConvexBetterAuthProvider, type AuthClient } from '@convex-dev/better-au
 import { ConvexReactClient } from 'convex/react';
 import type { ReactNode } from 'react';
 import { authClient } from '@/services/auth';
+import { ConvexAuthWatcher } from '@/services/convexAuthReady';
+import { appConvexLogger } from './convexLogger';
 
 const url = process.env.EXPO_PUBLIC_CONVEX_URL;
 
@@ -14,7 +16,7 @@ if (!url && __DEV__) {
 /** A single client for the app; placeholder URL keeps the app renderable before the backend lands.
  * `expectAuth: true` pauses queries until Better Auth has resolved a session, so the root layout's auth
  * gate (never a flash of signed-out content) can rely on `me.get` only running once that's settled. */
-export const convex = new ConvexReactClient(url ?? 'https://placeholder.convex.cloud', { expectAuth: true, unsavedChangesWarning: false });
+export const convex = new ConvexReactClient(url ?? 'https://placeholder.convex.cloud', { expectAuth: true, unsavedChangesWarning: false, logger: appConvexLogger });
 
 export function DataProvider({ children }: { children: ReactNode }) {
   return (
@@ -24,6 +26,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     // level bug in that package's declarations, not anything about `authClient` itself (which is properly
     // typed throughout src/services/auth.ts, including a correct `useSession()` there).
     <ConvexBetterAuthProvider client={convex} authClient={authClient as unknown as AuthClient}>
+      <ConvexAuthWatcher />
       {children}
     </ConvexBetterAuthProvider>
   );
