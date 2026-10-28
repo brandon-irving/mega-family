@@ -3,8 +3,8 @@
 import { useEffect, useState } from 'react';
 import { router } from 'expo-router';
 import { LINKS } from '@shared/domain/api';
-import { FAMILY_MEGA_DEFAULTS } from '@shared/config/looks';
 import { useCalendarRange, useFamilyMembers } from '@/data/useFamily';
+import { useHubName } from '@/data/useMega';
 import { useOpenProposals } from '@/data/useCalendarLayers';
 import { useViewer } from '@/data/useViewer';
 import { isAdultRole } from '@/features/shell/familyDirectory';
@@ -36,12 +36,13 @@ export default function CalendarRoute() {
   const viewer = useViewer();
   const adult = !!viewer && isAdultRole(viewer.member.role);
   const proposals = useOpenProposals(adult);
+  const hubName = useHubName();
   const tokens = useTokens();
 
   if (weekStart === null || opened === null || events === undefined || members === undefined) return <LoadingScreen label="Loading calendar…" />;
 
   const open = proposals.status === 'ok' ? proposals.data.find((p) => p.proposal.status === 'pending') : undefined;
-  const clash: CalendarClash | null = open ? { eventId: open.proposal.before.eventId, line: open.proposal.title, messageId: open.proposal.messageId } : null;
+  const clash: CalendarClash | null = open ? { eventIds: open.clashEventIds, line: open.proposal.title, messageId: open.proposal.messageId } : null;
 
   return (
     <Sheet title={new Date(opened).toLocaleDateString(undefined, { month: 'long', year: 'numeric' })} onClose={() => router.back()}>
@@ -51,7 +52,7 @@ export default function CalendarRoute() {
         events={events}
         members={members.map((m) => ({ _id: m.member._id, name: m.member.name, hex: m.mega?.look.hex ?? tokens.muted }))}
         viewerId={viewer?.member._id}
-        hubName={open?.mega.name ?? FAMILY_MEGA_DEFAULTS.name}
+        hubName={open?.mega.name ?? hubName}
         clash={clash}
         onSeeClash={(c) => router.push(toPath(c.messageId ? LINKS.chatMessage(c.messageId) : LINKS.chat()) as never)}
       />

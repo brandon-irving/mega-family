@@ -3,8 +3,8 @@
 // explicit-share rule (owner, Oct 26) is enforced on the server, this card just asks.
 import type { Id } from '@shared/domain/validators';
 import { CALENDAR_COPY, fillCopy, SHARE_RULE_COPY } from '@shared/config/copy';
-import { FAMILY_MEGA_DEFAULTS } from '@shared/config/looks';
 import { useAnswerShareSuggestion, useShareSuggestion } from '@/data/useCalendarLayers';
+import { useHubName } from '@/data/useMega';
 import { useRunAction } from '@/features/shell/useRunAction';
 import { CardFallback } from '@/features/kids/CardFallback';
 import { CardActions, ThreadCard } from '@/ui/ThreadCard';
@@ -54,13 +54,14 @@ export function ShareSuggestionView({
 
 export function ShareSuggestionCard({ suggestionId, megaName }: { suggestionId: Id<'shareSuggestions'>; megaName: string }) {
   const state = useShareSuggestion(suggestionId);
+  const hubName = useHubName();
   const answer = useAnswerShareSuggestion();
   const { busy, error, run } = useRunAction();
   if (state.status !== 'ok') return <CardFallback state={state} from={megaName} />;
   return (
     <ShareSuggestionView
       megaName={megaName}
-      hubName={FAMILY_MEGA_DEFAULTS.name}
+      hubName={hubName}
       preview={state.data.preview}
       status={state.data.status}
       busy={busy}

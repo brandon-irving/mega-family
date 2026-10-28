@@ -1,17 +1,14 @@
 // Boards KidsBedtime (tomorrow-prep checklist in the thread) and KidsMorning (opened full screen from the
 // card) from one `{ kind: 'routine', runId }` card. Bedtime's calendar items come only from tomorrow's
 // household-layer events (the server builds the run; private events never feed it).
-//
-// CONTRACT NOTE (for the backend, see the GD frontend report): there is no read-by-runId query, so the card
-// finds its run among the kid's own `routines.today` runs (morning + bedtime). A card for an older day's run
-// shows the "not ready" line. A `routines.run({ runId })` query would let any day's card render.
+// The card loads its run by id (`routines.run`, v0.13a), so a card from any day renders.
 import { useState } from 'react';
 import { router } from 'expo-router';
 import type { Infer } from 'convex/values';
 import type { routineRunDoc } from '@shared/domain/api';
 import type { Id } from '@shared/domain/validators';
 import { fillCopy, KIDS_COPY } from '@shared/config/copy';
-import { useCheckRoutineStep, useRoutineToday } from '@/data/useKids';
+import { useCheckRoutineStep, useRoutineRun } from '@/data/useKids';
 import { useFamilyDirectory } from '@/features/shell/familyDirectory';
 import { useRunAction } from '@/features/shell/useRunAction';
 import { CardActions, CheckList, ThreadCard } from '@/ui/ThreadCard';
@@ -26,13 +23,20 @@ export function useOptimisticSteps(run: RoutineRun | null) {
   return { steps, setStep: (id: string, done: boolean) => setLocal((m) => ({ ...m, [id]: done })) };
 }
 
-export function BedtimeView({ megaName, steps, error, onToggle }: { megaName: string; steps: { id: string; label: string; detail?: string; done: boolean }[]; error?: string | null; onToggle: (id: string, done: boolean) => void }) {
+/** Board KidsBedtime's title names tomorrow's household event ("Soccer practice tomorrow"); a run with no
+ * calendar-sourced step gets the generic line. */
+export function bedtimeTitle<S extends { source?: { title?: string } }>(steps: readonly S[]): string {
+  const event = steps.find((s) => s.source?.title)?.source?.title;
+  return event ? fillCopy(KIDS_COPY.bedtimeTitleEvent, { event }) : KIDS_COPY.bedtimeTitle;
+}
+
+export function BedtimeView({ megaName, title = KIDS_COPY.bedtimeTitle, steps, error, onToggle }: { megaName: string; title?: string; steps: { id: string; label: string; detail?: string; done: boolean }[]; error?: string | null; onToggle: (id: string, done: boolean) => void }) {
   const packed = steps.filter((s) => s.done).length;
   const all = steps.length > 0 && packed === steps.length;
   return (
     <ThreadCard
       from={fillCopy(KIDS_COPY.bedtimeFrom, { mega: megaName })}
-      title={KIDS_COPY.bedtimeTitle}
+      title={title}
       big
       body={fillCopy(KIDS_COPY.bedtimeBody, { n: packed, total: steps.length })}
       status={all ? { text: KIDS_COPY.bedtimeAllPacked, tone: 'hint' } : error ? { text: error, tone: 'warn' } : undefined}
@@ -56,17 +60,13 @@ export function MorningCardView({ megaName, done, total, onOpen }: { megaName: s
 }
 
 export function RoutineCard({ runId, megaName }: { runId: Id<'routineRuns'>; megaName: string }) {
-  const bedtime = useRoutineToday('bedtime');
-  const morning = useRoutineToday('morning');
+  const state = useRoutineRun(runId);
   const dir = useFamilyDirectory();
   const check = useCheckRoutineStep();
   const { error, run } = useRunAction();
-  const found = [bedtime, morning].map((s) => (s.status === 'ok' ? s.data : null)).find((r) => r?._id === runId) ?? null;
+  const found = state.status === 'ok' ? state.data : null;
   const { steps, setStep } = useOptimisticSteps(found);
-  if (!found) {
-    const loading = bedtime.status === 'loading' || morning.status === 'loading';
-    return <CardFallback state={loading ? { status: 'loading' } : bedtime.status === 'error' ? bedtime : { status: 'error', error: new Error('not today') }} from={megaName} />;
-  }
+  if (state.status !== 'ok' || !found) return <CardFallback state={state.status === 'ok' ? { status: 'error', error: new Error('missing run') } : state} from={megaName} />;
   const kidMega = dir.megaNameOf(found.memberId) || megaName;
   if (found.kind === 'morning') {
     return <MorningCardView megaName={kidMega} done={steps.filter((s) => s.done).length} total={steps.length} onOpen={() => router.push('/routine/morning')} />;
@@ -74,6 +74,7 @@ export function RoutineCard({ runId, megaName }: { runId: Id<'routineRuns'>; meg
   return (
     <BedtimeView
       megaName={kidMega}
+      title={bedtimeTitle(found.steps)}
       steps={steps}
       error={error}
       onToggle={(id, done) => {

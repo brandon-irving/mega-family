@@ -114,6 +114,28 @@ describe('GD invariant 6: the Store', () => {
   });
 });
 
+describe('GD integration: what a kid starts with stays theirs', () => {
+  test('switching away from the starting sticker and back never asks to buy it', async () => {
+    const { as } = await seeded();
+    const zap = (await as('twin1').query(api.megas.mine, {}))!;
+    expect(zap.look.sticker).not.toBe('none');
+    await as('twin1').mutation(api.megas.update, { look: { ...zap.look, sticker: 'none' } });
+    await as('twin1').mutation(api.megas.update, { look: { ...zap.look } }); // back to the starting sticker
+    expect((await as('twin1').query(api.megas.mine, {}))!.look.sticker).toBe(zap.look.sticker);
+  });
+
+  test('furniture a kid’s room started with can be put away and placed again', async () => {
+    const { t, familyId, m, as } = await seeded();
+    const room = await t.run((ctx) => ctx.db.query('rooms').withIndex('by_family_owner', (q) => q.eq('familyId', familyId).eq('ownerId', m.twin1)).first());
+    expect(room).not.toBeNull();
+    // A room that started with a Store-only piece the kid never bought (a made-for-you starting room).
+    await t.run((ctx) => ctx.db.patch(room!._id, { furniture: [...room!.furniture, { kind: 'beanbag', x: 3, y: 3 }] }));
+    const start = [...room!.furniture, { kind: 'beanbag', x: 3, y: 3 }];
+    await as('twin1').mutation(api.rooms.update, { furniture: [] });
+    await as('twin1').mutation(api.rooms.update, { furniture: start.map((f) => ({ kind: f.kind, x: f.x, y: f.y })) });
+  });
+});
+
 describe('GD addenda (frontend requests): one ledger row by id, the family MEGA badge', () => {
   test('bucks.entry: a kid reads only their own rows; adults any kid’s', async () => {
     const { as, ledger } = await seeded();

@@ -9,7 +9,7 @@ import { ChoreApproveView, KidChoreView } from './ChoreCard';
 import { HomeworkCardView } from './HomeworkCard';
 import { MorningRoutineView } from './MorningRoutine';
 import { currentQuestionIndex, KidPracticeView, PracticeSummaryView } from './PracticeCard';
-import { BedtimeView } from './RoutineCard';
+import { BedtimeView, bedtimeTitle } from './RoutineCard';
 
 const noop = () => {};
 
@@ -136,6 +136,14 @@ describe('routines (boards KidsBedtime / KidsMorning)', () => {
     expect(screen.getByText('Pack your bag tonight so the morning is easy. 1 of 2 packed.')).toBeTruthy();
     await fireEvent.press(screen.getByLabelText('Water bottle'));
     expect(onToggle).toHaveBeenCalledWith('bottle', true);
+  });
+
+  test('bedtime title names tomorrow’s calendar event (board: "Soccer practice at 4:30"), else the generic line', async () => {
+    expect(bedtimeTitle([{ id: 'a', label: 'Cleats', done: false, source: { eventId: 'ev1', title: 'Soccer practice' } }])).toBe('Soccer practice tomorrow');
+    const plain: { id: string; label: string; done: boolean; source?: { title?: string } }[] = [{ id: 'a', label: 'Cleats', done: false }];
+    expect(bedtimeTitle(plain)).toBe('Get ready for tomorrow');
+    await renderWithTheme(<BedtimeView megaName="Zap" title="Soccer practice tomorrow" steps={[{ id: 'a', label: 'Cleats', done: false }]} onToggle={noop} />, { role: 'kid' });
+    expect(screen.getByText('Soccer practice tomorrow')).toBeTruthy();
   });
 
   const morningSteps = [
