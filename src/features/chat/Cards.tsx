@@ -1,6 +1,9 @@
 // Renders every result Card kind (CONTRACT §3): event, reminder, list, search, weather, travel,
 // request and notification. Pure presentational — the "visibleTo" scope line is shared by the kinds
-// that carry one.
+// that carry one. GD (CONTRACT v0.13): the eight demo kinds (homework, practice, chore, routine, bucks,
+// shareSuggestion, proposal, gifts) carry only an id, so each renders its own connected card from
+// src/features/{kids,calendar}, which loads the item through the query that re-checks who's asking. A kind
+// this build doesn't know yet renders nothing rather than crashing the thread.
 import { View } from 'react-native';
 import type { Card as CardKind } from '@shared/domain/messages';
 import { BUTTON_SETS } from '@shared/config/notifications';
@@ -9,6 +12,14 @@ import { ButtonRow } from '@/ui/ButtonRow';
 import { Card } from '@/ui/Card';
 import { Text } from '@/ui/Text';
 import { useTokens } from '@/ui/theme';
+import { BucksCard } from '@/features/kids/BucksCard';
+import { ChoreCard } from '@/features/kids/ChoreCard';
+import { HomeworkCard } from '@/features/kids/HomeworkCard';
+import { PracticeCard } from '@/features/kids/PracticeCard';
+import { RoutineCard } from '@/features/kids/RoutineCard';
+import { GiftsCard } from '@/features/calendar/GiftsCard';
+import { ProposalCard } from '@/features/calendar/ProposalCard';
+import { ShareSuggestionCard } from '@/features/calendar/ShareSuggestionCard';
 
 export type CardProps = {
   card: CardKind;
@@ -103,8 +114,29 @@ export function ResultCard({ card, onRespondRequest, onAnswerNotification, notif
       );
     case 'notification':
       return <NotificationCard notification={notification} onAnswerNotification={onAnswerNotification} megaName={megaName} />;
+    case 'homework':
+      return <HomeworkCard sheetId={card.sheetId} megaName={megaName ?? GD_FALLBACK_FROM} />;
+    case 'practice':
+      return <PracticeCard setId={card.setId} megaName={megaName ?? GD_FALLBACK_FROM} />;
+    case 'chore':
+      return <ChoreCard claimId={card.claimId} megaName={megaName ?? GD_FALLBACK_FROM} />;
+    case 'routine':
+      return <RoutineCard runId={card.runId} megaName={megaName ?? GD_FALLBACK_FROM} />;
+    case 'bucks':
+      return <BucksCard ledgerId={card.ledgerId} megaName={megaName ?? GD_FALLBACK_FROM} />;
+    case 'shareSuggestion':
+      return <ShareSuggestionCard suggestionId={card.suggestionId} megaName={megaName ?? GD_FALLBACK_FROM} />;
+    case 'proposal':
+      return <ProposalCard proposalId={card.proposalId} megaName={megaName ?? GD_FALLBACK_FROM} />;
+    case 'gifts':
+      return <GiftsCard giftIdeasId={card.giftIdeasId} megaName={megaName ?? GD_FALLBACK_FROM} />;
+    default:
+      return null;
   }
 }
+
+/** The "from" line when a GD card's MEGA isn't known (a message whose author has no directory entry). */
+const GD_FALLBACK_FROM = 'MEGA';
 
 function VisibleTo({ scope }: { scope: keyof typeof scopeLabel }) {
   return (

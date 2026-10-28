@@ -28,6 +28,11 @@ describe('ResultCard', () => {
     expect(screen.getByText('National Geographic Kids')).toBeTruthy();
   });
 
+  test('a card kind this build does not know renders nothing instead of crashing (GD)', async () => {
+    const view = await renderWithTheme(<ResultCard card={{ kind: 'fromTheFuture' } as never} />);
+    expect(view.toJSON()).toBeNull();
+  });
+
   test('weather card', async () => {
     await renderWithTheme(<ResultCard card={CARDS_BY_KIND.weather} />);
     expect(screen.getByText('Clear, 68°F')).toBeTruthy();

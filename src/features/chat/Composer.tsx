@@ -12,9 +12,12 @@ export type ComposerProps = {
   onSend: (text: string) => void;
   onOpenTalk: () => void;
   onAttach?: () => void;
+  /** GD (board KidsSnap): adults get a camera button for "Snap homework" (opens mega://homework). */
+  onCamera?: () => void;
+  cameraLabel?: string;
 };
 
-export function Composer({ megaName, bigTalkButton = false, onSend, onOpenTalk, onAttach }: ComposerProps) {
+export function Composer({ megaName, bigTalkButton = false, onSend, onOpenTalk, onAttach, onCamera, cameraLabel = 'Take a photo' }: ComposerProps) {
   const [text, setText] = useState('');
   const [showKeyboard, setShowKeyboard] = useState(!bigTalkButton);
   const tokens = useTokens();
@@ -58,6 +61,17 @@ export function Composer({ megaName, bigTalkButton = false, onSend, onOpenTalk, 
         backgroundColor: tokens.surface,
       }}
     >
+      {onCamera && (
+        <Pressable
+          onPress={onCamera}
+          accessibilityRole="button"
+          accessibilityLabel={cameraLabel}
+          hitSlop={hitSlop}
+          style={{ width: tokens.touchTarget, height: tokens.touchTarget, borderRadius: tokens.touchTarget / 2, borderWidth: 1, borderColor: tokens.line, alignItems: 'center', justifyContent: 'center' }}
+        >
+          <CameraGlyph color={tokens.text} />
+        </Pressable>
+      )}
       <Pressable
         onPress={onAttach}
         accessibilityRole="button"
@@ -93,6 +107,18 @@ export function Composer({ megaName, bigTalkButton = false, onSend, onOpenTalk, 
           </Text>
         </Pressable>
       )}
+    </View>
+  );
+}
+
+/** A small code-drawn camera (bump, body, lens), in the text color — no icon font. */
+function CameraGlyph({ color }: { color: string }) {
+  return (
+    <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={{ alignItems: 'center' }}>
+      <View style={{ width: 8, height: 3, backgroundColor: color, borderTopLeftRadius: 2, borderTopRightRadius: 2 }} />
+      <View style={{ width: 20, height: 14, borderRadius: 3, borderWidth: 2, borderColor: color, alignItems: 'center', justifyContent: 'center' }}>
+        <View style={{ width: 7, height: 7, borderRadius: 4, borderWidth: 2, borderColor: color }} />
+      </View>
     </View>
   );
 }
