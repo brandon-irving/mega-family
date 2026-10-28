@@ -116,6 +116,14 @@ describe('MessageRow', () => {
     expect(screen.getByLabelText('Saved, Family')).toBeTruthy(); // no "Tap to change" affordance in the label
   });
 
+  // A MEGA reply still being written is an empty text message with a streamId; its words show in the chat
+  // screen's streaming line (typing dots, then the text), so the row itself renders nothing until it lands.
+  test('a MEGA reply still being written renders nothing (no bare name line under the badge)', async () => {
+    const writing = { ...MESSAGES_BY_TYPE.text, author: { kind: 'mega' as const, id: FIXTURE_IDS.teal }, body: { type: 'text' as const, text: '' }, streamId: 's1' };
+    await renderWithTheme(<MessageRow message={writing} isMine={false} mega={TEAL_INFO} onAnswerBlock={noop} onReact={noop} onChangeMemoryScope={noop} onForgetMemory={noop} />);
+    expect(screen.queryByText('Teal')).toBeNull();
+  });
+
   test('renders every MessageBody type without throwing', async () => {
     for (const message of Object.values(MESSAGES_BY_TYPE)) {
       const mega = message.author.kind === 'mega' ? megaById[message.author.id] ?? null : null;

@@ -145,7 +145,9 @@ export const settings = {
 
 // ---------- chat ----------
 
-export const threads = { familyId, ownerId: memberId, megaIds: v.array(v.id('megas')), lastAt: v.number() };
+// v0.13b (additive): `startedAt` — when `chat.start` handled this thread's first open (wrote the MEGA's
+// starter, or found the member already talking), so a starter is written at most once per thread.
+export const threads = { familyId, ownerId: memberId, megaIds: v.array(v.id('megas')), lastAt: v.number(), startedAt: v.optional(v.number()) };
 
 export const messages = {
   familyId,

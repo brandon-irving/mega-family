@@ -17,6 +17,10 @@ import { bumpProfileCount } from './model/proactive';
 import { clock } from './ports/clock';
 import { requireViewer } from './model/viewer';
 import { summarizeAnswer } from '../shared/domain/answerLabel';
+import { LIMITS } from '../shared/config';
+import { AGENT_COPY, fillCopy } from '../shared/config/copy';
+import { ADULT_STARTER, KID_INTRO } from '../shared/config/starters';
+import { getOrCreateOwnThread } from './model/threads';
 
 const streaming = new PersistentTextStreaming(components.persistentTextStreaming);
 
@@ -195,6 +199,116 @@ export const react = mutation({
       const notification = await ctx.db.get(message.fromNotificationId);
       if (notification) await bumpProfileCount(ctx, viewer.member.familyId, viewer.member._id, notification.kind, args.reaction);
     }
+    return null;
+  },
+});
+
+/** CONTRACT v0.13b (owner, Oct 28: never an empty chat, MEGAs start the conversation). Runs once per thread
+ * (`threads.startedAt`): a kid gets the KidsIntro messages straight from config (kid-safe, no model call);
+ * an adult gets a greeting their MEGA writes through the agent loop (`generateStarter`), then a choice block.
+ * MEGA cards already waiting (the seed posts chore/bedtime cards) don't count; a member who has already
+ * written something is never started over. */
+export const start = mutation({
+  ...pick(API.chat.start),
+  handler: async (ctx) => {
+    const viewer = await requireViewer(ctx);
+    const mega = viewer.mega;
+    if (!mega) return { started: false };
+    const familyId = viewer.member.familyId;
+    const now = await clock.now(ctx, familyId);
+    const thread = await getOrCreateOwnThread(ctx, familyId, viewer.member._id, mega._id, now);
+    if (thread.startedAt !== undefined) return { started: false };
+
+    const recent = await ctx.db
+      .query('messages')
+      .withIndex('by_family_thread_at', (q) => q.eq('familyId', familyId).eq('threadId', thread._id))
+      .order('desc')
+      .take(LIMITS.chat.starterLookback);
+    await ctx.db.patch(thread._id, { startedAt: now });
+    if (recent.some((m) => m.author.kind === 'member' && m.author.id === viewer.member._id)) return { started: false };
+
+    const author = { kind: 'mega' as const, id: mega._id };
+    const base = { familyId, threadId: thread._id, author, via: 'text' as const, chips: [] };
+    if (viewer.member.role === 'kid') {
+      const admin = (await ctx.db.query('members').withIndex('by_family', (q) => q.eq('familyId', familyId)).take(LIMITS.chat.starterLookback)).find((m) => m.role === 'admin');
+      const slots = { name: viewer.member.name, mega: mega.name, admin: admin?.name ?? '' };
+      await ctx.db.insert('messages', { ...base, at: now, body: { type: 'text', text: fillCopy(KID_INTRO.hello, slots) } });
+      await ctx.db.insert('messages', { ...base, at: now + 1, body: { type: 'card', card: { kind: 'intro' } } });
+      await ctx.db.insert('messages', { ...base, at: now + 2, body: { type: 'text', text: fillCopy(KID_INTRO.tip, slots) } });
+      await ctx.db.patch(thread._id, { lastAt: now + 2 });
+      return { started: true };
+    }
+
+    const streamId = await streaming.createStream(ctx);
+    const replyMessageId = await ctx.db.insert('messages', { ...base, at: now, body: { type: 'text', text: '' }, streamId });
+    await ctx.db.patch(thread._id, { lastAt: now });
+    await ctx.scheduler.runAfter(0, internal.chat.generateStarter, {
+      streamId,
+      replyMessageId,
+      familyId,
+      memberId: viewer.member._id,
+      memberName: viewer.member.name,
+      role: viewer.member.role,
+      megaId: mega._id,
+      megaName: mega.name,
+      threadId: thread._id,
+    });
+    return { started: true };
+  },
+});
+
+/** An adult's starter: the agent loop writes the greeting (it already knows what the family shared about
+ * them), streamed like a reply; then the fixed "What should I learn about you first?" choices. The memory
+ * writer doesn't run: nothing was said by the member yet. */
+export const generateStarter = internalAction({
+  args: {
+    streamId: v.string(),
+    replyMessageId: v.id('messages'),
+    familyId: v.id('families'),
+    memberId: v.id('members'),
+    memberName: v.string(),
+    role: v.union(v.literal('admin'), v.literal('adult'), v.literal('kid')),
+    megaId: v.id('megas'),
+    megaName: v.string(),
+    threadId: v.id('threads'),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    let text = '';
+    try {
+      text = (await ctx.runAction(internal.agent.loop.runTurn, { familyId: args.familyId, memberId: args.memberId, role: args.role, megaId: args.megaId, threadId: args.threadId, userText: ADULT_STARTER.prompt })).text;
+    } catch {
+      text = ''; // over budget or the model is down: the config greeting still starts the chat
+    }
+    if (!text.trim() || text === AGENT_COPY.emptyReplyFallback || text === AGENT_COPY.modelUnreachable) {
+      text = fillCopy(ADULT_STARTER.fallbackGreeting, { name: args.memberName, mega: args.megaName });
+    }
+    const words = text.split(' ');
+    for (const [i, word] of words.entries()) {
+      const final = i === words.length - 1;
+      await ctx.runMutation(components.persistentTextStreaming.lib.addChunk, { streamId: args.streamId as StreamId, text: final ? word : `${word} `, final });
+    }
+    await ctx.runMutation(internal.chat.finishReply, { replyMessageId: args.replyMessageId, text });
+    await ctx.runMutation(internal.chat.postStarterQuestion, { familyId: args.familyId, threadId: args.threadId, megaId: args.megaId });
+    return null;
+  },
+});
+
+export const postStarterQuestion = internalMutation({
+  args: { familyId: v.id('families'), threadId: v.id('threads'), megaId: v.id('megas') },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const now = await clock.now(ctx, args.familyId);
+    await ctx.db.insert('messages', {
+      familyId: args.familyId,
+      threadId: args.threadId,
+      at: now + 1,
+      author: { kind: 'mega', id: args.megaId },
+      via: 'text',
+      body: { type: 'block', block: { kind: 'choice', prompt: ADULT_STARTER.question, multi: false, allowOther: true, options: ADULT_STARTER.options.map((o) => ({ ...o })) } },
+      chips: [],
+    });
+    await ctx.db.patch(args.threadId, { lastAt: now + 1 });
     return null;
   },
 });

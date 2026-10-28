@@ -7,7 +7,7 @@
 // index 0 (not appended), the list stays pinned there on its own; no scrollToEnd/ref bookkeeping needed.
 // "Load earlier" fetches the page *after* the oldest loaded message, which an inverted list draws at the
 // visual top, so it's the ListFooterComponent (not the header — that would render at the visual bottom).
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { FlatList, View } from 'react-native';
 import type { Id } from '@shared/domain/validators';
 import type { BlockAnswer, SaveChip } from '@shared/domain/messages';
@@ -82,6 +82,9 @@ export type MessageListProps = {
    * is only ever reading, never editing a kid's memories. */
   chipsReadOnly?: boolean;
   emptyLabel?: string;
+  /** Rendered instead of `emptyLabel` when there are no messages (the chat screen's loading state while the
+   * MEGA's starter is on its way; owner Oct 28: never an empty-state line in a chat). */
+  emptyContent?: ReactNode;
   /** CONTRACT §6: a deep-link tap (`mega://chat/<messageId>`) lands here once that message is loaded —
    * scrolls the inverted FlatList to it and briefly highlights the row (MessageRow's `highlighted`). If
    * it isn't in the first loaded page, `onLoadMore` is called repeatedly (bounded by
@@ -113,6 +116,7 @@ export function MessageList({
   notificationsById,
   chipsReadOnly = false,
   emptyLabel = 'No messages yet.',
+  emptyContent,
   scrollToMessageId,
   paginationExhausted = false,
 }: MessageListProps) {
@@ -235,6 +239,7 @@ export function MessageList({
   );
 
   if (messages.length === 0) {
+    if (emptyContent) return <>{emptyContent}</>;
     return (
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: tokens.spacing.xl }}>
         <Text color="muted">{emptyLabel}</Text>

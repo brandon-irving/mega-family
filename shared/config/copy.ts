@@ -12,6 +12,12 @@ export type RetryCopyKey = ErrorCode | 'error' | 'timeout' | 'default';
  * edit at the call site, not a hunt through JSX. */
 export const CHAT_STATUS_PLACEHOLDER = 'Ready to help';
 
+/** The chat screen's own lines. */
+export const CHAT_COPY = {
+  /** Loading the thread, or waiting for the MEGA's first messages (never an empty-state line). */
+  opening: 'Opening chat…',
+} as const;
+
 /** The chat composer's words (canvas v33 thread.html). `{mega}` is the MEGA's name. */
 export const COMPOSER_COPY = {
   talkTo: 'Talk to {mega}',

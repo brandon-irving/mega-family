@@ -48,3 +48,13 @@ describe('ChatThread message order', () => {
     expect(props.ListHeaderComponent).toBeUndefined();
   });
 });
+
+// Owner, Oct 28: "There should never be 'No messages yet, say hello'." An empty thread means the MEGA's
+// starter (chat.start) is on its way, so the thread shows the loading state, never an empty-state line.
+describe('ChatThread with no messages yet', () => {
+  test('shows the loading state, not "No messages yet"', async () => {
+    await renderWithTheme(<ChatThread messages={[]} viewerMemberId={FIXTURE_IDS.admin} megaById={megaById} onAnswerBlock={noop} onReact={noop} onChangeMemoryScope={noop} onForgetMemory={noop} />);
+    expect(screen.queryByText(/No messages yet/)).toBeNull();
+    expect(screen.getByText('Opening chat…')).toBeTruthy();
+  });
+});

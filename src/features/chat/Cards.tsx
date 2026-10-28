@@ -15,6 +15,7 @@ import { useTokens } from '@/ui/theme';
 import { BucksCard } from '@/features/kids/BucksCard';
 import { ChoreCard } from '@/features/kids/ChoreCard';
 import { HomeworkCard } from '@/features/kids/HomeworkCard';
+import { IntroCard } from '@/features/kids/IntroCard';
 import { PracticeCard } from '@/features/kids/PracticeCard';
 import { RoutineCard } from '@/features/kids/RoutineCard';
 import { GiftsCard } from '@/features/calendar/GiftsCard';
@@ -130,6 +131,8 @@ export function ResultCard({ card, onRespondRequest, onAnswerNotification, notif
       return <ProposalCard proposalId={card.proposalId} megaName={megaName ?? GD_FALLBACK_FROM} />;
     case 'gifts':
       return <GiftsCard giftIdeasId={card.giftIdeasId} megaName={megaName ?? GD_FALLBACK_FROM} />;
+    case 'intro':
+      return <IntroCard megaName={megaName ?? GD_FALLBACK_FROM} />;
     default:
       return null;
   }

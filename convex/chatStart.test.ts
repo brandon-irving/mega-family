@@ -63,12 +63,34 @@ describe('chat.start: a kid’s first open (board KidsIntro)', () => {
     expect(modelCalls).toBe(0);
   });
 
-  test('is idempotent: a second call (or a thread with messages) writes nothing', async () => {
+  test('is idempotent: a second call writes nothing', async () => {
     const { as, threadMessages } = await seededWithEmptyThread('twin2');
     await as.mutation(api.chat.start, {});
     const before = (await threadMessages()).length;
     expect(await as.mutation(api.chat.start, {})).toEqual({ started: false });
     expect((await threadMessages()).length).toBe(before);
+  });
+
+  test('still starts when MEGA cards are already waiting (the seed posts chore and bedtime cards), once', async () => {
+    const { t, familyId, members, as, threadMessages } = await seededWithEmptyThread('twin2');
+    await t.run(async (ctx) => {
+      const thread = (await ctx.db.query('threads').withIndex('by_family_owner', (q) => q.eq('familyId', familyId).eq('ownerId', members.twin2)).unique())!;
+      const mega = (await ctx.db.query('megas').withIndex('by_family_owner', (q) => q.eq('familyId', familyId).eq('ownerId', members.twin2)).unique())!;
+      await ctx.db.insert('messages', { familyId, threadId: thread._id, at: Date.now() - 1000, author: { kind: 'mega', id: mega._id }, via: 'text', body: { type: 'notice', text: 'A card from earlier' }, chips: [] });
+    });
+    expect(await as.mutation(api.chat.start, {})).toEqual({ started: true });
+    expect((await threadMessages()).some((m) => m.body.type === 'card' && m.body.card.kind === 'intro')).toBe(true);
+    expect(await as.mutation(api.chat.start, {})).toEqual({ started: false });
+  });
+
+  test('never starts over a member who is already talking', async () => {
+    const { t, familyId, members, as, threadMessages } = await seededWithEmptyThread('twin2');
+    await t.run(async (ctx) => {
+      const thread = (await ctx.db.query('threads').withIndex('by_family_owner', (q) => q.eq('familyId', familyId).eq('ownerId', members.twin2)).unique())!;
+      await ctx.db.insert('messages', { familyId, threadId: thread._id, at: Date.now(), author: { kind: 'member', id: members.twin2 }, via: 'text', body: { type: 'text', text: 'hi' }, chips: [] });
+    });
+    expect(await as.mutation(api.chat.start, {})).toEqual({ started: false });
+    expect((await threadMessages()).length).toBe(1);
   });
 });
 
@@ -92,7 +114,7 @@ describe('chat.start: an adult’s first open', () => {
     expect(msgs[0].body.type === 'text' && msgs[0].body.text).toBe('Hi Partner, I’m Coral. I see you’ve got a work dinner Thursday.');
     const block = msgs[1].body.type === 'block' ? msgs[1].body.block : null;
     expect(block?.kind).toBe('choice');
-    expect(block?.prompt).toBe(ADULT_STARTER.question);
+    expect(block?.kind === 'choice' && block.prompt).toBe(ADULT_STARTER.question);
     expect(block?.kind === 'choice' && block.options.map((o) => o.label)).toEqual(ADULT_STARTER.options.map((o) => o.label));
     expect(prompts.some((p) => p.includes('just opened MEGA for the first time'))).toBe(true);
   });
