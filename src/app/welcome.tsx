@@ -16,7 +16,7 @@ import { api } from '@/data/api';
 import { Pill, SignInFrame, Wordmark } from '@/features/signin/parts';
 import { SIGNIN_SCENES } from '@/features/signin/scenes';
 import { BottomSheet, DemoSheetBody, SignInSheetBody, type DEMO_KEYS, type SignInMode } from '@/features/signin/sheets';
-import { Ledge } from '@/features/walkers';
+import { Lane, Ledge } from '@/features/walkers';
 import { signInAnonymously, signInWithApple, signInWithEmail, signInWithGoogle, signUpWithEmail } from '@/services/auth';
 import { withSignInHold } from '@/services/signInHold';
 import { MegaSprite } from '@/ui/MegaSprite';
@@ -150,7 +150,7 @@ function WelcomeBody({ onMake, onSignIn, onInvite, inviteBusy }: { onMake: () =>
       <View style={[styles.fill, styles.brand]}>
         <HubSpot />
         {/* Hub's floor: the walking MEGAs stroll along it, past Hub's feet. */}
-        <Ledge id="floor" style={[styles.floor, { marginTop: -(HUB.light.h - HUB.h) / 2 }]} />
+        <Ledge id="floor" obstacle={false} style={[styles.floor, { marginTop: -(HUB.light.h - HUB.h) / 2 }]} />
         <View style={{ height: tokens.spacing.xl + tokens.spacing.xs }} />
         <Wordmark />
         <Text color="muted" style={[styles.center, { fontSize: tokens.type.title.fontSize - 2, lineHeight: tokens.type.title.lineHeight, marginTop: tokens.spacing.lg }]}>
@@ -169,8 +169,9 @@ function WelcomeBody({ onMake, onSignIn, onInvite, inviteBusy }: { onMake: () =>
       <Ledge id="invite" style={{ marginTop: tokens.spacing.lg }}>
         <Pill variant="outline" label={SIGNIN_COPY.welcome.invite} loading={inviteBusy} onPress={onInvite} />
       </Ledge>
-      {/* The MEGAs walk along just under the "Sign in" row (the board's y 806). */}
-      <Ledge id="signin" inset={tokens.touchTarget} style={{ marginTop: tokens.spacing.md }}>
+      {/* The row itself (a MEGA points at it from below); the MEGAs walk in their own lane under it, never
+          over its words (owner, Oct 28). */}
+      <Ledge id="signinRow" style={{ marginTop: tokens.spacing.md }}>
         {({ poked, lookHere }) => (
           <View style={[styles.signinRow, { minHeight: tokens.touchTarget }]}>
             <Text color="muted">{SIGNIN_COPY.welcome.haveAccount}</Text>
@@ -182,6 +183,7 @@ function WelcomeBody({ onMake, onSignIn, onInvite, inviteBusy }: { onMake: () =>
           </View>
         )}
       </Ledge>
+      <Lane id="signin" />
     </View>
   );
 }

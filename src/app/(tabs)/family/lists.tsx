@@ -14,7 +14,7 @@ export default function ListsRoute() {
   if (lists === undefined) return <LoadingScreen label="Loading lists…" />;
 
   return (
-    <Sheet title="Lists" onClose={() => router.back()}>
+    <Sheet presentation="tab" title="Lists" onClose={() => router.back()}>
       <ListsContent
         lists={lists}
         onAddItem={(listId, text) => addItem({ listId: listId as never, text })}

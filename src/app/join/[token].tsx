@@ -17,8 +17,9 @@ import { errorCopyFor } from '@/data/errorCopy';
 import { useInvitePreview } from '@/data/useInvite';
 import { LookPersonalityContent } from '@/features/profile/LookPersonalityContent';
 import { BackButton, DifferentAccount, Pill, SignInFrame } from '@/features/signin/parts';
+import { useDismiss } from '@/ui/dismiss';
 import { SIGNIN_SCENES } from '@/features/signin/scenes';
-import { Ledge, MegaLoader } from '@/features/walkers';
+import { Ledge, MegaLoader, Obstacle } from '@/features/walkers';
 import { api } from '@/data/api';
 import { MegaBadge } from '@/ui/MegaBadge';
 import { MegaSprite } from '@/ui/MegaSprite';
@@ -94,7 +95,7 @@ function AdultInvite({ token, preview }: { token: string; preview: Ok }) {
     );
 
   return (
-    <SignInFrame scene={SIGNIN_SCENES.adultInvite} busy={busy} testID="join-adult">
+    <SignInFrame presentation="sheet" scene={SIGNIN_SCENES.adultInvite} busy={busy} testID="join-adult">
       <BackButton onPress={back} />
       <Text variant="caption" color="muted" weight="600" style={[styles.eyebrow, { marginTop: tokens.spacing.sm }]}>
         {C.invitedBy(preview.inviterName)}
@@ -152,6 +153,8 @@ function AdultInvite({ token, preview }: { token: string; preview: Ok }) {
 function ChangeMega({ mega, onBack, onSave }: { mega: InviteMega; onBack: () => void; onSave: (next: InviteMega) => void }) {
   const tokens = useTokens();
   const [name, setName] = useState(mega.name);
+  // Android back and Escape (web) step back out of the picker (owner, Oct 28: every overlay closes).
+  useDismiss(onBack);
   return (
     <View style={[styles.fill, { backgroundColor: tokens.bg }]} testID="join-change">
       <ScrollView contentContainerStyle={{ padding: tokens.spacing.xl, paddingTop: tokens.spacing.xxl }} keyboardShouldPersistTaps="handled">
@@ -187,7 +190,7 @@ function KidInvite({ token, preview, onLocked }: { token: string; preview: Ok; o
 
   if (step === 'code')
     return (
-      <SignInFrame scene={SIGNIN_SCENES.kidInvite} busy={busy} testID="join-kid-code">
+      <SignInFrame presentation="sheet" scene={SIGNIN_SCENES.kidInvite} busy={busy} testID="join-kid-code">
         <BackButton onPress={() => setStep('meet')} />
         <View style={[styles.fill, styles.middle]}>
           <MegaSprite hex={mega.look.hex} sticker={mega.look.sticker} face="happy" scale={3} accessibilityLabel={mega.name} />
@@ -198,6 +201,7 @@ function KidInvite({ token, preview, onLocked }: { token: string; preview: Ok; o
             {C.codeBody}
           </Text>
         </View>
+        <Obstacle id="parentCode">
         <TextInput
           value={parentCode}
           onChangeText={(t) => setParentCode(t.replace(/\D/g, '').slice(0, 5))}
@@ -219,6 +223,7 @@ function KidInvite({ token, preview, onLocked }: { token: string; preview: Ok; o
             letterSpacing: parentCode ? 8 : 0,
           }}
         />
+        </Obstacle>
         {error ? <ErrorLine text={error} /> : null}
         <View style={{ marginTop: tokens.spacing.lg }}>
           <Pill variant="inverse" size={CTA_SIZES.kid} label={C.codeJoin} loading={busy} onPress={() => join({ parentCode: parentCode || undefined })} />
@@ -227,7 +232,7 @@ function KidInvite({ token, preview, onLocked }: { token: string; preview: Ok; o
     );
 
   return (
-    <SignInFrame scene={SIGNIN_SCENES.kidInvite} testID="join-kid">
+    <SignInFrame presentation="sheet" scene={SIGNIN_SCENES.kidInvite} testID="join-kid">
       <BackButton onPress={back} />
       <Text variant="label" color="muted" weight="600" style={[styles.eyebrow, styles.center, { marginTop: tokens.spacing.sm }]}>
         {C.invitedBy(preview.inviterName)}
@@ -267,7 +272,7 @@ function Expired({ inviter }: { inviter: string }) {
   const tokens = useTokens();
   const E = SIGNIN_COPY.expired;
   return (
-    <SignInFrame scene={SIGNIN_SCENES.expired} testID="join-expired">
+    <SignInFrame presentation="sheet" scene={SIGNIN_SCENES.expired} testID="join-expired">
       <BackButton onPress={back} />
       <View style={[styles.fill, styles.middle]}>
         <Ledge id="expiredCard">
@@ -297,7 +302,7 @@ function Invalid() {
   const tokens = useTokens();
   const I = SIGNIN_COPY.invalid;
   return (
-    <SignInFrame scene={SIGNIN_SCENES.expired} testID="join-invalid">
+    <SignInFrame presentation="sheet" scene={SIGNIN_SCENES.expired} testID="join-invalid">
       <BackButton onPress={back} />
       <View style={[styles.fill, styles.middle]}>
         <Ledge id="expiredCard">
@@ -321,7 +326,7 @@ function Locked() {
   const tokens = useTokens();
   const L = SIGNIN_COPY.locked;
   return (
-    <SignInFrame scene={SIGNIN_SCENES.locked} testID="join-locked">
+    <SignInFrame presentation="sheet" scene={SIGNIN_SCENES.locked} testID="join-locked">
       <View style={[styles.fill, styles.middle]}>
         <Ledge id="lock">
           <View style={{ gap: tokens.spacing.md }}>

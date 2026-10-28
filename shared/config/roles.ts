@@ -10,13 +10,19 @@ export const TOOLS = [
 ] as const;
 export type Tool = (typeof TOOLS)[number];
 
-export const ROLES_CONFIG: Record<Role, { tabs: readonly Tab[]; tools: readonly Tool[]; bigTargets: boolean; talkButton: boolean }> = {
-  admin: { tabs: ['chat', 'hq', 'family'], tools: TOOLS, bigTargets: false, talkButton: false },
-  adult: { tabs: ['chat', 'hq', 'family'], tools: TOOLS, bigTargets: false, talkButton: false },
+/** What the MEGA profile offers (owner, Oct 28): `rename` the MEGA; see and forget its `memories`; set
+ * `sharing`; pick from `allLooks` (adults) or only what they own (kids, STORE_RULES). */
+export type ProfileAccess = { rename: boolean; memories: boolean; sharing: boolean; allLooks: boolean };
+
+export const ROLES_CONFIG: Record<Role, { tabs: readonly Tab[]; tools: readonly Tool[]; bigTargets: boolean; talkButton: boolean; profile: ProfileAccess }> = {
+  admin: { tabs: ['chat', 'hq', 'family'], tools: TOOLS, bigTargets: false, talkButton: false, profile: { rename: true, memories: true, sharing: true, allLooks: true } },
+  adult: { tabs: ['chat', 'hq', 'family'], tools: TOOLS, bigTargets: false, talkButton: false, profile: { rename: true, memories: true, sharing: true, allLooks: true } },
   kid: {
     tabs: ['chat', 'hq'],
     tools: ['recall', 'remember', 'reminders', 'lists', 'show_ui', 'web_search', 'weather', 'follow_up'],
     bigTargets: true,
     talkButton: true,
+    // Kids keep the name their grown-up gave their MEGA, and don't get memory or sharing controls (PLAN §3).
+    profile: { rename: false, memories: false, sharing: false, allLooks: false },
   },
 };

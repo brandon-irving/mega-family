@@ -11,14 +11,18 @@ import { Text } from '@/ui/Text';
 import { useTokens } from '@/ui/theme';
 import { SIGNIN_COPY } from '@shared/config/copy';
 import { WALKER_CAST, WALKER_IDS, WALKER_MOTION as M, type WalkerId } from '@shared/config/walkers';
-import { assignPlan, createWalker, lookAt, pokedLedges, pose, tapWalker, tickWalker, weightedLedges, type Ledges, type Pose, type Scene, type Walker } from './engine';
+import { assignPlan, createWalker, lookAt, pokedLedges, pose, tapWalker, tickWalker, weightedLedges, type Ledges, type Pose, type Rect, type Scene, type Walker } from './engine';
 import { hiddenFromA11y } from '@/ui/a11y';
+import { ContentRegistryProvider, NoContentRegistry, type ContentRegistry } from '@/ui/contentRegistry';
 
 type ViewRef = ComponentRef<typeof View>;
 type Measurable = ViewRef | null;
 /** `inset`: where MEGAs stand, in points below the element's top edge (the wordmark's capitals sit lower
- * than its line box). */
-type LedgeOpts = { pressable?: boolean; inset?: number };
+ * than its line box). `contentTop`: the empty band at the element's top (above the capitals), left out of
+ * its content rect. `ledge: false` registers content only (an <Obstacle>); `obstacle: false` a ledge with no
+ * content of its own (an empty lane or a marker). Owner, Oct 28: MEGAs never cover content — every
+ * registered content rect is off limits to a MEGA's sprite, bubble and emote. */
+type LedgeOpts = { pressable?: boolean; inset?: number; contentTop?: number; ledge?: boolean; obstacle?: boolean };
 type StageCtx = {
   register: (id: string, el: Measurable, opts: LedgeOpts) => void;
   unregister: (id: string) => void;
@@ -56,6 +60,7 @@ export function WalkerStage({ scene, children, overlay, busy = false, reducedMot
   const stageRef = useRef<ViewRef>(null);
   const elements = useRef(new Map<string, { el: Measurable; opts: LedgeOpts }>());
   const ledges = useRef<Ledges>({});
+  const obstacles = useRef<Record<string, Rect>>({});
   const walkers = useRef<Record<WalkerId, Walker>>(Object.fromEntries(WALKER_IDS.map((id) => [id, createWalker(id)])) as Record<WalkerId, Walker>);
   const listeners = useRef(new Map<WalkerId, (p: Pose) => void>());
   const [dipped, setDipped] = useState<ReadonlySet<string>>(EMPTY);
@@ -65,7 +70,7 @@ export function WalkerStage({ scene, children, overlay, busy = false, reducedMot
     busyRef.current = busy;
   }, [busy]);
 
-  const ctx = useCallback(() => ({ now: Date.now(), ledges: ledges.current, reduced }), [reduced]);
+  const ctx = useCallback(() => ({ now: Date.now(), ledges: ledges.current, obstacles: obstacles.current, reduced }), [reduced]);
 
   // Measure every ledge relative to the stage (window coordinates of both, subtracted: works the same on
   // native and web, and the sign-in screens never scroll).
@@ -74,8 +79,11 @@ export function WalkerStage({ scene, children, overlay, busy = false, reducedMot
     if (!stage) return;
     stage.measureInWindow((sx, sy) => {
       elements.current.forEach(({ el, opts }, id) => {
-        el?.measureInWindow((x, y, w) => {
-          if (w > 0) ledges.current[id] = { x: x - sx, y: y - sy + (opts.inset ?? 0), w, pressable: !!opts.pressable };
+        el?.measureInWindow((x, y, w, h) => {
+          if (w <= 0) return;
+          if (opts.ledge !== false) ledges.current[id] = { x: x - sx, y: y - sy + (opts.inset ?? 0), w, pressable: !!opts.pressable };
+          const top = opts.contentTop ?? 0;
+          if (opts.obstacle !== false && h - top > 0) obstacles.current[id] = { x: x - sx, y: y - sy + top, w, h: h - top };
         });
       });
     });
@@ -91,6 +99,7 @@ export function WalkerStage({ scene, children, overlay, busy = false, reducedMot
   const unregister = useCallback((id: string) => {
     elements.current.delete(id);
     delete ledges.current[id];
+    delete obstacles.current[id];
   }, []);
   const lookAtLedge = useCallback((id: string) => {
     const l = ledges.current[id];
@@ -129,9 +138,12 @@ export function WalkerStage({ scene, children, overlay, busy = false, reducedMot
   const tap = useCallback((id: WalkerId) => tapWalker(walkers.current[id], Date.now()), []);
 
   const value = useMemo<StageCtx>(() => ({ register, unregister, lookAtLedge, dipped, poked }), [register, unregister, lookAtLedge, dipped, poked]);
+  // Every Text, Button and pixel picture on the stage registers itself as content (src/ui/contentRegistry).
+  const content = useMemo<ContentRegistry>(() => ({ register: (id, el) => register(id, el as Measurable, { ledge: false }), unregister }), [register, unregister]);
 
   return (
     <Ctx.Provider value={value}>
+      <ContentRegistryProvider value={content}>
       <View ref={stageRef} style={[styles.fill, style]} onLayout={measureAll} testID={testID}>
         {children}
         <View pointerEvents="box-none" style={StyleSheet.absoluteFill}>
@@ -140,17 +152,21 @@ export function WalkerStage({ scene, children, overlay, busy = false, reducedMot
               {overlay}
             </View>
           ) : null}
-          {WALKER_IDS.map((id) => (
-            <WalkerSprite key={id} id={id} reduced={reduced} subscribe={subscribe} onTap={tap} />
-          ))}
+          {/* The walkers' own sprites and bubbles aren't content they must avoid. */}
+          <NoContentRegistry>
+            {WALKER_IDS.map((id) => (
+              <WalkerSprite key={id} id={id} reduced={reduced} subscribe={subscribe} onTap={tap} />
+            ))}
+          </NoContentRegistry>
         </View>
       </View>
+      </ContentRegistryProvider>
     </Ctx.Provider>
   );
 }
 
 type Picture = Omit<Pose, 'x' | 'y'>;
-const pictureKey = (p: Picture) => `${p.visible}|${p.view}|${p.frame}|${p.expression}|${p.say}|${p.emote}|${p.top}`;
+const pictureKey = (p: Picture) => `${p.visible}|${p.covered}|${p.view}|${p.frame}|${p.expression}|${p.say}|${p.emote}|${p.top}`;
 
 type SpriteProps = { id: WalkerId; reduced: boolean; subscribe: (id: WalkerId, fn: (p: Pose) => void) => () => void; onTap: (id: WalkerId) => void };
 
@@ -178,7 +194,8 @@ const WalkerSprite = memo(function WalkerSprite({ id, reduced, subscribe, onTap 
           y.value = withTiming(ny, { duration: M.tickMs, easing: Easing.linear });
         }
         lastPos.current = { x: p.x, y: p.y };
-        opacity.value = withTiming(p.visible ? 1 : 0, { duration: reduced ? 0 : 300 });
+        // Covering content: gone at once, never fading over it (owner, Oct 28).
+        opacity.value = p.covered ? 0 : withTiming(p.visible ? 1 : 0, { duration: reduced ? 0 : 300 });
         const { x: _x, y: _y, ...picture } = p;
         const key = pictureKey(picture);
         if (key !== lastKey.current) {
@@ -220,7 +237,7 @@ const WalkerSprite = memo(function WalkerSprite({ id, reduced, subscribe, onTap 
 });
 
 /** Something MEGAs can stand on: its top edge becomes ledge `id`. A pressable ledge dips while stood on. */
-export function useLedge(id: string, { pressable = false, inset = 0 }: LedgeOpts = {}) {
+export function useLedge(id: string, { pressable = false, inset = 0, contentTop = 0, ledge = true, obstacle = true }: LedgeOpts = {}) {
   const stage = useContext(Ctx);
   const ref = useRef<ViewRef>(null);
   // Depend on the stage's stable callbacks, never the context object itself: it changes whenever a ledge dips
@@ -230,9 +247,9 @@ export function useLedge(id: string, { pressable = false, inset = 0 }: LedgeOpts
   const unregister = stage?.unregister;
   const onLayout = useCallback(
     (_e?: LayoutChangeEvent) => {
-      register?.(id, ref.current, { pressable, inset });
+      register?.(id, ref.current, { pressable, inset, contentTop, ledge, obstacle });
     },
-    [register, id, pressable, inset],
+    [register, id, pressable, inset, contentTop, ledge, obstacle],
   );
   useEffect(() => () => unregister?.(id), [unregister, id]);
   return {
@@ -246,8 +263,8 @@ export function useLedge(id: string, { pressable = false, inset = 0 }: LedgeOpts
 
 /** A wrapper that makes its child a ledge. `children` may be a function of `{ poked, lookHere }`: light up
  * when a MEGA points at it (the boards' accent ring), and make everyone turn toward it when pressed. */
-export function Ledge({ id, pressable, inset, style, children }: LedgeOpts & { id: string; style?: StyleProp<ViewStyle>; children?: ReactNode | ((s: { poked: boolean; lookHere: () => void }) => ReactNode) }) {
-  const { ref, onLayout, dipped, poked, lookHere } = useLedge(id, { pressable, inset });
+export function Ledge({ id, pressable, inset, contentTop, obstacle, style, children }: Omit<LedgeOpts, 'ledge'> & { id: string; style?: StyleProp<ViewStyle>; children?: ReactNode | ((s: { poked: boolean; lookHere: () => void }) => ReactNode) }) {
+  const { ref, onLayout, dipped, poked, lookHere } = useLedge(id, { pressable, inset, contentTop, obstacle });
   const tokens = useTokens();
   const dip = useSharedValue(0);
   useEffect(() => {
@@ -274,3 +291,21 @@ const styles = StyleSheet.create({
   emote: { position: 'absolute', top: -14 },
   bubble: { position: 'absolute', alignSelf: 'center', minWidth: 80, alignItems: 'center' },
 });
+
+/** Content MEGAs must never be drawn over that isn't a Text, Button or pixel picture (those register
+ * themselves): a TextInput, an icon. Measured like a ledge, but nothing stands on it. */
+export function Obstacle({ id, style, children, testID }: { id: string; style?: StyleProp<ViewStyle>; children?: ReactNode; testID?: string }) {
+  const { ref, onLayout } = useLedge(id, { ledge: false });
+  return (
+    <View ref={ref} onLayout={onLayout} collapsable={false} style={style} testID={testID}>
+      {children}
+    </View>
+  );
+}
+
+/** An empty strip MEGAs walk along (feet on its bottom edge), reserving room so they never cover the
+ * content around it — e.g. under the welcome screen's "Sign in" row. */
+export function Lane({ id, style, testID }: { id: string; style?: StyleProp<ViewStyle>; testID?: string }) {
+  const { ref, onLayout } = useLedge(id, { inset: M.laneHeight, obstacle: false });
+  return <View ref={ref} onLayout={onLayout} collapsable={false} style={[{ height: M.laneHeight, alignSelf: 'stretch' }, style]} testID={testID} />;
+}

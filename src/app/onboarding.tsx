@@ -44,7 +44,7 @@ export default function OnboardingRoute() {
   };
 
   return (
-    <Screen>
+    <Screen testID="onboarding">
       <Text variant="headline" style={{ marginBottom: tokens.spacing.md }}>
         Welcome to {IDENTITY.name}
       </Text>

@@ -25,12 +25,12 @@ describe('MegaProfileRoute "What it shares" visibility', () => {
   test('hides the card when useSharing reports null (a kid, or no row yet) — even though the viewer is an admin', async () => {
     mockSharing.mockReturnValue(null);
     await renderWithTheme(<MegaProfileRoute />);
-    expect(screen.queryByText('What it shares')).toBeNull();
+    expect(screen.queryByText('What Teal shares')).toBeNull();
   });
 
   test('shows the card once useSharing has real data', async () => {
     mockSharing.mockReturnValue({ schedule: 'family', lists: 'family', hqActivity: 'family' });
     await renderWithTheme(<MegaProfileRoute />);
-    expect(screen.getByText('What it shares')).toBeTruthy();
+    expect(screen.getByText('What Teal shares')).toBeTruthy();
   });
 });

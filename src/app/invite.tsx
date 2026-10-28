@@ -28,7 +28,7 @@ export default function InviteRoute() {
   const go = () => linked && router.push(`/join/${token}` as never);
 
   return (
-    <SignInFrame scene={linked ? SIGNIN_SCENES.inviteLinked : SIGNIN_SCENES.invite} testID="invite">
+    <SignInFrame presentation="sheet" scene={linked ? SIGNIN_SCENES.inviteLinked : SIGNIN_SCENES.invite} testID="invite">
       {/* Back from here after Welcome's anonymous session: signing out is what returns to Welcome (the gate
           only shows it signed out). From "Join a family" (signed in with no family) it's a plain back. */}
       <BackButton onPress={() => (router.canGoBack() ? router.back() : signOut())} />

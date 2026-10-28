@@ -3,7 +3,8 @@
 // margins; `bx` converts those x values to a fraction along a ledge, so the same choreography plays on any
 // width. Ledge ids match the <Ledge id> marks in the screens:
 //   welcome: floor (where Hub stands, above the wordmark), head (the wordmark's capitals), make, invite,
-//            signin (under the "Already have an account?" row), sheet (the sign-in sheet's top edge)
+//            signinRow (the "Already have an account?" row), signin (the lane under it), sheet (the sign-in
+//            sheet's top edge)
 //   invite:  field (the paste row), cont (Continue), help (the "No link yet?" card)
 //   adult invite: card    kid invite: kidCard    expired: expiredCard    locked: lock
 //   family:  start, join
@@ -39,7 +40,7 @@ export const SIGNIN_SCENES: Record<SignInScreen, Scene> = {
     ),
     coral: script(
       [
-        HIDE, wait(5200), at('signin', OUT_R, 'left'), SHOW, walk(bx(336)), wait(2600, { face: 'left', emote: '!', poke: 'signin' }),
+        HIDE, wait(5200), at('signin', OUT_R, 'left'), SHOW, walk(bx(336)), wait(2600, { face: 'left', emote: '!', poke: 'signinRow' }),
         wait(1400, { happy: true }), walk(OUT_R), at('floor', OUT_R, 'left'), walk(bx(300)), wait(1800, { face: 'left', emote: '♪' }), walk(OUT_R), HIDE, wait(2000),
       ],
       2,

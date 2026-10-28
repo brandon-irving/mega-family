@@ -7,12 +7,13 @@
 // right away with `megas.update` (the board's "Zap is wearing the star antenna"); bought furniture waits in
 // the room's Decorate tray (StoreRoom / StoreTray).
 import { useMemo, useState } from 'react';
-import { Modal, Pressable, ScrollView, useWindowDimensions, View } from 'react-native';
-import Animated, { FadeIn, useReducedMotion, ZoomIn } from 'react-native-reanimated';
-import { fillCopy, STORE_COPY } from '@shared/config/copy';
+import { Pressable, ScrollView, useWindowDimensions, View } from 'react-native';
+import Animated, { useReducedMotion, ZoomIn } from 'react-native-reanimated';
+import { fillCopy, MODAL_COPY, STORE_COPY } from '@shared/config/copy';
 import { STORE_TAB_ROW, STORE_TABS } from '@shared/config/store';
 import { renderFurniture, type Picture } from '@shared/sprite';
 import type { FurnitureKindId } from '@shared/config/store';
+import { ModalSheet } from '@/ui/ModalSheet';
 import { BucksCoin } from '@/ui/BucksCoin';
 import { Button } from '@/ui/Button';
 import { MegaSprite } from '@/ui/MegaSprite';
@@ -178,11 +179,10 @@ export function StoreScreenView({ megaName, balance, items, look, initialTab = '
         ) : null}
       </View>
 
-      <Modal visible={sheet.kind !== 'none' && !!sel} transparent animationType={reduced ? 'none' : 'fade'} onRequestClose={() => setSheet({ kind: 'none' })}>
-        <Pressable accessibilityLabel="Close" onPress={() => setSheet({ kind: 'none' })} style={{ flex: 1, backgroundColor: tokens.scrim }} />
+      {/* Closes with its ✕, the scrim, a drag down, Android back or Escape (src/ui/ModalSheet). */}
+      <ModalSheet open={sheet.kind !== 'none' && !!sel} closeLabel={MODAL_COPY.close} showTitle={false} testID="store-sheet" onClose={() => setSheet({ kind: 'none' })} title={sheet.kind === 'confirm' ? fillCopy(STORE_COPY.confirmTitle, { item: name }) : STORE_COPY.boughtTitle}>
         {sel && sheet.kind !== 'none' && (
-          <Animated.View entering={reduced ? undefined : FadeIn.duration(tokens.durations.base)} accessibilityViewIsModal style={{ backgroundColor: tokens.surface, borderTopLeftRadius: 28, borderTopRightRadius: 28, borderTopWidth: 1, borderColor: tokens.line, padding: tokens.spacing.xl, paddingTop: tokens.spacing.md, alignItems: 'center', gap: tokens.spacing.sm }}>
-            <View style={{ width: 40, height: 5, borderRadius: 3, backgroundColor: tokens.line }} />
+          <View style={{ alignItems: 'center', gap: tokens.spacing.sm }}>
             <Animated.View key={sheet.kind} entering={sheet.kind === 'bought' && !reduced ? ZoomIn.duration(tokens.durations.slow) : undefined} style={{ marginTop: tokens.spacing.sm }}>
               {sel.furniture ? <PixelArt picture={furniturePicture(sel.furniture)} scale={2} decorative /> : <MegaSprite hex={preview.hex} sticker={preview.sticker} parts={preview} face={sheet.kind === 'bought' ? 'happy' : 'open'} scale={3} accessibilityLabel={megaName} />}
             </Animated.View>
@@ -223,9 +223,9 @@ export function StoreScreenView({ megaName, balance, items, look, initialTab = '
                 {error}
               </Text>
             ) : null}
-          </Animated.View>
+          </View>
         )}
-      </Modal>
+      </ModalSheet>
     </View>
   );
 }

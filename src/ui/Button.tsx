@@ -1,5 +1,6 @@
 import { ActivityIndicator, Pressable, type PressableProps, type StyleProp, type ViewStyle } from 'react-native';
 import { readableOn } from '@shared/config/theme';
+import { useContentRect } from './contentRegistry';
 import { Text } from './Text';
 import { useTokens } from './theme';
 
@@ -22,8 +23,10 @@ export type ButtonProps = Omit<PressableProps, 'style'> & {
 };
 
 /** The one tappable-button primitive; every screen's buttons go through this. */
-export function Button({ label, variant = 'primary', pill = false, loading, accessibilityLabel, disabled, style, size, ...rest }: ButtonProps) {
+export function Button({ label, variant = 'primary', pill = false, loading, accessibilityLabel, disabled, style, size, onLayout, ...rest }: ButtonProps) {
   const tokens = useTokens();
+  // On a walker stage, the whole button is content MEGAs never cover (owner, Oct 28).
+  const { ref: contentRef, onLayout: onContentLayout } = useContentRect(onLayout);
   const isPrimary = variant === 'primary';
   const isGhost = variant === 'ghost';
   const isInverse = variant === 'inverse';
@@ -35,6 +38,8 @@ export function Button({ label, variant = 'primary', pill = false, loading, acce
   const ink = isPrimary ? onAccentText : isInverse ? tokens.bg : isGhost ? tokens.accent : tokens.text;
   return (
     <Pressable
+      ref={contentRef}
+      onLayout={onContentLayout}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel ?? label}
       accessibilityState={{ disabled: !!disabled || !!loading }}

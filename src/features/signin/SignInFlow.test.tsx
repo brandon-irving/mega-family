@@ -36,6 +36,8 @@ jest.mock('@/features/walkers', () => {
       <MockView style={style}>{typeof children === 'function' ? children({ poked: false, lookHere: noop }) : children}</MockView>
     ),
     useLedge: () => ({ ref: { current: null }, onLayout: noop, dipped: false, poked: false, lookHere: noop }),
+    Obstacle: ({ children }: { children?: unknown }) => <MockView>{children}</MockView>,
+    Lane: () => <MockView />,
     MegaLoader: ({ text }: { text: string }) => {
       const { Text: MockText } = jest.requireActual('react-native');
       return <MockText>{text}</MockText>;

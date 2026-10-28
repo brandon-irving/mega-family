@@ -3,13 +3,14 @@
 import { useState } from 'react';
 import { router } from 'expo-router';
 import { Pressable, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { KIDS_COPY } from '@shared/config/copy';
 import { useCheckRoutineStep, useRoutineToday } from '@/data/useKids';
 import { useViewer } from '@/data/useViewer';
 import { MorningRoutineView } from '@/features/kids/MorningRoutine';
 import { useOptimisticSteps } from '@/features/kids/RoutineCard';
+import { useDismiss } from '@/ui/dismiss';
 import { LoadingScreen } from '@/ui/LoadingScreen';
+import { Screen } from '@/ui/Screen';
 import { Text } from '@/ui/Text';
 import { useTokens } from '@/ui/theme';
 
@@ -22,13 +23,15 @@ export default function MorningRoute() {
   // Read the clock once on mount (a lazy initializer), not on every render.
   const [dateLine] = useState(() => new Date().toLocaleString([], { weekday: 'long', hour: 'numeric', minute: '2-digit' }));
   const close = () => (router.canGoBack() ? router.back() : router.replace('/chat'));
+  // Escape on web closes it too (owner, Oct 28: every modal can be closed; the navigator handles Android back).
+  useDismiss(close, { androidBack: false });
   if (viewer === undefined || run.status === 'loading') return <LoadingScreen />;
   const toggle = (id: string, done: boolean) => {
     setStep(id, done);
     if (run.status === 'ok' && run.data) void check({ runId: run.data._id, stepId: id, done }).catch(() => setStep(id, !done));
   };
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: tokens.bg }}>
+    <Screen padded={false}>
       <Pressable onPress={close} accessibilityRole="button" accessibilityLabel="Close" style={{ alignSelf: 'flex-end', width: tokens.touchTarget, height: tokens.touchTarget, alignItems: 'center', justifyContent: 'center', marginRight: tokens.spacing.sm }}>
         <Text variant="title">✕</Text>
       </Pressable>
@@ -46,6 +49,6 @@ export default function MorningRoute() {
           <Text color="muted">{KIDS_COPY.notReady}</Text>
         </View>
       )}
-    </SafeAreaView>
+    </Screen>
   );
 }

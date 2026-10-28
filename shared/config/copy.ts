@@ -19,6 +19,27 @@ export const CHAT_COPY = {
 } as const;
 
 /** The chat composer's words (canvas v33 thread.html). `{mega}` is the MEGA's name. */
+/** Words every modal shares (the ✕ button's label for screen readers). */
+export const MODAL_COPY = { close: 'Close' } as const;
+
+/** The MEGA profile (Profile board; owner, Oct 28: tapping the MEGA opens customizing and profile concerns). */
+export const PROFILE_COPY = {
+  title: 'MEGA profile',
+  rename: (name: string) => `Rename ${name}`,
+  nameLabel: 'MEGA name',
+  save: 'Save',
+  lookTitle: 'Look & personality',
+  lookLabel: 'Look and personality',
+  shares: (name: string) => `What ${name} shares`,
+  you: 'You',
+  notifications: 'Notifications and quiet hours',
+  notificationsHint: 'What wakes your phone, and when it stays quiet',
+  theme: 'Theme',
+  themeHint: 'Dark or light, and your color',
+  remembers: (name: string) => `What ${name} remembers`,
+  remembersHint: 'Search and forget',
+} as const;
+
 export const COMPOSER_COPY = {
   talkTo: 'Talk to {mega}',
   typeInstead: 'Type instead',

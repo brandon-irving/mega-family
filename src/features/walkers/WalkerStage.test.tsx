@@ -3,7 +3,8 @@
 // ledges that were never measured again. A ledge must only unregister when it unmounts.
 import { renderWithTheme } from '@/test/renderWithTheme';
 import { ThemeProvider } from '@/ui/theme';
-import { Ledge, WalkerStageContext, type StageCtx } from './WalkerStage';
+import { fireEvent } from '@testing-library/react-native';
+import { Lane, Ledge, Obstacle, WalkerStageContext, type StageCtx } from './WalkerStage';
 
 function fakeStage(over: Partial<StageCtx> = {}): StageCtx {
   return { register: jest.fn(), unregister: jest.fn(), lookAtLedge: jest.fn(), dipped: new Set(), poked: new Set(), ...over };
@@ -39,5 +40,32 @@ describe('Ledge', () => {
     );
     await view.unmount();
     expect(stage.unregister).toHaveBeenCalledWith('make');
+  });
+});
+
+// Owner, Oct 28: MEGAs never cover content. An <Obstacle> is content nobody stands on; a <Lane> is an empty
+// strip MEGAs walk along with no content of its own (feet on its bottom edge).
+describe('Obstacle and Lane', () => {
+  const layout = { nativeEvent: { layout: { x: 0, y: 0, width: 300, height: 44 } } };
+  test('an Obstacle registers as content only, never as a ledge', async () => {
+    const stage = fakeStage();
+    const view = await renderWithTheme(
+      <WalkerStageContext.Provider value={stage}>
+        <Obstacle id="code" testID="obstacle" />
+      </WalkerStageContext.Provider>,
+    );
+    await fireEvent(view.getByTestId('obstacle'), 'layout', layout);
+    expect(stage.register).toHaveBeenCalledWith('code', expect.anything(), expect.objectContaining({ ledge: false }));
+  });
+
+  test('a Lane is a ledge at its bottom edge with no content rect', async () => {
+    const stage = fakeStage();
+    const view = await renderWithTheme(
+      <WalkerStageContext.Provider value={stage}>
+        <Lane id="signin" testID="lane" />
+      </WalkerStageContext.Provider>,
+    );
+    await fireEvent(view.getByTestId('lane'), 'layout', layout);
+    expect(stage.register).toHaveBeenCalledWith('signin', expect.anything(), expect.objectContaining({ obstacle: false, inset: 44 }));
   });
 });

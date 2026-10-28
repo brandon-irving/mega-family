@@ -66,7 +66,9 @@ export type Walker = {
   poke: string;
 };
 
-export type Ctx = { now: number; ledges: Ledges; reduced: boolean };
+/** A measured content rect (text, input, button, card) MEGAs must never be drawn over (owner, Oct 28). */
+export type Rect = { x: number; y: number; w: number; h: number };
+export type Ctx = { now: number; ledges: Ledges; reduced: boolean; obstacles?: Record<string, Rect> };
 
 export function createWalker(id: WalkerId): Walker {
   return {
@@ -224,9 +226,32 @@ export function pokedLedges(walkers: Walker[]): Set<string> {
   return new Set(walkers.filter((m) => !m.hidden && m.poke).map((m) => m.poke));
 }
 
+/** The boxes a MEGA standing with its feet at (x, y) draws: sprite, speech bubble (for `say`) and emote. */
+export function spriteRect(x: number, y: number): Rect {
+  return { x: x - M.sprite.w / 2, y: y - M.sprite.h, w: M.sprite.w, h: M.sprite.h };
+}
+export function bubbleRect(x: number, y: number, say: string): Rect {
+  const w = Math.max(M.bubble.minW, say.length * M.bubble.charW + M.bubble.padX);
+  return { x: x - w / 2, y: y - M.hitSize - M.bubble.gap - M.bubble.h, w, h: M.bubble.h };
+}
+export function emoteRect(x: number, y: number): Rect {
+  return { x: x - M.emote.w / 2, y: y - M.hitSize - M.emote.rise, w: M.emote.w, h: M.emote.h };
+}
+/** Two rects overlap by more than the tolerance on both axes. */
+export function overlaps(a: Rect, b: Rect, tol: number = M.tolerance): boolean {
+  return Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x) > tol && Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y) > tol;
+}
+export function coversContent(r: Rect, obstacles: Record<string, Rect> | undefined): boolean {
+  if (!obstacles) return false;
+  for (const k in obstacles) if (overlaps(r, obstacles[k])) return true;
+  return false;
+}
+
 export type Pose = {
   id: WalkerId;
   visible: boolean;
+  /** Hidden this step only because its body would cover content: hide at once (no fade over the content). */
+  covered: boolean;
   /** Feet position in stage coordinates (the sprite is drawn above it). */
   x: number;
   y: number;
@@ -252,11 +277,17 @@ export function pose(m: Walker, ctx: Ctx & { dipped: Set<string>; sayHi: (id: Wa
   const rt = r ? now - r.t0 : Infinity;
   const bounce = !reduced && rt < M.react.bounceMs ? -M.react.bounce * Math.sin((Math.PI * rt) / M.react.bounceMs) : 0;
   const onDip = !m.hopping && !!m.ledge && ctx.dipped.has(m.ledge);
-  const say = r ? ctx.sayHi(m.id) : m.say;
-  const emote = ctx.busy ? '…' : look ? '!' : r ? '' : m.emote;
+  // Never over content (owner, Oct 28): checked at the MEGA's own spot (dips and bounces are a few points of
+  // motion, not where it stands). A bubble or emote that would overlap is dropped; a body that would, hides.
+  const covered = !m.hidden && coversContent(spriteRect(m.x, m.y), ctx.obstacles);
+  const rawSay = r ? ctx.sayHi(m.id) : m.say;
+  const say = rawSay && !coversContent(bubbleRect(m.x, m.y, rawSay), ctx.obstacles) ? rawSay : '';
+  const rawEmote = ctx.busy ? '…' : look ? '!' : r ? '' : m.emote;
+  const emote = rawEmote && !coversContent(emoteRect(m.x, m.y), ctx.obstacles) ? rawEmote : '';
   return {
     id: m.id,
-    visible: !m.hidden,
+    visible: !m.hidden && !covered,
+    covered,
     x: m.x,
     y: m.y + (onDip ? M.dip : 0) + bounce,
     view,
