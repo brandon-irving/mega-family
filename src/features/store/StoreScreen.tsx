@@ -7,10 +7,10 @@
 // right away with `megas.update` (the board's "Zap is wearing the star antenna"); bought furniture waits in
 // the room's Decorate tray (StoreRoom / StoreTray).
 import { useMemo, useState } from 'react';
-import { Modal, Pressable, ScrollView, View } from 'react-native';
+import { Modal, Pressable, ScrollView, useWindowDimensions, View } from 'react-native';
 import Animated, { FadeIn, useReducedMotion, ZoomIn } from 'react-native-reanimated';
 import { fillCopy, STORE_COPY } from '@shared/config/copy';
-import { STORE_TABS } from '@shared/config/store';
+import { STORE_TAB_ROW, STORE_TABS } from '@shared/config/store';
 import { renderFurniture, type Picture } from '@shared/sprite';
 import type { FurnitureKindId } from '@shared/config/store';
 import { BucksCoin } from '@/ui/BucksCoin';
@@ -57,6 +57,7 @@ export type StoreScreenViewProps = {
 
 export function StoreScreenView({ megaName, balance, items, look, initialTab = 'furniture', busy, error, onClose, onBuy, onWear, onDecorate }: StoreScreenViewProps) {
   const tokens = useTokens();
+  const compactTabs = useWindowDimensions().width < STORE_TAB_ROW.compactBelow;
   const reduced = useReducedMotion();
   const [tab, setTab] = useState<TabId>(initialTab);
   const tiles = useMemo(() => tilesFor(tab, items, look), [tab, items, look]);
@@ -99,8 +100,9 @@ export function StoreScreenView({ megaName, balance, items, look, initialTab = '
         </View>
       </View>
 
-      {/* One fixed row, each tab an even share (UX review: a scrolling row hid Furniture off-screen). */}
-      <View style={{ flexDirection: 'row', gap: 6, paddingHorizontal: tokens.spacing.lg, paddingTop: tokens.spacing.md, paddingBottom: tokens.spacing.xs }} accessibilityRole="tablist" testID="store-tabs">
+      {/* One fixed row: each tab sized to its label, sharing what's left (UX review: a scrolling row hid
+          Furniture off-screen; an even split cut "Furniture" and "Antennas" short). */}
+      <View style={{ flexDirection: 'row', gap: STORE_TAB_ROW.gap, paddingHorizontal: tokens.spacing.lg, paddingTop: tokens.spacing.md, paddingBottom: tokens.spacing.xs }} accessibilityRole="tablist" testID="store-tabs">
         {STORE_TABS.map((t) => {
           const on = t.id === tab;
           return (
@@ -109,9 +111,9 @@ export function StoreScreenView({ megaName, balance, items, look, initialTab = '
               onPress={() => setTab(t.id as TabId)}
               accessibilityRole="tab"
               accessibilityState={{ selected: on }}
-              style={{ flex: 1, height: tokens.buttonSize.height, paddingHorizontal: 2, borderRadius: tokens.radii.pill, borderWidth: 1, borderColor: on ? tokens.text : tokens.line, backgroundColor: on ? tokens.text : 'transparent', justifyContent: 'center', alignItems: 'center' }}
+              style={{ flexGrow: 1, flexShrink: 1, height: tokens.buttonSize.height, paddingHorizontal: compactTabs ? STORE_TAB_ROW.compactPadding : STORE_TAB_ROW.padding, borderRadius: tokens.radii.pill, borderWidth: 1, borderColor: on ? tokens.text : tokens.line, backgroundColor: on ? tokens.text : 'transparent', justifyContent: 'center', alignItems: 'center' }}
             >
-              <Text variant="caption" weight="700" numberOfLines={1} style={{ color: on ? tokens.bg : tokens.text }}>
+              <Text variant="caption" weight="700" numberOfLines={1} style={{ fontSize: tokens.type.caption.fontSize - (compactTabs ? STORE_TAB_ROW.compactFontStep : 0), color: on ? tokens.bg : tokens.text }}>
                 {t.label}
               </Text>
             </Pressable>

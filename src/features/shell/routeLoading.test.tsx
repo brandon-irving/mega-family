@@ -4,7 +4,7 @@
 // So: async routes stay off on web, and the root layout's SuspenseFallback is the walking-MEGA loader.
 import { readFileSync } from 'fs';
 import { join } from 'path';
-import { screen } from '@testing-library/react-native';
+import { render, screen } from '@testing-library/react-native';
 import { renderWithTheme } from '@/test/renderWithTheme';
 import { RouteLoading } from './RouteLoading';
 
@@ -25,5 +25,12 @@ test('the root layout exports the walking-MEGA loader as its SuspenseFallback', 
 test('the route fallback is the MEGA loader, with its words from the first frame', async () => {
   await renderWithTheme(<RouteLoading />);
   expect(screen.getByTestId('route-loading')).toBeTruthy();
+  expect(screen.getByText('Opening chats')).toBeTruthy();
+});
+
+// Found live: Expo Router renders the root layout's fallback outside the root layout's own providers (during
+// server rendering on web, "useTheme must be used within a ThemeProvider"), so it must stand on its own.
+test('the route fallback renders with no providers around it', async () => {
+  await render(<RouteLoading />);
   expect(screen.getByText('Opening chats')).toBeTruthy();
 });

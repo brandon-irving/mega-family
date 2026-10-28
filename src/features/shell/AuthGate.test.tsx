@@ -9,6 +9,7 @@ import { ThemeProvider } from '@/ui/theme';
 import { useAuthState } from '@/services/auth';
 import { useViewer } from '@/data/useViewer';
 import { AuthGate } from './AuthGate';
+import { holdSignIn, releaseSignIn } from '@/services/signInHold';
 
 jest.mock('@/services/auth', () => ({ useAuthState: jest.fn() }));
 jest.mock('@/data/useViewer', () => ({ useViewer: jest.fn() }));
@@ -99,6 +100,30 @@ describe('AuthGate', () => {
     await renderRouter(ROUTES, { initialUrl: '/start' });
     expect(screen.getByTestId('opening')).toBeTruthy();
     expect(screen.queryByText('START_SCREEN')).toBeNull();
+  });
+
+  // Found live (Oct 28): demo sign-in signs in anonymously before `demo.signInAs` links the member, so for a
+  // frame the gate saw "signed in, no member" and flashed "Let's set up your family". While a sign-in that
+  // will end in a member is still finishing, the gate keeps the loader up.
+  test('a sign-in still finishing (no member yet) keeps the loader, never the "join or start" choice', async () => {
+    mockUseAuthState.mockReturnValue({ status: 'signedIn' });
+    mockUseViewer.mockReturnValue(null);
+    holdSignIn();
+    try {
+      await renderRouter(ROUTES, { initialUrl: '/start' });
+      expect(screen.getByTestId('opening')).toBeTruthy();
+      expect(screen.queryByText('START_SCREEN')).toBeNull();
+    } finally {
+      releaseSignIn();
+    }
+  });
+
+  test('once the member arrives the hold lets go and the tabs show', async () => {
+    mockUseAuthState.mockReturnValue({ status: 'signedIn' });
+    mockUseViewer.mockReturnValue({ member: { name: 'Admin' } });
+    holdSignIn();
+    await renderRouter(ROUTES, { initialUrl: '/(tabs)' });
+    expect(screen.getByText('TABS_SCREEN')).toBeTruthy();
   });
 
   test('signed out: renders Welcome', async () => {

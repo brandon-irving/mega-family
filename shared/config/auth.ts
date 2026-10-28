@@ -15,4 +15,8 @@ export const AUTH = {
   /** Right after an anonymous sign-in the Convex client may not have the new session's token yet; a call
    * that comes back UNAUTHENTICATED is retried this many times, this far apart (found live, Oct 28). */
   freshSessionRetry: { attempts: 4, delayMs: 350 },
+  /** A sign-in that ends in a member (demo sign-in: anonymous session, then `demo.signInAs`) holds the auth
+   * gate on the loader until the member arrives, at most this long (found live, Oct 28: without it the
+   * "join or start a family" screen flashed for a frame). */
+  signInHoldMaxMs: 10_000,
 } as const;

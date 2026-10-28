@@ -60,6 +60,11 @@ export function storeSectionOf(id: StoreItemId): StoreSection {
   return id.slice(0, id.indexOf(':')) as StoreSection;
 }
 
+/** The Store's tab row (UX review, Oct 28): all five tabs on one row, each sized to its label. Below
+ * `compactBelow` points of screen width the labels drop `fontStep` sizes and the padding tightens, so no
+ * label is cut off on small phones. */
+export const STORE_TAB_ROW = { gap: 4, padding: 6, compactBelow: 380, compactPadding: 3, compactFontStep: 1 } as const;
+
 /**
  * What a kid owns without buying (the Store shows these as owned):
  * - every item priced 0 (the basic furniture set),
