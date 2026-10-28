@@ -562,7 +562,7 @@ export const routineRuns = {
       done: v.boolean(),
       // GD backend addendum (pending approval): `title` is the household event's title when the item was made
       // ("Soccer practice"), so the card can say "Soccer tomorrow". Household events only, never private.
-      source: v.optional(v.object({ eventId: v.id('events'), title: v.optional(v.string()) })),
+      source: v.optional(v.object({ eventId: v.id('events'), title: v.optional(v.string()), start: v.optional(v.number()) })),
     }),
   ),
   createdAt: v.number(),
