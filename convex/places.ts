@@ -85,6 +85,31 @@ export const remove = mutation({
 
 // ---------- background geocoding ----------
 
+/** Cron (GEOCODING.retrySweepMinutes, G4 review): re-queues stuck lookups. `not_configured` every sweep (cheap:
+ * no token means no network call, and adding MAPBOX_TOKEN heals them on the next sweep); `failed` once
+ * GEOCODING.retryAfterHours have passed since the last try. Each family's own clock decides "now". */
+export const retryGeocodes = internalMutation({
+  args: {},
+  returns: v.null(),
+  handler: async (ctx) => {
+    const stuck = (await ctx.db.query('places').take(GEOCODING.retryScanLimit)).filter((p) => p.geocode.status === 'failed' || p.geocode.status === 'not_configured');
+    const nowByFamily = new Map<string, number>();
+    let queued = 0;
+    for (const place of stuck) {
+      if (queued >= GEOCODING.retryPerSweep) break;
+      if (place.geocode.status === 'failed') {
+        if (!nowByFamily.has(place.familyId)) nowByFamily.set(place.familyId, await clock.now(ctx, place.familyId));
+        const now = nowByFamily.get(place.familyId)!;
+        if (place.geocode.at !== undefined && now - place.geocode.at < GEOCODING.retryAfterHours * 3_600_000) continue;
+      }
+      await ctx.db.patch(place._id, { geocode: { status: 'pending' } });
+      await ctx.scheduler.runAfter(0, internal.places.geocode, { placeId: place._id });
+      queued++;
+    }
+    return null;
+  },
+});
+
 export const loadForGeocode = internalQuery({
   args: { placeId: v.id('places') },
   returns: v.union(v.object({ address: v.string(), proximity: v.union(v.object({ lat: v.number(), lng: v.number() }), v.null()) }), v.null()),

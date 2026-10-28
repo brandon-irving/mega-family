@@ -407,7 +407,8 @@ export const G4_COPY = {
   travelWithEvent: '{line} · {event}',
   travelNotSetUpBody: 'I can’t check traffic until your family admin turns on travel time, so I won’t guess a leave-by time.',
   /** TravelNotSetUp with the event known (v0.15a `eventTitle` + `eventStart`). */
-  travelNotSetUpBodyEvent: '{event} starts at {time}. I can’t check traffic until your family admin turns on travel time, so I won’t guess a leave-by time.',
+  // "{event} at {time}", never "starts at": titles can be phrases like "Soccer practice ends" (G4 review).
+  travelNotSetUpBodyEvent: '{event} at {time}. I can’t check traffic until your family admin turns on travel time, so I won’t guess a leave-by time.',
   travelOnMyWay: 'On my way',
   travelSnooze: 'Snooze 5 min',
   travelRemind30: 'Remind me 30 min before',

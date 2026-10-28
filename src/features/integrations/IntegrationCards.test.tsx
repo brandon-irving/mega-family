@@ -125,7 +125,7 @@ describe('Travel card', () => {
   test('not set up: names the event and its start, and offers "Remind me 30 min before"', async () => {
     const onAnswer = jest.fn();
     await renderWithTheme(<TravelCardView card={TRAVEL_NOT_SET_UP} tz={TZ} megaName="Teal" onAnswer={onAnswer} />);
-    expect(screen.getByText(/^Soccer pickup starts at 5:30 PM\. I can’t check traffic/)).toBeTruthy();
+    expect(screen.getByText(/^Soccer pickup at 5:30 PM\. I can’t check traffic/)).toBeTruthy();
     expect(screen.queryByText('On my way')).toBeNull();
     await fireEvent.press(screen.getByText('Remind me 30 min before'));
     expect(onAnswer).toHaveBeenCalledWith('remind_30_before');

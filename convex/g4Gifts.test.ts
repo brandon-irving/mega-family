@@ -53,3 +53,39 @@ test('a failed search leaves the idea without a link instead of failing the set'
   expect(set.status).toBe('ready');
   expect(set.ideas[0].url).toBeUndefined();
 });
+
+test('G4 review (security LOW): generating again the same day returns the same set — no second round of product searches', async () => {
+  const t = convexTest(schema, modules);
+  const { members } = await t.mutation(internal.seed.sampleFamily, { weekOf: '2026-10-25' });
+  const m = members as unknown as Record<Key, Id<'members'>>;
+  const as = (k: Key) => t.withIdentity({ subject: `sample:${k}` });
+  __setChatModelForTests(makeFakeChatModel(() => jsonReply({ ideas: [{ title: 'Dinosaur dig kit', why: 'Loves dinosaurs.', price: '$25', basedOn: [0] }] })));
+  const search = makeFakeWebSearch();
+  __setWebSearchForTests(search);
+
+  const first = await as('partner').mutation(api.gifts.generate, { forMemberId: m.twin1 });
+  await t.finishAllScheduledFunctions(vi.runAllTimers);
+  const again = await as('admin').mutation(api.gifts.generate, { forMemberId: m.twin1 });
+  const third = await as('partner').mutation(api.gifts.generate, { forMemberId: m.twin1 });
+  await t.finishAllScheduledFunctions(vi.runAllTimers);
+  expect(again.giftIdeasId).toBe(first.giftIdeasId);
+  expect(third.giftIdeasId).toBe(first.giftIdeasId);
+  expect(search.requests.length).toBe(1);
+});
+
+test('G4 review: a failed set can be generated again the same day', async () => {
+  const t = convexTest(schema, modules);
+  const { members } = await t.mutation(internal.seed.sampleFamily, { weekOf: '2026-10-25' });
+  const m = members as unknown as Record<Key, Id<'members'>>;
+  const admin = t.withIdentity({ subject: 'sample:admin' });
+  __setChatModelForTests(
+    makeFakeChatModel(() => {
+      throw new Error('model down');
+    }),
+  );
+  __setWebSearchForTests(makeFakeWebSearch());
+  const first = await admin.mutation(api.gifts.generate, { forMemberId: m.twin1 });
+  await t.finishAllScheduledFunctions(vi.runAllTimers);
+  const retry = await admin.mutation(api.gifts.generate, { forMemberId: m.twin1 });
+  expect(retry.giftIdeasId).not.toBe(first.giftIdeasId);
+});

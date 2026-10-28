@@ -26,7 +26,9 @@ import {
   RULE_NO_SOURCES,
   answerCheckPrompt,
   approximateLocationFrom,
+  dropFlagged,
   fenceAnswer,
+  fenceSources,
   filterSources,
   keywordBlock,
   kidSearchInstructions,
@@ -286,9 +288,10 @@ async function kidSearch(
   if (!r.ok) return { outcome: 'failed', answer: KID_SAFETY.blockedMessage, sources: [] };
 
   // 3. Answer check + rewrite for the age band; 4. sources: blocked domains removed, capped; none left = no answer.
-  const check = await judge(ctx, familyId, answerCheckPrompt(prep.ageBand), fenceAnswer(r.answer), ANSWER_SCHEMA);
+  // The check sees the tappable sources (title + site) too and names any it judges unsuitable.
+  const check = await judge(ctx, familyId, answerCheckPrompt(prep.ageBand), `${fenceAnswer(r.answer)}\n${fenceSources(r.sources)}`, ANSWER_SCHEMA);
   if (!check || check.ok !== true || typeof check.rewritten !== 'string' || !check.rewritten.trim()) return blocked(MODEL_DECIDER, categoryOf(check));
-  const sources = filterSources(r.sources, KID_SAFETY.search.maxSources);
+  const sources = filterSources(dropFlagged(r.sources, check.unsafeSources), KID_SAFETY.search.maxSources);
   if (!sources.length) return blocked(RULE_NO_SOURCES);
   return { outcome: rephrased ? 'rephrased' : 'answered', answer: check.rewritten.trim(), sources, rephrasedTo: rephrased, decidedBy: MODEL_DECIDER };
 }
