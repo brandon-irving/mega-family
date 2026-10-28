@@ -9,6 +9,7 @@ import { SIGNIN_COPY } from '@shared/config/copy';
 import { WALKER_MOTION } from '@shared/config/walkers';
 import { at, HIDE, type Scene, script, SHOW, wait, walk } from './engine';
 import { Ledge, WalkerStage } from './WalkerStage';
+import { NoContentRegistry } from '@/ui/contentRegistry';
 
 const L = WALKER_MOTION.loader;
 
@@ -29,10 +30,13 @@ export function MegaLoader({ text = SIGNIN_COPY.loader.opening, reducedMotion, t
       <WalkerStage scene={LOADER_SCENE} reducedMotion={reducedMotion}>
         <View style={[styles.fill, styles.center, { paddingHorizontal: tokens.spacing.xl }]}>
           {/* The MEGA stands on the tops of the letters. */}
-          <Ledge id="loader" inset={tokens.type.headline.fontSize * 0.2}>
-            <Text variant="headline" color="muted" accessibilityRole="text" style={styles.text}>
-              {text}
-            </Text>
+          {/* Content starts at the letters' tops (contentTop), so the pacing MEGA covers nothing. */}
+          <Ledge id="loader" inset={tokens.type.headline.fontSize * 0.2} contentTop={tokens.type.headline.fontSize * 0.2}>
+            <NoContentRegistry>
+              <Text variant="headline" color="muted" accessibilityRole="text" style={styles.text}>
+                {text}
+              </Text>
+            </NoContentRegistry>
           </Ledge>
         </View>
       </WalkerStage>

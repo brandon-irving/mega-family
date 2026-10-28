@@ -24,6 +24,15 @@ export const WALKER_MOTION = {
   /** The 32x40 walk frames at 1x, inside a 44pt tap target. */
   spriteScale: 1,
   hitSize: 44,
+  /** What a MEGA covers on screen, for the "never cover content" rule (owner, Oct 28): the drawn sprite
+   * (feet at the bottom center), the speech bubble above the tap target and the emote just above it. The
+   * bubble's width is estimated from its words. `tolerance`: overlaps this small (points) don't count. */
+  sprite: { w: 32, h: 40 },
+  bubble: { h: 24, gap: 4, minW: 80, charW: 7, padX: 16 },
+  emote: { w: 14, h: 16, rise: 14 },
+  tolerance: 1,
+  /** Free space a lane (an empty strip MEGAs walk along, e.g. under the "Sign in" row) reserves. */
+  laneHeight: 44,
   /** Waits longer than this never end on their own (a MEGA that stays put). */
   forever: 1e9,
 } as const;

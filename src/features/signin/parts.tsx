@@ -5,6 +5,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Path, Svg } from 'react-native-svg';
 import { Ledge, WalkerStage, type Scene } from '@/features/walkers';
+import { NoContentRegistry } from '@/ui/contentRegistry';
 import { signOut } from '@/services/auth';
 import { Button, type ButtonProps } from '@/ui/Button';
 import { Text } from '@/ui/Text';
@@ -30,13 +31,17 @@ export function SignInFrame({ scene, busy, children, overlay, testID }: { scene:
 /** "MEGA" in large letters (owner, Oct 27). The walking MEGAs stand on the tops of its capitals. */
 export function Wordmark() {
   return (
-    <Ledge id="head" inset={WORDMARK.fontSize * WORDMARK.capTop}>
+    // Its content rect starts at the capitals (contentTop), so a MEGA standing on them covers nothing; the
+    // Text itself doesn't register its taller line box.
+    <Ledge id="head" inset={WORDMARK.fontSize * WORDMARK.capTop} contentTop={WORDMARK.fontSize * WORDMARK.capTop}>
+      <NoContentRegistry>
       <Text
         accessibilityRole="header"
         style={{ fontSize: WORDMARK.fontSize, lineHeight: WORDMARK.lineHeight, fontWeight: WORDMARK.fontWeight, letterSpacing: WORDMARK.fontSize * WORDMARK.letterSpacingEm, textAlign: 'center' }}
       >
         {IDENTITY.name}
       </Text>
+      </NoContentRegistry>
     </Ledge>
   );
 }

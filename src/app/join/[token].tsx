@@ -18,7 +18,7 @@ import { useInvitePreview } from '@/data/useInvite';
 import { LookPersonalityContent } from '@/features/profile/LookPersonalityContent';
 import { BackButton, DifferentAccount, Pill, SignInFrame } from '@/features/signin/parts';
 import { SIGNIN_SCENES } from '@/features/signin/scenes';
-import { Ledge, MegaLoader } from '@/features/walkers';
+import { Ledge, MegaLoader, Obstacle } from '@/features/walkers';
 import { api } from '@/data/api';
 import { MegaBadge } from '@/ui/MegaBadge';
 import { MegaSprite } from '@/ui/MegaSprite';
@@ -198,6 +198,7 @@ function KidInvite({ token, preview, onLocked }: { token: string; preview: Ok; o
             {C.codeBody}
           </Text>
         </View>
+        <Obstacle id="parentCode">
         <TextInput
           value={parentCode}
           onChangeText={(t) => setParentCode(t.replace(/\D/g, '').slice(0, 5))}
@@ -219,6 +220,7 @@ function KidInvite({ token, preview, onLocked }: { token: string; preview: Ok; o
             letterSpacing: parentCode ? 8 : 0,
           }}
         />
+        </Obstacle>
         {error ? <ErrorLine text={error} /> : null}
         <View style={{ marginTop: tokens.spacing.lg }}>
           <Pill variant="inverse" size={CTA_SIZES.kid} label={C.codeJoin} loading={busy} onPress={() => join({ parentCode: parentCode || undefined })} />

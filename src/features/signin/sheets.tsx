@@ -58,7 +58,7 @@ function SheetPanel({ onClose, label, children }: { onClose: () => void; label: 
           },
         ]}
       >
-        {settled ? <Ledge id="sheet" style={[styles.ledgeMark, { left: tokens.spacing.xl, right: tokens.spacing.xl }]} /> : null}
+        {settled ? <Ledge id="sheet" obstacle={false} style={[styles.ledgeMark, { left: tokens.spacing.xl, right: tokens.spacing.xl }]} /> : null}
         <View style={[styles.grabber, { backgroundColor: tokens.line, marginBottom: tokens.spacing.sm }]} />
         {children}
       </Animated.View>
