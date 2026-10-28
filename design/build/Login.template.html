@@ -21,17 +21,11 @@ a{color:#EDEFF2;text-decoration:none}
 </helmet>
 <div style="position: relative; width: 390px; height: 844px; box-sizing: border-box; background: #0C0E11; color: #EDEFF2; font-family: Inter, system-ui, sans-serif; overflow: hidden">
 
-  <!-- 1 · Opening (returning user): the trio walks in while the session loads, then the chat fades up. -->
+  <!-- 1 · Loading (owner, Oct 28): never blank. "Opening chats" sits dead center from the first frame, and the
+       person's own MEGA paces back and forth on top of the words until the chat is ready, then the chat fades in.
+       The same screen covers every load (returning user, after sign-in, after joining). -->
   <sc-if value="{{is.opening}}" hint-placeholder-val="{{ false }}">
-    <div style="position: absolute; inset: 0; opacity: {{opening.chatOpacity}}; transition: opacity 300ms ease; display: flex; flex-direction: column; gap: 16px; padding: 58px 16px 0">
-      <div style="display: flex; align-items: center; gap: 12px; height: 48px">
-        <span style="width: 36px; height: 36px; border-radius: 18px; background: #16191E"></span>
-        <span style="width: 120px; height: 14px; border-radius: 7px; background: #16191E"></span>
-      </div>
-      <span style="align-self: flex-start; width: 240px; height: 64px; border-radius: 20px; background: #16191E"></span>
-      <span style="align-self: flex-end; width: 180px; height: 44px; border-radius: 20px; background: #1E2228"></span>
-      <span style="align-self: flex-start; width: 270px; height: 84px; border-radius: 20px; background: #16191E"></span>
-    </div>
+    <p role="status" aria-live="polite" style="position: absolute; top: 407px; left: 24px; right: 24px; margin: 0; height: 30px; font-size: 24px; line-height: 30px; font-weight: 700; color: #B4BAC3; text-align: center">Opening chats</p>
   </sc-if>
 
   <!-- 2 · Welcome: the approved first-launch board, now with MEGAs walking on it. -->
@@ -41,41 +35,66 @@ a{color:#EDEFF2;text-decoration:none}
         <span style="height: 30px; padding: 0 12px; border-radius: 15px; border: 1px dashed #2E343D; color: #9AA1AB; font-size: 13px; font-weight: 600; display: flex; align-items: center">Demo</span>
       </button>
     </sc-if>
-    <!-- The wordmark (owner, Oct 27): MEGA in large letters, and the one tagline on any sign-in screen. The tops of its capitals (y 411 at 80px Inter) are the "head" ledge. -->
-    <h1 style="position: absolute; top: 400px; left: 24px; right: 24px; margin: 0; height: 80px; font-size: 80px; line-height: 80px; font-weight: 900; letter-spacing: 0.06em; text-align: center">MEGA</h1>
-    <p style="position: absolute; top: 498px; left: 32px; right: 32px; margin: 0; font-size: 18px; line-height: 26px; color: #B4BAC3; text-align: center">A little help for the whole family</p>
-    <button type="button" onClick="{{openSignIn}}" style="position: absolute; top: 610px; left: 24px; right: 24px; height: 58px; border-radius: 29px; border: none; background: #EDEFF2; color: #0C0E11; font-size: 18px; font-weight: 800; transform: {{dip.make}}; box-shadow: {{glow.make}}; transition: transform 120ms ease, box-shadow 200ms ease">Make my MEGA</button>
-    <button type="button" onClick="{{toInvite}}" style="position: absolute; top: 682px; left: 24px; right: 24px; height: 52px; border-radius: 26px; border: 1px solid #2E343D; background: transparent; color: #EDEFF2; font-size: 16px; font-weight: 600">I have an invite</button>
-    <div style="position: absolute; top: 750px; left: 24px; right: 24px; height: 44px; display: flex; align-items: center; justify-content: center; gap: 2px; font-size: 15px; color: #9AA1AB">
+    <!-- Oct 28 layout (owner: no empty band above MEGA): the brand block (Hub + wordmark + tagline) is centered
+         in the space above the buttons, and the buttons sit in the thumb zone. Hub, the family's MEGA, stands on
+         the "floor" ledge in a soft spotlight; the walking MEGAs stroll that same floor and climb the letters. -->
+    <div aria-hidden="true" style="position: absolute; left: 45px; top: 181px; width: 300px; height: 190px; border-radius: 50%; background: radial-gradient(closest-side, #5B8DEF2E, #5B8DEF00)"></div>
+    <div aria-hidden="true" style="position: absolute; left: 70px; top: 335px; width: 250px; height: 12px; border-radius: 50%; background: radial-gradient(closest-side, #00000088, #00000000)"></div>
+    <div role="img" aria-label="Hub, your family’s MEGA" style="position: absolute; left: {{hub.left}}px; top: {{hub.top}}px; width: {{hub.sprite.w}}px; height: {{hub.sprite.h}}px">
+      <sc-for list="{{hub.sprite.rects}}" as="r" hint-placeholder-count="300">
+        <span style="position: absolute; left: {{r.l}}px; top: {{r.t}}px; width: {{r.w}}px; height: {{r.h}}px; background: {{r.c}}"></span>
+      </sc-for>
+    </div>
+    <!-- The wordmark (owner, Oct 27): MEGA in large letters, and the one tagline on any sign-in screen. The tops of its capitals (y 388 at 80px Inter) are the "head" ledge. -->
+    <h1 style="position: absolute; top: 377px; left: 24px; right: 24px; margin: 0; height: 80px; font-size: 80px; line-height: 80px; font-weight: 900; letter-spacing: 0.06em; text-align: center">MEGA</h1>
+    <p style="position: absolute; top: 475px; left: 32px; right: 32px; margin: 0; font-size: 18px; line-height: 26px; color: #B4BAC3; text-align: center">A little help for the whole family</p>
+    <button type="button" onClick="{{openCreate}}" style="position: absolute; top: 628px; left: 24px; right: 24px; height: 58px; border-radius: 29px; border: none; background: #EDEFF2; color: #0C0E11; font-size: 18px; font-weight: 800; transform: {{dip.make}}; box-shadow: {{glow.make}}; transition: transform 120ms ease, box-shadow 200ms ease">Make my MEGA</button>
+    <button type="button" onClick="{{toInvite}}" style="position: absolute; top: 700px; left: 24px; right: 24px; height: 52px; border-radius: 26px; border: 1px solid #2E343D; background: transparent; color: #EDEFF2; font-size: 16px; font-weight: 600">I have an invite</button>
+    <div style="position: absolute; top: 762px; left: 24px; right: 24px; height: 44px; display: flex; align-items: center; justify-content: center; gap: 2px; font-size: 15px; color: #9AA1AB">
       <span>Already have an account?</span>
       <button type="button" onClick="{{openSignIn}}" style="height: 44px; padding: 0 6px; border: none; background: transparent; color: {{signinColor}}; font-size: 15px; font-weight: 700; text-decoration: {{signinLine}}; text-underline-offset: 4px; transition: color 200ms ease">Sign in</button>
     </div>
   </sc-if>
 
-  <!-- 4 · I have an invite: scan or paste. -->
+  <!-- 4 · I have an invite (Oct 28 layout): instructions, then the paste field and Continue right under them;
+       the QR card fills the middle below. Until the G8 build adds the camera, the card is a "No link yet?" help card. -->
   <sc-if value="{{is.invite}}" hint-placeholder-val="{{ false }}">
     <button type="button" aria-label="Back" onClick="{{toWelcome}}" style="position: absolute; top: 54px; left: 8px; width: 44px; height: 44px; border: none; background: transparent; color: #EDEFF2; display: flex; align-items: center; justify-content: center">
       <svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"></path></svg>
     </button>
     <h1 style="position: absolute; top: 112px; left: 24px; right: 24px; margin: 0; font-size: 28px; line-height: 34px; font-weight: 800">I have an invite</h1>
-    <p style="position: absolute; top: 154px; left: 24px; right: 24px; margin: 0; font-size: 16px; line-height: 23px; color: #9AA1AB">Scan the QR code on your family admin’s phone, or paste the link they sent you.</p>
-    <button type="button" onClick="{{toScan}}" style="position: absolute; top: 236px; left: 24px; right: 24px; height: 212px; border-radius: 24px; border: 1px solid {{scanBorder}}; background: #16191E; color: #EDEFF2; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; transform: {{dip.scan}}; transition: transform 120ms ease, border-color 200ms ease">
-      <svg aria-hidden="true" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3"></path><rect x="8" y="8" width="3" height="3"></rect><rect x="13" y="8" width="3" height="3"></rect><rect x="8" y="13" width="3" height="3"></rect><path d="M13 13h3v3"></path></svg>
-      <span style="font-size: 18px; font-weight: 700">Scan QR code</span>
-      <span style="font-size: 14px; color: #9AA1AB">Opens your camera</span>
-    </button>
-    <div style="position: absolute; top: 470px; left: 24px; right: 24px; display: flex; align-items: center; gap: 12px; color: #9AA1AB; font-size: 13px">
-      <span style="flex: 1; height: 1px; background: #2E343D"></span>
-      <span>or paste the link</span>
-      <span style="flex: 1; height: 1px; background: #2E343D"></span>
-    </div>
-    <label for="invite-link" style="position: absolute; top: 506px; left: 24px; font-size: 13px; font-weight: 600; color: #9AA1AB; letter-spacing: .04em; text-transform: uppercase">Invite link</label>
-    <input id="invite-link" type="text" autocomplete="off" spellcheck="false" placeholder="mega.family/join/…" value="{{link}}" onInput="{{typeLink}}" style="position: absolute; top: 530px; left: 24px; width: 248px; height: 52px; box-sizing: border-box; border-radius: 14px; border: 1px solid #2E343D; background: #16191E; color: #EDEFF2; padding: 0 14px; font-size: 16px; font-family: inherit">
-    <button type="button" onClick="{{paste}}" style="position: absolute; top: 530px; right: 24px; width: 86px; height: 52px; border-radius: 14px; border: 1px solid #2E343D; background: transparent; color: #EDEFF2; font-size: 15px; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 6px">
+    <p style="position: absolute; top: 154px; left: 24px; right: 24px; margin: 0; font-size: 16px; line-height: 23px; color: #9AA1AB">Paste the link your family admin sent you, or just its code.</p>
+    <label for="invite-link" style="position: absolute; top: 222px; left: 24px; font-size: 13px; font-weight: 600; color: #9AA1AB; letter-spacing: .04em; text-transform: uppercase">Invite link</label>
+    <input id="invite-link" type="text" autocomplete="off" spellcheck="false" placeholder="mega.family/join/…" value="{{link}}" onInput="{{typeLink}}" style="position: absolute; top: 246px; left: 24px; width: 248px; height: 52px; box-sizing: border-box; border-radius: 14px; border: 1px solid #2E343D; background: #16191E; color: #EDEFF2; padding: 0 14px; font-size: 16px; font-family: inherit">
+    <button type="button" onClick="{{paste}}" style="position: absolute; top: 246px; right: 24px; width: 86px; height: 52px; border-radius: 14px; border: 1px solid #2E343D; background: transparent; color: #EDEFF2; font-size: 15px; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 6px">
       <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="3" width="8" height="4" rx="1"></rect><path d="M16 5h2a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h2"></path></svg>
       Paste
     </button>
-    <button type="button" disabled="{{cont.disabled}}" onClick="{{toPreview}}" style="position: absolute; top: 610px; left: 24px; right: 24px; height: 56px; border-radius: 28px; border: 1px solid {{cont.border}}; background: {{cont.bg}}; color: {{cont.ink}}; font-size: 17px; font-weight: 800; transform: {{dip.cont}}; box-shadow: {{glow.cont}}; transition: transform 120ms ease, background 200ms ease, box-shadow 200ms ease">Continue</button>
+    <p style="position: absolute; top: 306px; left: 24px; right: 24px; margin: 0; font-size: 13px; line-height: 18px; color: #6B727D">Looks like mega.family/join/7QK2-M4XD, or just 7QK2-M4XD</p>
+    <button type="button" disabled="{{cont.disabled}}" onClick="{{toPreview}}" style="position: absolute; top: 340px; left: 24px; right: 24px; height: 56px; border-radius: 28px; border: 1px solid {{cont.border}}; background: {{cont.bg}}; color: {{cont.ink}}; font-size: 17px; font-weight: 800; transform: {{dip.cont}}; box-shadow: {{glow.cont}}; transition: transform 120ms ease, background 200ms ease, box-shadow 200ms ease">Continue</button>
+    <div style="position: absolute; top: 428px; left: 24px; right: 24px; display: flex; align-items: center; gap: 12px; color: #9AA1AB; font-size: 13px">
+      <span style="flex: 1; height: 1px; background: #2E343D"></span>
+      <span>{{inviteAlt.divider}}</span>
+      <span style="flex: 1; height: 1px; background: #2E343D"></span>
+    </div>
+    <sc-if value="{{inviteAlt.scan}}" hint-placeholder-val="{{ true }}">
+      <button type="button" onClick="{{toScan}}" style="position: absolute; top: 460px; left: 24px; right: 24px; height: 220px; border-radius: 24px; border: 1px solid {{scanBorder}}; background: #16191E; color: #EDEFF2; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; transform: {{dip.scan}}; transition: transform 120ms ease, border-color 200ms ease">
+        <svg aria-hidden="true" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3"></path><rect x="8" y="8" width="3" height="3"></rect><rect x="13" y="8" width="3" height="3"></rect><rect x="8" y="13" width="3" height="3"></rect><path d="M13 13h3v3"></path></svg>
+        <span style="font-size: 18px; font-weight: 700">Scan QR code</span>
+        <span style="font-size: 14px; color: #9AA1AB">Point your camera at your admin’s phone</span>
+      </button>
+    </sc-if>
+    <sc-if value="{{inviteAlt.help}}" hint-placeholder-val="{{ false }}">
+      <div style="position: absolute; top: 460px; left: 24px; right: 24px; height: 220px; box-sizing: border-box; padding: 20px; border-radius: 24px; border: 1px solid #2E343D; background: #16191E; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; text-align: center">
+        <div role="img" aria-label="Hub, the family’s MEGA" style="position: relative; width: {{inviteAlt.hub.w}}px; height: {{inviteAlt.hub.h}}px; margin-bottom: 4px">
+          <sc-for list="{{inviteAlt.hub.rects}}" as="r" hint-placeholder-count="200">
+            <span style="position: absolute; left: {{r.l}}px; top: {{r.t}}px; width: {{r.w}}px; height: {{r.h}}px; background: {{r.c}}"></span>
+          </sc-for>
+        </div>
+        <span style="font-size: 18px; font-weight: 700">No link yet?</span>
+        <span style="font-size: 15px; line-height: 21px; color: #9AA1AB">Ask your family admin to open Family in their MEGA app and tap Invite. They can text you the link.</span>
+      </div>
+    </sc-if>
   </sc-if>
 
   <!-- 5 · Scan the QR code (camera; built with expo-camera in the G8 native build). -->
@@ -100,24 +119,26 @@ a{color:#EDEFF2;text-decoration:none}
     <button type="button" onClick="{{toInvite}}" style="position: absolute; top: 740px; left: 24px; right: 24px; height: 52px; border-radius: 26px; border: 1px solid #2E343D; background: transparent; color: #EDEFF2; font-size: 16px; font-weight: 600">Paste a link instead</button>
   </sc-if>
 
-  <!-- 6 · Invite preview: who invited you, the family, and what happens next. -->
-  <sc-if value="{{is.preview}}" hint-placeholder-val="{{ false }}">
+  <!-- 6 · Adult invite (Oct 28: adults and kids get different screens, chosen from the invite itself).
+       The admin already made this person's MEGA when they sent the invite; an adult keeps it or changes it. -->
+  <sc-if value="{{is.adultInvite}}" hint-placeholder-val="{{ false }}">
     <button type="button" aria-label="Back" onClick="{{toInvite}}" style="position: absolute; top: 54px; left: 8px; width: 44px; height: 44px; border: none; background: transparent; color: #EDEFF2; display: flex; align-items: center; justify-content: center">
       <svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"></path></svg>
     </button>
-    <div style="position: absolute; top: 120px; left: 24px; right: 24px; box-sizing: border-box; padding: 24px; border-radius: 28px; background: #16191E; border: 1px solid #2E343D; display: flex; flex-direction: column; align-items: center; gap: 6px; text-align: center">
-      <div style="position: relative; width: {{card.sprite.w}}px; height: {{card.sprite.h}}px; margin-bottom: 10px">
-        <sc-for list="{{card.sprite.rects}}" as="r" hint-placeholder-count="240">
+    <div style="position: absolute; top: 106px; left: 24px; right: 24px; font-size: 13px; font-weight: 600; color: #9AA1AB; letter-spacing: .04em; text-transform: uppercase">Admin invited you</div>
+    <h1 style="position: absolute; top: 128px; left: 24px; right: 24px; margin: 0; font-size: 28px; line-height: 34px; font-weight: 800">Join the family</h1>
+    <p style="position: absolute; top: 170px; left: 24px; right: 24px; margin: 0; font-size: 16px; line-height: 23px; color: #B4BAC3">Admin made a MEGA for you. Keep it, or change it to make it yours.</p>
+    <div style="position: absolute; top: 240px; left: 24px; right: 24px; height: 312px; box-sizing: border-box; padding: 22px 20px 18px; border-radius: 28px; background: #16191E; border: 1px solid #2E343D; display: flex; flex-direction: column; align-items: center; gap: 4px; text-align: center">
+      <div role="img" aria-label="Coral, the MEGA Admin made for you" style="position: relative; width: {{adult.sprite.w}}px; height: {{adult.sprite.h}}px; margin-bottom: 8px">
+        <sc-for list="{{adult.sprite.rects}}" as="r" hint-placeholder-count="240">
           <span style="position: absolute; left: {{r.l}}px; top: {{r.t}}px; width: {{r.w}}px; height: {{r.h}}px; background: {{r.c}}"></span>
         </sc-for>
       </div>
-      <div style="font-size: 13px; font-weight: 600; color: #9AA1AB; letter-spacing: .04em; text-transform: uppercase">{{card.eyebrow}}</div>
-      <h1 style="margin: 0; font-size: {{card.titleSize}}px; line-height: 1.2; font-weight: 800">{{card.title}}</h1>
-      <p style="margin: 0; font-size: {{card.bodySize}}px; line-height: 1.45; color: #B4BAC3">{{card.body}}</p>
-      <sc-if value="{{card.showFamily}}" hint-placeholder-val="{{ true }}">
-        <div style="align-self: stretch; height: 1px; background: #2E343D; margin: 14px 0 8px"></div>
-        <div style="font-size: 13px; font-weight: 600; color: #9AA1AB; letter-spacing: .04em; text-transform: uppercase">Already here</div>
-        <div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; align-self: stretch; margin-top: 6px">
+      <div style="font-size: 24px; line-height: 30px; font-weight: 800">Coral</div>
+      <div style="font-size: 14px; color: #9AA1AB">Your MEGA · cheerful · picked by Admin</div>
+      <div style="align-self: stretch; height: 1px; background: #2E343D; margin: 14px 0 10px"></div>
+      <div style="font-size: 12px; font-weight: 600; color: #9AA1AB; letter-spacing: .04em; text-transform: uppercase; margin-bottom: 6px">Already here</div>
+        <div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; align-self: stretch">
           <sc-for list="{{family}}" as="f" hint-placeholder-count="4">
             <div style="display: flex; flex-direction: column; align-items: center; gap: 4px">
               <div style="position: relative; width: 32px; height: 24px; overflow: hidden">
@@ -125,19 +146,61 @@ a{color:#EDEFF2;text-decoration:none}
                   <span style="position: absolute; left: {{r.l}}px; top: {{r.t}}px; width: {{r.w}}px; height: {{r.h}}px; background: {{r.c}}"></span>
                 </sc-for>
               </div>
-              <span style="font-size: 12px; color: #B4BAC3">{{f.name}}</span>
+              <span style="font-size: 12px; color: #B4BAC3; white-space: nowrap">{{f.name}}</span>
             </div>
           </sc-for>
         </div>
-      </sc-if>
     </div>
-    <sc-if value="{{card.valid}}" hint-placeholder-val="{{ true }}">
-      <a href="{{card.next}}" style="position: absolute; top: 640px; left: 24px; right: 24px; height: 56px; border-radius: 28px; background: #EDEFF2; color: #0C0E11; font-size: 17px; font-weight: 800; display: flex; align-items: center; justify-content: center">{{card.action}}</a>
-    </sc-if>
-    <sc-if value="{{card.expired}}" hint-placeholder-val="{{ false }}">
-      <button type="button" onClick="{{toInvite}}" style="position: absolute; top: 640px; left: 24px; right: 24px; height: 56px; border-radius: 28px; border: none; background: #EDEFF2; color: #0C0E11; font-size: 17px; font-weight: 800">Scan a new invite</button>
-    </sc-if>
-    <button type="button" onClick="{{toWelcome}}" style="position: absolute; top: 708px; left: 24px; right: 24px; height: 44px; border: none; background: transparent; color: #9AA1AB; font-size: 15px">Not you? <span style="color: #2FB8B0; font-weight: 700">Use a different account</span></button>
+    <a href="LoginOpening.dc.html" style="position: absolute; top: 576px; left: 24px; right: 24px; height: 56px; border-radius: 28px; background: #EDEFF2; color: #0C0E11; font-size: 17px; font-weight: 800; display: flex; align-items: center; justify-content: center; transform: {{dip.keep}}; transition: transform 120ms ease">Looks good, join</a>
+    <a href="OnboardMake.dc.html" style="position: absolute; top: 644px; left: 24px; right: 24px; height: 52px; border-radius: 26px; border: 1px solid #2E343D; color: #EDEFF2; font-size: 16px; font-weight: 600; display: flex; align-items: center; justify-content: center">Change my MEGA</a>
+    <button type="button" onClick="{{toWelcome}}" style="position: absolute; top: 712px; left: 24px; right: 24px; height: 44px; border: none; background: transparent; color: #9AA1AB; font-size: 15px">Not you? <span style="color: #2FB8B0; font-weight: 700">Use a different account</span></button>
+  </sc-if>
+
+  <!-- 6b · Kid invite: big and friendly. The kid's MEGA is already made and can't be changed at join (only a
+       grown-up can change it later). A grown-up types the parent code next. -->
+  <sc-if value="{{is.kidInvite}}" hint-placeholder-val="{{ false }}">
+    <button type="button" aria-label="Back" onClick="{{toInvite}}" style="position: absolute; top: 54px; left: 8px; width: 44px; height: 44px; border: none; background: transparent; color: #EDEFF2; display: flex; align-items: center; justify-content: center">
+      <svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"></path></svg>
+    </button>
+    <div style="position: absolute; top: 106px; left: 24px; right: 24px; font-size: 14px; font-weight: 600; color: #9AA1AB; letter-spacing: .04em; text-transform: uppercase; text-align: center">Admin invited you</div>
+    <h1 style="position: absolute; top: 130px; left: 24px; right: 24px; margin: 0; font-size: 32px; line-height: 38px; font-weight: 800; text-align: center">Zap is ready to meet you!</h1>
+    <div aria-hidden="true" style="position: absolute; left: 75px; top: 196px; width: 240px; height: 200px; border-radius: 50%; background: radial-gradient(closest-side, #8E6CE033, #8E6CE000)"></div>
+    <div role="img" aria-label="Zap, your MEGA" style="position: absolute; left: {{kid.left}}px; top: 214px; width: {{kid.sprite.w}}px; height: {{kid.sprite.h}}px">
+      <sc-for list="{{kid.sprite.rects}}" as="r" hint-placeholder-count="300">
+        <span style="position: absolute; left: {{r.l}}px; top: {{r.t}}px; width: {{r.w}}px; height: {{r.h}}px; background: {{r.c}}"></span>
+      </sc-for>
+    </div>
+    <p style="position: absolute; top: 388px; left: 24px; right: 24px; margin: 0; font-size: 19px; line-height: 27px; color: #EDEFF2; text-align: center">Admin made Zap just for you.</p>
+    <div style="position: absolute; top: 444px; left: 24px; right: 24px; height: 150px; box-sizing: border-box; padding: 18px 20px; border-radius: 24px; background: #16191E; border: 1px solid #2E343D; display: flex; gap: 14px; align-items: flex-start">
+      <span aria-hidden="true" style="width: 44px; height: 44px; flex-shrink: 0; border-radius: 22px; background: #1F1A33; color: #C4B2F5; display: flex; align-items: center; justify-content: center">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="10" rx="2"></rect><path d="M8 11V8a4 4 0 0 1 8 0v3"></path></svg>
+      </span>
+      <span style="flex: 1; display: flex; flex-direction: column; gap: 6px">
+        <span style="font-size: 20px; font-weight: 800">Grown-up step</span>
+        <span style="font-size: 17px; line-height: 24px; color: #B4BAC3">Ask a grown-up to type the 5-digit parent code. Then you and Zap can say hi.</span>
+      </span>
+    </div>
+    <a href="KidCode.dc.html" style="position: absolute; top: 622px; left: 24px; right: 24px; height: 64px; border-radius: 32px; background: #8E6CE0; color: #FFFFFF; font-size: 20px; font-weight: 800; display: flex; align-items: center; justify-content: center; transform: {{dip.kidNext}}; transition: transform 120ms ease">A grown-up is here</a>
+    <button type="button" onClick="{{toWelcome}}" style="position: absolute; top: 702px; left: 24px; right: 24px; height: 44px; border: none; background: transparent; color: #9AA1AB; font-size: 15px">Not you? <span style="color: #2FB8B0; font-weight: 700">Use a different account</span></button>
+  </sc-if>
+
+  <!-- Invite expired (adult or kid): no MEGA preview, just how to get a new one. -->
+  <sc-if value="{{is.expired}}" hint-placeholder-val="{{ false }}">
+    <button type="button" aria-label="Back" onClick="{{toInvite}}" style="position: absolute; top: 54px; left: 8px; width: 44px; height: 44px; border: none; background: transparent; color: #EDEFF2; display: flex; align-items: center; justify-content: center">
+      <svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"></path></svg>
+    </button>
+    <div style="position: absolute; top: 236px; left: 24px; right: 24px; box-sizing: border-box; padding: 28px 24px; border-radius: 28px; background: #16191E; border: 1px solid #2E343D; display: flex; flex-direction: column; align-items: center; gap: 8px; text-align: center">
+      <div role="img" aria-label="Hub, the family’s MEGA, asleep" style="position: relative; width: {{expired.sprite.w}}px; height: {{expired.sprite.h}}px; margin-bottom: 10px">
+        <sc-for list="{{expired.sprite.rects}}" as="r" hint-placeholder-count="240">
+          <span style="position: absolute; left: {{r.l}}px; top: {{r.t}}px; width: {{r.w}}px; height: {{r.h}}px; background: {{r.c}}"></span>
+        </sc-for>
+      </div>
+      <div style="font-size: 13px; font-weight: 600; color: #9AA1AB; letter-spacing: .04em; text-transform: uppercase">Invite from Admin</div>
+      <h1 style="margin: 0; font-size: 26px; line-height: 1.2; font-weight: 800">This invite expired</h1>
+      <p style="margin: 0; font-size: 16px; line-height: 1.45; color: #B4BAC3">Invites last 3 days. Ask Admin to send you a new one.</p>
+    </div>
+    <button type="button" onClick="{{toInvite}}" style="position: absolute; top: 600px; left: 24px; right: 24px; height: 56px; border-radius: 28px; border: none; background: #EDEFF2; color: #0C0E11; font-size: 17px; font-weight: 800">Use a new invite</button>
+    <button type="button" onClick="{{toWelcome}}" style="position: absolute; top: 668px; left: 24px; right: 24px; height: 44px; border: none; background: transparent; color: #9AA1AB; font-size: 15px">Not you? <span style="color: #2FB8B0; font-weight: 700">Use a different account</span></button>
   </sc-if>
 
   <!-- Kid: too many wrong parent codes. The invite is locked for good; the admin sends a new one. -->
@@ -147,7 +210,7 @@ a{color:#EDEFF2;text-decoration:none}
     </div>
     <h1 style="position: absolute; top: 380px; left: 24px; right: 24px; margin: 0; font-size: 30px; line-height: 36px; font-weight: 800; text-align: center">This invite is locked</h1>
     <p style="position: absolute; top: 430px; left: 32px; right: 32px; margin: 0; font-size: 19px; line-height: 28px; color: #B4BAC3; text-align: center">The parent code was wrong 5 times. Ask a grown-up to send you a new invite.</p>
-    <button type="button" onClick="{{toInvite}}" style="position: absolute; top: 640px; left: 24px; right: 24px; height: 64px; border-radius: 32px; border: none; background: #EDEFF2; color: #0C0E11; font-size: 19px; font-weight: 800">Scan a new invite</button>
+    <button type="button" onClick="{{toInvite}}" style="position: absolute; top: 640px; left: 24px; right: 24px; height: 64px; border-radius: 32px; border: none; background: #EDEFF2; color: #0C0E11; font-size: 19px; font-weight: 800">Use a new invite</button>
   </sc-if>
 
   <!-- 7 · Signed in, no family yet: start one or join one. -->
@@ -177,23 +240,52 @@ a{color:#EDEFF2;text-decoration:none}
   <!-- Sheets (sign in, demo accounts) over a scrim. -->
   <div aria-hidden="true" style="position: absolute; inset: 0; z-index: 30; background: #000000; opacity: {{sheetUi.scrim}}; pointer-events: none; transition: opacity 250ms ease"></div>
   <sc-if value="{{sheetUi.open}}" hint-placeholder-val="{{ false }}">
-    <button type="button" aria-label="Close" onClick="{{closeSheet}}" style="position: absolute; left: 0; right: 0; top: 0; height: 478px; z-index: 35; border: none; padding: 0; background: transparent"></button>
+    <button type="button" aria-label="Close" onClick="{{closeSheet}}" style="position: absolute; left: 0; right: 0; top: 0; height: {{sheetUi.top}}px; z-index: 35; border: none; padding: 0; background: transparent"></button>
   </sc-if>
-  <div style="position: absolute; left: 0; right: 0; top: 478px; height: 366px; z-index: 40; box-sizing: border-box; padding: 10px 24px 34px; border-radius: 28px 28px 0 0; background: #16191E; border-top: 1px solid #2E343D; display: flex; flex-direction: column; gap: 12px; transform: translateY({{sheetUi.offset}}px); transition: transform 280ms cubic-bezier(.2, .8, .2, 1)">
-    <span aria-hidden="true" style="align-self: center; width: 36px; height: 5px; border-radius: 3px; background: #2E343D; margin-bottom: 8px"></span>
+  <!-- The sheet (owner, Oct 28): Apple and Google first (one tap), then email + password. "Make my MEGA" opens it
+       on Create account, "Sign in" on Sign in; the toggle switches. Apple shows on every platform (web and Android
+       use Apple's web flow). -->
+  <div style="position: absolute; left: 0; right: 0; top: {{sheetUi.top}}px; height: {{sheetUi.height}}px; z-index: 40; box-sizing: border-box; padding: 10px 24px 34px; border-radius: 28px 28px 0 0; background: #16191E; border-top: 1px solid #2E343D; display: flex; flex-direction: column; gap: 10px; transform: translateY({{sheetUi.offset}}px); transition: transform 280ms cubic-bezier(.2, .8, .2, 1)">
+    <span aria-hidden="true" style="align-self: center; width: 36px; height: 5px; border-radius: 3px; background: #2E343D; margin-bottom: 4px"></span>
     <sc-if value="{{sheetUi.signin}}" hint-placeholder-val="{{ true }}">
-      <h2 style="margin: 0 0 6px; font-size: 22px; line-height: 28px; font-weight: 800">Sign in to save your family</h2>
-      <sc-if value="{{showApple}}" hint-placeholder-val="{{ true }}">
-        <button type="button" onClick="{{signInApple}}" style="height: 52px; border-radius: 26px; border: none; background: #FFFFFF; color: #000000; font-size: 17px; font-weight: 700; display: flex; align-items: center; justify-content: center; gap: 10px">
-          <sc-if value="{{busy.apple}}" hint-placeholder-val="{{ false }}"><span class="spin" aria-hidden="true" style="width: 18px; height: 18px; border-radius: 9px; border: 2px solid #00000033; border-top-color: #000000; box-sizing: border-box"></span></sc-if>
-          Continue with Apple
-        </button>
-      </sc-if>
-      <button type="button" onClick="{{signInGoogle}}" style="height: 52px; border-radius: 26px; border: 1px solid #2E343D; background: {{googleBg}}; color: {{googleInk}}; font-size: 17px; font-weight: 700; display: flex; align-items: center; justify-content: center; gap: 10px">
-        <sc-if value="{{busy.google}}" hint-placeholder-val="{{ false }}"><span class="spin" aria-hidden="true" style="width: 18px; height: 18px; border-radius: 9px; border: 2px solid #9AA1AB55; border-top-color: {{googleInk}}; box-sizing: border-box"></span></sc-if>
+      <h2 style="margin: 0; font-size: 22px; line-height: 28px; font-weight: 800">{{form.title}}</h2>
+      <div role="tablist" aria-label="Sign in or create an account" style="height: 40px; padding: 3px; box-sizing: border-box; border-radius: 20px; background: #0C0E11; border: 1px solid #2E343D; display: grid; grid-template-columns: 1fr 1fr; gap: 3px">
+        <button type="button" role="tab" aria-selected="{{form.signinSel}}" onClick="{{form.toSignin}}" style="border: none; border-radius: 17px; background: {{form.signinBg}}; color: {{form.signinInk}}; font-size: 14px; font-weight: 700">Sign in</button>
+        <button type="button" role="tab" aria-selected="{{form.createSel}}" onClick="{{form.toCreate}}" style="border: none; border-radius: 17px; background: {{form.createBg}}; color: {{form.createInk}}; font-size: 14px; font-weight: 700">Create account</button>
+      </div>
+      <button type="button" onClick="{{signInApple}}" style="height: 50px; flex-shrink: 0; border-radius: 25px; border: none; background: #FFFFFF; color: #000000; font-size: 17px; font-weight: 700; display: flex; align-items: center; justify-content: center; gap: 10px">
+        <sc-if value="{{busy.apple}}" hint-placeholder-val="{{ false }}"><span class="spin" aria-hidden="true" style="width: 18px; height: 18px; border-radius: 9px; border: 2px solid #00000033; border-top-color: #000000; box-sizing: border-box"></span></sc-if>
+        <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M16.4 12.6c0-2.4 2-3.6 2.1-3.6-1.1-1.7-2.9-1.9-3.5-1.9-1.5-.2-2.9.9-3.7.9-.8 0-1.9-.9-3.2-.8-1.6 0-3.1 1-4 2.4-1.7 3-.4 7.4 1.2 9.8.8 1.2 1.8 2.5 3 2.4 1.2 0 1.7-.8 3.1-.8 1.5 0 1.9.8 3.2.8 1.3 0 2.2-1.2 3-2.4.9-1.4 1.3-2.7 1.3-2.8 0 0-2.5-1-2.5-4zM14 5.4c.7-.8 1.1-1.9 1-3-1 0-2.1.7-2.8 1.5-.6.7-1.2 1.8-1 2.9 1.1.1 2.1-.6 2.8-1.4z"></path></svg>
+        Continue with Apple
+      </button>
+      <button type="button" onClick="{{signInGoogle}}" style="height: 50px; flex-shrink: 0; border-radius: 25px; border: 1px solid #3A414B; background: transparent; color: #EDEFF2; font-size: 17px; font-weight: 700; display: flex; align-items: center; justify-content: center; gap: 10px">
+        <sc-if value="{{busy.google}}" hint-placeholder-val="{{ false }}"><span class="spin" aria-hidden="true" style="width: 18px; height: 18px; border-radius: 9px; border: 2px solid #9AA1AB55; border-top-color: #EDEFF2; box-sizing: border-box"></span></sc-if>
+        <span aria-hidden="true" style="font-size: 18px; font-weight: 800">G</span>
         Continue with Google
       </button>
-      <p style="margin: 4px 0 0; font-size: 13px; line-height: 18px; color: #9AA1AB; text-align: center">MEGA only gets your name and email.</p>
+      <div style="display: flex; align-items: center; gap: 12px; color: #9AA1AB; font-size: 13px; margin: 2px 0">
+        <span style="flex: 1; height: 1px; background: #2E343D"></span><span>or use email</span><span style="flex: 1; height: 1px; background: #2E343D"></span>
+      </div>
+      <label for="email" style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0)">Email</label>
+      <input id="email" type="email" autocomplete="email" placeholder="Email" value="{{form.email}}" onInput="{{form.typeEmail}}" style="height: 50px; box-sizing: border-box; border-radius: 14px; border: 1px solid #2E343D; background: #0C0E11; color: #EDEFF2; padding: 0 14px; font-size: 16px; font-family: inherit">
+      <div style="position: relative; height: 50px; flex-shrink: 0">
+        <label for="password" style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0)">Password</label>
+        <input id="password" type="{{form.pwType}}" autocomplete="{{form.pwAuto}}" placeholder="Password" value="{{form.password}}" onInput="{{form.typePassword}}" style="width: 100%; height: 50px; box-sizing: border-box; border-radius: 14px; border: 1px solid #2E343D; background: #0C0E11; color: #EDEFF2; padding: 0 14px; font-size: 16px; font-family: inherit; padding-right: 72px">
+        <button type="button" onClick="{{form.toggleShow}}" style="position: absolute; right: 4px; top: 3px; height: 44px; padding: 0 12px; border: none; background: transparent; color: #2FB8B0; font-size: 14px; font-weight: 700">{{form.showLabel}}</button>
+      </div>
+      <button type="button" onClick="{{form.submit}}" style="height: 52px; flex-shrink: 0; border-radius: 26px; border: none; background: {{form.submitBg}}; color: {{form.submitInk}}; font-size: 17px; font-weight: 800; display: flex; align-items: center; justify-content: center; gap: 10px">
+        <sc-if value="{{busy.email}}" hint-placeholder-val="{{ false }}"><span class="spin" aria-hidden="true" style="width: 18px; height: 18px; border-radius: 9px; border: 2px solid #0C0E1133; border-top-color: #0C0E11; box-sizing: border-box"></span></sc-if>
+        {{form.submitLabel}}
+      </button>
+      <div style="height: 32px; flex-shrink: 0; display: flex; align-items: center; justify-content: center">
+        <sc-if value="{{form.isSignin}}" hint-placeholder-val="{{ true }}">
+          <button type="button" style="height: 44px; padding: 0 8px; border: none; background: transparent; color: #2FB8B0; font-size: 14px; font-weight: 700">Forgot password?</button>
+        </sc-if>
+        <sc-if value="{{form.isCreate}}" hint-placeholder-val="{{ false }}">
+          <span style="font-size: 13px; color: #9AA1AB">Use 8 or more characters.</span>
+        </sc-if>
+      </div>
+      <p style="margin: 0; font-size: 13px; line-height: 18px; color: #9AA1AB; text-align: center">MEGA only gets your name and email.</p>
     </sc-if>
     <sc-if value="{{sheetUi.demo}}" hint-placeholder-val="{{ false }}">
       <div style="display: flex; align-items: center; justify-content: space-between">
@@ -233,7 +325,7 @@ a{color:#EDEFF2;text-decoration:none}
   </sc-for>
 </div>
 </x-dc>
-<script type="text/x-dc" data-dc-script data-props='{"step":{"editor":"enum","options":["opening","welcome","invite","scan","preview","locked","family"],"default":"welcome"},"sheet":{"editor":"enum","options":["none","signin","demo"],"default":"none"},"who":{"editor":"enum","options":["adult","kid"],"default":"adult"},"invite":{"editor":"enum","options":["valid","expired"],"default":"valid"},"platform":{"editor":"enum","options":["ios","android","web"],"default":"ios"},"build":{"editor":"enum","options":["release","dev"],"default":"release"},"motion":{"editor":"enum","options":["full","reduced"],"default":"full"},"$preview":{"width":390,"height":844}}'>
+<script type="text/x-dc" data-dc-script data-props='{"step":{"editor":"enum","options":["opening","welcome","invite","scan","preview","locked","family"],"default":"welcome"},"sheet":{"editor":"enum","options":["none","signin","create","demo"],"default":"none"},"form":{"editor":"enum","options":["empty","filled"],"default":"empty"},"scan":{"editor":"enum","options":["ready","later"],"default":"ready"},"who":{"editor":"enum","options":["adult","kid"],"default":"adult"},"invite":{"editor":"enum","options":["valid","expired"],"default":"valid"},"platform":{"editor":"enum","options":["ios","android","web"],"default":"ios"},"build":{"editor":"enum","options":["release","dev"],"default":"release"},"motion":{"editor":"enum","options":["full","reduced"],"default":"full"},"$preview":{"width":390,"height":844}}'>
 // Walk cycles exported from prototypes/megasprite (the same art HQ uses); badges and big sprites use the live engine.
 const SPRITES = __SPRITES__;
 __SPRITE_LIVE__
@@ -241,11 +333,16 @@ __SPRITE_LIVE__
 const NAMES = { teal: 'Teal', coral: 'Coral', violet: 'Zap' };
 const TICK = 40, SPEED = 2, FOREVER = 1e9;
 // Ledges: the y of the top edge a MEGA's feet stand on. Each matches an element's `top` in the markup.
-const Y = { floor: 360, head: 411, make: 610, signin: 794, sheet: 478, scanCard: 236, cont: 610, reticle: 492, card: 120, lock: 330, start: 240, join: 450, opening: 470 };
+// Oct 28 layout: floor = Hub's feet (the brand block is centered above the buttons); opening = the top of "Opening chats".
+const Y = { floor: 341, head: 388, make: 628, signin: 806, scanCard: 460, cont: 340, reticle: 492, card: 240, kidCard: 444, kidNext: 622, lock: 330, start: 240, join: 450, opening: 414 };
+// Sheet heights: sign-in/create holds Apple, Google and the email form; the demo list is shorter.
+const SHEET_H = { signin: 560, create: 560, demo: 366 };
+const sheetTop = (sheet) => 844 - (SHEET_H[sheet] || 366);
 // Ledges that are pressable: they dip 2px while a MEGA stands on them. [y, fromX, toX]
 const DIPS = {
   welcome: { make: [Y.make, 24, 366] },
   invite: { scan: [Y.scanCard, 24, 366], cont: [Y.cont, 24, 366] },
+  kidInvite: { kidNext: [Y.kidNext, 24, 366] },
   family: { start: [Y.start, 24, 366], join: [Y.join, 24, 366] },
 };
 
@@ -260,18 +357,21 @@ const script = (acts, loop) => ({ acts, loop: loop === undefined ? acts.length :
 
 // What each MEGA does on each screen.
 function scene(s) {
+  // Loading: your MEGA paces the words, end to end, until the chat is ready (reduced motion: stands in the middle).
   if (s.step === 'opening') return {
-    teal: script([at(-30, Y.opening, 'right'), SHOW, walk(140), wait(FOREVER, { happy: true })]),
-    violet: script([at(195, Y.opening), SHOW, wait(FOREVER)]),
-    coral: script([at(420, Y.opening, 'left'), SHOW, walk(250), wait(FOREVER, { happy: true })]),
+    teal: script([at(195, Y.opening, 'right'), SHOW, walk(262), wait(500, { face: 'right', emote: '…' }), walk(128), wait(500, { face: 'left', emote: '…' }), walk(195)], 2),
+    violet: script([HIDE]), coral: script([HIDE]),
   };
-  if (s.step === 'welcome' && s.sheet !== 'none') return {
-    teal: script([SHOW, ON_TOP, hop(300, Y.sheet), wait(2400), walk(92), wait(1800, { emote: '…' }), walk(300)], 3),
-    violet: script([freeze(Y.sheet)]),
-    coral: script([freeze(Y.sheet)]),
-  };
+  if (s.step === 'welcome' && s.sheet !== 'none') {
+    const top = sheetTop(s.sheet);
+    return {
+      teal: script([SHOW, ON_TOP, hop(300, top), wait(2400), walk(92), wait(1800, { emote: '…' }), walk(300)], 3),
+      violet: script([freeze(top)]),
+      coral: script([freeze(top)]),
+    };
+  }
   if (s.step === 'welcome') return {
-    teal: script([at(-30, Y.floor, 'right'), SHOW, walk(150), wait(2200, { happy: true, say: 'Hi! I’m Teal.' }), walk(236), wait(900, { face: 'right' }), walk(420),
+    teal: script([at(-30, Y.floor, 'right'), SHOW, walk(96), wait(2200, { happy: true, say: 'Hi! I’m Teal.' }), walk(300), wait(900, { face: 'right' }), walk(420),
       at(420, Y.make - 10, 'left'), hop(316, Y.make), wait(2600, { emote: '!', poke: 'make' }), walk(56), wait(1300), hop(-30, Y.make + 40)], 0),
     violet: script([HIDE, wait(2600), at(420, Y.floor, 'left'), SHOW, walk(268), wait(700, { face: 'left' }), hop(232, Y.head), wait(2400, { happy: true, emote: '♪' }),
       walk(104), wait(1200, { emote: '…' }), hop(60, Y.floor), walk(-30), HIDE, wait(3000)], 2),
@@ -295,13 +395,20 @@ function scene(s) {
     teal: script([at(195, Y.reticle, 'back'), SHOW, wait(1400, { face: 'back', emote: '…' }), walk(120), wait(1400, { face: 'back' }), walk(270), wait(1600, { face: 'back', emote: '?' }), walk(195)], 2),
     violet: script([HIDE]), coral: script([HIDE]),
   };
-  if (s.step === 'preview') {
-    const guide = s.who === 'kid' ? 'violet' : 'teal';
-    const plan = s.invite === 'expired'
-      ? script([at(195, Y.card), SHOW, wait(FOREVER, { emote: '…' })])
-      : script([at(420, Y.card, 'left'), SHOW, walk(290), wait(2200, { happy: true, say: s.who === 'kid' ? 'Hi! I’m Zap.' : 'Welcome!' }), walk(100), wait(1600), walk(290)], 2);
-    return { teal: script([HIDE]), violet: script([HIDE]), coral: script([HIDE]), [guide]: plan };
-  }
+  // Invites: Admin's MEGA (Teal) welcomes an adult from the top of their new MEGA's card. On a kid invite the
+  // big Zap is the star, so Teal and Coral wait on the grown-up card instead.
+  if (s.step === 'preview' && s.invite === 'expired') return {
+    teal: script([at(300, 236), SHOW, wait(FOREVER, { emote: '…' })]), violet: script([HIDE]), coral: script([HIDE]),
+  };
+  if (s.step === 'preview' && s.who === 'kid') return {
+    teal: script([at(420, Y.kidCard, 'left'), SHOW, walk(310), wait(2200, { face: 'left', emote: '…' }), walk(250), wait(1800), walk(310)], 2),
+    coral: script([HIDE, wait(1800), at(-30, Y.kidCard, 'right'), SHOW, walk(70), wait(2400, { happy: true, emote: '♪' }), walk(120), wait(1600), walk(70)], 5),
+    violet: script([HIDE]),
+  };
+  if (s.step === 'preview') return {
+    teal: script([at(420, Y.card, 'left'), SHOW, walk(300), wait(2200, { happy: true, say: 'Welcome!' }), walk(90), wait(1600), walk(300)], 2),
+    violet: script([HIDE]), coral: script([HIDE]),
+  };
   if (s.step === 'locked') return {
     violet: script([at(-30, Y.lock, 'right'), SHOW, walk(140), wait(1800, { face: 'right', emote: '…' }), wait(FOREVER)]),
     teal: script([HIDE]), coral: script([HIDE]),
@@ -337,7 +444,11 @@ class Component extends DCLogic {
     this.state = this.fresh(props);
     this.walkers = {};
   }
-  fresh(p) { return { step: p.step || 'welcome', sheet: p.sheet || 'none', shown: p.sheet || 'none', link: '', linked: false, found: false, busy: null, t: 0 }; }
+  fresh(p) {
+    const filled = p.form === 'filled';
+    return { step: p.step || 'welcome', sheet: p.sheet || 'none', shown: p.sheet || 'none', link: '', linked: false, found: false, busy: null, t: 0,
+      email: filled ? 'you@example.com' : '', password: filled ? 'paper-kite-42' : '', showPw: false };
+  }
   reduced() { return this.props.motion === 'reduced'; }
   componentDidMount() {
     this.openT0 = Date.now();
@@ -345,7 +456,7 @@ class Component extends DCLogic {
     this.timer = setInterval(this.tick, TICK);
   }
   componentDidUpdate(prev) {
-    const keys = ['step', 'sheet', 'who', 'invite', 'motion'];
+    const keys = ['step', 'sheet', 'who', 'invite', 'motion', 'form', 'scan'];
     if (keys.some((k) => prev[k] !== this.props[k])) { const s = this.fresh(this.props); this.setState(s); this.setScene(s); }
   }
   componentWillUnmount() { clearInterval(this.timer); (this.timers || []).forEach(clearTimeout); }
@@ -400,11 +511,6 @@ class Component extends DCLogic {
 
   tick = () => {
     const now = Date.now();
-    if (this.state.step === 'opening') {
-      const cycle = (now - this.openT0) % 5600;
-      if (this.lastCycle !== undefined && cycle < this.lastCycle) this.setScene(this.state);
-      this.lastCycle = cycle;
-    }
     Object.values(this.walkers).forEach((m) => {
       if (!m.cur) return;
       const paused = (m.react && now < m.react.until) || (m.look && now < m.look.until);
@@ -441,7 +547,7 @@ class Component extends DCLogic {
     const sheetOpen = step === 'welcome' && s.sheet !== 'none';
     const visible = Object.values(this.walkers).filter((m) => !m.hidden);
 
-    const dipLedges = DIPS[step] || {};
+    const dipLedges = DIPS[step === 'preview' && who === 'kid' ? 'kidInvite' : step] || {};
     const weighted = {};
     Object.keys(dipLedges).forEach((k) => {
       const [y, x0, x1] = dipLedges[k];
@@ -450,11 +556,10 @@ class Component extends DCLogic {
     const pokes = {};
     visible.forEach((m) => { if (m.poke) pokes[m.poke] = true; });
     const dip = {}, glow = {};
-    ['make', 'scan', 'cont', 'start', 'join'].forEach((k) => { dip[k] = weighted[k] ? 'translateY(2px)' : 'none'; });
+    ['make', 'scan', 'cont', 'start', 'join', 'kidNext', 'keep'].forEach((k) => { dip[k] = weighted[k] ? 'translateY(2px)' : 'none'; });
     glow.make = pokes.make ? '0 0 0 3px #0C0E11, 0 0 0 5px #2FB8B0' : 'none';
     glow.cont = pokes.cont ? '0 0 0 3px #0C0E11, 0 0 0 5px #2FB8B0' : 'none';
 
-    const chat = step === 'opening' && (now - (this.openT0 || now)) % 5600 > 2800;
     const walkers = visible.map((m) => {
       const r = m.react && now < m.react.until ? m.react : null;
       const look = m.look && now < m.look.until ? m.look : null;
@@ -474,7 +579,7 @@ class Component extends DCLogic {
         y: m.y,
         src: '/_blob/' + SPRITES[name],
         left: (m.x - 22).toFixed(1), top: (m.y - 44 + (onDip ? 2 : 0) + bounce).toFixed(1),
-        z: m.layer === 'top' ? 50 : 20, opacity: chat ? 0 : 1,
+        z: m.layer === 'top' ? 50 : 20, opacity: 1,
         emote, hasEmote: !!emote && !say, say, hasSay: !!say,
         label: NAMES[m.id] + ', say hi',
         tap: () => { m.react = { until: Date.now() + 1500, t0: Date.now() }; },
@@ -484,45 +589,56 @@ class Component extends DCLogic {
     const signIn = (provider) => () => {
       if (s.busy) return;
       this.setState({ busy: provider });
-      this.later(() => this.go({ step: 'family', sheet: 'none', busy: null }), 1400);
+      this.later(() => this.go({ step: 'opening', sheet: 'none', busy: null }), 1400);
+      this.later(() => this.go({ step: 'family' }), 4200);
     };
     const open = (sheet) => () => { this.lookAt(195, Y.make + 29); this.later(() => this.go({ sheet, shown: sheet }), 350); };
 
     const sp = sprite;
-    const cardFace = invite === 'expired' ? 'closed' : who === 'kid' ? 'happy' : 'calm';
-    const cardHex = who === 'kid' && invite !== 'expired' ? LOOKS.colors.violet : LOOKS.colors.sky;
-    const kid = who === 'kid';
-    const card = invite === 'expired'
-      ? { eyebrow: 'Invite from Admin', title: 'This invite expired', body: 'Invites last 3 days. Ask Admin to send you a new one.', showFamily: false }
-      : kid
-        ? { eyebrow: 'Admin invited you', title: 'Zap is ready to meet you', body: 'First, ask a grown-up to type the 5-digit parent code.', showFamily: true, action: 'Next: parent code', next: 'KidCode.dc.html' }
-        : { eyebrow: 'Admin invited you', title: 'Join the family', body: 'Hub is your family’s shared MEGA. Next, you’ll make your own.', showFamily: true, action: 'Join the family', next: 'OnboardMake.dc.html' };
-    Object.assign(card, {
-      sprite: sp(cardHex, cardFace, 'none', 3), valid: invite !== 'expired', expired: invite === 'expired',
-      titleSize: kid ? 28 : 26, bodySize: kid ? 18 : 16, action: card.action || '', next: card.next || 'Main.dc.html',
-    });
-
+    const kid = who === 'kid', expired = invite === 'expired';
+    const hubSprite = sp(LOOKS.colors.sky, 'happy', 'none', 4);
+    const kidSprite = sp(LOOKS.colors.violet, 'happy', 'none', 4);
+    const mode = s.shown === 'create' ? 'create' : 'signin';
+    const sel = (on) => ({ bg: on ? '#EDEFF2' : 'transparent', ink: on ? '#0C0E11' : '#B4BAC3' });
+    const ready = /.+@.+\..+/.test(s.email) && s.password.length >= 8;
+    const form = {
+      title: mode === 'create' ? 'Create your account' : 'Welcome back',
+      isSignin: mode === 'signin', isCreate: mode === 'create',
+      signinSel: String(mode === 'signin'), createSel: String(mode === 'create'),
+      signinBg: sel(mode === 'signin').bg, signinInk: sel(mode === 'signin').ink, createBg: sel(mode === 'create').bg, createInk: sel(mode === 'create').ink,
+      toSignin: () => this.setState({ shown: 'signin', sheet: 'signin' }), toCreate: () => this.setState({ shown: 'create', sheet: 'create' }),
+      email: s.email, password: s.password,
+      typeEmail: (e) => this.setState({ email: e.target.value }), typePassword: (e) => this.setState({ password: e.target.value }),
+      pwType: s.showPw ? 'text' : 'password', pwAuto: mode === 'create' ? 'new-password' : 'current-password',
+      showLabel: s.showPw ? 'Hide' : 'Show', toggleShow: () => this.setState({ showPw: !s.showPw }),
+      submitLabel: mode === 'create' ? 'Create account' : 'Sign in',
+      submitBg: ready ? '#EDEFF2' : '#2E343D', submitInk: ready ? '#0C0E11' : '#9AA1AB',
+      submit: () => { if (ready) signIn('email')(); },
+    };
     const scanHint = s.found ? 'Found it! Opening the invite…' : 'Point your camera at the QR code on your family admin’s phone.';
     return {
-      is: { opening: step === 'opening', welcome: step === 'welcome', invite: step === 'invite', scan: step === 'scan', preview: step === 'preview', locked: step === 'locked', family: step === 'family' },
+      is: { opening: step === 'opening', welcome: step === 'welcome', invite: step === 'invite', scan: step === 'scan', locked: step === 'locked', family: step === 'family',
+        adultInvite: step === 'preview' && !kid && !expired, kidInvite: step === 'preview' && kid && !expired, expired: step === 'preview' && expired },
+      hub: { sprite: hubSprite, left: 195 - hubSprite.w / 2, top: Y.floor - hubSprite.h },
+      adult: { sprite: sp(LOOKS.colors.coral, 'happy', 'none', 3) },
+      kid: { sprite: kidSprite, left: 195 - kidSprite.w / 2 },
+      expired: { sprite: sp(LOOKS.colors.sky, 'closed', 'none', 3) },
+      inviteAlt: { scan: this.props.scan !== 'later', help: this.props.scan === 'later', divider: this.props.scan === 'later' ? 'or' : 'or scan instead', hub: sp(LOOKS.colors.sky, 'happy', 'none', 2) },
+      form,
       walkers, dip, glow, qr: QR,
-      opening: { chatOpacity: chat ? 1 : 0 },
       showDemoPill: this.props.build === 'dev',
-      showApple: platform === 'ios',
-      googleBg: platform === 'ios' ? 'transparent' : '#FFFFFF', googleInk: platform === 'ios' ? '#EDEFF2' : '#0C0E11',
-      busy: { apple: s.busy === 'apple', google: s.busy === 'google' },
+      busy: { apple: s.busy === 'apple', google: s.busy === 'google', email: s.busy === 'email' },
       signinColor: pokes.signin ? '#2FB8B0' : '#EDEFF2', signinLine: pokes.signin ? 'underline' : 'none',
       scanBorder: pokes.scan ? '#2FB8B0' : '#2E343D',
       cont: s.linked ? { disabled: false, bg: '#EDEFF2', ink: '#0C0E11', border: '#EDEFF2' } : { disabled: true, bg: '#16191E', ink: '#9AA1AB', border: '#2E343D' },
       scan: { qrOpacity: s.found ? 1 : 0.35, corner: s.found ? '#2FB8B0' : '#EDEFF2', hint: scanHint },
       link: s.link,
-      card,
-      family: [['Admin', 'teal'], ['Partner', 'coral'], ['Twin 1', 'violet'], ['Twin 2', 'sun']].map(([n, c]) => ({ name: n, badge: head(LOOKS.colors[c], 'calm') })),
+      family: [['Admin', 'teal'], ['Twin 1', 'violet'], ['Twin 2', 'sun'], ['Hub', 'sky']].map(([n, c]) => ({ name: n, badge: head(LOOKS.colors[c], 'calm') })),
       demo: [['Admin', 'Teal · admin', 'teal', 'Main.dc.html'], ['Partner', 'Coral · adult', 'coral', 'Main.dc.html'], ['Twin 1', 'Zap · kid', 'violet', 'Kid.dc.html'], ['Twin 2', 'Sunny · kid', 'sun', 'Kid.dc.html']]
         .map(([n, sub, c, href]) => ({ name: n, sub, href, badge: head(LOOKS.colors[c], 'happy') })),
       // `shown` outlives `sheet` so a closing sheet keeps its contents while it slides away.
-      sheetUi: { open: sheetOpen, signin: s.shown === 'signin', demo: s.shown === 'demo', offset: sheetOpen ? 0 : 400, scrim: sheetOpen ? 0.55 : 0 },
-      openSignIn: open('signin'), openDemo: open('demo'),
+      sheetUi: { open: sheetOpen, signin: s.shown === 'signin' || s.shown === 'create', demo: s.shown === 'demo', top: sheetTop(s.shown), height: SHEET_H[s.shown] || 366, offset: sheetOpen ? 0 : 600, scrim: sheetOpen ? 0.55 : 0 },
+      openSignIn: open('signin'), openCreate: open('create'), openDemo: open('demo'),
       closeSheet: () => { if (!s.busy) this.go({ sheet: 'none' }); },
       signInApple: signIn('apple'), signInGoogle: signIn('google'),
       toWelcome: () => this.go({ step: 'welcome', sheet: 'none', link: '', linked: false }),

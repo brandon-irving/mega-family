@@ -218,6 +218,29 @@ a{color:#EDEFF2;text-decoration:none}
       </sc-for>
     </div>
 
+    <!-- Kid composer, talk mode: the one bar every kid screen shares (same 72pt sizes as the Kid board). -->
+    <sc-if value="{{th.kidTalk}}" hint-placeholder-val="{{ false }}">
+      <div style="display: flex; align-items: center; gap: 12px; padding: 8px 16px 30px; flex-shrink: 0">
+        <button type="button" style="flex: 1; min-width: 0; height: 72px; border-radius: 36px; border: none; background: {{th.accent}}; color: #0C0E11; font-size: 20px; font-weight: 800; display: flex; align-items: center; justify-content: center; gap: 10px">
+          <svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"></rect><path d="M5 11a7 7 0 0 0 14 0M12 18v3"></path></svg>
+          Talk to {{th.name}}
+        </button>
+        <button type="button" aria-label="Type instead" onClick="{{th.toggleTyping}}" style="width: 72px; height: 72px; flex-shrink: 0; border-radius: 36px; border: 1px solid #3A414B; background: #16191E; color: #EDEFF2; display: flex; align-items: center; justify-content: center">
+          <svg aria-hidden="true" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="13" rx="2.5"></rect><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M6 14h.01M18 14h.01M9 14.5h6"></path></svg>
+        </button>
+      </div>
+    </sc-if>
+    <!-- Kid composer, typing: the field takes the whole width left; the mic goes back to Talk. -->
+    <sc-if value="{{th.kidType}}" hint-placeholder-val="{{ false }}">
+      <div style="display: flex; align-items: center; gap: 10px; padding: 8px 16px 30px; flex-shrink: 0">
+        <label for="kid-composer" style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0)">Message {{th.name}}</label>
+        <input id="kid-composer" type="text" placeholder="Type to {{th.name}}…" style="flex: 1; min-width: 0; height: 72px; box-sizing: border-box; border-radius: 36px; border: 2px solid {{th.accent}}; background: #16191E; color: #EDEFF2; padding: 0 22px; font-size: 20px; font-family: inherit">
+        <button type="button" aria-label="Talk instead" onClick="{{th.toggleTyping}}" style="width: 72px; height: 72px; flex-shrink: 0; border-radius: 36px; border: none; background: {{th.accent}}; color: #0C0E11; display: flex; align-items: center; justify-content: center">
+          <svg aria-hidden="true" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"></rect><path d="M5 11a7 7 0 0 0 14 0M12 18v3"></path></svg>
+        </button>
+      </div>
+    </sc-if>
+    <sc-if value="{{th.adultBar}}" hint-placeholder-val="{{ true }}">
     <div style="display: flex; align-items: center; gap: 8px; padding: 10px 16px 30px; flex-shrink: 0">
       <sc-if value="{{th.camera}}" hint-placeholder-val="{{ false }}">
         <button type="button" aria-label="Take a photo" onClick="{{th.openCamera}}" style="width: 48px; height: 48px; flex-shrink: 0; border-radius: 24px; border: 1px solid #2E343D; background: #16191E; color: #EDEFF2; display: flex; align-items: center; justify-content: center">
@@ -230,6 +253,7 @@ a{color:#EDEFF2;text-decoration:none}
         <svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"></rect><path d="M5 11a7 7 0 0 0 14 0M12 18v3"></path></svg>
       </button>
     </div>
+    </sc-if>
   </div>
 </sc-if>
 
@@ -345,7 +369,7 @@ a{color:#EDEFF2;text-decoration:none}
   </sc-if>
 </div>
 </x-dc>
-<script type="text/x-dc" data-dc-script data-props='{"step":{"editor":"enum","options":["snap","make","practice","done","summary","chore","choreApprove","bedtime","morning","bucks"],"default":"make"},"hint":{"editor":"enum","options":["off","on"],"default":"off"},"$preview":{"width":390,"height":844}}'>
+<script type="text/x-dc" data-dc-script data-props='{"step":{"editor":"enum","options":["intro","snap","make","practice","done","summary","chore","choreApprove","bedtime","morning","bucks"],"default":"make"},"hint":{"editor":"enum","options":["off","on"],"default":"off"},"typing":{"editor":"enum","options":["off","on"],"default":"off"},"$preview":{"width":390,"height":844}}'>
 // Generated from prototypes/megasprite (mega-template.mjs, pixel-paint.mjs, export-looks.mjs).
 const LOOKS = {"grid":[32,40],"body":[[15,0,2,"outline"],[14,1,1,"outline"],[15,1,2,"tipLight"],[17,1,1,"outline"],[13,2,1,"outline"],[14,2,1,"tipLight"],[15,2,2,"tip"],[17,2,1,"tipLight"],[18,2,1,"outline"],[14,3,1,"outline"],[15,3,2,"tipDark"],[17,3,1,"outline"],[14,4,4,"outline"],[14,5,1,"outline"],[15,5,2,"silver"],[17,5,1,"outline"],[14,6,1,"outline"],[15,6,2,"silver"],[17,6,1,"outline"],[6,7,20,"outline"],[5,8,1,"outline"],[6,8,20,"shellLight"],[26,8,1,"outline"],[4,9,1,"outline"],[5,9,1,"shellLight"],[6,9,20,"shell"],[26,9,1,"shellLight"],[27,9,1,"outline"],[3,10,1,"outline"],[4,10,1,"shellLight"],[5,10,22,"shell"],[27,10,1,"shellLight"],[28,10,1,"outline"],[3,11,1,"outline"],[4,11,4,"shell"],[8,11,16,"visor"],[24,11,4,"shell"],[28,11,1,"outline"],[2,12,2,"outline"],[4,12,3,"shell"],[7,12,3,"visor"],[10,12,3,"glare"],[13,12,12,"visor"],[25,12,3,"shell"],[28,12,2,"outline"],[1,13,1,"outline"],[2,13,1,"shellLight"],[3,13,1,"outline"],[4,13,3,"shell"],[7,13,2,"visor"],[9,13,1,"glare"],[10,13,15,"visor"],[25,13,3,"shell"],[28,13,1,"outline"],[29,13,1,"shellLight"],[30,13,1,"outline"],[0,14,1,"outline"],[1,14,1,"shellLight"],[2,14,1,"shell"],[3,14,1,"outline"],[4,14,3,"shell"],[7,14,2,"visor"],[9,14,1,"glare"],[10,14,15,"visor"],[25,14,3,"shell"],[28,14,1,"outline"],[29,14,1,"shell"],[30,14,1,"shellLight"],[31,14,1,"outline"],[0,15,1,"outline"],[1,15,2,"shell"],[3,15,1,"outline"],[4,15,3,"shell"],[7,15,18,"visor"],[25,15,3,"shell"],[28,15,1,"outline"],[29,15,2,"shell"],[31,15,1,"outline"],[0,16,1,"outline"],[1,16,2,"shell"],[3,16,1,"outline"],[4,16,3,"shell"],[7,16,18,"visor"],[25,16,3,"shell"],[28,16,1,"outline"],[29,16,2,"shell"],[31,16,1,"outline"],[0,17,1,"outline"],[1,17,2,"shell"],[3,17,1,"outline"],[4,17,3,"shell"],[7,17,18,"visor"],[25,17,3,"shell"],[28,17,1,"outline"],[29,17,2,"shell"],[31,17,1,"outline"],[0,18,1,"outline"],[1,18,1,"shellDark"],[2,18,1,"shell"],[3,18,1,"outline"],[4,18,3,"shell"],[7,18,18,"visor"],[25,18,3,"shell"],[28,18,1,"outline"],[29,18,1,"shell"],[30,18,1,"shellDark"],[31,18,1,"outline"],[1,19,1,"outline"],[2,19,1,"shellDark"],[3,19,1,"outline"],[4,19,3,"shell"],[7,19,18,"visor"],[25,19,3,"shell"],[28,19,1,"outline"],[29,19,1,"shellDark"],[30,19,1,"outline"],[2,20,2,"outline"],[4,20,3,"shell"],[7,20,18,"visor"],[25,20,3,"shell"],[28,20,2,"outline"],[3,21,1,"outline"],[4,21,3,"shell"],[7,21,18,"visor"],[25,21,3,"shell"],[28,21,1,"outline"],[3,22,1,"outline"],[4,22,4,"shell"],[8,22,16,"visor"],[24,22,4,"shell"],[28,22,1,"outline"],[3,23,1,"outline"],[4,23,1,"shellDark"],[5,23,22,"shell"],[27,23,1,"shellDark"],[28,23,1,"outline"],[4,24,1,"outline"],[5,24,1,"shellDark"],[6,24,20,"shell"],[26,24,1,"shellDark"],[27,24,1,"outline"],[5,25,1,"outline"],[6,25,20,"shellDark"],[26,25,1,"outline"],[5,26,22,"outline"],[4,27,1,"outline"],[5,27,2,"whiteLight"],[7,27,1,"outline"],[8,27,1,"shellLight"],[9,27,1,"outline"],[10,27,1,"shellLight"],[11,27,2,"shell"],[13,27,6,"outline"],[19,27,2,"shell"],[21,27,1,"shellLight"],[22,27,1,"outline"],[23,27,1,"shellLight"],[24,27,1,"outline"],[25,27,2,"whiteLight"],[27,27,1,"outline"],[3,28,1,"outline"],[4,28,1,"whiteLight"],[5,28,2,"white"],[7,28,1,"whiteLight"],[8,28,2,"outline"],[10,28,2,"shell"],[12,28,1,"outline"],[13,28,6,"whiteLight"],[19,28,1,"outline"],[20,28,2,"shell"],[22,28,2,"outline"],[24,28,1,"whiteLight"],[25,28,2,"white"],[27,28,1,"whiteLight"],[28,28,1,"outline"],[3,29,1,"outline"],[4,29,1,"whiteDark"],[5,29,2,"white"],[7,29,1,"whiteDark"],[8,29,2,"outline"],[10,29,2,"shell"],[12,29,1,"outline"],[13,29,6,"whiteDark"],[19,29,1,"outline"],[20,29,2,"shell"],[22,29,2,"outline"],[24,29,1,"whiteDark"],[25,29,2,"white"],[27,29,1,"whiteDark"],[28,29,1,"outline"],[4,30,1,"outline"],[5,30,2,"whiteDark"],[7,30,1,"outline"],[9,30,1,"outline"],[10,30,1,"shellDark"],[11,30,2,"shell"],[13,30,6,"outline"],[19,30,2,"shell"],[21,30,1,"shellDark"],[22,30,1,"outline"],[24,30,1,"outline"],[25,30,2,"whiteDark"],[27,30,1,"outline"],[5,31,2,"outline"],[10,31,1,"outline"],[11,31,10,"shellDark"],[21,31,1,"outline"],[25,31,2,"outline"],[11,32,10,"outline"],[11,33,1,"outline"],[12,33,2,"shell"],[14,33,1,"outline"],[17,33,1,"outline"],[18,33,2,"shell"],[20,33,1,"outline"],[11,34,4,"outline"],[17,34,4,"outline"],[10,35,1,"outline"],[11,35,3,"whiteLight"],[14,35,1,"outline"],[17,35,1,"outline"],[18,35,3,"whiteLight"],[21,35,1,"outline"],[9,36,1,"outline"],[10,36,1,"whiteLight"],[11,36,3,"white"],[14,36,1,"whiteLight"],[15,36,2,"outline"],[17,36,1,"whiteLight"],[18,36,3,"white"],[21,36,1,"whiteLight"],[22,36,1,"outline"],[10,37,1,"outline"],[11,37,3,"whiteDark"],[14,37,1,"outline"],[17,37,1,"outline"],[18,37,3,"whiteDark"],[21,37,1,"outline"],[11,38,3,"outline"],[18,38,3,"outline"]],"faces":{"calm":[[11,16,2,"eye"],[19,16,2,"eye"],[11,17,2,"eye"],[19,17,2,"eye"]],"happy":[[11,16,2,"eye"],[19,16,2,"eye"],[10,17,1,"eye"],[13,17,1,"eye"],[18,17,1,"eye"],[21,17,1,"eye"],[8,19,2,"blush"],[22,19,2,"blush"]],"wink":[[11,15,2,"eye"],[11,16,2,"eye"],[19,16,2,"eye"],[11,17,2,"eye"],[18,17,1,"eye"],[21,17,1,"eye"]],"open":[[11,15,2,"eye"],[19,15,2,"eye"],[11,16,2,"eye"],[19,16,2,"eye"],[11,17,2,"eye"],[19,17,2,"eye"]],"closed":[[10,17,4,"eye"],[18,17,4,"eye"]]},"fixed":{"outline":"#1B1A3A","visor":"#17143A","glare":"#BFEAF7","white":"#F4F6FB","whiteLight":"#FFFFFF","whiteDark":"#AEB3CC","silver":"#C9CFDB","silverLight":"#E8EBF2","silverDark":"#8E95AB","tip":"#9FF0F7","tipLight":"#F0FFFF","tipDark":"#5FCFE0","eye":"#E8FFFF","blush":"#FF9AB2"},"colors":{"teal":"#2FB8B0","coral":"#F2766B","violet":"#8E6CE0","sun":"#F2B33D","sky":"#5B8DEF","leaf":"#5BBF6A"},"stickers":["star","heart","leaf","bolt"],"personalities":{"calm":{"label":"Calm","face":"calm","blurb":"Gentle and unhurried","sample":"No rush. Practice is at 5:30, and I'll remind you at 4:50."},"cheerful":{"label":"Cheerful","face":"happy","blurb":"Upbeat and encouraging","sample":"Good news! Practice is at 5:30. Want a reminder at 4:50?"},"funny":{"label":"Funny","face":"wink","blurb":"Light jokes, still useful","sample":"Practice at 5:30. I'll ping you at 4:50, before traffic does."},"brief":{"label":"Brief","face":"open","blurb":"Short and to the point","sample":"Practice 5:30. Reminder at 4:50?"}}};
 const STICKER_ART = {"star":"a509b7da6f93811f29bf9e84560af70f","heart":"ef08bdd73525cdfac56fe3c437a18b9c","leaf":"6729bb22fb50e334dd97a073fa44e53a","bolt":"f4bb0c6f1f0fcae62475f582a31df06e"};
@@ -481,7 +505,10 @@ function thread(megaId, items, extra) {
     accent: m.hex, mine: m.mine, font: size.font, btnH: size.btnH, btnFont: size.btnFont,
     showCoin: false, coin: coin(2), balance: 0, camera: false, openCamera: () => {}, sheet: SHEET,
     items: items.map((it) => card(it, size)),
-  }, extra || {});
+    // One composer per audience (owner, Oct 28): every kid screen uses the same bar. Kids start on a big
+    // Talk button with a 56pt keyboard toggle; typing swaps in a full-width field with a mic to go back.
+    adultBar: !m.kid, kidTalk: !!m.kid, kidType: false, toggleTyping: () => {},
+  }, extra || {}, m.kid && extra && extra.typing ? { kidTalk: false, kidType: true } : {});
 }
 
 // Fill every flag thread.html reads, so a card only names what it has.
@@ -537,11 +564,11 @@ class Component extends DCLogic {
     return {
       step, camera: step === 'snap', kid: 'Twin 1', count: '5', made: false,
       q: p.hint === 'on' ? 3 : 1, hint: p.hint === 'on', miss: '', amount: step === 'choreApprove' ? 3 : 5, released: '',
-      choreDone: false, packed: [true, false, false, false], morning: 1, cheer: false, bucksGone: false,
+      choreDone: false, packed: [true, false, false, false], morning: 1, cheer: false, bucksGone: false, typing: p.typing === 'on',
     };
   }
   componentDidUpdate(prev) {
-    if (prev.step !== this.props.step || prev.hint !== this.props.hint) this.setState(this.fresh(this.props));
+    if (prev.step !== this.props.step || prev.hint !== this.props.hint || prev.typing !== this.props.typing) this.setState(this.fresh(this.props));
   }
   componentWillUnmount() { clearTimeout(this.cheerT); }
 
@@ -647,6 +674,21 @@ class Component extends DCLogic {
           } },
         ], { showCoin: true, balance: 12 }];
       }
+      case 'intro':
+        // A kid's first open (owner, Oct 28): never an empty thread. Their MEGA says hi and shows how it helps.
+        return ['sunny', [
+          { day: 'Today · 3:40 PM' },
+          { from: 'sunny', say: 'Hi Twin 2! I’m Sunny, your MEGA. Admin made me just for you.' },
+          { card: {
+            from: 'Sunny · How I help', title: 'Here’s what we can do', titleSize: 22,
+            rows: [
+              ['Chores and reminders', 'I remind you, you tap Done', 'Show me'],
+              ['Homework practice', 'Hints, never the answers', 'Show me'],
+              ['Ready for tomorrow', 'A checklist from the family calendar', 'Show me'],
+            ].map(([title, why, actLabel]) => ({ title, why, actLabel, aria: actLabel + ': ' + title, act: () => {}, bg: 'transparent', fg: '#EDEFF2', border: '#3A414B' })),
+          } },
+          { from: 'sunny', say: 'Tap Talk to Sunny and ask me anything. Or tap the keyboard to type.' },
+        ], { showCoin: true, balance: 0 }];
       case 'bucks':
         return ['zap', [
           { day: 'Today · 4:33 PM' },
@@ -659,7 +701,8 @@ class Component extends DCLogic {
 
   renderVals() {
     const s = this.state, step = s.step;
-    const [mega, items, extra] = this.items();
+    const [mega, items, extra0] = this.items();
+    const extra = Object.assign({}, extra0, { typing: s.typing, toggleTyping: () => this.setState({ typing: !s.typing }) });
     const finished = s.morning >= MORNING.length, cur = MORNING[Math.min(s.morning, MORNING.length - 1)];
     return {
       showThread: step !== 'morning',
