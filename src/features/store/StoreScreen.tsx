@@ -9,11 +9,11 @@
 import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, useWindowDimensions, View } from 'react-native';
 import Animated, { useReducedMotion, ZoomIn } from 'react-native-reanimated';
-import { fillCopy, STORE_COPY } from '@shared/config/copy';
+import { fillCopy, MODAL_COPY, STORE_COPY } from '@shared/config/copy';
 import { STORE_TAB_ROW, STORE_TABS } from '@shared/config/store';
 import { renderFurniture, type Picture } from '@shared/sprite';
 import type { FurnitureKindId } from '@shared/config/store';
-import { BottomSheetModal } from '@/ui/BottomSheetModal';
+import { ModalSheet } from '@/ui/ModalSheet';
 import { BucksCoin } from '@/ui/BucksCoin';
 import { Button } from '@/ui/Button';
 import { MegaSprite } from '@/ui/MegaSprite';
@@ -179,8 +179,8 @@ export function StoreScreenView({ megaName, balance, items, look, initialTab = '
         ) : null}
       </View>
 
-      {/* Closes with its ✕, the scrim, a drag down, Android back or Escape (src/ui/BottomSheetModal). */}
-      <BottomSheetModal open={sheet.kind !== 'none' && !!sel} onClose={() => setSheet({ kind: 'none' })} label={sheet.kind === 'confirm' ? fillCopy(STORE_COPY.confirmTitle, { item: name }) : STORE_COPY.boughtTitle}>
+      {/* Closes with its ✕, the scrim, a drag down, Android back or Escape (src/ui/ModalSheet). */}
+      <ModalSheet open={sheet.kind !== 'none' && !!sel} closeLabel={MODAL_COPY.close} showTitle={false} testID="store-sheet" onClose={() => setSheet({ kind: 'none' })} title={sheet.kind === 'confirm' ? fillCopy(STORE_COPY.confirmTitle, { item: name }) : STORE_COPY.boughtTitle}>
         {sel && sheet.kind !== 'none' && (
           <View style={{ alignItems: 'center', gap: tokens.spacing.sm }}>
             <Animated.View key={sheet.kind} entering={sheet.kind === 'bought' && !reduced ? ZoomIn.duration(tokens.durations.slow) : undefined} style={{ marginTop: tokens.spacing.sm }}>
@@ -225,7 +225,7 @@ export function StoreScreenView({ megaName, balance, items, look, initialTab = '
             ) : null}
           </View>
         )}
-      </BottomSheetModal>
+      </ModalSheet>
     </View>
   );
 }

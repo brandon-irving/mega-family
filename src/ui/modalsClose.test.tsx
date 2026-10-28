@@ -11,7 +11,7 @@ import { SaveChip } from '@/features/chat/SaveChip';
 import { StoreScreenView } from '@/features/store/StoreScreen';
 import { TalkContent } from '@/features/talk/TalkContent';
 import { SHEET_DISMISS, TOUCH_TARGET } from '@shared/config/theme';
-import { BottomSheetModal } from './BottomSheetModal';
+import { ModalSheet } from './ModalSheet';
 import { swipeDismisses } from './dismiss';
 import { Sheet } from './Sheet';
 import { Text } from './Text';
@@ -60,22 +60,23 @@ describe('every modal can be closed', () => {
     expect(swipeDismisses({ dy: -200, vy: -2 })).toBe(false);
   });
 
-  test('BottomSheetModal: ✕, scrim and Escape close it; the panel takes drags', async () => {
-    const web = asWeb();
+  test('ModalSheet (the one sheet): ✕, scrim, back/Escape close it; the panel takes drags', async () => {
     const onClose = jest.fn();
     await renderWithTheme(
-      <BottomSheetModal open onClose={onClose} label="Change scope">
+      <ModalSheet open title="Change scope" closeLabel="Close" onClose={onClose} testID="sheet-x">
         <Text>Body</Text>
-      </BottomSheetModal>,
+      </ModalSheet>,
     );
-    const close = screen.getByTestId('modal-close');
+    const close = screen.getByTestId('sheet-x-close');
     expectBigEnough(close);
     await fireEvent.press(close);
-    await fireEvent.press(screen.getByTestId('modal-scrim'));
-    await act(() => web.escape());
+    // The scrim sits beside the modal panel, so screen readers skip it (the ✕ is their way out).
+    await fireEvent.press(screen.getByTestId('sheet-x-scrim', { includeHiddenElements: true }));
+    // Android back and Escape on web both arrive as the Modal's onRequestClose.
+    await fireEvent(screen.getByText('Body'), 'requestClose');
     expect(onClose).toHaveBeenCalledTimes(3);
     // The swipe-down responder is on the panel (its decision is tested above).
-    expect(typeof screen.getByTestId('modal-panel').props.onMoveShouldSetResponder).toBe('function');
+    expect(typeof screen.getByTestId('sheet-x').props.onMoveShouldSetResponder).toBe('function');
   });
 
   test('the sign-in sheet (inline, over the walkers): ✕ and Escape close it', async () => {
@@ -127,7 +128,7 @@ describe('every modal can be closed', () => {
     await renderWithTheme(<StoreScreenView megaName="Zap" balance={20} items={CATALOG} look={ZAP_LOOK} initialTab="antennas" onClose={noop} onBuy={async () => true} onWear={noop} onDecorate={noop} />, { role: 'kid' });
     await fireEvent.press(screen.getByText('Buy for 12'));
     expect(await screen.findByText('Buy Star antenna?')).toBeTruthy();
-    const close = screen.getByTestId('modal-close');
+    const close = screen.getByTestId('store-sheet-close');
     expectBigEnough(close);
     await fireEvent.press(close);
     expect(screen.queryByText('Buy Star antenna?')).toBeNull();
@@ -137,7 +138,7 @@ describe('every modal can be closed', () => {
     await renderWithTheme(<SaveChip chip={SAMPLE_SAVE_CHIP} onChangeScope={noop} onForget={noop} />);
     await fireEvent.press(screen.getByLabelText(/Tap to change/));
     expect(screen.getByText('Change scope')).toBeTruthy();
-    await fireEvent.press(screen.getByTestId('modal-close'));
+    await fireEvent.press(screen.getByTestId('scope-sheet-close'));
     expect(screen.queryByText('Change scope')).toBeNull();
   });
 

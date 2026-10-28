@@ -4,10 +4,10 @@ import { useState } from 'react';
 import { View } from 'react-native';
 import type { SaveChip as SaveChipDoc } from '@shared/domain/messages';
 import type { Scope } from '@shared/domain/enums';
-import { BottomSheetModal } from '@/ui/BottomSheetModal';
+import { ModalSheet } from '@/ui/ModalSheet';
+import { MODAL_COPY } from '@shared/config/copy';
 import { Button } from '@/ui/Button';
 import { Chip } from '@/ui/Chip';
-import { Text } from '@/ui/Text';
 import { useTokens } from '@/ui/theme';
 
 const SCOPES: Scope[] = ['personal', 'family', 'adults', 'shared'];
@@ -29,11 +29,8 @@ export function SaveChip({ chip, onChangeScope, onForget, readOnly = false }: Sa
   return (
     <>
       <Chip label={`Saved · ${chip.label}`} onPress={() => setOpen(true)} accessibilityLabel={`Saved, ${chip.label}. Tap to change.`} />
-      {/* Closes with its ✕, the scrim, a drag down, Android back or Escape (src/ui/BottomSheetModal). */}
-      <BottomSheetModal open={open} onClose={() => setOpen(false)} label="Change scope">
-        <Text variant="title" style={{ marginBottom: tokens.spacing.sm }}>
-          Change scope
-        </Text>
+      {/* Closes with its ✕, the scrim, a drag down, Android back or Escape (src/ui/ModalSheet). */}
+      <ModalSheet open={open} title="Change scope" closeLabel={MODAL_COPY.close} onClose={() => setOpen(false)} testID="scope-sheet">
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: tokens.spacing.sm, marginBottom: tokens.spacing.md }}>
           {SCOPES.map((s) => (
             <Chip
@@ -58,7 +55,7 @@ export function SaveChip({ chip, onChangeScope, onForget, readOnly = false }: Sa
           />
           <Button label="Close" variant="ghost" onPress={() => setOpen(false)} />
         </View>
-      </BottomSheetModal>
+      </ModalSheet>
     </>
   );
 }

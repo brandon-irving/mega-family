@@ -63,6 +63,7 @@ export function useSwipeDown(onClose: () => void): { handlers: GestureResponderH
   const handlers: GestureResponderHandlers = {
     onStartShouldSetResponder: () => false,
     onMoveShouldSetResponder: (e) => {
+      if (!e?.nativeEvent) return false; // asked without a touch (a capability probe): never claim
       if (!start.current) start.current = { y: e.nativeEvent.pageY, t: e.nativeEvent.timestamp };
       return e.nativeEvent.pageY - start.current.y > SHEET_DISMISS.startSlop;
     },
