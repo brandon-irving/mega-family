@@ -20,6 +20,9 @@ export const CLASH = {
   minOverlapMinutes: 1,
   /** How far ahead Hub looks for clashes. */
   lookaheadDays: 14,
+  /** How long an event may run and still be found while in progress: the checker reads events that started
+   * up to this long ago (and haven't ended). Longer events are found only before they start. */
+  maxEventHours: 24,
   /** Who approves a proposed fix (owner, Oct 27: "admin is fine"). */
   approverRole: 'admin' as Role,
   /** A proposal nobody answers expires (nothing changes) after this long, or when its first event starts. */

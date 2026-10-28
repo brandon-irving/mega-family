@@ -157,7 +157,7 @@ export const finishBedtime = internalMutation({
       if (!event || event.familyId !== run.familyId || layerOf(event) !== 'household' || !event.who.includes(run.memberId)) continue;
       const label = item.label.trim().slice(0, 40);
       if (!label) continue;
-      derived.push({ id: `prep-${n}`, label, detail: item.detail.trim().slice(0, 60) || undefined, done: false, source: { eventId: event._id, title: event.title } });
+      derived.push({ id: `prep-${n}`, label, detail: item.detail.trim().slice(0, 60) || undefined, done: false, source: { eventId: event._id, title: event.title, start: event.start } });
       if (derived.length >= ROUTINES.bedtimeMaxItems) break;
     }
     await ctx.db.patch(run._id, { steps: [...derived, ...run.steps.filter((s) => !s.source)] });

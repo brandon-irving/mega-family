@@ -4,7 +4,9 @@ import { MEGA_BUCKS } from '../shared/config/store';
 import { API } from '../shared/domain/api';
 import type { Doc } from './_generated/dataModel';
 import { mutation, query } from './_generated/server';
-import { choreViewOf, isManager, markChoreDone, validateSchedule } from './model/chores';
+import { CHORES } from '../shared/config/kids';
+import { localDate } from '../shared/time';
+import { choreViewOf, claimFor, isManager, markChoreDone, snoozeChoreReminder, validateSchedule } from './model/chores';
 import { pick } from './model/define';
 import { fail } from './model/errors';
 import { requireViewer, sameFamilyMember } from './model/viewer';
@@ -90,6 +92,22 @@ export const markDone = mutation({
     if (!chore || chore.familyId !== viewer.member.familyId) fail('NOT_FOUND');
     const now = await clock.now(ctx, viewer.member.familyId);
     return markChoreDone(ctx, { chore, kid: viewer.member, tz: viewer.family.timezone, now });
+  },
+});
+
+/** v0.14a: the card's "In 10 min" — the push's snooze_10, from the app. */
+export const snooze = mutation({
+  ...pick(API.chores.snooze),
+  handler: async (ctx, args) => {
+    const viewer = await requireViewer(ctx);
+    const chore = await ctx.db.get(args.choreId);
+    if (!chore || chore.familyId !== viewer.member.familyId) fail('NOT_FOUND');
+    if (chore.forMemberId !== viewer.member._id) fail('FORBIDDEN', 'that’s not your chore');
+    const now = await clock.now(ctx, viewer.member.familyId);
+    const claim = await claimFor(ctx, chore, localDate(now, viewer.family.timezone));
+    if (!claim || claim.status !== 'due') fail('VALIDATION', 'nothing to snooze');
+    await snoozeChoreReminder(ctx, { chore, claimId: claim._id, now });
+    return { remindAt: now + CHORES.snoozeMinutes * 60_000 };
   },
 });
 

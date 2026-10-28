@@ -128,3 +128,16 @@ describe('chat.start: an adult’s first open', () => {
     expect(first.body.type === 'text' && first.body.text).toBe('Hi Partner, I’m Coral, your MEGA. I already know a little about the family, and I’d like to learn more about you.');
   });
 });
+
+describe('GD review (LOW): the kid intro reads as a whole sentence even with no admin to name', () => {
+  test('no admin in the family: the hello never has an empty name or a double space', async () => {
+    const { t, members, as, threadMessages } = await seededWithEmptyThread('twin2');
+    await t.run((ctx) => ctx.db.patch(members.admin, { role: 'adult' }));
+    await as.mutation(api.chat.start, {});
+    const first = (await threadMessages())[0];
+    const text = first.body.type === 'text' ? first.body.text : '';
+    expect(text).not.toMatch(/ {2}/);
+    expect(text.startsWith('Hi Twin 2!')).toBe(true);
+    expect(text).not.toMatch(/(^|\s)made me/); // no sentence that starts with a missing name
+  });
+});

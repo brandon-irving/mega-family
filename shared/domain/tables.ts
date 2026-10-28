@@ -399,6 +399,9 @@ export const collisions = {
   eventIds: v.array(v.id('events')), // exactly 2, both on the household layer when detected
   memberId, // the person needed in both places
   dedupeKey: v.string(),
+  /** v0.14a (additive): both events' timing and people when detected (model/clashes.ts `clashFingerprint`).
+   * A dismissed or resolved clash is raised again only once this changes. */
+  fingerprint: v.optional(v.string()),
   detectedAt: v.number(),
   status: v.union(v.literal('open'), v.literal('resolved'), v.literal('dismissed'), v.literal('stale')),
 };
@@ -559,7 +562,7 @@ export const routineRuns = {
       done: v.boolean(),
       // GD backend addendum (pending approval): `title` is the household event's title when the item was made
       // ("Soccer practice"), so the card can say "Soccer tomorrow". Household events only, never private.
-      source: v.optional(v.object({ eventId: v.id('events'), title: v.optional(v.string()) })),
+      source: v.optional(v.object({ eventId: v.id('events'), title: v.optional(v.string()), start: v.optional(v.number()) })),
     }),
   ),
   createdAt: v.number(),

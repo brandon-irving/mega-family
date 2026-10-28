@@ -14,7 +14,7 @@ import { applyLearningDecision } from '../model/applyLearning';
 import { gateByServerConcern, isConcernCategory, logDroppedConcern } from '../model/concernGate';
 import { decideLearning, type LearningOp } from '../model/learningPolicy';
 import { createRequestCandidate } from '../model/proactive';
-import { calendarChanged, patchEvent } from '../model/eventWrites';
+import { calendarChanged, eventEnd, patchEvent } from '../model/eventWrites';
 import { maybeSuggestEventShare } from '../model/layers';
 import { canSeeEvent, canSeeScoped } from '../model/visibility';
 import { getOrCreateOwnThread } from '../model/threads';
@@ -177,7 +177,7 @@ async function toolEventsCreate(ctx: any, caller: Caller, raw: Record<string, un
     familyId: caller.familyId,
     title,
     start,
-    end: optLocalTime(raw.end, caller.tz),
+    end: eventEnd(optLocalTime(raw.end, caller.tz), optStr(raw.allDay), caller.tz),
     allDay: optStr(raw.allDay),
     who,
     place: optStr(raw.place),

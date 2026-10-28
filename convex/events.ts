@@ -8,7 +8,7 @@ import type { Id } from './_generated/dataModel';
 import { mutation, type MutationCtx } from './_generated/server';
 import { pick } from './model/define';
 import { fail } from './model/errors';
-import { calendarChanged, patchEvent } from './model/eventWrites';
+import { calendarChanged, eventEnd, patchEvent } from './model/eventWrites';
 import { maybeSuggestEventShare, shareItem, unshareEvent } from './model/layers';
 import { requireViewer, sameFamilyMember } from './model/viewer';
 import { canSeeEvent } from './model/visibility';
@@ -24,7 +24,7 @@ export const create = mutation({
       familyId: viewer.member.familyId,
       title: args.title,
       start: args.start,
-      end: args.end,
+      end: eventEnd(args.end, args.allDay, viewer.family.timezone),
       allDay: args.allDay,
       who: args.who,
       place: args.place,

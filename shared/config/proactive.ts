@@ -16,13 +16,6 @@ export const PROACTIVE = {
    * demo's simulated clock (`clock.jump`) runs the exact same per-family sweep synchronously instead of
    * waiting for this interval — see convex/model/proactive.ts `tickFamilyLogic`. */
   sweepIntervalMinutes: 5,
-  /** G3 security review (S3, MEDIUM): a cross-member "matters to" trigger (convex/model/proactive.ts
-   * `scanFamilyEventTriggers`) spends a real draft+judge model call per candidate. Without a cap, a chatty
-   * conversation that keeps naming other members (even innocently) could spend a family's whole daily model
-   * budget on proactive drafts alone. Once a family hits this many mattersTo-sourced candidates in one local
-   * day, any further one is dropped (and logged — see `logMattersToCapped` in model/proactive.ts) instead of
-   * spending a model call. A config edit, not a code edit, to retune. */
-  mattersToDailyCapPerFamily: 20,
 } as const;
 
 /** Sanitizing a draft+judge result before it's ever shown (C6/UX7 security+UX review): a max length so a
@@ -41,7 +34,6 @@ export const DRAFT_SANITIZE = {
  * proposed twice" (CONTRACT §2) is one shared string format instead of ad hoc per source. */
 export const reminderDedupeKey = (reminderId: string): string => `reminder:${reminderId}`;
 export const checkinDedupeKey = (memberId: string, date: string): string => `checkin:${memberId}:${date}`;
-export const mattersToDedupeKey = (familyEventId: string): string => `mattersTo:${familyEventId}`;
 export const requestDedupeKey = (requestId: string): string => `request:${requestId}`;
 // GD (v0.13): one key per card-backed trigger, so each card/push is proposed once per recipient.
 export const choreRemindDedupeKey = (claimId: string): string => `chore:remind:${claimId}`;

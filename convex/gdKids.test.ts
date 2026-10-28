@@ -230,6 +230,9 @@ describe('GD: routines', () => {
     expect(run.steps.map((s) => s.label).slice(0, 2)).toEqual(['Cleats', 'Water bottle']);
     expect(run.steps[0].source?.eventId).toBeDefined();
     expect(run.steps[0].source?.title).toBe('Soccer practice'); // the card says "Soccer tomorrow"
+    // v0.14a (GD UX review): the event's start rides along, so the card can say "…at 4:30".
+    const soccer = await t.run((ctx) => ctx.db.get(run.steps[0].source!.eventId));
+    expect(run.steps[0].source?.start).toBe(soccer!.start);
   });
 });
 
@@ -273,5 +276,9 @@ describe('GD seed: the kid side of the demo (live check found Twin 2’s thread 
     const run = await as('twin2').query(api.routines.run, { runId });
     expect(run.kind).toBe('bedtime');
     expect(run.steps.some((s) => s.source?.title === 'Soccer practice')).toBe(true);
+    // v0.14a: the seeded run carries the event's real start (ms), not the fixture's minutes-of-day.
+    const step = run.steps.find((s) => s.source?.title === 'Soccer practice')!;
+    const event = await t.run((ctx) => ctx.db.get(step.source!.eventId));
+    expect(step.source?.start).toBe(event!.start);
   });
 });

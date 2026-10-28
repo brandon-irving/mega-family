@@ -450,6 +450,10 @@ export const API = {
     }),
     // The kid it's for only. Claims today's instance ("Done"); the adults get an approve card. Idempotent.
     markDone: fn({ kind: 'mutation', day1: 'real', args: { choreId: v.id('chores') }, returns: v.id('choreClaims') }),
+    // v0.14a: the kid it's for only, on today's still-due instance. The card's "In 10 min": reminds again
+    // after CHORES.snoozeMinutes through the normal timing (quiet hours, caps) — the same path as the push's
+    // snooze_10 button. VALIDATION when there's nothing due to snooze.
+    snooze: fn({ kind: 'mutation', day1: 'real', args: { choreId: v.id('chores') }, returns: v.object({ remindAt: v.number() }) }),
     // Adults. Declines a claim ("not done yet"); approving is `bucks.release` with source chore.
     decline: fn({ kind: 'mutation', day1: 'real', args: { claimId: v.id('choreClaims') }, returns: v.null() }),
   },
