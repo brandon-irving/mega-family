@@ -82,19 +82,22 @@ describe('AuthGate', () => {
     jest.clearAllMocks();
   });
 
-  test('auth loading: shows the loading screen', async () => {
+  // Screen 9 (LoginOpening board): loading is the opening screen — background only at first (no spinner,
+  // no label, so a fast returning user goes straight into chat with nothing flashing).
+  test('auth loading: shows the opening screen', async () => {
     mockUseAuthState.mockReturnValue({ status: 'loading' });
     mockUseViewer.mockReturnValue(undefined);
     await renderRouter(ROUTES, { initialUrl: '/welcome' });
-    expect(screen.getByText('Loading…')).toBeTruthy();
+    expect(screen.getByTestId('opening')).toBeTruthy();
     expect(screen.queryByText('WELCOME_SCREEN')).toBeNull();
   });
 
-  test('signed in but viewer still loading: shows a loading screen too (not the "join or start" choice yet)', async () => {
+  test('signed in but viewer still loading: shows the opening screen too (not the "join or start" choice yet)', async () => {
     mockUseAuthState.mockReturnValue({ status: 'signedIn' });
     mockUseViewer.mockReturnValue(undefined);
     await renderRouter(ROUTES, { initialUrl: '/start' });
-    expect(screen.getByText('Loading your family…')).toBeTruthy();
+    expect(screen.getByTestId('opening')).toBeTruthy();
+    expect(screen.queryByText('START_SCREEN')).toBeNull();
   });
 
   test('signed out: renders Welcome', async () => {

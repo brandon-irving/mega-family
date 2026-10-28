@@ -43,6 +43,14 @@ export function useAuthState(): AuthState {
   return data?.session ? { status: 'signedIn' } : { status: 'signedOut' };
 }
 
+/** The signed-in account's email, for "Signed in as …" (null for an anonymous session or while loading). */
+export function useSignedInEmail(): string | null {
+  const { data } = authClient.useSession();
+  const email = data?.user?.email;
+  // Better Auth's anonymous plugin gives anonymous users a generated placeholder address; never show it.
+  return email && !(data?.user as { isAnonymous?: boolean } | undefined)?.isAnonymous ? email : null;
+}
+
 function messageOf(error: { message?: string } | null | undefined, fallback: string): string {
   return error?.message ?? fallback;
 }

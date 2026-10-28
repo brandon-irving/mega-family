@@ -3,7 +3,7 @@
 // SVG rects (one per horizontal run of equal color) — cheap for a 32x40 grid and matches the prototype's
 // own toSvg approach, chosen over per-pixel Views for far fewer nodes at any scale.
 import { Rect, Svg } from 'react-native-svg';
-import type { ExpressionName, View as SpriteView } from '@shared/sprite';
+import type { ExpressionName, FrameName, View as SpriteView } from '@shared/sprite';
 import { renderMega, runs } from '@shared/sprite';
 import type { StickerId } from '@shared/config/looks';
 
@@ -12,13 +12,15 @@ export type MegaSpriteProps = {
   sticker: StickerId;
   face?: ExpressionName;
   view?: SpriteView;
+  /** A walk-cycle frame (the walking MEGAs, src/features/walkers). */
+  frame?: FrameName;
   badge?: boolean;
   scale?: number;
   accessibilityLabel?: string;
 };
 
-export function MegaSprite({ hex, sticker, face = 'open', view = 'front', badge = false, scale = 4, accessibilityLabel }: MegaSpriteProps) {
-  const picture = renderMega({ shell: hex, sticker }, { view, expression: face, badge });
+export function MegaSprite({ hex, sticker, face = 'open', view = 'front', frame = 'stand', badge = false, scale = 4, accessibilityLabel }: MegaSpriteProps) {
+  const picture = renderMega({ shell: hex, sticker }, { view, frame, expression: face, badge });
   const rects = runs(picture);
   return (
     <Svg
