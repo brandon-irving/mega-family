@@ -2,7 +2,7 @@
 
 Read this first in a new session, then PLAN.md (product and design decisions) and CONTRACT.md (the frontend ↔ backend contract).
 
-_Last updated: Oct 26 (Day 1 of the build)._
+_Last updated: Oct 28._
 
 ## Where we are
 
@@ -12,7 +12,7 @@ _Last updated: Oct 26 (Day 1 of the build)._
 | G1 | Real reads + stubs for every API function, Better Auth sign-in (Apple/Google/invite+parent code/demo), app shell and screens, privacy test grid | ✅ tag `g1` |
 | G2 | Real Muse Spark agent loop with tools, memory writer + learning policy + save chips, talk mode (WAV), transcription, spend guard | ✅ tag `g2` (UX fixes `fab39d5`; talk mode still needs an on-device visual pass) |
 | G3 | Proactive engine (triggers → draft → judge → timing → deliver), push with buttons (expo-notifications categories), answers → effects, MEGA-to-MEGA requests, widget timeline / Today statements | ✅ tag `g3` (needs owner device test: new dev build for expo-task-manager) |
-| GD | Demo features (Screens 9–12): kids (homework, chores, bedtime/morning), Mega Bucks + Store, calendar layers + clash proposals + gift ideas, sign-in restyle + walker layer, OpenDuet learnings | 🔨 started Oct 28: contract step and sign-in restyle running in parallel |
+| GD | Demo features (Screens 9–12): kids (homework, chores, bedtime/morning), Mega Bucks + Store, calendar layers + clash proposals + gift ideas, sign-in redesign (email/Apple/Google, adult and kid invites, MegaLoader), chat starters, OpenDuet learnings (decidedBy, audience-snapshot approvals, evals) | ✅ tag `gd` (Oct 28; needs owner device test on build `323ca3e8`, no new native modules; CONTRACT v0.13–v0.14a pending approval) |
 | G4 | Web search with kid filter, weather + NWS alerts, travel time (Mapbox) | |
 | G5 | Onboarding chat, Settings (theme/wallpaper), HQ tile room + own rooms, ICS + device calendar import, nightly profiler + check questions | |
 | G6 | Full end-to-end on web + iPhone, demo script, polish | |
@@ -36,6 +36,7 @@ _Last updated: Oct 26 (Day 1 of the build)._
   - Homework photos: Muse Spark accepts image input (Meta Model API docs, Oct 27: text, image, video, audio and PDF in, text out; see the image understanding guide at ai.developer.meta.com/docs). Verify the request shape against those docs before coding, and keep it behind the `ChatModel` adapter.
 - **Sharing rule (owner, Oct 26): explicit share only.** Nothing crosses from private to shared without the owner's own share action (a ShareAction record). The assistant may *suggest* sharing ("Share this with the household?" → the owner taps yes); it must never act on a guess. No "looks household-related" heuristic, no auto-promotion, no surfacing "just in case". This applies to MEGA's memory too: the writer's "matters to" becomes a share suggestion the owner approves, never an automatic trigger.
 - **Rules:** a PUBLIC repo; **synthetic data only** (the organizers get a perpetual licence with no confidentiality), so scrub the real names and home paths still in the design boards, `shared/config/identity.ts`, tests, PLAN/STATUS and `design/build/build.py` before publishing; mark what was built before Oct 26 (`prototypes/megasprite`, the design canvas from Oct 24); the demo must genuinely call Meta models (no mocks); a **3-minute demo video** is a primary artifact, so plan it early.
+- **Open decisions for the owner (Oct 28):** push judge eval scored 77% (it holds back 6 of 9 plain statements; privacy gate 100%) — keep cautious or tune; bedtime title shows "4:30 PM" vs the board's "4:30"; web now loads all routes up front (`asyncRoutes.web: false`, needed to avoid a blank frame).
 - **Owner-only gates:** claim the $150 Meta credits (form; a card on the account) and verify the key; **employment-IP check** (Credit Acceptance, Infernored) before submitting; due **Nov 4, 9 PM ET** via the Cerebral Valley portal.
 
 ## Next up (as of the context clear on Oct 26)
