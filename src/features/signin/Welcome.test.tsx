@@ -2,7 +2,7 @@
 // "A little help for the whole family" as the only tagline. Convex and the auth service are mocked — this
 // tests what the welcome screen shows and which sign-in calls each tap makes, not a real sign-in.
 // Lives outside src/app/ (every file there is a route).
-import { act, fireEvent, screen } from '@testing-library/react-native';
+import { act, fireEvent, screen, waitFor } from '@testing-library/react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { renderWithTheme } from '@/test/renderWithTheme';
 import WelcomeRoute from '@/app/welcome';
@@ -110,12 +110,13 @@ describe('Welcome (Screen 9)', () => {
   test('Show reveals the password; Forgot password shows the "coming soon" placeholder', async () => {
     await renderWelcome(false);
     await act(async () => fireEvent.press(screen.getByText('Sign in')));
-    expect(screen.getByLabelText('Password').props.secureTextEntry).toBe(true);
+    // Wait for each state rather than assuming the sheet re-rendered on the same tick (flaked under load).
+    expect((await screen.findByLabelText('Password')).props.secureTextEntry).toBe(true);
     await act(async () => fireEvent.press(screen.getByText('Show')));
-    expect(screen.getByLabelText('Password').props.secureTextEntry).toBe(false);
-    expect(screen.getByText('Hide')).toBeTruthy();
+    expect(await screen.findByText('Hide')).toBeTruthy();
+    await waitFor(() => expect(screen.getByLabelText('Password').props.secureTextEntry).toBe(false));
     await act(async () => fireEvent.press(screen.getByText('Forgot password?')));
-    expect(screen.getByText('Reset by email is coming soon. Ask your family admin for help.')).toBeTruthy();
+    expect(await screen.findByText('Reset by email is coming soon. Ask your family admin for help.')).toBeTruthy();
   });
 
   test('Hub stands in the middle of the brand block (no empty band above MEGA)', async () => {

@@ -37,11 +37,12 @@ describe('StoreScreenView', () => {
     const onBuy = jest.fn(async () => true);
     await renderWithTheme(<StoreScreenView megaName="Zap" balance={20} items={CATALOG} look={ZAP_LOOK} initialTab="antennas" onClose={noop} onBuy={onBuy} onWear={noop} onDecorate={noop} />, { role: 'kid' });
     await fireEvent.press(screen.getByText('Buy for 12'));
-    expect(screen.getByText('Buy Star antenna?')).toBeTruthy();
+    // Wait for each step rather than assuming it rendered on the same tick (flaked under a full parallel run).
+    expect(await screen.findByText('Buy Star antenna?')).toBeTruthy();
     expect(screen.getByText('12 Mega Bucks. You’ll have 8 left.')).toBeTruthy();
     await fireEvent.press(screen.getByText('Buy it'));
+    expect(await screen.findByText('It’s yours!')).toBeTruthy();
     expect(onBuy).toHaveBeenCalledWith(expect.objectContaining({ key: 'antenna:star' }));
-    expect(screen.getByText('It’s yours!')).toBeTruthy();
   });
 
   test('a refused purchase keeps the confirm sheet open', async () => {
