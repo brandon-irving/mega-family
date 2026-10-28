@@ -9,6 +9,7 @@ import { localDate } from '../shared/time';
 import { internal } from './_generated/api';
 import { internalAction, internalMutation, internalQuery, mutation, query } from './_generated/server';
 import { pick } from './model/define';
+import { searchWeb } from './search';
 import { fail } from './model/errors';
 import { canSeeGiftsFor, deliverGiftCards, nextBirthday, queueGiftIdeas, requireGiftViewer, sharedFactsFor } from './model/gifts';
 import { callModel, parseJson } from './model/modelCall';
@@ -146,13 +147,28 @@ export const draft = internalAction({
       await ctx.runMutation(internal.gifts.markFailed, { giftIdeasId: args.giftIdeasId });
       return null;
     }
-    await ctx.runMutation(internal.gifts.finish, { giftIdeasId: args.giftIdeasId, ideas });
+    // G4: one product link per idea from web search. The query is the idea and the age only (built from
+    // household-shared facts) — no name, no location. A failed search just leaves the idea without a link.
+    const linked: (typeof ideas[number] & { url?: string })[] = [];
+    for (const idea of ideas.slice(0, GIFTS.ideasPerSet)) {
+      let url: string | undefined;
+      if (GIFTS.productSearch && idea.title.trim()) {
+        try {
+          const r = await searchWeb(ctx, data.familyId, { query: `${idea.title.trim()} gift${data.age ? ` for a ${data.age}-year-old` : ''}`, contextSize: 'low' });
+          url = r.ok ? r.sources.find((s) => /^https:\/\//.test(s.url))?.url : undefined;
+        } catch (e) {
+          console.log(`[gifts] ${args.giftIdeasId}: product search skipped (${e instanceof Error ? e.message : String(e)})`);
+        }
+      }
+      linked.push({ ...idea, url });
+    }
+    await ctx.runMutation(internal.gifts.finish, { giftIdeasId: args.giftIdeasId, ideas: linked });
     return null;
   },
 });
 
 export const finish = internalMutation({
-  args: { giftIdeasId: v.id('giftIdeas'), ideas: v.array(v.object({ title: v.string(), why: v.string(), price: v.string(), basedOn: v.array(v.number()) })) },
+  args: { giftIdeasId: v.id('giftIdeas'), ideas: v.array(v.object({ title: v.string(), why: v.string(), price: v.string(), basedOn: v.array(v.number()), url: v.optional(v.string()) })) },
   returns: v.null(),
   handler: async (ctx, args) => {
     const set = await ctx.db.get(args.giftIdeasId);
@@ -162,7 +178,7 @@ export const finish = internalMutation({
     // Re-read the facts here (not trusting the action's copy) and keep only ideas that cite real ones.
     const facts = await sharedFactsFor(ctx, forMember);
     const ideas = args.ideas
-      .map((i) => ({ title: i.title.trim().slice(0, 60), why: i.why.trim().slice(0, 160), price: i.price.trim().slice(0, 20) || undefined, basedOn: [...new Set(i.basedOn.filter((n) => Number.isInteger(n) && n >= 0 && n < facts.length))] }))
+      .map((i) => ({ title: i.title.trim().slice(0, 60), why: i.why.trim().slice(0, 160), price: i.price.trim().slice(0, 20) || undefined, url: i.url && /^https:\/\//.test(i.url) ? i.url.slice(0, 500) : undefined, basedOn: [...new Set(i.basedOn.filter((n) => Number.isInteger(n) && n >= 0 && n < facts.length))] }))
       .filter((i) => i.title && i.basedOn.length)
       .slice(0, GIFTS.ideasPerSet);
     const used = [...new Set(ideas.flatMap((i) => i.basedOn))].sort((a, b) => a - b);

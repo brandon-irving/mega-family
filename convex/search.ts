@@ -214,7 +214,7 @@ async function judge(ctx: ActionCtx, familyId: Id<'families'>, system: string, u
 type Outcome = { outcome: 'answered' | 'rephrased' | 'blocked' | 'failed'; answer: string; sources: WebSearchSource[]; rephrasedTo?: string; category?: string; decidedBy?: string };
 
 /** The WebSearch call with the spend guard (tokens + the per-search price). */
-async function searchWeb(ctx: ActionCtx, familyId: Id<'families'>, request: WebSearchRequest) {
+export async function searchWeb(ctx: ActionCtx, familyId: Id<'families'>, request: WebSearchRequest) {
   const estimatedCents = estimateChatCostCents(request.query.length + (request.instructions?.length ?? 0), 2000) + PRICING.webSearch.centsPerSearch;
   await ctx.runMutation(internal.spend.requireBudget, { familyId, estimatedCents });
   const r = await getWebSearch().search(request);

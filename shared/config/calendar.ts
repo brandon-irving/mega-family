@@ -40,4 +40,6 @@ export const GIFTS = {
   /** The only memory scopes gift ideas may cite: what's been shared with the household. Private
    * (`personal`) and grant (`shared`) memories are never read. */
   sourceScopes: ['family', 'adults'] as readonly Scope[],
+  /** G4: each idea gets one product link from web search; the query is only the idea and the age. */
+  productSearch: true,
 } as const;

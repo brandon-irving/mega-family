@@ -67,7 +67,6 @@ import type * as model_concernGate from "../model/concernGate.js";
 import type * as model_define from "../model/define.js";
 import type * as model_errors from "../model/errors.js";
 import type * as model_eventWrites from "../model/eventWrites.js";
-import type * as model_g4Stub from "../model/g4Stub.js";
 import type * as model_gdTick from "../model/gdTick.js";
 import type * as model_gifts from "../model/gifts.js";
 import type * as model_home from "../model/home.js";
@@ -200,7 +199,6 @@ declare const fullApi: ApiFromModules<{
   "model/define": typeof model_define;
   "model/errors": typeof model_errors;
   "model/eventWrites": typeof model_eventWrites;
-  "model/g4Stub": typeof model_g4Stub;
   "model/gdTick": typeof model_gdTick;
   "model/gifts": typeof model_gifts;
   "model/home": typeof model_home;
