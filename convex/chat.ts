@@ -16,6 +16,7 @@ import { detectSpokenMentions } from './model/mentions';
 import { bumpProfileCount } from './model/proactive';
 import { clock } from './ports/clock';
 import { requireViewer } from './model/viewer';
+import { summarizeAnswer } from '../shared/domain/answerLabel';
 
 const streaming = new PersistentTextStreaming(components.persistentTextStreaming);
 
@@ -136,7 +137,8 @@ export const answerBlock = mutation({
       at: now,
       author: { kind: 'member', id: viewer.member._id },
       via: args.via,
-      body: { type: 'answer', blockMessageId: message._id, label: 'Answered', value: args.answer },
+      // The words the member picked ("9:00 PM"), the same helper the app uses on a collapsed block.
+      body: { type: 'answer', blockMessageId: message._id, label: summarizeAnswer(message.body.block, args.answer), value: args.answer },
       chips: [],
     });
     await ctx.db.patch(message._id, { body: { ...message.body, answeredWith: args.answer } });

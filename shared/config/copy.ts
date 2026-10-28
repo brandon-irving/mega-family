@@ -12,6 +12,16 @@ export type RetryCopyKey = ErrorCode | 'error' | 'timeout' | 'default';
  * edit at the call site, not a hunt through JSX. */
 export const CHAT_STATUS_PLACEHOLDER = 'Ready to help';
 
+/** What a MEGA says when its own turn goes wrong (convex/agent/loop.ts), plus the one nudge prompt, so the
+ * wording is a config edit. */
+export const AGENT_COPY = {
+  /** The model ran its tools (or thought) and then said nothing: one nudge for a real reply. */
+  emptyReplyNudge: 'Reply to the member now in one or two short sentences, based on what you just did or found.',
+  /** Still nothing after the nudge: be honest and ask again, never a vague "not sure how to respond". */
+  emptyReplyFallback: 'Sorry, I lost my train of thought there. Could you ask me that again?',
+  modelUnreachable: "Sorry — I'm having trouble reaching my brain right now. Try again in a moment.",
+} as const;
+
 export const ERROR_COPY: Record<RetryCopyKey, string> = {
   UNAUTHENTICATED: "You've been signed out. Sign in again to keep chatting.",
   NOT_A_MEMBER: "That didn't go through — try again in a moment.",

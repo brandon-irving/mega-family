@@ -88,7 +88,10 @@ export const MessageRow = memo(function MessageRow({
       )}
       <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: tokens.spacing.sm, justifyContent: isMine ? 'flex-end' : 'flex-start' }}>
         {showBadge && mega && <MegaBadge hex={mega.hex} sticker={mega.sticker} face={mega.face} size={32} accessibilityLabel={mega.name} />}
-        <View style={{ flex: showBadge ? 1 : undefined, maxWidth: showBadge ? '82%' : undefined }}>
+        {/* The column, not the bubble, carries the width limit: a bubble's own percentage maxWidth resolved
+            against a parent with no width, so long messages were clipped off the left edge on web and short
+            ones ("Answered") wrapped mid-word (owner, Oct 28). */}
+        <View testID="message-column" style={{ flex: showBadge ? 1 : undefined, flexShrink: 1, maxWidth: '82%' }}>
           {showBadge && mega && (
             <Text variant="caption" color="muted" style={{ marginBottom: 2 }}>
               {mega.name}

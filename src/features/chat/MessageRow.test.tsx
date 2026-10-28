@@ -17,6 +17,22 @@ describe('MessageRow', () => {
     expect(screen.getByText('We are out of milk.')).toBeTruthy();
   });
 
+  // Owner's Oct 28 walkthrough: a long own message was clipped off the left edge on web, and a short one
+  // ("Answered") wrapped mid-word. Both came from the bubble's maxWidth: '82%' resolving against a parent
+  // with no width of its own, so the row column itself must carry the width limit and be allowed to shrink.
+  test.each([
+    ['text', MESSAGES_BY_TYPE.text],
+    ['answer', MESSAGES_BY_TYPE.answer],
+  ])("%s: the viewer's own message column carries the width limit (no clipping, no mid-word wrap)", async (_kind, message) => {
+    await renderWithTheme(<MessageRow message={message} isMine mega={null} onAnswerBlock={noop} onReact={noop} onChangeMemoryScope={noop} onForgetMemory={noop} />);
+    const column = screen.getByTestId('message-column');
+    const style = Object.assign({}, ...[column.props.style].flat());
+    expect(style.maxWidth).toBe('82%');
+    expect(style.flexShrink).toBe(1);
+    const bubble = screen.getByTestId('bubble');
+    expect(Object.assign({}, ...[bubble.props.style].flat()).maxWidth).toBe('100%');
+  });
+
   test('block: an unanswered block shows the MEGA badge and its prompt', async () => {
     await renderWithTheme(
       <MessageRow message={MESSAGES_BY_TYPE.block} isMine={false} mega={TEAL_INFO} onAnswerBlock={noop} onReact={noop} onChangeMemoryScope={noop} onForgetMemory={noop} />,

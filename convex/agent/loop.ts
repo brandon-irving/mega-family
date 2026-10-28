@@ -8,6 +8,7 @@
 // `agent/context.ts` and `agent/tools.ts` — an action has no `ctx.db` of its own.
 import { v } from 'convex/values';
 import { LIMITS } from '../../shared/config';
+import { AGENT_COPY } from '../../shared/config/copy';
 import { PERSONALITIES } from '../../shared/config/looks';
 import { chatCostCents, estimateChatCostCents } from '../../shared/config/pricing';
 import { role as roleValidator } from '../../shared/domain/enums';
@@ -98,6 +99,7 @@ export const runTurn = internalAction({
     const messages: ChatMessage[] = [{ role: 'system', content: buildSystemPrompt(data) }, ...data.recentThread, { role: 'user', content: args.userText }];
     let maxTokens: number = LIMITS.agent.maxTokensReply;
     let retriedForLength = false;
+    let nudgedForEmpty = false;
 
     let finalText: string | null = null;
     for (let step = 0; step < LIMITS.agent.maxSteps; step++) {
@@ -113,7 +115,7 @@ export const runTurn = internalAction({
         // which would also need a real cents figure we don't have) so it doesn't sit against the cap.
         await ctx.runMutation(internal.spend.releaseReservation, { familyId: args.familyId, estimatedCents });
         if (e instanceof ChatModelError) {
-          finalText = "Sorry — I'm having trouble reaching my brain right now. Try again in a moment.";
+          finalText = AGENT_COPY.modelUnreachable;
           break;
         }
         throw e;
@@ -133,6 +135,14 @@ export const runTurn = internalAction({
         retriedForLength = true;
         maxTokens *= 2;
         step--;
+        continue;
+      }
+
+      // Owner's Oct 28 walkthrough: the model ran its tools, then finished with nothing to say, so the member
+      // got a canned reply (and re-sent the same message). Nudge once for a real reply.
+      if (!result.toolCalls.length && !result.text?.trim() && !nudgedForEmpty && step < LIMITS.agent.maxSteps - 1) {
+        nudgedForEmpty = true;
+        messages.push({ role: 'system', content: AGENT_COPY.emptyReplyNudge });
         continue;
       }
 
@@ -184,6 +194,6 @@ export const runTurn = internalAction({
       }
     }
 
-    return { text: finalText && finalText.trim() ? finalText : "I'm not sure how to respond to that yet." };
+    return { text: finalText && finalText.trim() ? finalText : AGENT_COPY.emptyReplyFallback };
   },
 });
