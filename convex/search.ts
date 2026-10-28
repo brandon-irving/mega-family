@@ -211,6 +211,25 @@ async function judge(ctx: ActionCtx, familyId: Id<'families'>, system: string, u
   }
 }
 
+export type KidQueryVerdict =
+  | { verdict: 'allowed' | 'rephrase'; rephrased?: string; homeworkAnswer: boolean; decidedBy: string }
+  | { verdict: 'blocked'; category?: string; decidedBy: string }
+  | { verdict: 'failed' };
+
+/** The kid filter's first step (shared with the eval, evals/kidSearch): the keyword backstop (can only block),
+ * then the model's query check. A rephrased query must pass the backstop too (rules only tighten). */
+export async function kidQueryVerdict(ctx: ActionCtx, familyId: Id<'families'>, query: string, ageBand: string): Promise<KidQueryVerdict> {
+  if (keywordBlock(query)) return { verdict: 'blocked', category: 'blocked word', decidedBy: RULE_KEYWORD };
+  const v = await judge(ctx, familyId, queryCheckPrompt(ageBand), query, QUERY_SCHEMA);
+  if (!v) return { verdict: 'failed' };
+  const category = typeof v.category === 'string' && v.category.trim() ? v.category.trim() : undefined;
+  if (v.verdict === 'blocked') return { verdict: 'blocked', category, decidedBy: MODEL_DECIDER };
+  const rephrased = v.verdict === 'rephrase' && typeof v.rephrased === 'string' && v.rephrased.trim() ? v.rephrased.trim() : undefined;
+  if (v.verdict !== 'allowed' && !rephrased) return { verdict: 'blocked', category, decidedBy: MODEL_DECIDER };
+  if (rephrased && keywordBlock(rephrased)) return { verdict: 'blocked', category: 'blocked word', decidedBy: RULE_KEYWORD };
+  return { verdict: rephrased ? 'rephrase' : 'allowed', rephrased, homeworkAnswer: v.homeworkAnswer === true, decidedBy: MODEL_DECIDER };
+}
+
 type Outcome = { outcome: 'answered' | 'rephrased' | 'blocked' | 'failed'; answer: string; sources: WebSearchSource[]; rephrasedTo?: string; category?: string; decidedBy?: string };
 
 /** The WebSearch call with the spend guard (tokens + the per-search price). */
@@ -240,16 +259,13 @@ async function kidSearch(
   const blocked = (decidedBy: string, category?: string): Outcome => ({ outcome: 'blocked', answer: KID_SAFETY.blockedMessage, sources: [], decidedBy, category });
   const categoryOf = (x: Record<string, unknown> | null) => (typeof x?.category === 'string' && x.category.trim() ? x.category.trim() : undefined);
   if (!prep.controls.webSearch) return blocked(RULE_CONTROLS_OFF);
-  if (keywordBlock(query)) return blocked(RULE_KEYWORD, 'blocked word');
 
-  // 1. Query check. Only a model verdict lets a kid's query through; no verdict → no search.
-  const verdict = await judge(ctx, familyId, queryCheckPrompt(prep.ageBand), query, QUERY_SCHEMA);
-  if (!verdict) return { outcome: 'failed', answer: KID_SAFETY.blockedMessage, sources: [] };
-  if (verdict.verdict === 'blocked') return blocked(MODEL_DECIDER, categoryOf(verdict));
-  const rephrased = verdict.verdict === 'rephrase' && typeof verdict.rephrased === 'string' && verdict.rephrased.trim() ? verdict.rephrased.trim() : undefined;
-  if (verdict.verdict !== 'allowed' && !rephrased) return blocked(MODEL_DECIDER, categoryOf(verdict));
-  // A rephrased query must pass the keyword backstop too (rules only tighten).
-  if (rephrased && keywordBlock(rephrased)) return blocked(RULE_KEYWORD, 'blocked word');
+  // 1. Keyword backstop, then the query check. Only a model verdict lets a kid's query through.
+  const v1 = await kidQueryVerdict(ctx, familyId, query, prep.ageBand);
+  if (v1.verdict === 'failed') return { outcome: 'failed', answer: KID_SAFETY.blockedMessage, sources: [] };
+  if (v1.verdict === 'blocked') return blocked(v1.decidedBy, v1.category);
+  const rephrased = v1.rephrased;
+  const verdict = { homeworkAnswer: v1.homeworkAnswer };
 
   // 2. The search, with kid guidance in the prompt (homework mode: hints, never the answer).
   const hintsOnly = KID_SAFETY.search.homeworkHints && prep.controls.homeworkMode && verdict.homeworkAnswer === true;
