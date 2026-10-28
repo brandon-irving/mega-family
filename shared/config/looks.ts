@@ -31,3 +31,15 @@ export const HEX_RE = /^#[0-9A-Fa-f]{6}$/;
 /** The family (coordinator) MEGA's look and name when a real family is created (`onboarding.start`). The
  * sample family's seed uses its own literal values (CONTRACT §10); this is the production default. */
 export const FAMILY_MEGA_DEFAULTS = { name: 'Hub', hex: COLORS.sky, sticker: 'none' as const, personality: 'calm' as const };
+
+/** The MEGA an invite comes with when the admin didn't set one (Screen 9 redesign, Oct 28): the first preset
+ * color nobody in the family uses (all taken: the first preset), named after that color, cheerful for a kid
+ * and calm for an adult, no sticker. */
+export const INVITE_MEGA_DEFAULTS = {
+  sticker: 'none' as const,
+  personality: { kid: 'cheerful', adult: 'calm' } as const,
+  /** Display names for the presets (the default MEGA's name). */
+  names: { teal: 'Teal', coral: 'Coral', violet: 'Zap', sun: 'Sunny', sky: 'Sky', leaf: 'Leaf' } as Record<keyof typeof COLORS, string>,
+  /** A MEGA name set on an invite or changed on join must be 1–this many characters (trimmed). */
+  maxNameLength: 24,
+};

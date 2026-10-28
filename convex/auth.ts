@@ -16,6 +16,7 @@ import { importPKCS8, SignJWT } from 'jose';
 import { DEMO } from '../shared/config';
 import { IDENTITY } from '../shared/config/identity';
 import authConfig from './auth.config';
+import { emailAndPasswordOptions } from './model/authOptions';
 import { components } from './_generated/api';
 import type { DataModel } from './_generated/dataModel';
 
@@ -83,6 +84,8 @@ export const createAuth = (ctx: GenericCtx<DataModel>) =>
     baseURL: process.env.CONVEX_SITE_URL,
     trustedOrigins: trustedOrigins(),
     database: authComponent.adapter(ctx),
+    // Screen 9 redesign (owner, Oct 28): email + password next to Apple and Google.
+    emailAndPassword: emailAndPasswordOptions(),
     socialProviders: {
       google: {
         clientId: [process.env.GOOGLE_WEB_CLIENT_ID ?? '', process.env.GOOGLE_IOS_CLIENT_ID ?? ''],

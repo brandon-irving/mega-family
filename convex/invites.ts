@@ -15,15 +15,49 @@
 // thin action — is the documented pattern for "commit a side effect even though the overall call fails."
 import { type Infer, v } from 'convex/values';
 import { LIMITS } from '../shared/config';
-import { API, LINKS } from '../shared/domain/api';
+import { COLORS, HEX_RE, INVITE_MEGA_DEFAULTS } from '../shared/config/looks';
+import { API, LINKS, type InvitePreview } from '../shared/domain/api';
+import * as T from '../shared/domain/tables';
 import { internal } from './_generated/api';
-import type { Id } from './_generated/dataModel';
-import { action, internalMutation, internalQuery, mutation } from './_generated/server';
+import type { Doc, Id } from './_generated/dataModel';
+import { action, internalMutation, internalQuery, mutation, query, type QueryCtx } from './_generated/server';
 import { pick } from './model/define';
 import { fail } from './model/errors';
 import { clock } from './ports/clock';
 import { randomToken, sha256Hex } from './model/random';
 import { requireViewer, sameFamilyMember } from './model/viewer';
+
+type InviteMega = Infer<typeof T.inviteMega>;
+
+/** A MEGA name or look someone typed (the admin on `create`, an adult on `redeem`): trimmed name of a sane
+ * length, a real hex color. VALIDATION otherwise. */
+function checkedMega(mega: InviteMega): InviteMega {
+  const name = mega.name.trim();
+  if (!name || name.length > INVITE_MEGA_DEFAULTS.maxNameLength) fail('VALIDATION', 'MEGA name');
+  if (!HEX_RE.test(mega.look.hex)) fail('VALIDATION', 'MEGA color');
+  return { ...mega, name };
+}
+
+async function ownMega(ctx: QueryCtx, familyId: Id<'families'>, memberId: Id<'members'>): Promise<Doc<'megas'> | null> {
+  return ctx.db
+    .query('megas')
+    .withIndex('by_family_owner', (q) => q.eq('familyId', familyId).eq('ownerId', memberId))
+    .first();
+}
+
+/** The MEGA an invite comes with when the admin didn't set one: the member's existing MEGA, else the first
+ * preset color no MEGA in the family wears (config INVITE_MEGA_DEFAULTS). */
+async function defaultInviteMega(ctx: QueryCtx, member: Doc<'members'>): Promise<InviteMega> {
+  const existing = await ownMega(ctx, member.familyId, member._id);
+  if (existing) return { name: existing.name, look: existing.look, personality: existing.personality };
+  const worn = new Set(
+    (await ctx.db.query('megas').withIndex('by_family_owner', (q) => q.eq('familyId', member.familyId)).collect()).map((m) => m.look.hex.toUpperCase()),
+  );
+  const presets = Object.entries(COLORS) as [keyof typeof COLORS, string][];
+  const [key, hex] = presets.find(([, c]) => !worn.has(c.toUpperCase())) ?? presets[0];
+  const kind = member.role === 'kid' ? 'kid' : 'adult';
+  return { name: INVITE_MEGA_DEFAULTS.names[key], look: { hex, sticker: INVITE_MEGA_DEFAULTS.sticker }, personality: INVITE_MEGA_DEFAULTS.personality[kind] };
+}
 
 export const create = mutation({
   ...pick(API.invites.create),
@@ -35,11 +69,59 @@ export const create = mutation({
     if (!isAdmin && !isParent) fail('FORBIDDEN');
     if (member.authId) fail('VALIDATION', 'already joined');
 
+    const mega = args.mega ? checkedMega(args.mega) : await defaultInviteMega(ctx, member);
     const { token, hash } = await randomToken();
     const now = await clock.now(ctx, viewer.member.familyId);
     const expiresAt = now + LIMITS.invite.ttlHours * 60 * 60_000;
-    await ctx.db.insert('invites', { familyId: viewer.member.familyId, memberId: member._id, tokenHash: hash, expiresAt });
+    await ctx.db.insert('invites', { familyId: viewer.member.familyId, memberId: member._id, tokenHash: hash, expiresAt, invitedBy: viewer.member._id, mega });
     return { url: LINKS.join(token), qrPayload: token, expiresAt };
+  },
+});
+
+async function inviteByToken(ctx: QueryCtx, token: string): Promise<Doc<'invites'> | null> {
+  const hash = await sha256Hex(token);
+  return ctx.db
+    .query('invites')
+    .withIndex('by_tokenHash', (q) => q.eq('tokenHash', hash))
+    .unique();
+}
+
+/** Screen 9 redesign (v0.14): the invite card, readable before the caller is anyone's member (the token is
+ * the credential). Names and MEGA looks only — never an id, the parent code or the token hash. */
+export const preview = query({
+  ...pick(API.invites.preview),
+  handler: async (ctx, args): Promise<InvitePreview> => {
+    const invite = await inviteByToken(ctx, args.token);
+    if (!invite || invite.redeemedAt) return { status: 'invalid' };
+    const member = await ctx.db.get(invite.memberId);
+    const family = member ? await ctx.db.get(member.familyId) : null;
+    if (!member || !family || member.authId) return { status: 'invalid' };
+
+    const inviterId = invite.invitedBy ?? family.adminId;
+    const inviter = inviterId ? await ctx.db.get(inviterId) : null;
+    const inviterName = inviter?.name ?? '';
+    const now = await clock.now(ctx, member.familyId);
+    if (invite.expiresAt <= now) return { status: 'expired', inviterName };
+    if (member.role === 'kid' && (invite.failedAttempts ?? 0) >= LIMITS.maxParentCodeAttempts) return { status: 'locked', inviterName };
+
+    const members = await ctx.db
+      .query('members')
+      .withIndex('by_family', (q) => q.eq('familyId', member.familyId))
+      .collect();
+    const familyCards = [];
+    for (const m of members) {
+      if (!m.authId) continue;
+      const mega = await ownMega(ctx, m.familyId, m._id);
+      if (mega) familyCards.push({ name: m.name, hex: mega.look.hex, sticker: mega.look.sticker });
+    }
+    return {
+      status: 'ok',
+      kind: member.role === 'kid' ? 'kid' : 'adult',
+      inviterName,
+      memberName: member.name,
+      mega: invite.mega ?? (await defaultInviteMega(ctx, member)),
+      family: familyCards,
+    };
   },
 });
 
@@ -68,11 +150,7 @@ export const prepareRedeem = internalQuery({
       .unique();
     if (existing) return { ok: false, code: 'VALIDATION' };
 
-    const hash = await sha256Hex(args.token);
-    const invite = await ctx.db
-      .query('invites')
-      .withIndex('by_tokenHash', (q) => q.eq('tokenHash', hash))
-      .unique();
+    const invite = await inviteByToken(ctx, args.token);
     if (!invite) return { ok: false, code: 'INVALID_INVITE' };
     const member = await ctx.db.get(invite.memberId);
     if (!member) return { ok: false, code: 'INVALID_INVITE' };
@@ -98,14 +176,29 @@ export const bumpFailedAttempts = internalMutation({
 
 /** The actual join: marks the invite redeemed and links the caller's identity to the member row. */
 export const finishRedeem = internalMutation({
-  args: { inviteId: v.id('invites'), memberId: v.id('members'), authSubject: v.string() },
+  args: { inviteId: v.id('invites'), memberId: v.id('members'), authSubject: v.string(), mega: v.optional(T.inviteMega) },
   returns: v.object({ memberId: v.id('members') }),
   handler: async (ctx, args) => {
     const member = await ctx.db.get(args.memberId);
-    if (!member) fail('INVALID_INVITE');
+    const invite = await ctx.db.get(args.inviteId);
+    if (!member || !invite) fail('INVALID_INVITE');
     const now = await clock.now(ctx, member.familyId);
     await ctx.db.patch(args.inviteId, { redeemedAt: now });
-    await ctx.db.patch(args.memberId, { authId: args.authSubject, joinedAt: now });
+    await ctx.db.patch(args.memberId, { authId: args.authSubject, joinedAt: now, hasMega: true });
+
+    // The MEGA comes with the invite (v0.14): an adult's change wins, then the admin's choice, then a default.
+    // A member who already has a MEGA keeps that one row — patched, never duplicated.
+    const existing = await ownMega(ctx, member.familyId, member._id);
+    const chosen = args.mega ?? (existing ? undefined : (invite.mega ?? (await defaultInviteMega(ctx, member))));
+    if (existing && chosen) await ctx.db.patch(existing._id, { name: chosen.name, look: chosen.look, personality: chosen.personality });
+    else if (!existing && chosen)
+      await ctx.db.insert('megas', {
+        familyId: member.familyId,
+        kind: 'member',
+        ownerId: member._id,
+        ...chosen,
+        job: { station: 'charger', label: 'Resting', busy: false, since: now },
+      });
     return { memberId: args.memberId };
   },
 });
@@ -121,8 +214,13 @@ export const redeem = action({
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) fail('UNAUTHENTICATED');
 
+    // An adult's change to the invite's MEGA is checked before anything is used up (VALIDATION).
+    const mega = args.mega ? checkedMega(args.mega) : undefined;
     const info = await ctx.runQuery(internal.invites.prepareRedeem, { token: args.token, authId: identity.subject });
     if (!info.ok) fail(info.code);
+    // Kids can't change the MEGA the admin made them (owner, Oct 28) — refused before the parent code is
+    // even checked, so trying doesn't count as a wrong guess.
+    if (info.role === 'kid' && mega) fail('FORBIDDEN', "kids can't change their MEGA when joining");
 
     if (info.role === 'kid') {
       // Brute-force guard (G1 fix): a 5-digit code is only 100,000 combinations. The lockout check runs
@@ -134,6 +232,6 @@ export const redeem = action({
       }
     }
 
-    return ctx.runMutation(internal.invites.finishRedeem, { inviteId: info.inviteId, memberId: info.memberId, authSubject: identity.subject });
+    return ctx.runMutation(internal.invites.finishRedeem, { inviteId: info.inviteId, memberId: info.memberId, authSubject: identity.subject, mega });
   },
 });

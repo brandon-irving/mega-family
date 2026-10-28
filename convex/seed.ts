@@ -22,6 +22,10 @@ import { sanitizeDraftText } from './model/proactive';
 import { seedGd } from './model/seedGd';
 import { FRACTIONS_SHEET } from '../shared/fixtures/homework/fractionsSheet';
 import { scopeKey } from './model/scopes';
+import { randomToken } from './model/random';
+import { clock } from './ports/clock';
+import { COLORS } from '../shared/config/looks';
+import { LINKS } from '../shared/domain/api';
 
 const emptyCounts = { sent: 0, answered: 0, ignored: 0, up: 0, down: 0 };
 
@@ -393,6 +397,43 @@ export const resetSampleFamily = internalMutation({
       }
     }
     return created;
+  },
+});
+
+/** Demo only (Screen 9 redesign): the sample family has no one left to invite, so this adds an unjoined
+ * adult ("Grandparent") and kid ("Cousin", Admin's) — reusing them on a rerun — and returns a fresh invite
+ * link for each, so the adult and kid join screens can be shown live. `npx convex run seed:sampleInvites`.
+ * Not part of `resetDemo` (it changes who's in the family). DEMO_MODE-gated. */
+export const sampleInvites = internalMutation({
+  args: {},
+  returns: v.object({ adultUrl: v.string(), kidUrl: v.string() }),
+  handler: async (ctx) => {
+    if (process.env[DEMO.envVar] !== 'true') throw new Error(`sampleInvites refuses to run unless ${DEMO.envVar}=true on this deployment`);
+    const family = (await ctx.db.query('families').take(1000)).find((f) => f.name === S.name);
+    if (!family?.adminId) throw new Error('no sample family — run seed:resetDemo first');
+    const familyId = family._id;
+    const adminId = family.adminId;
+    const members = await ctx.db
+      .query('members')
+      .withIndex('by_family', (q) => q.eq('familyId', familyId))
+      .collect();
+    const now = await clock.now(ctx, familyId);
+
+    const person = async (name: string, role: 'adult' | 'kid') => {
+      const found = members.find((m) => m.name === name && !m.authId);
+      if (found) return found._id;
+      const id = await ctx.db.insert('members', { familyId, name, role, activities: [], hasMega: false });
+      if (role === 'kid') await ctx.db.insert('relationships', { familyId, from: adminId, to: id, kind: 'parent' });
+      return id;
+    };
+    const invite = async (memberId: Id<'members'>, mega: { name: string; look: { hex: string; sticker: 'star' | 'leaf' }; personality: 'calm' | 'cheerful' }) => {
+      const { token, hash } = await randomToken();
+      await ctx.db.insert('invites', { familyId, memberId, tokenHash: hash, expiresAt: now + LIMITS.invite.ttlHours * 3_600_000, invitedBy: adminId, mega });
+      return LINKS.join(token);
+    };
+    const adultUrl = await invite(await person('Grandparent', 'adult'), { name: 'Maple', look: { hex: COLORS.leaf, sticker: 'leaf' }, personality: 'calm' });
+    const kidUrl = await invite(await person('Cousin', 'kid'), { name: 'Sparky', look: { hex: COLORS.violet, sticker: 'star' }, personality: 'cheerful' });
+    return { adultUrl, kidUrl };
   },
 });
 

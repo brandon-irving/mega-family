@@ -227,6 +227,8 @@ export const BUTTON_ROW_LAYOUT = { perRow: 2, pairMaxChars: 10 } as const;
 export const CTA_SIZES = {
   hero: { height: 58, fontSize: 18 },
   normal: { height: 52, fontSize: 16 },
+  /** Kid-facing sign-in buttons (LoginPreviewKid, LoginLocked boards: 64/20). */
+  kid: { height: 64, fontSize: 20 },
 } as const;
 
 /** `bigTargets` comes from ROLES_CONFIG[role].bigTargets, same switch `resolveSizing` reads. */

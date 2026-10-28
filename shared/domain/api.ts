@@ -159,6 +159,22 @@ const bucksSource = v.union(
   v.object({ kind: v.literal('bonus'), memberId: v.id('members') }),
 );
 
+/** Screen 9 redesign (v0.14): the invite card. `family` is who has already joined (name + MEGA badge). */
+export const invitePreview = v.union(
+  v.object({ status: v.literal('invalid') }),
+  v.object({ status: v.literal('expired'), inviterName: v.string() }),
+  v.object({ status: v.literal('locked'), inviterName: v.string() }),
+  v.object({
+    status: v.literal('ok'),
+    kind: v.union(v.literal('adult'), v.literal('kid')),
+    inviterName: v.string(),
+    memberName: v.string(),
+    mega: T.inviteMega,
+    family: v.array(v.object({ name: v.string(), hex: v.string(), sticker: T.stickerId })),
+  }),
+);
+export type InvitePreview = Infer<typeof invitePreview>;
+
 // ---------- the API ----------
 
 type Kind = 'query' | 'mutation' | 'action';
@@ -179,13 +195,19 @@ export const API = {
     }),
   },
   invites: {
-    create: fn({ kind: 'mutation', day1: 'real', args: { memberId: v.id('members') }, returns: v.object({ url: v.string(), qrPayload: v.string(), expiresAt: v.number() }) }),
+    // v0.14 (additive): `mega` — the MEGA the admin sets for the person (omitted: their existing MEGA, or a
+    // default preset). It comes with the invite; adults may change it on join, kids can't.
+    create: fn({ kind: 'mutation', day1: 'real', args: { memberId: v.id('members'), mega: v.optional(T.inviteMega) }, returns: v.object({ url: v.string(), qrPayload: v.string(), expiresAt: v.number() }) }),
+    // v0.14 (additive): what the join screen shows before anyone is a member. Callable signed out (the token
+    // is the credential); returns names and MEGA looks only — never ids, the parent code or the token hash.
+    preview: fn({ kind: 'query', day1: 'real', args: { token: v.string() }, returns: invitePreview }),
     // CONTRACT.md v0.5: changed from a mutation to an action (not additive — see the changelog). The
     // wrong-parent-code attempt counter must persist even when the call itself still reports
     // WRONG_PARENT_CODE; Convex mutations are strictly atomic (a mutation that writes and then throws
     // rolls the write back too), so only an action's independently-committed `ctx.runMutation` calls can
     // do both in one round trip.
-    redeem: fn({ kind: 'action', day1: 'real', args: { token: v.string(), parentCode: v.optional(v.string()) }, returns: v.object({ memberId: v.id('members') }) }),
+    // v0.14 (additive): `mega` — an adult's change to the MEGA the invite came with (FORBIDDEN for a kid).
+    redeem: fn({ kind: 'action', day1: 'real', args: { token: v.string(), parentCode: v.optional(v.string()), mega: v.optional(T.inviteMega) }, returns: v.object({ memberId: v.id('members') }) }),
   },
   family: {
     parentCode: fn({ kind: 'query', day1: 'real', adminOnly: true, args: {}, returns: v.object({ code: v.string() }) }),

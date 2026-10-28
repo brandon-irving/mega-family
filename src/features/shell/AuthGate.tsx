@@ -5,7 +5,7 @@
 import { Stack } from 'expo-router';
 import { useViewer } from '@/data/useViewer';
 import { useAuthState } from '@/services/auth';
-import { OpeningScreen } from '@/features/signin/OpeningScreen';
+import { MegaLoader } from '@/features/walkers';
 import { useThemedStackOptions } from '@/features/shell/stackOptions';
 
 export function AuthGate() {
@@ -13,9 +13,9 @@ export function AuthGate() {
   const viewer = useViewer();
   const screenOptions = useThemedStackOptions();
 
-  // Both loading phases render the same OpeningScreen at the same position, so it isn't remounted between
-  // them (a fast returning user sees only the background, then chat; a slow one sees the MEGAs walk in).
-  if (authState.status === 'loading' || (authState.status === 'signedIn' && viewer === undefined)) return <OpeningScreen />;
+  // Both loading phases render the same loader at the same position, so it isn't remounted between them:
+  // "Opening chats" with a MEGA pacing on it, from the first frame (owner, Oct 28: never blank).
+  if (authState.status === 'loading' || (authState.status === 'signedIn' && viewer === undefined)) return <MegaLoader testID="opening" />;
 
   const signedOut = authState.status === 'signedOut';
   const needsFamily = authState.status === 'signedIn' && viewer === null;

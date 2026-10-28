@@ -200,7 +200,7 @@ describe('sign-in scenes', () => {
   });
 
   test('every scene only uses ledges the sign-in screens mark', () => {
-    const marked = new Set(['floor', 'head', 'make', 'invite', 'signin', 'sheet', 'field', 'cont', 'card', 'lock', 'start', 'join', 'opening']);
+    const marked = new Set(['floor', 'head', 'make', 'invite', 'signin', 'sheet', 'field', 'cont', 'help', 'card', 'kidCard', 'expiredCard', 'lock', 'start', 'join']);
     for (const [name, scene] of Object.entries(SIGNIN_SCENES)) {
       for (const s of Object.values(scene)) {
         for (const a of s!.acts) {
