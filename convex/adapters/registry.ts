@@ -20,7 +20,9 @@ import { expoPushSender } from './expoPushSender';
 import { logEmailSender } from './logEmailSender';
 import { metaChatModel } from './metaChatModel';
 import { metaTranscriber } from './metaTranscriber';
-import { unconfiguredDirections, unconfiguredGeocoder, unconfiguredWeather, unconfiguredWebSearch } from './unconfiguredIntegrations';
+import { mapboxDirections, mapboxGeocoder } from './mapbox';
+import { metaWebSearch } from './metaWebSearch';
+import { openMeteoNwsWeather } from './openMeteoNwsWeather';
 import type { ChatModel } from '../ports/chatModel';
 import type { Directions } from '../ports/directions';
 import type { EmailSender } from '../ports/emailSender';
@@ -90,27 +92,27 @@ export function __setEmailSenderForTests(sender: EmailSender | null): void {
 }
 
 // ---------- G4 (CONTRACT v0.15): web search, weather, travel time, geocoding ----------
-// Same selection as the model ports: test override → real (MEGA_MODEL_ADAPTER=real) → fake. Until the G4
-// backend writes the real adapters, "real" is the fail-closed `unconfigured*` placeholder, never a fake value.
+// Same selection as the model ports: test override → real (MEGA_MODEL_ADAPTER=real) → fake. The real adapters
+// fail closed on their own (no key/token → `not_configured`), so real mode never shows a fake value.
 
 export function getWebSearch(): WebSearch {
   if (webSearchOverride) return webSearchOverride;
-  return wantsRealAdapters() ? unconfiguredWebSearch : defaultFakeWebSearch;
+  return wantsRealAdapters() ? metaWebSearch : defaultFakeWebSearch;
 }
 
 export function getWeather(): Weather {
   if (weatherOverride) return weatherOverride;
-  return wantsRealAdapters() ? unconfiguredWeather : defaultFakeWeather;
+  return wantsRealAdapters() ? openMeteoNwsWeather : defaultFakeWeather;
 }
 
 export function getDirections(): Directions {
   if (directionsOverride) return directionsOverride;
-  return wantsRealAdapters() ? unconfiguredDirections : defaultFakeDirections;
+  return wantsRealAdapters() ? mapboxDirections : defaultFakeDirections;
 }
 
 export function getGeocoder(): Geocoder {
   if (geocoderOverride) return geocoderOverride;
-  return wantsRealAdapters() ? unconfiguredGeocoder : defaultFakeGeocoder;
+  return wantsRealAdapters() ? mapboxGeocoder : defaultFakeGeocoder;
 }
 
 /** Test-only: install scripted integration adapters (see the `makeFake*` helpers). Pass `null` to clear. */

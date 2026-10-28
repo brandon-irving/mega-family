@@ -313,6 +313,9 @@ export const candidateSource = v.union(
   v.object({ kind: v.literal('leaveBy'), eventId: v.id('events'), checkId: v.id('travelChecks') }),
   v.object({ kind: v.literal('weatherAlert'), alertId: v.string(), placeId: v.id('places') }),
   v.object({ kind: v.literal('weatherEvent'), eventId: v.id('events') }),
+  // G4 backend addendum (v0.15a, internal only): a quiet notice to a kid's parents that the kid filter blocked
+  // or rephrased a search (KID_SAFETY / kidControls.tellsParents.blockedSearches). Always a statement, never a push.
+  v.object({ kind: v.literal('searchNotice'), searchLogId: v.id('searchLog') }),
 );
 export type CandidateSource = Infer<typeof candidateSource>;
 

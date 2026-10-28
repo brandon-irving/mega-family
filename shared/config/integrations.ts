@@ -55,6 +55,7 @@ export const WEATHER = {
   userAgent: '(mega.family app, hello@mega.family)',
   units: { temperature: 'fahrenheit', wind: 'mph', precipitation: 'inch' } as const,
   /** Open-Meteo hourly variables we ask for (all documented on open-meteo.com/en/docs). */
+  current: ['temperature_2m', 'weather_code'] as const,
   hourly: ['temperature_2m', 'precipitation_probability', 'weather_code'] as const,
   daily: ['temperature_2m_max', 'temperature_2m_min', 'precipitation_probability_max', 'weather_code'] as const,
   forecastDays: 2,
@@ -73,7 +74,43 @@ export const WEATHER = {
   eventRainThresholdPct: 60,
   /** Look this far ahead for events to check weather on. */
   eventLookaheadHours: 12,
+  /** How many upcoming hours `weather.get` and the weather card show. */
+  viewHours: 6,
 } as const;
+
+/** WMO weather codes (open-meteo.com/en/docs "WMO Weather interpretation codes") → the short words a card or
+ * a reply uses. A code missing here reads as `WEATHER_SUMMARY_FALLBACK`. */
+export const WEATHER_CODES: Record<number, string> = {
+  0: 'Clear',
+  1: 'Mostly clear',
+  2: 'Partly cloudy',
+  3: 'Cloudy',
+  45: 'Fog',
+  48: 'Freezing fog',
+  51: 'Light drizzle',
+  53: 'Drizzle',
+  55: 'Heavy drizzle',
+  56: 'Freezing drizzle',
+  57: 'Freezing drizzle',
+  61: 'Light rain',
+  63: 'Rain',
+  65: 'Heavy rain',
+  66: 'Freezing rain',
+  67: 'Freezing rain',
+  71: 'Light snow',
+  73: 'Snow',
+  75: 'Heavy snow',
+  77: 'Snow grains',
+  80: 'Rain showers',
+  81: 'Rain showers',
+  82: 'Heavy showers',
+  85: 'Snow showers',
+  86: 'Heavy snow showers',
+  95: 'Thunderstorms',
+  96: 'Thunderstorms with hail',
+  99: 'Thunderstorms with hail',
+};
+export const WEATHER_SUMMARY_FALLBACK = 'Weather';
 
 export const TRAVEL = {
   directionsProvider: 'mapbox' as const,
@@ -83,6 +120,9 @@ export const TRAVEL = {
   leaveByBufferMinutes: 10,
   /** Default origin when the event doesn't say where people come from. */
   defaultFrom: 'home' as PlaceKind,
+  /** v0.15a `travel.answer`: "Snooze 5 min", and "Remind me 30 min before" (the fallback when travel isn't set up). */
+  snoozeMinutes: 5,
+  remindBeforeEventMinutes: 30,
   /** The leave-by reminder fires this many minutes before the leave-by time (Push board: "in 10 minutes"). */
   remindBeforeMinutes: 10,
   /** Start computing leave-by this far ahead (one Directions call per event and origin, kept in `travelChecks`). */
@@ -91,6 +131,9 @@ export const TRAVEL = {
   recheckMinutes: 20,
   /** Skip a leave-by reminder when the trip is shorter than this (walking distance). */
   minTripMinutes: 5,
+  /** The first check for an event asks about departing this long before its start; later checks use the last
+   * measured travel time instead (Mapbox `depart_at` = start − estimate). */
+  firstEstimateMinutes: 20,
   timeoutMs: 10_000,
 } as const;
 

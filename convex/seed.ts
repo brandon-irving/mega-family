@@ -20,6 +20,7 @@ import { internal } from './_generated/api';
 import { internalAction, internalMutation, type MutationCtx } from './_generated/server';
 import { sanitizeDraftText } from './model/proactive';
 import { seedGd } from './model/seedGd';
+import { seedG4 } from './model/seedG4';
 import { FRACTIONS_SHEET } from '../shared/fixtures/homework/fractionsSheet';
 import { scopeKey } from './model/scopes';
 import { randomToken } from './model/random';
@@ -366,6 +367,8 @@ async function createSampleFamily(ctx: MutationCtx, weekOf: string | undefined, 
     // GD (Screens 10–12): layers, the clash + negative control, chores, homework, routines, Mega Bucks, gifts.
     // The homework sheet needs a stored photo; `seed.resetDemo` stores the synthetic worksheet and passes it.
     await seedGd(ctx, { familyId, m, hubId: mega.family, sunday, at, now: demoNow, homeworkStorageId });
+    // G4: events linked to saved places, past kid searches, Thursday's pickup travel check (docs/gates/G4.md).
+    await seedG4(ctx, { familyId, m, now: demoNow });
 
     return { familyId, members: m };
 }
@@ -466,7 +469,10 @@ export const resetDemo = internalAction({
   handler: async (ctx, args): Promise<{ familyId: Id<'families'>; members: Record<string, Id<'members'>> }> => {
     const bytes = Uint8Array.from(atob(FRACTIONS_SHEET.base64), (c) => c.charCodeAt(0));
     const homeworkStorageId = await ctx.storage.store(new Blob([bytes], { type: FRACTIONS_SHEET.contentType }));
-    return ctx.runMutation(internal.seed.resetSampleFamily, { weekOf: args.weekOf, homeworkStorageId });
+    const family = await ctx.runMutation(internal.seed.resetSampleFamily, { weekOf: args.weekOf, homeworkStorageId });
+    // G4: the seed has no made-up forecast (invariant 7); fetch the real one through the Weather port instead.
+    await ctx.scheduler.runAfter(0, internal.weather.pollFamily, { familyId: family.familyId, force: true });
+    return family;
   },
 });
 

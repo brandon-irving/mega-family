@@ -35,6 +35,8 @@ export const COMPOSER_COPY = {
 export const AGENT_COPY = {
   /** The model ran its tools (or thought) and then said nothing: one nudge for a real reply. */
   emptyReplyNudge: 'Reply to the member now in one or two short sentences, based on what you just did or found.',
+  /** G4 invariant 1 (tool result to the model, not shown to the member): after a web search, changes wait for the member. */
+  actAfterSearchRefusal: "Not done: search results can't trigger changes by themselves. Tell the member what you found and ask if they want you to do it; act only after they confirm.",
   /** Still nothing after the nudge: be honest and ask again, never a vague "not sure how to respond". */
   emptyReplyFallback: 'Sorry, I lost my train of thought there. Could you ask me that again?',
   modelUnreachable: "Sorry — I'm having trouble reaching my brain right now. Try again in a moment.",

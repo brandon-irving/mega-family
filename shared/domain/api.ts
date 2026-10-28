@@ -544,37 +544,48 @@ export const API = {
     buy: fn({ kind: 'mutation', day1: 'real', args: { itemId: T.storeItemId }, returns: v.object({ purchaseId: v.id('purchases'), balance: v.number() }) }),
   },
 
-  // ---------- G4 (CONTRACT v0.15): places, weather, travel time, web search. Stubs until the G4 backend. ----------
+  // ---------- G4 (CONTRACT v0.15): places, weather, travel time, web search. ----------
   // Search itself has no public function: it's the agent's `web_search` tool (chat.send), whose result is a
   // `search` card in the asker's own thread. The same goes for the `weather` and `travel_time` tools.
 
   places: {
     // Any member of the family (household data). Sorted home, school, work, then custom by label.
-    list: fn({ kind: 'query', day1: 'stub', args: {}, returns: v.array(placeDoc) }),
+    list: fn({ kind: 'query', day1: 'real', args: {}, returns: v.array(placeDoc) }),
     // Adults only (PLACES.editors). Creates (no placeId) or edits a place; a changed address resets
     // `geocode` to pending and queues the Geocoder (Mapbox) in the background. VALIDATION past PLACES limits
     // or for a second `home`.
     upsert: fn({
       kind: 'mutation',
-      day1: 'stub',
+      day1: 'real',
       args: { placeId: v.optional(v.id('places')), kind: T.placeKind, label: v.string(), address: v.string() },
       returns: v.id('places'),
     }),
     // Adults only. Events keep their free-text `place`; their `placeId` is cleared.
-    remove: fn({ kind: 'mutation', day1: 'stub', args: { placeId: v.id('places') }, returns: v.null() }),
+    remove: fn({ kind: 'mutation', day1: 'real', args: { placeId: v.id('places') }, returns: v.null() }),
   },
   weather: {
     // Any member. The family's home when placeId is omitted. null when the family has no geocoded place.
     // Reads the cache only (queries can't call out); a stale or missing cache is refreshed by `weather.refresh`
     // and the cron (WEATHER.alertsPollMinutes).
-    get: fn({ kind: 'query', day1: 'stub', args: { placeId: v.optional(v.id('places')) }, returns: v.union(weatherView, v.null()) }),
+    get: fn({ kind: 'query', day1: 'real', args: { placeId: v.optional(v.id('places')) }, returns: v.union(weatherView, v.null()) }),
     // Any member. Queues a refresh for that place if its cache is past its TTL; otherwise does nothing.
-    refresh: fn({ kind: 'mutation', day1: 'stub', args: { placeId: v.optional(v.id('places')) }, returns: v.object({ queued: v.boolean() }) }),
+    refresh: fn({ kind: 'mutation', day1: 'real', args: { placeId: v.optional(v.id('places')) }, returns: v.object({ queued: v.boolean() }) }),
   },
   travel: {
     // Members who can see the event (private-layer events: the owner only; NOT_FOUND otherwise, same as
     // events). null until a check has run (within TRAVEL.lookaheadHours of the start).
-    forEvent: fn({ kind: 'query', day1: 'stub', args: { eventId: v.id('events') }, returns: v.union(travelView, v.null()) }),
+    forEvent: fn({ kind: 'query', day1: 'real', args: { eventId: v.id('events') }, returns: v.union(travelView, v.null()) }),
+    // v0.15a (G4 frontend request). A travel/leave-by card's buttons, for anyone who can see the event (else
+    // NOT_FOUND): `on_my_way` stops the pending leave-by push; `snooze_5` re-reminds in 5 minutes;
+    // `remind_30_before` (the fallback when travel isn't set up) reminds 30 minutes before the event. Both
+    // reminders are plain `reminders` rows for the caller, delivered by the proactive pipeline. The leave-by
+    // push's own buttons (on_my_way / snooze_5) take the same path.
+    answer: fn({
+      kind: 'mutation',
+      day1: 'real',
+      args: { travelCheckId: v.id('travelChecks'), action: v.union(v.literal('on_my_way'), v.literal('snooze_5'), v.literal('remind_30_before')) },
+      returns: v.object({ message: v.string(), remindAt: v.union(v.number(), v.null()) }),
+    }),
   },
   search: {
     // The caller's own searches (memberId omitted). A parent may pass their kid's memberId and gets only that
@@ -582,7 +593,7 @@ export const API = {
     // (FORBIDDEN otherwise). Anyone else → FORBIDDEN. Newest first.
     log: fn({
       kind: 'query',
-      day1: 'stub',
+      day1: 'real',
       args: { memberId: v.optional(v.id('members')), paginationOpts: paginationOptsValidator },
       returns: paginationResultValidator(searchLogDoc),
     }),

@@ -1,4 +1,4 @@
-// GD evals (evals/run.ts): the push judge, run on one synthetic case through the production prompt, parser
+// GD + G4 evals (evals/run.ts): the push judge and the kid search query check, run on one synthetic case through the production prompt, parser
 // and thresholds, inside the spend guard (callModel). Internal only; nothing in the app calls it.
 import { v } from 'convex/values';
 import { LIMITS } from '../shared/config/limits';
@@ -6,6 +6,8 @@ import type { Role } from '../shared/domain/enums';
 import { internalAction } from './_generated/server';
 import { callModel } from './model/modelCall';
 import { DRAFT_JUDGE_SCHEMA, buildDraftJudgePrompt, judgedDelivery, parseDraftJudgeResult } from './model/proactive';
+import { kidQueryVerdict } from './search';
+import { KID_SAFETY } from '../shared/config/kidSafety';
 
 export const judgeCase = internalAction({
   args: {
@@ -39,5 +41,18 @@ export const judgeCase = internalAction({
     });
     const parsed = parseDraftJudgeResult(res.text, p.fallbackKind, p.allowedKinds, args.text);
     return { delivery: judgedDelivery(parsed.kind, parsed.score, args.role as Role), kind: parsed.kind, score: parsed.score };
+  },
+});
+
+/** G4 eval (evals/kidSearch): the kid filter's query step (keyword backstop + model check) on one synthetic
+ * query, exactly as a kid's `web_search` runs it. No web search is made. */
+export const kidQueryCase = internalAction({
+  args: { familyId: v.id('families'), query: v.string() },
+  returns: v.object({ verdict: v.string(), decidedBy: v.string(), detail: v.string() }),
+  handler: async (ctx, args) => {
+    const r = await kidQueryVerdict(ctx, args.familyId, args.query, KID_SAFETY.search.defaultAgeBand);
+    if (r.verdict === 'failed') return { verdict: 'failed', decidedBy: '', detail: 'model unreachable' };
+    const detail = r.verdict === 'blocked' ? (r.category ?? '') : (r.rephrased ?? '') + (r.homeworkAnswer ? ' [homework]' : '');
+    return { verdict: r.verdict, decidedBy: r.decidedBy, detail };
   },
 });

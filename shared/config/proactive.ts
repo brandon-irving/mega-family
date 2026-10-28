@@ -44,5 +44,11 @@ export const shareSuggestionDedupeKey = (suggestionId: string): string => `share
 export const practiceDedupeKey = (setId: string, recipientId: string): string => `practice:${setId}:${recipientId}`;
 export const giftsDedupeKey = (giftIdeasId: string, recipientId: string): string => `gifts:${giftIdeasId}:${recipientId}`;
 export const bucksDedupeKey = (ledgerId: string): string => `bucks:${ledgerId}`;
+// G4 (v0.15): one weather-alert candidate per (NWS alert × recipient); one rain tip per (event × recipient × day);
+// one leave-by reminder per (event × recipient) — a later traffic check re-times that same candidate.
+export const weatherAlertDedupeKey = (alertId: string, recipientId: string): string => `weatherAlert:${alertId}:${recipientId}`;
+export const weatherEventDedupeKey = (eventId: string, recipientId: string, date: string): string => `weatherEvent:${eventId}:${recipientId}:${date}`;
+export const leaveByDedupeKey = (eventId: string, recipientId: string): string => `leaveBy:${eventId}:${recipientId}`;
+export const searchNoticeDedupeKey = (searchLogId: string, parentId: string): string => `searchNotice:${searchLogId}:${parentId}`;
 /** A clash between two household events that both need the same person (order-independent). */
 export const clashDedupeKey = (eventIds: string[], memberId: string): string => `clash:${[...eventIds].sort().join('+')}:${memberId}`;
