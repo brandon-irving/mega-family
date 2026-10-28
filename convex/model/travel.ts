@@ -158,16 +158,19 @@ export async function answerTravel(ctx: MutationCtx, p: { event: Doc<'events'>; 
     return { message: 'Have a good trip.', remindAt: null };
   }
   const snooze = p.action === 'snooze_5';
+  const text = snooze ? `Time to leave for ${event.title}` : `${event.title} starts at ${formatLocalTime(event.start, p.tz)}`;
+  const reply = (remindAt: number) => ({ message: snooze ? 'Okay, I’ll remind you in 5 minutes.' : `Okay, I’ll remind you at ${formatLocalTime(remindAt, p.tz)}.`, remindAt });
+  // G4 review: idempotent like `notifications.answer` — while this action's reminder is still pending, a retry
+  // or a double tap returns it instead of adding a second one (one reminder per event × person × action).
+  const pending = (
+    await ctx.db
+      .query('reminders')
+      .withIndex('by_family_member_due', (q) => q.eq('familyId', event.familyId).eq('forMemberId', memberId).gte('dueAt', now))
+      .collect()
+  ).find((r) => !r.done && r.eventId === event._id && r.createdBy === memberId && r.text === text);
+  if (pending) return reply(pending.dueAt);
   const remindAt = snooze ? now + TRAVEL.snoozeMinutes * MIN : Math.max(now, event.start - TRAVEL.remindBeforeEventMinutes * MIN);
   if (snooze) await stopPendingLeaveBy(ctx, event, memberId);
-  await ctx.db.insert('reminders', {
-    familyId: event.familyId,
-    forMemberId: memberId,
-    text: snooze ? `Time to leave for ${event.title}` : `${event.title} starts at ${formatLocalTime(event.start, p.tz)}`,
-    dueAt: remindAt,
-    eventId: event._id,
-    done: false,
-    createdBy: memberId,
-  });
-  return { message: snooze ? 'Okay, I’ll remind you in 5 minutes.' : `Okay, I’ll remind you at ${formatLocalTime(remindAt, p.tz)}.`, remindAt };
+  await ctx.db.insert('reminders', { familyId: event.familyId, forMemberId: memberId, text, dueAt: remindAt, eventId: event._id, done: false, createdBy: memberId });
+  return reply(remindAt);
 }

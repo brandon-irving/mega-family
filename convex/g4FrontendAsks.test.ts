@@ -97,6 +97,18 @@ describe('travel.answer', () => {
     expect((await s.as('admin').mutation(api.travel.answer, { travelCheckId: check._id, action: 'on_my_way' })).remindAt).toBeNull();
   });
 
+  test('G4 review (HIGH): the same answer twice makes one reminder and returns the same reply (retry / double tap)', async () => {
+    const s = await seeded();
+    const { check, event } = await pickupCheck(s);
+    for (const action of ['snooze_5', 'remind_30_before'] as const) {
+      const a = await s.as('admin').mutation(api.travel.answer, { travelCheckId: check._id, action });
+      const b = await s.as('admin').mutation(api.travel.answer, { travelCheckId: check._id, action });
+      expect(b).toEqual(a);
+    }
+    const mine = (await s.reminders('admin')).filter((x) => x.eventId === event._id);
+    expect(mine.length).toBe(2); // one per action, never two for the same one
+  });
+
   test('only members who can see the event may answer', async () => {
     const s = await seeded();
     __setDirectionsForTests(makeFakeDirections());
