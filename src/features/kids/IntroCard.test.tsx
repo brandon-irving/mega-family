@@ -2,6 +2,7 @@
 // can do" with three rows; "Show me" asks the MEGA about that row as the kid's own message.
 import { fireEvent, screen } from '@testing-library/react-native';
 import { KID_INTRO } from '@shared/config/starters';
+import { BUTTON_SIZES } from '@shared/config/theme';
 import { renderWithTheme } from '@/test/renderWithTheme';
 import { IntroCardView } from './IntroCard';
 
@@ -22,5 +23,15 @@ describe('IntroCardView (board KidsIntro)', () => {
     await renderWithTheme(<IntroCardView megaName="Sunny" asked={[]} onAsk={onAsk} />, { role: 'kid' });
     await fireEvent.press(screen.getByLabelText('Show me: Homework practice'));
     expect(onAsk).toHaveBeenCalledWith('homework', KID_INTRO.rows[1].ask);
+  });
+  // GD UX review MEDIUM: "Show me" measured 40pt in a kid-facing card; kid buttons are BUTTON_SIZES.kid.
+  test('Show me buttons are kid-sized for a kid', async () => {
+    await renderWithTheme(<IntroCardView megaName="Sunny" asked={[]} onAsk={() => {}} />, { role: 'kid' });
+    for (const b of screen.getAllByRole('button')) expect(b.props.style).toEqual(expect.objectContaining({ height: BUTTON_SIZES.kid.height }));
+  });
+
+  test('Show me buttons keep the 44pt floor for an adult', async () => {
+    await renderWithTheme(<IntroCardView megaName="Teal" asked={[]} onAsk={() => {}} />, { role: 'adult' });
+    for (const b of screen.getAllByRole('button')) expect(b.props.style).toEqual(expect.objectContaining({ height: BUTTON_SIZES.adult.height }));
   });
 });

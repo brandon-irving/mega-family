@@ -12,6 +12,7 @@ import { useTokens } from '@/ui/theme';
 import { SIGNIN_COPY } from '@shared/config/copy';
 import { WALKER_CAST, WALKER_IDS, WALKER_MOTION as M, type WalkerId } from '@shared/config/walkers';
 import { assignPlan, createWalker, lookAt, pokedLedges, pose, tapWalker, tickWalker, weightedLedges, type Ledges, type Pose, type Scene, type Walker } from './engine';
+import { hiddenFromA11y } from '@/ui/a11y';
 
 type ViewRef = ComponentRef<typeof View>;
 type Measurable = ViewRef | null;
@@ -196,8 +197,7 @@ const WalkerSprite = memo(function WalkerSprite({ id, reduced, subscribe, onTap 
         onPress={() => onTap(id)}
         accessibilityRole="button"
         accessibilityLabel={SIGNIN_COPY.sayHiLabel(cast.name)}
-        accessibilityElementsHidden={!pic?.visible}
-        importantForAccessibility={pic?.visible ? 'auto' : 'no-hide-descendants'}
+        {...hiddenFromA11y(!pic?.visible)}
         style={styles.hit}
         testID={`walker-${id}`}
       >

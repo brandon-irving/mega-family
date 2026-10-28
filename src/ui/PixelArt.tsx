@@ -4,6 +4,7 @@ import { useMemo } from 'react';
 import { View } from 'react-native';
 import { Rect, Svg } from 'react-native-svg';
 import { runs, type Picture } from '@shared/sprite';
+import { hiddenFromA11y } from './a11y';
 
 export type PixelArtProps = { picture: Picture; scale?: number; accessibilityLabel?: string; decorative?: boolean };
 
@@ -26,7 +27,7 @@ export function PixelArt({ picture, scale = 4, accessibilityLabel, decorative = 
   );
   if (!decorative) return svg;
   return (
-    <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+    <View {...hiddenFromA11y()}>
       {svg}
     </View>
   );

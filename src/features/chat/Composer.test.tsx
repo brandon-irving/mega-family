@@ -56,3 +56,14 @@ describe('Composer (adult bar)', () => {
     expect(screen.getByLabelText('Talk')).toBeTruthy();
   });
 });
+
+// GD UX review LOW: the adult placeholder "Message Teal… (@ to mention)" was cut off mid-word at 390pt.
+// A placeholder can't ellipsize on web, so it stays short enough to fit beside the buttons.
+describe('Composer (adult bar)', () => {
+  test('the placeholder is short and never cut off mid-word', async () => {
+    await renderWithTheme(<Composer megaName="Pebble" bigTalkButton={false} onSend={noop} onOpenTalk={noop} onAttach={noop} />, { role: 'adult' });
+    const field = screen.getByLabelText('Message Pebble');
+    expect(field.props.placeholder).toBe('Message Pebble…');
+    expect(field.props.numberOfLines ?? 1).toBe(1);
+  });
+});

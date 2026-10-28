@@ -99,7 +99,8 @@ export function StoreScreenView({ megaName, balance, items, look, initialTab = '
         </View>
       </View>
 
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0 }} contentContainerStyle={{ gap: 6, paddingHorizontal: tokens.spacing.lg, paddingTop: tokens.spacing.md, paddingBottom: tokens.spacing.xs }} accessibilityRole="tablist">
+      {/* One fixed row, each tab an even share (UX review: a scrolling row hid Furniture off-screen). */}
+      <View style={{ flexDirection: 'row', gap: 6, paddingHorizontal: tokens.spacing.lg, paddingTop: tokens.spacing.md, paddingBottom: tokens.spacing.xs }} accessibilityRole="tablist" testID="store-tabs">
         {STORE_TABS.map((t) => {
           const on = t.id === tab;
           return (
@@ -108,15 +109,15 @@ export function StoreScreenView({ megaName, balance, items, look, initialTab = '
               onPress={() => setTab(t.id as TabId)}
               accessibilityRole="tab"
               accessibilityState={{ selected: on }}
-              style={{ height: 40, paddingHorizontal: 14, borderRadius: 20, borderWidth: 1, borderColor: on ? tokens.text : tokens.line, backgroundColor: on ? tokens.text : 'transparent', justifyContent: 'center' }}
+              style={{ flex: 1, height: tokens.buttonSize.height, paddingHorizontal: 2, borderRadius: tokens.radii.pill, borderWidth: 1, borderColor: on ? tokens.text : tokens.line, backgroundColor: on ? tokens.text : 'transparent', justifyContent: 'center', alignItems: 'center' }}
             >
-              <Text variant="label" style={{ color: on ? tokens.bg : tokens.text }}>
+              <Text variant="caption" weight="700" numberOfLines={1} style={{ color: on ? tokens.bg : tokens.text }}>
                 {t.label}
               </Text>
             </Pressable>
           );
         })}
-      </ScrollView>
+      </View>
 
       {lookTab && sel && (
         <View style={{ marginTop: 10, marginHorizontal: tokens.spacing.lg, height: 236, borderRadius: tokens.radii.xl, backgroundColor: tokens.surface, borderWidth: 1, borderColor: tokens.line, overflow: 'hidden', alignItems: 'center', justifyContent: 'flex-end' }}>

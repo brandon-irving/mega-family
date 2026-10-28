@@ -51,7 +51,7 @@ export function usePracticeActions() {
 }
 
 export function useChoreActions() {
-  return { markDone: useMutation(api.chores.markDone), decline: useMutation(api.chores.decline) };
+  return { markDone: useMutation(api.chores.markDone), decline: useMutation(api.chores.decline), snooze: useMutation(api.chores.snooze) };
 }
 
 export function useCheckRoutineStep() {
