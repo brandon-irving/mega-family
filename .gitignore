@@ -42,3 +42,5 @@ scripts/smoke/*.wav
 
 expo-env.d.ts
 # @end expo-cli
+# A worktree may symlink node_modules to the main checkout; the trailing-slash rule above misses symlinks.
+/node_modules
