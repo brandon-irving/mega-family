@@ -48,3 +48,10 @@ describe('C6/UX7: sanitizing a draft+judge result', () => {
     expect(DRAFT_SANITIZE.allowEmoji.update).toBe(false);
   });
 });
+
+describe('GD review: emoji stripping keeps text symbols that are not emoji', () => {
+  test('©, ® and ™ survive while real emoji are removed', () => {
+    expect(sanitizeDraftText('Visit Disney™ today 🎢', 'reminder', 80)).toBe('Visit Disney™ today');
+    expect(sanitizeDraftText('Lego® set and © notice', 'reminder', 80)).toBe('Lego® set and © notice');
+  });
+});

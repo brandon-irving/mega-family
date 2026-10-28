@@ -288,7 +288,8 @@ export interface DraftJudgeResult {
 /** C6/UX7: removes emoji (Extended_Pictographic + the variation-selector/ZWJ marks that often ride along
  * with them) and collapses the whitespace that leaves behind. */
 function stripEmoji(text: string): string {
-  return text.replace(/[\p{Extended_Pictographic}‍️]/gu, '').replace(/ {2,}/g, ' ').trim();
+  // ©, ® and ™ carry the Extended_Pictographic property but are ordinary text symbols (GD review).
+  return text.replace(/(?![\u00A9\u00AE\u2122])[\p{Extended_Pictographic}\u200D\uFE0F]/gu, '').replace(/ {2,}/g, ' ').trim();
 }
 
 /** C6/UX7: "calm... one exclamation at most" — collapses runs of "!" to one, then drops every "!" after the
