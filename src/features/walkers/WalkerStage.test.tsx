@@ -54,7 +54,7 @@ describe('Obstacle and Lane', () => {
         <Obstacle id="code" testID="obstacle" />
       </WalkerStageContext.Provider>,
     );
-    fireEvent(view.getByTestId('obstacle'), 'layout', layout);
+    await fireEvent(view.getByTestId('obstacle'), 'layout', layout);
     expect(stage.register).toHaveBeenCalledWith('code', expect.anything(), expect.objectContaining({ ledge: false }));
   });
 
@@ -65,7 +65,7 @@ describe('Obstacle and Lane', () => {
         <Lane id="signin" testID="lane" />
       </WalkerStageContext.Provider>,
     );
-    fireEvent(view.getByTestId('lane'), 'layout', layout);
+    await fireEvent(view.getByTestId('lane'), 'layout', layout);
     expect(stage.register).toHaveBeenCalledWith('signin', expect.anything(), expect.objectContaining({ obstacle: false, inset: 44 }));
   });
 });

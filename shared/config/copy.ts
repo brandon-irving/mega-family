@@ -19,6 +19,9 @@ export const CHAT_COPY = {
 } as const;
 
 /** The chat composer's words (canvas v33 thread.html). `{mega}` is the MEGA's name. */
+/** Words every modal shares (the ✕ button's label for screen readers). */
+export const MODAL_COPY = { close: 'Close' } as const;
+
 export const COMPOSER_COPY = {
   talkTo: 'Talk to {mega}',
   typeInstead: 'Type instead',

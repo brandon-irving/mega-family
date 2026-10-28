@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { Pressable, ScrollView, View } from 'react-native';
+import { useDismiss } from './dismiss';
 import { SafeFrame, type Presentation } from './Screen';
 import { Text } from './Text';
 import { useTokens } from './theme';
@@ -14,6 +15,8 @@ export type SheetProps = { title: string; onClose?: () => void; presentation?: P
  */
 export function Sheet({ title, onClose, presentation = 'sheet', children }: SheetProps) {
   const tokens = useTokens();
+  // Escape on web closes it too (a route modal: the navigator already handles Android back).
+  useDismiss(onClose ?? noop, { enabled: !!onClose, androidBack: false });
   return (
     <SafeFrame presentation={presentation} testID="sheet">
       <View
@@ -42,3 +45,5 @@ export function Sheet({ title, onClose, presentation = 'sheet', children }: Shee
     </SafeFrame>
   );
 }
+
+const noop = () => {};

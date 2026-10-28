@@ -17,6 +17,7 @@ import { errorCopyFor } from '@/data/errorCopy';
 import { useInvitePreview } from '@/data/useInvite';
 import { LookPersonalityContent } from '@/features/profile/LookPersonalityContent';
 import { BackButton, DifferentAccount, Pill, SignInFrame } from '@/features/signin/parts';
+import { useDismiss } from '@/ui/dismiss';
 import { SIGNIN_SCENES } from '@/features/signin/scenes';
 import { Ledge, MegaLoader, Obstacle } from '@/features/walkers';
 import { api } from '@/data/api';
@@ -152,6 +153,8 @@ function AdultInvite({ token, preview }: { token: string; preview: Ok }) {
 function ChangeMega({ mega, onBack, onSave }: { mega: InviteMega; onBack: () => void; onSave: (next: InviteMega) => void }) {
   const tokens = useTokens();
   const [name, setName] = useState(mega.name);
+  // Android back and Escape (web) step back out of the picker (owner, Oct 28: every overlay closes).
+  useDismiss(onBack);
   return (
     <View style={[styles.fill, { backgroundColor: tokens.bg }]} testID="join-change">
       <ScrollView contentContainerStyle={{ padding: tokens.spacing.xl, paddingTop: tokens.spacing.xxl }} keyboardShouldPersistTaps="handled">

@@ -11,6 +11,7 @@ import { TALK_CONFIG } from '@shared/config/talk';
 import { readableOn } from '@shared/config/theme';
 import type { TalkPhase } from './talkMachine';
 import { MegaSprite } from '@/ui/MegaSprite';
+import { CloseButton, useDismiss } from '@/ui/dismiss';
 import { Text } from '@/ui/Text';
 import { useTokens } from '@/ui/theme';
 import type { MegaInfo } from '@/features/shell/megaInfo';
@@ -53,6 +54,8 @@ const MIC_LABEL: Record<TalkPhase, string> = {
 export function TalkContent({ mega, phase, caption, mentions, reply, error, onHoldStart, onSlideLock, onRelease, onRemoveMention, onSend, onClose }: TalkContentProps) {
   const tokens = useTokens();
   const reducedMotion = useReducedMotion();
+  // Escape on web closes it (a route modal: the navigator handles Android back).
+  useDismiss(onClose, { androidBack: false });
   const face = FACE_BY_PHASE[phase] ?? mega.face;
   const micDisabled = phase === 'transcribing' || phase === 'sending';
   const held = phase === 'recording' || phase === 'locked';
@@ -112,9 +115,9 @@ export function TalkContent({ mega, phase, caption, mentions, reply, error, onHo
         swipeStartY.current = null;
       }}
     >
-      <Pressable onPress={onClose} accessibilityRole="button" accessibilityLabel="Close talk mode" style={{ alignSelf: 'flex-end', marginRight: tokens.spacing.lg, padding: tokens.spacing.sm }}>
-        <Text variant="title">✕</Text>
-      </Pressable>
+      <View style={{ alignSelf: 'flex-end', marginRight: tokens.spacing.sm }}>
+        <CloseButton onPress={onClose} label="Close talk mode" />
+      </View>
 
       <View style={{ alignItems: 'center', gap: tokens.spacing.lg, flex: 1, justifyContent: 'center', paddingHorizontal: tokens.spacing.xl }}>
         <MegaSprite hex={mega.hex} sticker={mega.sticker} face={face} scale={7} accessibilityLabel={`${mega.name}, ${phase}`} />

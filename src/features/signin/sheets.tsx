@@ -3,8 +3,9 @@
 // inside the welcome screen (not a route) so the walking MEGAs can hop onto the sheet's top edge.
 import { type ReactNode, useEffect, useState } from 'react';
 import { Platform, Pressable, StyleSheet, TextInput, View } from 'react-native';
-import Animated, { FadeIn, FadeOut, SlideInDown, SlideOutDown } from 'react-native-reanimated';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Animated, { FadeIn, FadeOut, SlideInDown, SlideOutDown, useAnimatedStyle } from 'react-native-reanimated';
+import { CloseButton, useDismiss, useSwipeDown } from '@/ui/dismiss';
+import { useSafeAreaPadding } from '@/ui/Screen';
 import { Ledge } from '@/features/walkers';
 import { AppleSignInButton } from '@/services/AppleSignInButton';
 import { appleSignInOffIos } from '@/services/auth';
@@ -25,8 +26,12 @@ export function BottomSheet({ open, ...rest }: { open: boolean; onClose: () => v
 
 function SheetPanel({ onClose, label, children }: { onClose: () => void; label: string; children: ReactNode }) {
   const tokens = useTokens();
-  const insets = useSafeAreaInsets();
+  const bottomInset = Number(useSafeAreaPadding('full').padding.paddingBottom) || 0;
   const ms = tokens.durations.slow;
+  // Owner, Oct 28: every modal closes — the ✕, the scrim, a drag down, Android back and Escape on web.
+  const { handlers, dragY } = useSwipeDown(onClose);
+  useDismiss(onClose);
+  const dragged = useAnimatedStyle(() => ({ transform: [{ translateY: dragY.value }] }));
   // The sheet's top only becomes a ledge once it has finished sliding up (measured in place, not mid-slide).
   const [settled, setSettled] = useState(false);
   useEffect(() => {
@@ -44,6 +49,7 @@ function SheetPanel({ onClose, label, children }: { onClose: () => void; label: 
         exiting={SlideOutDown.duration(ms)}
         accessibilityViewIsModal
         accessibilityLabel={label}
+        {...handlers}
         style={[
           styles.sheet,
           {
@@ -53,13 +59,19 @@ function SheetPanel({ onClose, label, children }: { onClose: () => void; label: 
             borderTopRightRadius: tokens.radii.xl,
             paddingHorizontal: tokens.spacing.xl,
             paddingTop: tokens.spacing.sm,
-            paddingBottom: insets.bottom + tokens.spacing.xl,
+            paddingBottom: bottomInset + tokens.spacing.xl,
             gap: tokens.spacing.md,
           },
+          dragged,
         ]}
       >
         {settled ? <Ledge id="sheet" obstacle={false} style={[styles.ledgeMark, { left: tokens.spacing.xl, right: tokens.spacing.xl }]} /> : null}
-        <View style={[styles.grabber, { backgroundColor: tokens.line, marginBottom: tokens.spacing.sm }]} />
+        <View style={[styles.grabberRow, { marginBottom: tokens.spacing.xs }]}>
+          <View style={[styles.grabber, { backgroundColor: tokens.line }]} />
+          <View style={styles.closeSpot}>
+            <CloseButton onPress={onClose} label={SIGNIN_COPY.sheet.close} testID="sheet-close" />
+          </View>
+        </View>
         {children}
       </Animated.View>
     </View>
@@ -265,6 +277,8 @@ const styles = StyleSheet.create({
   sheet: { position: 'absolute', left: 0, right: 0, bottom: 0, borderTopWidth: 1 },
   ledgeMark: { position: 'absolute', left: 0, right: 0, top: 0 },
   grabber: { alignSelf: 'center', width: 36, height: 5, borderRadius: 3 },
+  grabberRow: { alignItems: 'center', justifyContent: 'center', minHeight: 44 },
+  closeSpot: { position: 'absolute', right: -12, top: 0 },
   row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   devBadge: { borderWidth: 1, borderStyle: 'dashed', height: 24, justifyContent: 'center' },
   demoRow: { flexDirection: 'row', alignItems: 'center', borderBottomWidth: 1 },

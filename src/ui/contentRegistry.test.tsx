@@ -22,7 +22,7 @@ describe('content registry', () => {
         <Text testID="words">Join the family</Text>
       </ContentRegistryProvider>,
     );
-    fireEvent(view.getByTestId('words'), 'layout', layout);
+    await fireEvent(view.getByTestId('words'), 'layout', layout);
     expect(reg.register).toHaveBeenCalledTimes(1);
   });
 
@@ -33,7 +33,7 @@ describe('content registry', () => {
         <Button label="Continue" testID="cont" onPress={() => {}} />
       </ContentRegistryProvider>,
     );
-    fireEvent(view.getByTestId('cont'), 'layout', layout);
+    await fireEvent(view.getByTestId('cont'), 'layout', layout);
     expect(reg.register).toHaveBeenCalled();
   });
 
@@ -45,7 +45,7 @@ describe('content registry', () => {
       </ContentRegistryProvider>,
     );
     // fireEvent bubbles up from the picture to the registering wrapper View around it.
-    fireEvent(view.getByLabelText('Hub'), 'layout', layout);
+    await fireEvent(view.getByLabelText('Hub'), 'layout', layout);
     expect(reg.register).toHaveBeenCalled();
   });
 
@@ -58,7 +58,7 @@ describe('content registry', () => {
         </NoContentRegistry>
       </ContentRegistryProvider>,
     );
-    fireEvent(view.getByTestId('bubble'), 'layout', layout);
+    await fireEvent(view.getByTestId('bubble'), 'layout', layout);
     expect(reg.register).not.toHaveBeenCalled();
   });
 
@@ -69,7 +69,7 @@ describe('content registry', () => {
         Hello
       </Text>,
     );
-    fireEvent(view.getByTestId('plain'), 'layout', layout);
+    await fireEvent(view.getByTestId('plain'), 'layout', layout);
     expect(onLayout).toHaveBeenCalled();
   });
 

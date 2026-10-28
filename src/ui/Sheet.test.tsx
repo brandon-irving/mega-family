@@ -40,7 +40,7 @@ describe('Sheet', () => {
     const s = StyleSheet.flatten(close.props.style) as { width?: number; height?: number };
     expect(s.width).toBeGreaterThanOrEqual(TOUCH_TARGET.normal);
     expect(s.height).toBeGreaterThanOrEqual(TOUCH_TARGET.normal);
-    fireEvent.press(close);
+    await fireEvent.press(close);
     expect(onClose).toHaveBeenCalled();
   });
 });
