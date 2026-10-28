@@ -710,8 +710,8 @@ export async function deliverCandidateLogic(ctx: MutationCtx, candidateId: Id<'c
       candidateId: candidate._id,
       kind: candidate.kind,
       loudness: cfg.loudness,
-      title: candidate.draft.title?.trim() || author.name,
-      body: candidate.draft.text,
+      title: candidate.draft.title?.trim() ? sanitizeDraftText(candidate.draft.title, candidate.kind, DRAFT_SANITIZE.maxTitleLength) : author.name,
+      body: sanitizeDraftText(candidate.draft.text, candidate.kind, DRAFT_SANITIZE.maxTextLength),
       megaId: author._id,
       buttons: [...BUTTON_SETS[candidate.draft.buttons]],
       choreId: candidate.source?.kind === 'chore' ? (await ctx.db.get(candidate.source.claimId))?.choreId : undefined,
@@ -726,7 +726,10 @@ export async function deliverCandidateLogic(ctx: MutationCtx, candidateId: Id<'c
   }
 
   // delivery === 'push', under cap
-  const title = candidate.draft.title?.trim() || mega.name; // UX6 fallback: only a pre-title-field row (or a hand-seeded one) ever lacks this
+  // UX6 fallback: only a pre-title-field row (or a hand-seeded one) ever lacks a title. Owner, Oct 28: delivery
+  // is the one choke point every push passes, so it sanitizes title and body again (idempotent), whatever
+  // wrote the draft — an old row once reached a kid with "you can do it! ✨📚".
+  const title = candidate.draft.title?.trim() ? sanitizeDraftText(candidate.draft.title, candidate.kind, DRAFT_SANITIZE.maxTitleLength) : mega.name;
   const notificationId = await ctx.db.insert('notifications', {
     familyId: candidate.familyId,
     recipientId: candidate.recipientId,
@@ -734,7 +737,7 @@ export async function deliverCandidateLogic(ctx: MutationCtx, candidateId: Id<'c
     kind: candidate.kind,
     loudness: cfg.loudness,
     title,
-    body: candidate.draft.text,
+    body: sanitizeDraftText(candidate.draft.text, candidate.kind, DRAFT_SANITIZE.maxTextLength),
     megaId: mega._id,
     buttons: [...BUTTON_SETS[candidate.draft.buttons]],
     reminderId: candidate.source?.kind === 'reminder' ? candidate.source.reminderId : undefined,
