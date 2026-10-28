@@ -90,6 +90,13 @@ export function formatLocalTime(at: number, tz: string): string {
   return `${hour12}:${String(p.minute).padStart(2, '0')} ${p.hour < 12 ? 'AM' : 'PM'}`;
 }
 
+/** G4: "2 PM" — the local hour of an instant (the weather card's hour strip). */
+export function formatLocalHour(at: number, tz: string): string {
+  const p = localParts(at, tz);
+  const hour12 = p.hour % 12 === 0 ? 12 : p.hour % 12;
+  return `${hour12} ${p.hour < 12 ? 'AM' : 'PM'}`;
+}
+
 const SHORT_WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const;
 
 /** GD: "Thu" — the local short weekday of an instant. */

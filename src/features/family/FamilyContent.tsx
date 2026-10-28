@@ -3,6 +3,7 @@
 import { Pressable, View } from 'react-native';
 import type { Infer } from 'convex/values';
 import type { API } from '@shared/domain/api';
+import { G4_COPY } from '@shared/config/copy';
 import { Card } from '@/ui/Card';
 import { MegaBadge } from '@/ui/MegaBadge';
 import { Text } from '@/ui/Text';
@@ -14,17 +15,25 @@ export type ComingUpEvent = Infer<(typeof API)['family']['comingUp']['returns']>
 
 const ROLE_LABEL = { admin: 'Admin', adult: 'Adult', kid: 'Kid' } as const;
 
-export type FamilyContentProps = { members: MemberCard[]; comingUp: ComingUpEvent[]; onOpenMember: (memberId: string) => void; onOpenCalendar: () => void };
+export type FamilyContentProps = { members: MemberCard[]; comingUp: ComingUpEvent[]; onOpenMember: (memberId: string) => void; onOpenCalendar: () => void; onOpenPlaces?: () => void };
 
-export function FamilyContent({ members, comingUp, onOpenMember, onOpenCalendar }: FamilyContentProps) {
+export function FamilyContent({ members, comingUp, onOpenMember, onOpenCalendar, onOpenPlaces }: FamilyContentProps) {
   const tokens = useTokens();
+  const link = { minHeight: tokens.touchTarget, justifyContent: 'center' as const };
   return (
     <>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: tokens.spacing.md }}>
         <Text variant="headline">Family</Text>
-        <Pressable onPress={onOpenCalendar} accessibilityRole="button" accessibilityLabel="Open family calendar">
-          <Text color="accent">Calendar</Text>
-        </Pressable>
+        <View style={{ flexDirection: 'row', gap: tokens.spacing.lg }}>
+          {onOpenPlaces ? (
+            <Pressable onPress={onOpenPlaces} accessibilityRole="button" accessibilityLabel="Open family places" style={link}>
+              <Text color="accent">{G4_COPY.placesTitle}</Text>
+            </Pressable>
+          ) : null}
+          <Pressable onPress={onOpenCalendar} accessibilityRole="button" accessibilityLabel="Open family calendar" style={link}>
+            <Text color="accent">Calendar</Text>
+          </Pressable>
+        </View>
       </View>
 
       <View style={{ gap: tokens.spacing.sm, marginBottom: tokens.spacing.lg }}>

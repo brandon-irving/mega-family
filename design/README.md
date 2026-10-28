@@ -1,7 +1,7 @@
 # Design canvas (mockups)
 
 The approved screen mockups, published as a private Design-canvas artifact:
-https://claude.ai/artifact/Wa23YjuTXtEhL3hy8PvZZV (version 35 after the Oct 28 onboarding chat row, Screen 13).
+https://claude.ai/artifact/Wa23YjuTXtEhL3hy8PvZZV (version 36 after the Oct 28 search, weather and travel row, Screen 14).
 
 - `mega-screens/project/*.dc.html` — one board per screen state; `canvas.json` places the boards (rows per
   screen: Chat, HQ, Profile, Family, Onboarding, Push, Settings, Widgets, Sign in, Kids, Store,
@@ -24,6 +24,11 @@ Onboarding chat row (Screen 13, Oct 28): `build/OnboardChat.template.html` on th
 from `ONBOARD_CHAT_BOARDS` in `build.py`: sign up → "What should I call you?" → Gmail, calendar and .ics cards
 (each with Not now; findings go to the private layer with a share suggestion) → hand-off to the Screen 5 family
 steps.
+
+Search, weather and travel row (Screen 14, G4, Oct 28): `build/Integrations.template.html` (its own cards:
+search with sources and kid rephrased/blocked states, weather with pixel icons drawn in code and an NWS alert
+variant, leave-by travel and its not-set-up state), plus Places (adults edit, kids read-only), a parent's view of a
+kid's blocked/changed searches and the event place picker; wrappers from `INTEGRATION_BOARDS` in `build.py`.
 
 Kids, Store and Calendar rows (Screens 10–12, Oct 27): `build/Kids.template.html`, `Store.template.html` and
 `Calendar.template.html`, with wrappers from `KIDS_BOARDS`, `STORE_BOARDS` and `CAL_BOARDS` in `build.py`
