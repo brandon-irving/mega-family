@@ -7,7 +7,7 @@
 // argument (read once, by the caller, through the Clock port) rather than calling it itself — the demo's
 // simulated-clock jump and the production cron both drive the exact same code, just with a different `now`.
 import { PERSONALITIES } from '../../shared/config/looks';
-import { ANDROID_CHANNELS, BUTTON_SETS, NOTIFICATION_KINDS_CONFIG, PUSH_BODY_REDACTION, genericPushBody, pushThreadIdFor } from '../../shared/config/notifications';
+import { ANDROID_CHANNELS, BUTTON_SETS, NOTIFICATION_KINDS_CONFIG, PUSH_BODY_REDACTION, genericPushBody, pushThreadIdFor, type ButtonSetId } from '../../shared/config/notifications';
 import { DRAFT_SANITIZE, PROACTIVE, checkinDedupeKey, mattersToDedupeKey, reminderDedupeKey, requestDedupeKey } from '../../shared/config/proactive';
 import { NOTIFICATION_KINDS, type Delivery, type Loudness, type NotificationKind, type Role } from '../../shared/domain/enums';
 import type { CandidateSource } from '../../shared/domain/tables';
@@ -17,6 +17,7 @@ import type { Doc, Id } from '../_generated/dataModel';
 import type { MutationCtx, QueryCtx } from '../_generated/server';
 import { clock } from '../ports/clock';
 import type { PushMessage } from '../ports/pushSender';
+import { gdTick } from './gdTick';
 import { getOrCreateOwnThread } from './threads';
 
 type Ctx = QueryCtx | MutationCtx;
@@ -246,6 +247,10 @@ function triggerInstruction(ctxData: DraftContext): { description: string; allow
       // Requests skip this model call entirely (convex/proactive.ts `processCandidate` returns early) — the
       // asking member already wrote the text themselves. Kept exhaustive for type-safety, never reached.
       return { description: '', allowedKinds: ['request'], fallbackKind: 'request' };
+    default:
+      // GD card sources never reach the draft+judge call either (`enqueueCardCandidate` finalizes them
+      // directly); same never-reached fallback as `request`.
+      return { description: '', allowedKinds: ['update'], fallbackKind: 'update' };
   }
 }
 
@@ -349,11 +354,26 @@ export async function decideDeliveryTiming(
   ctx: Ctx,
   params: { familyId: Id<'families'>; recipient: Doc<'members'>; tz: string; kind: NotificationKind; score: number; window: { from: number; to: number }; now: number; forcedDelivery?: Delivery },
 ): Promise<{ delivery: Delivery; deliverAt?: number }> {
-  const cfg = NOTIFICATION_KINDS_CONFIG[params.kind];
-  let delivery: Delivery = params.forcedDelivery ?? (params.score >= cfg.thresholds.push ? 'push' : params.score >= cfg.thresholds.widget ? 'statement' : 'drop');
-
-  if (params.recipient.role === 'kid' && !cfg.kidsGetIt) delivery = 'drop';
+  const delivery = judgedDelivery(params.kind, params.score, params.recipient.role, params.forcedDelivery);
   if (delivery === 'drop') return { delivery };
+  return timeDelivery(ctx, params, delivery);
+}
+
+/** Pure: the judge's score → push / statement / drop for a kind and recipient (the kind's thresholds, and
+ * kids only get kinds marked `kidsGetIt`). Shared with the push-judge eval (evals/run.ts). */
+export function judgedDelivery(kind: NotificationKind, score: number, role: Role, forced?: Delivery): Delivery {
+  const cfg = NOTIFICATION_KINDS_CONFIG[kind];
+  if (role === 'kid' && !cfg.kidsGetIt) return 'drop';
+  if (forced) return forced;
+  return score >= cfg.thresholds.push ? 'push' : score >= cfg.thresholds.widget ? 'statement' : 'drop';
+}
+
+async function timeDelivery(
+  ctx: Ctx,
+  params: { familyId: Id<'families'>; recipient: Doc<'members'>; tz: string; kind: NotificationKind; score: number; window: { from: number; to: number }; now: number },
+  initial: Delivery,
+): Promise<{ delivery: Delivery; deliverAt?: number }> {
+  let delivery = initial;
 
   // Quiet hours always win over the window (PLAN.md's push section: "held until quiet hours end," never
   // "delivered anyway because the window was about to close") — a delayed, still-useful message beats one
@@ -379,7 +399,7 @@ export async function decideDeliveryTiming(
 // ---------- re-check at delivery time ----------
 
 /** PLAN.md -> Proactive engine step 5: "at fire time, check again that it still applies." */
-export async function candidateStillApplies(ctx: Ctx, source: CandidateSource | undefined): Promise<boolean> {
+export async function candidateStillApplies(ctx: Ctx, source: CandidateSource | undefined, recipientId?: Id<'members'>): Promise<boolean> {
   if (!source) return true;
   switch (source.kind) {
     case 'reminder': {
@@ -393,7 +413,148 @@ export async function candidateStillApplies(ctx: Ctx, source: CandidateSource | 
     case 'checkin':
     case 'mattersTo':
       return true;
+    // GD card sources: the kid's reminder only while the chore is still due; an adult's approve card only
+    // while it's still claimed (someone else may have approved it already).
+    case 'chore': {
+      const claim = await ctx.db.get(source.claimId);
+      if (!claim) return false;
+      return recipientId === claim.forMemberId ? claim.status === 'due' : claim.status === 'claimed';
+    }
+    case 'routine': {
+      const run = await ctx.db.get(source.runId);
+      return !!run && run.finishedAt === undefined;
+    }
+    case 'proposal': {
+      const p = await ctx.db.get(source.proposalId);
+      return !!p;
+    }
+    case 'shareSuggestion': {
+      const s = await ctx.db.get(source.suggestionId);
+      return !!s && s.status === 'pending';
+    }
+    case 'practice': {
+      const set = await ctx.db.get(source.setId);
+      if (!set) return false;
+      return recipientId === set.forMemberId ? set.status === 'ready' : set.status === 'done';
+    }
+    case 'gifts': {
+      const g = await ctx.db.get(source.giftIdeasId);
+      return !!g && g.status === 'ready';
+    }
+    case 'bucks':
+      return !!(await ctx.db.get(source.ledgerId));
   }
+}
+
+// ---------- GD card-backed candidates ----------
+
+/** The GD card a card-backed source posts in the recipient's thread instead of a `notification` card
+ * (CONTRACT §3 v0.13: each card holds only an id; the app re-checks the viewer when it loads it). `null` for
+ * the original G3 sources, which keep the notification card. */
+export type ThreadCard = Extract<Doc<'messages'>['body'], { type: 'card' }>['card'];
+
+export function cardForSource(source: CandidateSource | undefined): ThreadCard | null {
+  switch (source?.kind) {
+    case 'chore':
+      return { kind: 'chore', claimId: source.claimId };
+    case 'routine':
+      return { kind: 'routine', runId: source.runId };
+    case 'proposal':
+      return { kind: 'proposal', proposalId: source.proposalId };
+    case 'shareSuggestion':
+      return { kind: 'shareSuggestion', suggestionId: source.suggestionId };
+    case 'practice':
+      return { kind: 'practice', setId: source.setId };
+    case 'gifts':
+      return { kind: 'gifts', giftIdeasId: source.giftIdeasId };
+    case 'bucks':
+      return { kind: 'bucks', ledgerId: source.ledgerId };
+    default:
+      return null;
+  }
+}
+
+export function isCardSource(source: CandidateSource | undefined): boolean {
+  return cardForSource(source) !== null;
+}
+
+/** GD: queues one card-backed push. The card's content was already produced (by a model call or a
+ * person); this just runs the deterministic headline through the same timing pipeline as every other push
+ * (kid eligibility, quiet hours, daily cap → statement), with no draft/judge model call. Deduped per key. */
+export async function enqueueCardCandidate(
+  ctx: MutationCtx,
+  params: {
+    familyId: Id<'families'>;
+    recipientId: Id<'members'>;
+    kind: NotificationKind;
+    dedupeKey: string;
+    title: string;
+    text: string;
+    source: CandidateSource;
+    buttons?: Doc<'candidates'>['draft']['buttons'];
+    now: number;
+    /** Not before this instant (a snooze); quiet hours and caps still apply on top. Default: now. */
+    notBefore?: number;
+  },
+): Promise<Id<'candidates'> | null> {
+  const existing = await ctx.db
+    .query('candidates')
+    .withIndex('by_family_dedupeKey', (q) => q.eq('familyId', params.familyId).eq('dedupeKey', params.dedupeKey))
+    .first();
+  if (existing) return null;
+  const buttons = params.buttons ?? NOTIFICATION_KINDS_CONFIG[params.kind].buttons;
+  const title = sanitizeDraftText(params.title, params.kind, DRAFT_SANITIZE.maxTitleLength);
+  const text = sanitizeDraftText(params.text, params.kind, DRAFT_SANITIZE.maxTextLength);
+  const candidateId = await ctx.db.insert('candidates', {
+    familyId: params.familyId,
+    recipientId: params.recipientId,
+    kind: params.kind,
+    dedupeKey: params.dedupeKey,
+    draft: { text, title, buttons },
+    window: { from: params.notBefore ?? params.now, to: (params.notBefore ?? params.now) + PROACTIVE.mattersToWindowMinutes * 60_000 },
+    status: 'new',
+    source: params.source,
+  });
+  await finalizeCandidateLogic(ctx, { candidateId, kind: params.kind, title, text, score: 1, reason: `GD card: ${params.source.kind}`, forcedDelivery: 'push' });
+  return candidateId;
+}
+
+/** Which MEGA authors a card-backed message: Hub for a pending clash proposal (the family MEGA proposes it,
+ * with the AI disclosure), otherwise the recipient's own MEGA (e.g. Coral telling Partner a fix was applied). */
+async function authorMegaFor(ctx: MutationCtx, candidate: Doc<'candidates'>, recipientMega: Doc<'megas'>): Promise<Doc<'megas'>> {
+  if (candidate.source?.kind === 'proposal') {
+    const proposal = await ctx.db.get(candidate.source.proposalId);
+    const hub = proposal && proposal.status === 'pending' ? await ctx.db.get(proposal.megaId) : null;
+    if (hub) return hub;
+  }
+  return recipientMega;
+}
+
+/** Posts a GD card in the recipient's own thread (no push). Used for statement-demoted card candidates and
+ * by features that post a card for someone who's actively in the app (e.g. the homework card). */
+export async function postCard(
+  ctx: MutationCtx,
+  params: { familyId: Id<'families'>; recipientId: Id<'members'>; card: ThreadCard; megaId?: Id<'megas'>; now: number; fromNotificationId?: Id<'notifications'> },
+): Promise<Id<'messages'> | null> {
+  const ownMega = await ctx.db
+    .query('megas')
+    .withIndex('by_family_owner', (q) => q.eq('familyId', params.familyId).eq('ownerId', params.recipientId))
+    .unique();
+  const authorId = params.megaId ?? ownMega?._id;
+  if (!authorId) return null;
+  const thread = await getOrCreateOwnThread(ctx, params.familyId, params.recipientId, ownMega?._id ?? null, params.now);
+  const messageId = await ctx.db.insert('messages', {
+    familyId: params.familyId,
+    threadId: thread._id,
+    at: params.now,
+    author: { kind: 'mega', id: authorId },
+    via: 'text',
+    body: { type: 'card', card: params.card },
+    chips: [],
+    fromNotificationId: params.fromNotificationId,
+  });
+  await ctx.db.patch(thread._id, { lastAt: params.now });
+  return messageId;
 }
 
 // ---------- push payload assembly ----------
@@ -442,6 +603,9 @@ export function buildPushMessages(
    * redaction above and (via `pushThreadIdFor`) the UX4 grouping `threadId`. `undefined` for a legacy/hand-
    * seeded notification with no backing candidate; both features just no-op (full body, no grouping). */
   sourceKind?: CandidateSource['kind'],
+  /** GD: the candidate's own button set (a chore reminder is kind `reminder` but uses `chore.default`), so
+   * the push's category matches the buttons it carries. Falls back to the kind's default set. */
+  buttonSet?: ButtonSetId,
 ): PushMessage[] {
   return tokens.map((t) => ({
     token: t.token,
@@ -451,7 +615,7 @@ export function buildPushMessages(
     // CONTRACT §5 v0.11: `answerToken` lets the killed-app background notification-response task (no
     // signed-in session) answer via `POST /push/answer` (convex/http.ts, convex/model/pushAnswerToken.ts).
     data: { v: 1, notificationId: notification._id, kind: notification.kind, threadId, messageId, answerToken: answerToken || undefined },
-    categoryId: notification.buttons.length ? NOTIFICATION_KINDS_CONFIG[notification.kind].buttons : undefined,
+    categoryId: notification.buttons.length ? (buttonSet ?? NOTIFICATION_KINDS_CONFIG[notification.kind].buttons) : undefined,
     channelId: androidChannelFor(notification.kind),
     interruptionLevel: interruptionLevelFor(notification.loudness),
     threadId: pushThreadIdFor(notification.kind, notification.megaId),
@@ -487,7 +651,7 @@ export async function deliverCandidateLogic(ctx: MutationCtx, candidateId: Id<'c
   const candidate = await ctx.db.get(candidateId);
   if (!candidate || candidate.status !== 'scheduled') return;
 
-  if (!(await candidateStillApplies(ctx, candidate.source))) {
+  if (!(await candidateStillApplies(ctx, candidate.source, candidate.recipientId))) {
     await ctx.db.patch(candidate._id, { status: 'cancelled' });
     return;
   }
@@ -524,11 +688,40 @@ export async function deliverCandidateLogic(ctx: MutationCtx, candidateId: Id<'c
     if (sentToday >= dailyCap) delivery = 'statement';
   }
 
+  // GD: a card-backed source always lands its card in the thread (the durable surface); only the push
+  // itself is subject to the cap. Its message is authored by Hub for a proposal, else the recipient's MEGA.
+  const card = cardForSource(candidate.source);
+  const author = card ? await authorMegaFor(ctx, candidate, mega) : mega;
+
   if (delivery === 'statement') {
     // today.get / widgets.timeline already read 'delivered' + delivery:'statement' candidates directly
     // (convex/model/home.ts `topStatementCandidate`) — nothing else to create.
+    if (card) await postCard(ctx, { familyId: candidate.familyId, recipientId: candidate.recipientId, card, megaId: author._id, now });
     await ctx.db.patch(candidate._id, { status: 'delivered', delivery: 'statement' });
     await bumpProfileCount(ctx, candidate.familyId, candidate.recipientId, candidate.kind, 'sent');
+    return;
+  }
+
+  if (card) {
+    const cardMessageId = await postCard(ctx, { familyId: candidate.familyId, recipientId: candidate.recipientId, card, megaId: author._id, now });
+    const cardNotificationId = await ctx.db.insert('notifications', {
+      familyId: candidate.familyId,
+      recipientId: candidate.recipientId,
+      candidateId: candidate._id,
+      kind: candidate.kind,
+      loudness: cfg.loudness,
+      title: candidate.draft.title?.trim() || author.name,
+      body: candidate.draft.text,
+      megaId: author._id,
+      buttons: [...BUTTON_SETS[candidate.draft.buttons]],
+      choreId: candidate.source?.kind === 'chore' ? (await ctx.db.get(candidate.source.claimId))?.choreId : undefined,
+      sentAt: now,
+      messageId: cardMessageId ?? undefined,
+    });
+    if (cardMessageId) await ctx.db.patch(cardMessageId, { fromNotificationId: cardNotificationId });
+    await ctx.db.patch(candidate._id, { status: 'delivered' });
+    await bumpProfileCount(ctx, candidate.familyId, candidate.recipientId, candidate.kind, 'sent');
+    if (cardMessageId) await ctx.scheduler.runAfter(0, internal.proactive.sendPush, { notificationId: cardNotificationId });
     return;
   }
 
@@ -606,7 +799,7 @@ export async function finalizeCandidateLogic(
     await ctx.db.patch(candidate._id, {
       status: 'dropped',
       kind: params.kind,
-      draft: { text: params.text, title: params.title, buttons: cfg.buttons },
+      draft: { text: params.text, title: params.title, buttons: isCardSource(candidate.source) ? candidate.draft.buttons : cfg.buttons },
       score,
       reason: params.reason,
       delivery: 'drop',
@@ -618,7 +811,7 @@ export async function finalizeCandidateLogic(
   await ctx.db.patch(candidate._id, {
     status: 'scheduled',
     kind: params.kind,
-    draft: { text: params.text, title: params.title, buttons: cfg.buttons },
+    draft: { text: params.text, title: params.title, buttons: isCardSource(candidate.source) ? candidate.draft.buttons : cfg.buttons },
     score,
     reason: params.reason,
     delivery,
@@ -843,4 +1036,5 @@ export async function tickFamilyLogic(ctx: MutationCtx, familyId: Id<'families'>
   await scanReminderTriggers(ctx, familyId, now);
   await scanFamilyEventTriggers(ctx, familyId, now);
   await scanCheckInTriggers(ctx, familyId, now);
+  await gdTick(ctx, familyId, now);
 }

@@ -1,17 +1,26 @@
-// CONTRACT §4 `events.create` / `.update` / `.cancel`.
+// CONTRACT §4 `events.create` / `.update` / `.cancel` / `.share` / `.unshare`.
+//
+// GD (v0.13): a `personal` event lives on its owner's private layer — `ownerId` is set on create, nobody else
+// can see it (convex/model/visibility.ts `canSeeEvent`) or change it, and only the owner's own `share` moves
+// it to the household layer (convex/model/layers.ts). Every write re-runs Hub's clash check.
 import { API } from '../shared/domain/api';
-import { mutation } from './_generated/server';
+import type { Id } from './_generated/dataModel';
+import { mutation, type MutationCtx } from './_generated/server';
 import { pick } from './model/define';
 import { fail } from './model/errors';
-import { notBuiltYet } from './model/gdStub';
+import { calendarChanged, patchEvent } from './model/eventWrites';
+import { maybeSuggestEventShare, shareItem, unshareEvent } from './model/layers';
 import { requireViewer, sameFamilyMember } from './model/viewer';
+import { canSeeEvent } from './model/visibility';
+import { clock } from './ports/clock';
 
 export const create = mutation({
   ...pick(API.events.create),
   handler: async (ctx, args) => {
     const viewer = await requireViewer(ctx);
     for (const id of args.who) await sameFamilyMember(ctx, viewer.member.familyId, id);
-    return ctx.db.insert('events', {
+    const now = await clock.now(ctx, viewer.member.familyId);
+    const eventId = await ctx.db.insert('events', {
       familyId: viewer.member.familyId,
       title: args.title,
       start: args.start,
@@ -23,20 +32,32 @@ export const create = mutation({
       createdBy: viewer.member._id,
       scope: args.scope,
       cancelled: false,
+      ownerId: args.scope === 'personal' ? viewer.member._id : undefined,
     });
+    const event = (await ctx.db.get(eventId))!;
+    if (args.scope === 'personal') await maybeSuggestEventShare(ctx, event, viewer.family.timezone, now);
+    else await calendarChanged(ctx, viewer.member.familyId, now);
+    return eventId;
   },
 });
+
+/** The caller's own event, or (for the admin) any event they can see. A private event someone else owns is
+ * NOT_FOUND — not even its existence is revealed. */
+async function loadEditable(ctx: MutationCtx, eventId: Id<'events'>) {
+  const viewer = await requireViewer(ctx);
+  const event = await ctx.db.get(eventId);
+  if (!event || event.familyId !== viewer.member.familyId) fail('NOT_FOUND');
+  if (!canSeeEvent({ memberId: viewer.member._id, role: viewer.member.role }, event)) fail('NOT_FOUND');
+  if (event.createdBy !== viewer.member._id && event.ownerId !== viewer.member._id && viewer.member.role !== 'admin') fail('FORBIDDEN');
+  return { viewer, event };
+}
 
 export const update = mutation({
   ...pick(API.events.update),
   handler: async (ctx, args) => {
-    const viewer = await requireViewer(ctx);
-    const event = await ctx.db.get(args.eventId);
-    if (!event || event.familyId !== viewer.member.familyId) fail('NOT_FOUND');
-    if (event.createdBy !== viewer.member._id && viewer.member.role !== 'admin') fail('FORBIDDEN');
-    if (args.patch.who) for (const id of args.patch.who) await sameFamilyMember(ctx, viewer.member.familyId, id);
-    const patch = Object.fromEntries(Object.entries(args.patch).filter(([, v]) => v !== undefined));
-    await ctx.db.patch(event._id, patch);
+    const { viewer, event } = await loadEditable(ctx, args.eventId);
+    const now = await clock.now(ctx, viewer.member.familyId);
+    await patchEvent(ctx, event, args.patch, now);
     return null;
   },
 });
@@ -44,29 +65,34 @@ export const update = mutation({
 export const cancel = mutation({
   ...pick(API.events.cancel),
   handler: async (ctx, args) => {
-    const viewer = await requireViewer(ctx);
-    const event = await ctx.db.get(args.eventId);
-    if (!event || event.familyId !== viewer.member.familyId) fail('NOT_FOUND');
-    if (event.createdBy !== viewer.member._id && viewer.member.role !== 'admin') fail('FORBIDDEN');
+    const { viewer, event } = await loadEditable(ctx, args.eventId);
     await ctx.db.patch(event._id, { cancelled: true });
+    await calendarChanged(ctx, viewer.member.familyId, await clock.now(ctx, viewer.member.familyId));
     return null;
   },
 });
 
-// GD (CONTRACT v0.13) `events.share` / `.unshare`: stubs until the GD backend (docs/gates/GD.md). The real
-// ones are owner-only and write a `shareActions` row in the same mutation as the scope change.
 export const share = mutation({
   ...pick(API.events.share),
-  handler: async (ctx) => {
-    await requireViewer(ctx);
-    return notBuiltYet('events.share');
+  handler: async (ctx, args) => {
+    const viewer = await requireViewer(ctx);
+    const event = await ctx.db.get(args.eventId);
+    if (!event || event.familyId !== viewer.member.familyId) fail('NOT_FOUND');
+    if (!canSeeEvent({ memberId: viewer.member._id, role: viewer.member.role }, event)) fail('NOT_FOUND');
+    const now = await clock.now(ctx, viewer.member.familyId);
+    await shareItem(ctx, { familyId: viewer.member.familyId, ownerId: viewer.member._id, item: { kind: 'event', eventId: event._id }, now });
+    await calendarChanged(ctx, viewer.member.familyId, now);
+    return null;
   },
 });
 
 export const unshare = mutation({
   ...pick(API.events.unshare),
-  handler: async (ctx) => {
-    await requireViewer(ctx);
-    return notBuiltYet('events.unshare');
+  handler: async (ctx, args) => {
+    const viewer = await requireViewer(ctx);
+    const now = await clock.now(ctx, viewer.member.familyId);
+    await unshareEvent(ctx, { familyId: viewer.member.familyId, ownerId: viewer.member._id, eventId: args.eventId, now });
+    await calendarChanged(ctx, viewer.member.familyId, now);
+    return null;
   },
 });

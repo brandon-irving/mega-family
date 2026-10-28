@@ -8,7 +8,7 @@ import { addDays, localDate, zonedInstant } from '../../shared/time';
 import type { Doc } from '../_generated/dataModel';
 import type { MutationCtx, QueryCtx } from '../_generated/server';
 import { clock } from '../ports/clock';
-import { canSeeScoped } from './visibility';
+import { canSeeEvent, canSeeScoped } from './visibility';
 
 type Ctx = QueryCtx | MutationCtx;
 type ListSummary = Infer<typeof listSummary>;
@@ -17,8 +17,8 @@ function viewerPrincipal(viewer: Viewer) {
   return { memberId: viewer.member._id, role: viewer.member.role };
 }
 
-function canSeeEvent(viewer: Viewer, event: Doc<'events'>): boolean {
-  return canSeeScoped(event.scope, viewerPrincipal(viewer), { ownerId: event.createdBy, who: event.who });
+function viewerCanSeeEvent(viewer: Viewer, event: Doc<'events'>): boolean {
+  return canSeeEvent(viewerPrincipal(viewer), event);
 }
 
 /** Events starting in `[from, to]`, visible to `viewer`, ascending by start. Scans from
@@ -31,7 +31,7 @@ export async function eventsInRange(ctx: Ctx, viewer: Viewer, from: number, to: 
     .withIndex('by_family_start', (q) => q.eq('familyId', viewer.member.familyId).gte('start', scanFrom).lte('start', to))
     .collect();
   return rows
-    .filter((e) => !e.cancelled && e.start <= to && (e.end ?? e.start) >= from && canSeeEvent(viewer, e))
+    .filter((e) => !e.cancelled && e.start <= to && (e.end ?? e.start) >= from && viewerCanSeeEvent(viewer, e))
     .sort((a, b) => a.start - b.start);
 }
 

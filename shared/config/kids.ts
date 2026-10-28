@@ -13,6 +13,9 @@ export const HOMEWORK = {
   hintNeverContainsAnswer: true,
   /** A wrong answer can be retried; the attempt is still recorded. */
   retryWrongAnswers: true,
+  /** A question is settled after a correct answer or this many answers in all (then it counts as missed and
+   * the kid moves on), so a 4-choice question can't become guess-until-right. */
+  maxTriesPerQuestion: 2,
   /** Max image size accepted from the camera sheet (bytes), checked before the model call. */
   maxPhotoBytes: 8 * 1024 * 1024,
 } as const;
@@ -22,6 +25,8 @@ export const CHORES = {
   managers: ['admin', 'adult'] as readonly Role[],
   /** Minutes before a chore's time that the kid's reminder push goes out. */
   remindLeadMinutes: 0,
+  /** The chore reminder's "In 10 min" button (BUTTON_SETS 'chore.default' snooze_10) re-reminds after this. */
+  snoozeMinutes: 10,
 } as const;
 
 export { ROUTINE_KINDS } from './ids';

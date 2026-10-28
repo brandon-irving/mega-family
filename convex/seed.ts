@@ -16,8 +16,11 @@ import { BUTTON_SETS } from '../shared/config/notifications';
 import { SAMPLE_FAMILY as S, type SampleKey } from '../shared/fixtures/sampleFamily';
 import { addDays, dayOfWeek, localDate, zonedInstant } from '../shared/time';
 import type { Id, TableNames } from './_generated/dataModel';
-import { internalMutation, type MutationCtx } from './_generated/server';
+import { internal } from './_generated/api';
+import { internalAction, internalMutation, type MutationCtx } from './_generated/server';
 import { sanitizeDraftText } from './model/proactive';
+import { seedGd } from './model/seedGd';
+import { FRACTIONS_SHEET } from '../shared/fixtures/homework/fractionsSheet';
 import { scopeKey } from './model/scopes';
 
 const emptyCounts = { sent: 0, answered: 0, ignored: 0, up: 0, down: 0 };
@@ -53,6 +56,21 @@ const FAMILY_OWNED_TABLES: readonly [TableNames, string][] = [
   ['integrations', 'by_family'],
   ['usage', 'by_family_day'],
   ['clocks', 'by_family'],
+  // GD (CONTRACT v0.13)
+  ['shareActions', 'by_family_owner'],
+  ['shareSuggestions', 'by_family_owner_status'],
+  ['collisions', 'by_family_status'],
+  ['proposals', 'by_family_status'],
+  ['giftIdeas', 'by_family_for'],
+  ['homeworkSheets', 'by_family_creator'],
+  ['practiceSets', 'by_family_for'],
+  ['practiceAttempts', 'by_family_set'],
+  ['chores', 'by_family_for'],
+  ['choreClaims', 'by_family_status'],
+  ['routines', 'by_family_member_kind'],
+  ['routineRuns', 'by_family_member_kind_date'],
+  ['bucksLedger', 'by_family_member_at'],
+  ['purchases', 'by_family_member'],
 ];
 
 async function deleteFamilyCompletely(ctx: MutationCtx, familyId: Id<'families'>): Promise<void> {
@@ -66,7 +84,7 @@ async function deleteFamilyCompletely(ctx: MutationCtx, familyId: Id<'families'>
   await ctx.db.delete(familyId);
 }
 
-async function createSampleFamily(ctx: MutationCtx, weekOf: string | undefined): Promise<{ familyId: Id<'families'>; members: Record<SampleKey, Id<'members'>> }> {
+async function createSampleFamily(ctx: MutationCtx, weekOf: string | undefined, homeworkStorageId?: Id<'_storage'>): Promise<{ familyId: Id<'families'>; members: Record<SampleKey, Id<'members'>> }> {
     const realNow = Date.now(); // the one allowed real-clock read: it anchors the demo clock (clocks.offsetMs)
     const tz = S.timezone;
     const today = localDate(realNow, tz);
@@ -321,13 +339,17 @@ async function createSampleFamily(ctx: MutationCtx, weekOf: string | undefined):
     // the demo clock starts at the mockups' Sunday afternoon
     await ctx.db.insert('clocks', { familyId, mode: 'simulated', offsetMs: demoNow - realNow });
 
+    // GD (Screens 10–12): layers, the clash + negative control, chores, homework, routines, Mega Bucks, gifts.
+    // The homework sheet needs a stored photo; `seed.resetDemo` stores the synthetic worksheet and passes it.
+    await seedGd(ctx, { familyId, m, hubId: mega.family, sunday, at, now: demoNow, homeworkStorageId });
+
     return { familyId, members: m };
 }
 
 export const sampleFamily = internalMutation({
-  args: { weekOf: v.optional(v.string()) },
+  args: { weekOf: v.optional(v.string()), homeworkStorageId: v.optional(v.id('_storage')) },
   returns: v.object({ familyId: v.id('families'), members: v.record(v.string(), v.id('members')) }),
-  handler: async (ctx, args) => createSampleFamily(ctx, args.weekOf),
+  handler: async (ctx, args) => createSampleFamily(ctx, args.weekOf, args.homeworkStorageId),
 });
 
 /** Deletes any existing sample family (matched by name — `SAMPLE_FAMILY.name`, there's only ever meant to
@@ -338,7 +360,7 @@ export const sampleFamily = internalMutation({
  * — an internal function, so this is defense in depth (it's never reachable from the client either way),
  * not the only thing stopping a production deployment from wiping real family data. */
 export const resetSampleFamily = internalMutation({
-  args: { weekOf: v.optional(v.string()) },
+  args: { weekOf: v.optional(v.string()), homeworkStorageId: v.optional(v.id('_storage')) },
   returns: v.object({ familyId: v.id('families'), members: v.record(v.string(), v.id('members')) }),
   handler: async (ctx, args) => {
     if (process.env[DEMO.envVar] !== 'true') throw new Error(`resetSampleFamily refuses to run unless ${DEMO.envVar}=true on this deployment`);
@@ -363,7 +385,7 @@ export const resetSampleFamily = internalMutation({
 
     for (const family of existing) await deleteFamilyCompletely(ctx, family._id);
 
-    const created = await createSampleFamily(ctx, args.weekOf);
+    const created = await createSampleFamily(ctx, args.weekOf, args.homeworkStorageId);
     for (const x of S.members) {
       const carriedAuthId = authIdByName.get(x.name);
       if (carriedAuthId && carriedAuthId !== `sample:${x.key}`) {
@@ -371,6 +393,19 @@ export const resetSampleFamily = internalMutation({
       }
     }
     return created;
+  },
+});
+
+/** The full demo reset (STATUS.md -> Running things): stores the synthetic fractions worksheet in file
+ * storage (a mutation can't), then rebuilds the sample family with it. `npx convex run seed:resetDemo`.
+ * DEMO_MODE-gated through `resetSampleFamily`. */
+export const resetDemo = internalAction({
+  args: { weekOf: v.optional(v.string()) },
+  returns: v.object({ familyId: v.id('families'), members: v.record(v.string(), v.id('members')) }),
+  handler: async (ctx, args): Promise<{ familyId: Id<'families'>; members: Record<string, Id<'members'>> }> => {
+    const bytes = Uint8Array.from(atob(FRACTIONS_SHEET.base64), (c) => c.charCodeAt(0));
+    const homeworkStorageId = await ctx.storage.store(new Blob([bytes], { type: FRACTIONS_SHEET.contentType }));
+    return ctx.runMutation(internal.seed.resetSampleFamily, { weekOf: args.weekOf, homeworkStorageId });
   },
 });
 

@@ -87,6 +87,8 @@ npx expo export --platform web --output-dir <scratch dir>
 
 Owner approved **$5 total for live model checks until G6**; ≈3 cents used. The spend guard (`usage` table, reserved + recorded) enforces daily and global caps. Image generation needs separate approval (off in config).
 
+- **GD evals (Oct 28):** 16.2¢ — privacy gate 6.0¢ (30 cases, 100% precision/recall on "sensitive"), push judge 10.2¢ (30 cases, 77% accuracy; it under-sends "statement"s as drops). Re-run: `node scripts/secrets.mjs run --only tool -- npx tsx evals/run.ts`; results in `evals/*/results-*.md`.
+
 ## Owner to-dos (open)
 
 1. iPhone build (`npm run build:ios:dev`) if not done; then the Apple Services ID (`com.megafamily.app.web`, domain `colorless-ibis-289.convex.site`, return URL `https://colorless-ibis-289.convex.site/api/auth/callback/apple`) + Sign in with Apple key → `node scripts/secrets.mjs apple-key <AuthKey.p8>` → `node scripts/secrets.mjs sync-convex`.

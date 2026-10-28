@@ -3,6 +3,7 @@
 // G3 additive) the button should act on. `convex/notifications.ts`'s `answer` mutation is the only caller.
 import type { Doc } from '../_generated/dataModel';
 import type { MutationCtx } from '../_generated/server';
+import { markChoreDone, snoozeChoreReminder } from './chores';
 import { respondToRequest } from './requestEffects';
 
 /** UX3 (BLOCKER, G3 UX review): a legacy-shaped `request` notification can be missing its own `requestId`
@@ -34,6 +35,22 @@ export async function applyNotificationAnswer(ctx: MutationCtx, params: { notifi
     }
 
     case 'reminder': {
+      // GD: a chore reminder (`chore.default`: Done / Later). Done claims today's chore for the kid it was
+      // sent to — the same path as the card's Done button — and asks the adults to approve it.
+      if (notification.choreId) {
+        const chore = await ctx.db.get(notification.choreId);
+        const kid = await ctx.db.get(notification.recipientId);
+        const family = await ctx.db.get(notification.familyId);
+        if (!chore || !kid || !family || chore.forMemberId !== kid._id) return 'Got it.';
+        if (buttonId === 'snooze_10') {
+          const candidate = notification.candidateId ? await ctx.db.get(notification.candidateId) : null;
+          if (candidate?.source?.kind === 'chore') await snoozeChoreReminder(ctx, { chore, claimId: candidate.source.claimId, now });
+          return 'Okay, I\u2019ll remind you in a bit.';
+        }
+        if (buttonId !== 'done') return 'Got it.';
+        await markChoreDone(ctx, { chore, kid, tz: family.timezone, now });
+        return 'Nice work! A grown-up will check it.';
+      }
       if (!notification.reminderId) return 'Got it.';
       const reminder = await ctx.db.get(notification.reminderId);
       if (!reminder) return 'Got it.';

@@ -12,10 +12,6 @@
 // only for any spoken-mention token that lands in the "uncertain" band — see convex/agent/mentionResolver.
 // ts). Well under the 10-call cap for a conversation this short.
 //
-// `convexTest` normally takes its `modules` map from Vite's `import.meta.glob` (used by every *.test.ts in
-// this repo), which doesn't exist under plain `tsx`/Node — `buildModules` below is a small manual
-// equivalent: every `.ts` file under convex/ (except `_generated`), keyed exactly the same way
-// (`"./relative/path.ts"`) so convex-test's function-reference resolution works identically.
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -23,6 +19,7 @@ import { convexTest } from 'convex-test';
 import type { Id } from '../../convex/_generated/dataModel';
 import { api, internal } from '../../convex/_generated/api';
 import schema from '../../convex/schema';
+import { buildModules } from './convexModules';
 
 // Respects an already-set value so this script can also be dry-run against the Fake adapters
 // (MEGA_MODEL_ADAPTER=fake, any META_API_KEY) to sanity-check the plumbing before spending anything real.
@@ -30,26 +27,6 @@ process.env.MEGA_MODEL_ADAPTER ??= 'real';
 
 const SAMPLE_WAV = '/Users/brandonirving/products/mega/scripts/smoke/sample.wav'; // main repo, not this worktree
 const WEEK = '2026-10-25';
-const CONVEX_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../convex');
-
-function buildModules(): Record<string, () => Promise<unknown>> {
-  const out: Record<string, () => Promise<unknown>> = {};
-  const walk = (dir: string) => {
-    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
-      const full = path.join(dir, entry.name);
-      if (entry.isDirectory()) {
-        walk(full); // includes `_generated` — convex-test needs its entries present to find the module root
-        continue;
-      }
-      // `.d.ts` files have no runtime JS to import; everything else real (`.ts`, and `_generated`'s `.js`) goes in.
-      if (entry.name.endsWith('.d.ts') || !(entry.name.endsWith('.ts') || entry.name.endsWith('.js'))) continue;
-      const rel = path.relative(CONVEX_DIR, full).split(path.sep).join('/');
-      out[`./${rel}`] = () => import(full);
-    }
-  };
-  walk(CONVEX_DIR);
-  return out;
-}
 
 async function main() {
   if (!process.env.META_API_KEY) {

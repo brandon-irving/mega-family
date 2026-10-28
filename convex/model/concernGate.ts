@@ -47,11 +47,20 @@ function toLearningOpConcern(category: ConcernCategory): LearningOp['concernCate
  * are allowed to come from anything other than this gate, once a server classification exists. `'ok'`
  * passes `op` through unchanged (whatever `sensitive` flag the source set for ordinary, non-concerning
  * sensitivity — e.g. "mom's salary" — still applies). */
-export function gateByServerConcern(op: LearningOp, category: ConcernCategory): LearningOp {
+export function gateByServerConcern(op: LearningOp, category: ConcernCategory, decidedBy?: string): LearningOp {
   if (category === 'web_content') return { ...op, concernCategory: undefined, derivedFromWebSearch: true };
   const mapped = toLearningOpConcern(category);
   if (!mapped) return op; // 'ok'
-  return { ...op, concernCategory: mapped, sensitive: true, derivedFromWebSearch: false };
+  return { ...op, concernCategory: mapped, sensitive: true, derivedFromWebSearch: false, gate: decidedBy ? { decidedBy, reason: category } : op.gate };
+}
+
+/** GD (OpenDuet learning, "rules only tighten"): combines the classifier's verdict with the keyword
+ * backstop. The rule may only ESCALATE an "ok" to a concern, never clear one the model flagged, and the
+ * result records which of the two decided (`rule:keywordBackstop:<category>` or `model:<id>`). */
+export function combineWithBackstop(modelCategory: ConcernCategory | null, backstop: ConcernCategory | null, modelId: string): { category: ConcernCategory; decidedBy: string } {
+  if (modelCategory && modelCategory !== 'ok') return { category: modelCategory, decidedBy: `model:${modelId}` };
+  if (backstop) return { category: backstop, decidedBy: `rule:keywordBackstop:${backstop}` };
+  return modelCategory ? { category: 'ok', decidedBy: `model:${modelId}` } : { category: 'ok', decidedBy: 'rule:noClassifier' };
 }
 
 /** Logs a never-saved concerning fact to `familyEvents` (task brief rule (c): "otherwise dropped (and

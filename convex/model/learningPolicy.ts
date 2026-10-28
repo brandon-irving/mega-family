@@ -25,6 +25,9 @@ export interface LearningOp {
   /** Set by the writer only when it's proposing a guess/inference PLAN.md's learnings table marks "Never":
    * a guess about health, feelings or school trouble, or an inferred trait about a kid. */
   concernCategory?: 'health' | 'feelings' | 'schoolTrouble' | 'kidTrait';
+  /** GD (OpenDuet learning): what decided this fact is sensitive — `rule:<id>` (the keyword backstop) or
+   * `model:<id>` (the independent classifier). Set only by `gateByServerConcern`; saved as `memories.gate`. */
+  gate?: { decidedBy: string; reason?: string };
 }
 
 export type LearningDecision =

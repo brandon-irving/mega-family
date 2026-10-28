@@ -32,7 +32,7 @@ describe('seed.sampleFamily', () => {
   test('puts the mockup events at the right local times (Soccer pickup Sunday 4:50 PM New York)', async () => {
     const { t, familyId } = await seeded();
     const events = await t.run((ctx) => ctx.db.query('events').withIndex('by_family_start', (q) => q.eq('familyId', familyId)).collect());
-    expect(events).toHaveLength(SAMPLE_FAMILY.events.length);
+    expect(events).toHaveLength(SAMPLE_FAMILY.events.length + SAMPLE_FAMILY.gd.events.length);
     expect(new Date(events[0].start).toISOString()).toBe('2026-10-25T20:50:00.000Z');
     expect(events[0].title).toBe('Soccer pickup');
   });

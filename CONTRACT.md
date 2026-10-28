@@ -7,6 +7,7 @@ This is the agreement both build tracks follow. The backend owns `convex/`, the 
 ## Changelog
 | Version | Date | Change |
 |---|---|---|
+| 0.13a | Oct 28 | **Pending approval.** GD backend addendum (all additive, except one button swap noted last). **Built:** every v0.13 function is now `real` (no stubs); the privacy grid FAILS (no longer skips) a function the seed can't probe, and has zero skips. **§2:** `shareActions.item` also takes `{ kind: "memory", memoryId }` (a shared private memory needs the same record); `routineRuns.steps[].source` gains `title?` (the household event's title, so a bedtime card can say "Soccer tomorrow"). **§4, frontend requests:** `routines.run({ runId })` (the run's kid or their parents), `bucks.entry({ ledgerId })` (a kid: own rows only; adults: any kid's), `megas.family()` (Hub's badge, any member), and `ProposalView.clashEventIds` (both clashing household events). Proposal `before`/`after` already carry `who`. **§5:** `chore.default` is now `done` "Done" · `snooze_10` "In 10 min" (board KidsChore), replacing `later` "Later" — the frontend's category list must use the new id; snoozing re-reminds after `CHORES.snoozeMinutes` through the normal timing pipeline. **Internal only:** `candidateSource` gains `chore`, `routine`, `proposal`, `shareSuggestion`, `practice`, `gifts`, `bucks` (card-backed pushes: the thread gets the GD card, the push goes through the usual quiet hours/caps, no draft model call); `seed.sampleFamily` / `resetSampleFamily` take an optional `homeworkStorageId`, and `seed.resetDemo` (internal action) stores the synthetic worksheet and resets; `ChatModel` requests take `model?: "chat" \| "judge" \| "vision" \| "wording"` and user-message `images?` (§8); the writer's "matters to" no longer fires a cross-member push — for a private fact it becomes a share suggestion to the fact's owner. |
 | 0.13 | Oct 28 | **Pending approval.** Gate GD (demo features; owner decisions Oct 26–27 in STATUS.md, boards Screens 9–12, brief docs/gates/GD.md). Additive except one tightening, noted last. **New tables (§2):** `shareActions`, `shareSuggestions` (layers and the explicit-share rule), `collisions`, `proposals` (clash fixes, Admin approves), `giftIdeas`, `homeworkSheets`, `practiceSets`, `practiceAttempts`, `chores`, `choreClaims`, `routines`, `routineRuns`, `bucksLedger`, `purchases`. **New optional fields:** `megas.look.antenna` / `.eyes` / `.eyeColor` (Store look parts; missing = `classic`), `events.ownerId` (owner of a private-layer event), `memories.gate` (`{ decidedBy, reason? }`, which rule or model decided `sensitive`), `notifications.choreId`. **New card kinds (§3):** `homework`, `practice`, `chore`, `routine`, `bucks`, `shareSuggestion`, `proposal`, `gifts` (each holds only an id; the app loads it with the matching query). **New functions (§4):** `events.share` / `.unshare`, `shareSuggestions.*`, `proposals.*`, `gifts.*`, `homework.*`, `practice.*`, `chores.*`, `routines.*`, `bucks.*`, `store.*`, all `stub` (registered with real validators; empty results or `NOT_FOUND` "not built yet") until the GD backend fills them in. **New config:** `shared/config/store.ts` (catalog, prices, free set, Mega Bucks defaults), `calendar.ts` (`LAYER_OF_SCOPE`, `CLASH`, `GIFTS`), `kids.ts` (`HOMEWORK`, `CHORES`, `ROUTINES`), `models.vision` / `models.wording` (Muse Wonder words the clash fix only), button set `chore.default` (§5), copy `PROPOSAL_DISCLOSURE` / `SHARE_RULE_COPY`. **Tightening (authorized by the owner's explicit-share rule, Oct 26):** a `personal` event is visible only to its owner (`ownerId`, else `createdBy`); being listed in `who` no longer reveals someone else's private event (`convex/model/visibility.ts` today lets `who` see it). Internal only: the backend adds its new candidate-source kinds with the code that uses them. The privacy grid now reports a function as **skipped** (not passed) while its id args point at a table the seed doesn't fill yet. |
 | 0.12 | Oct 26 | **Pending approval.** G3 backend review fixes (security + correctness + UX; see STATUS.md for the full list). All additive, no breaking change to any public function's args/returns. Schema: `candidates.draft` gains `title?: string` (§2) — the draft+judge call's own sanitized headline for the notification (UX6: "Return the library book", never the MEGA's name), falling back to the trigger's own seed text when the model omits one; optional so a pre-existing/hand-seeded candidate with no title just falls back to the MEGA's name at delivery time, same as before. Ports (§8): `PushSender.send` now also returns each ok ticket's Expo Receipt `id` (`PushSendResult.id?`), and `PushSender` gains `getReceipts(ticketIds)` — Expo's delayed delivery-receipt check (C7); `PushMessage` gains `threadId?` (iOS push grouping, UX4, `aps.thread-id` via `shared/config/notifications.ts` `pushThreadIdFor` — quiet kinds group by MEGA, loud kinds don't; Android has no equivalent field in Expo's push API, a documented gap). §5 Push notifications: the push payload's `body` is now config-redacted to a generic "`<MEGA>` has a message for you" for a mattersTo-sourced tip/update (`shared/config/notifications.ts` `PUSH_BODY_REDACTION`) — the full text always stays in the thread (`notifications.get`), only the lock-screen copy changes; reminders/requests are never redacted. New config, no shape change: `shared/config/proactive.ts` `mattersToDailyCapPerFamily` (a per-family-per-day cap on cross-member "matters to" model calls) and `DRAFT_SANITIZE` (max length + per-kind emoji allowance, default off, for every draft+judge title/text); `shared/config/limits.ts` `LIMITS.push.receiptCheckDelayMinutes`. Internal-only plumbing (no public API change): `convex/proactive.ts` gains `checkPushReceipts` and `dropKidConcernCandidate`; a kid-targeted draft now runs through the same independent concern classifier a memory save does before being scheduled. |
 | 0.11 | Oct 26 | **Pending approval.** Killed-app push answers: iOS's background notification-response task runs headless with no signed-in Better Auth session, so it can't call `notifications.answer`. Additive: push payload `data` gains `answerToken?: string` (§5) — an HMAC-SHA256 token (`convex/model/pushAnswerToken.ts`), scoped to one `(notificationId, recipientId)` pair, expiring with the notification (`LIMITS.push.answerTokenTtlDays`, 7 days default); nothing is persisted for it (it's self-contained — recomputing and `crypto.subtle.verify`-comparing the signature IS the check). New HTTP route `POST /push/answer` (`h`, convex/http.ts) — body `{ notificationId, buttonId, answerToken }`, returns `{ reply: string }` on success, a fixed generic `{ error }` (HTTP 400) on every failure (unknown notification, wrong/expired token, unknown button, locked out) so no response lets a caller tell those apart. Runs the exact same idempotent apply path `notifications.answer` does (`convex/model/notificationAnswer.ts`) — an already-answered notification just returns its stored reply again. Brute-force guard: additive `notifications.answerFailedAttempts?: number` (§2), same shape as `invites.failedAttempts` — `LIMITS.push.maxAnswerTokenAttempts` (10) failed verifications lock out further attempts against that notification. New secret `PUSH_ANSWER_SECRET` (scripts/env.manifest.json, gate G3) — generate with `node scripts/secrets.mjs gen PUSH_ANSWER_SECRET`, then `sync-convex`. |
@@ -120,7 +121,7 @@ Every row in a family-owned table has `familyId`, and every index starts with `f
 - index: `by_family_to`
 
 ### Layers, sharing and clashes (v0.13, gate GD)
-**shareActions**: `familyId`, `ownerId`, `item: { kind: "event", eventId }`, `action: "share" | "unshare"`, `fromScope`, `toScope`, `at`, `suggestionId?` — append-only; written only by the owner's own `events.share` / `.unshare` / `shareSuggestions.answer`, in the same mutation as the scope change
+**shareActions**: `familyId`, `ownerId`, `item: { kind: "event", eventId } | { kind: "memory", memoryId }` (v0.13a: memory too), `action: "share" | "unshare"`, `fromScope`, `toScope`, `at`, `suggestionId?` — append-only; written only by the owner's own `events.share` / `.unshare` / `shareSuggestions.answer`, in the same mutation as the scope change
 - index: `by_family_owner`
 
 **shareSuggestions**: `familyId`, `ownerId`, `item: { kind: "event", eventId } | { kind: "memory", memoryId }`, `preview` (what the household would see), `audience: id(members)[]`, `status: "pending" | "shared" | "kept" | "expired"`, `createdAt`, `answeredAt?`, `decidedBy` (what proposed it), `messageId?` — only ever readable by `ownerId`; never changes anything by itself (the memory writer's "matters to" becomes one of these)
@@ -154,7 +155,7 @@ Every row in a family-owned table has `familyId`, and every index starts with `f
 **routines**: `familyId`, `memberId`, `kind: "morning" | "bedtime"`, `steps: { id, label, detail? }[]`, `time`, `days`, `updatedBy?`
 - index: `by_family_member_kind`
 
-**routineRuns**: `familyId`, `routineId`, `memberId`, `kind`, `date`, `steps: { id, label, detail?, done, source?: { eventId } }[]` (bedtime items come only from household-layer events), `createdAt`, `finishedAt?`
+**routineRuns**: `familyId`, `routineId`, `memberId`, `kind`, `date`, `steps: { id, label, detail?, done, source?: { eventId, title? } }[]` (v0.13a: `title`) (bedtime items come only from household-layer events), `createdAt`, `finishedAt?`
 - index: `by_family_member_kind_date`
 
 **bucksLedger**: `familyId`, `memberId` (the kid), `delta`, `source: { kind: "practice", setId } | { kind: "chore", claimId } | { kind: "bonus" } | { kind: "purchase", purchaseId }`, `byId`, `note?`, `at` — balance = sum of `delta`, never stored; releases only by adults, spends only by the kid's own purchase
@@ -269,6 +270,7 @@ This section is mirrored exactly by `shared/domain/api.ts`; `tests/contract.test
 | Function | Type | Args | Returns | Day 1 |
 |---|---|---|---|---|
 | `megas.mine` | q | — | `Mega` | real |
+| `megas.family` | q | — (any member; v0.13a) | `{ megaId, name, hex, sticker }` (Hub) | real |
 | `megas.update` | m | `{ name?, look?, personality? }` (kids can't rename) | `null` | real |
 | `sharing.get` | q | — | `{ schedule, lists, hqActivity } \| null` (`null` for a kid, who has no `sharing` row) | real |
 | `sharing.set` | m | `{ schedule?, lists?, hqActivity? }` | `null` | real |
@@ -286,7 +288,7 @@ This section is mirrored exactly by `shared/domain/api.ts`; `tests/contract.test
 | `family.kidThread` | q | `{ memberId, paginationOpts }` (only if `parentsCanReadChat`) | page of `Message` | real |
 | `calendar.range` | q | `{ from, to }` | `Event[]` | real |
 | `events.create` / `.update` / `.cancel` | m | event fields / `{ eventId, patch }` / `{ eventId }` | `id` / `null` / `null` | real |
-| `events.share` / `.unshare` | m | `{ eventId }` (v0.13; the event's owner only) | `null` (moves it between the owner's private layer and the household layer and writes a `shareActions` row) | stub |
+| `events.share` / `.unshare` | m | `{ eventId }` (v0.13; the event's owner only) | `null` (moves it between the owner's private layer and the household layer and writes a `shareActions` row) | real |
 | `lists.all` | q | — | `{ list, items }[]` | real |
 | `lists.addItem` / `.check` / `.remove` | m | `{ listId, text }` / `{ itemId, checked }` / `{ itemId }` | `id` / `null` / `null` | real |
 | `requests.respond` | m | `{ requestId, accept: boolean }` | `null` | real (G3: real effects, idempotent) |
@@ -314,41 +316,43 @@ This section is mirrored exactly by `shared/domain/api.ts`; `tests/contract.test
 | `clock.jump` | m | `{ to: number }` (admin, demo flag on) | `null` (fires due jobs through the same code) | real |
 | `demo.signInAs` | m | `{ as: "admin" \| "partner" \| "twin1" \| "twin2" }` (requires a signed-in identity, anonymous is fine; demo flag on) | `null` (links the chosen sample member's authId to the caller, unlinking whichever member it was linked to before) | real |
 
-### Demo features (v0.13, gate GD; all `stub` until the GD backend)
+### Demo features (v0.13, gate GD; real since the GD backend)
 Who may call each is stated in its comment in `shared/domain/api.ts`; the rules in brief: kids act only on their own practice, chores, routines and Store; releases, chores, homework and gifts are adults; clash approval is the Admin; share suggestions are the owner's alone.
 
 | Function | Type | Args | Returns | Day 1 |
 |---|---|---|---|---|
-| `shareSuggestions.mine` | q | — (the caller's own) | `ShareSuggestion[]` (pending) | stub |
-| `shareSuggestions.get` | q | `{ suggestionId }` (owner only) | `ShareSuggestion` | stub |
-| `shareSuggestions.answer` | m | `{ suggestionId, share: boolean }` (owner only) | `null` | stub |
-| `proposals.open` | q | — (adults) | `ProposalView[]` = `{ proposal, mega: { megaId, name, hex, sticker }, disclosure }` | stub |
-| `proposals.get` | q | `{ proposalId }` (adults) | `ProposalView` | stub |
-| `proposals.decide` | m | `{ proposalId, approve: boolean }` (admin) | `null` (approve applies the fix; refused if not pending, expired, or membership changed) | stub |
-| `gifts.upcoming` | q | — (adults, never the person they're for) | `GiftIdeas[]` | stub |
-| `gifts.get` | q | `{ giftIdeasId }` (same rule) | `GiftIdeas` | stub |
-| `gifts.generate` | m | `{ forMemberId }` (adults, not for themselves) | `{ giftIdeasId }` (queued) | stub |
-| `gifts.addToList` | m | `{ giftIdeasId, index }` (adults) | `id(listItems)` | stub |
-| `homework.submit` | m | `{ storageId }` (adults) | `{ sheetId }` (Muse Spark reads it in the background) | stub |
-| `homework.sheet` | q | `{ sheetId }` (adults) | `HomeworkSheet` | stub |
-| `homework.makePractice` | m | `{ sheetId, forMemberId, count }` (a parent of the kid) | `{ setId }` | stub |
-| `practice.get` | q | `{ setId }` (the kid, or their parents) | `PracticeView` (no correct answers, for anyone) | stub |
-| `practice.answer` | m | `{ setId, questionId, choiceIndex }` (the kid) | `{ correct, hint?, done }` | stub |
-| `practice.hint` | m | `{ setId, questionId }` (the kid) | `{ hint }` | stub |
-| `chores.list` | q | `{ memberId? }` (a kid: own; adults: any kid) | `{ chore, today: ChoreClaim \| null }[]` | stub |
-| `chores.claim` | q | `{ claimId }` (the kid, or adults) | `{ chore, today }` | stub |
-| `chores.create` / `.update` | m | `{ forMemberId, title, bucks?, days, time }` / `{ choreId, patch }` (adults) | `id` / `null` | stub |
-| `chores.markDone` | m | `{ choreId }` (the kid) | `id(choreClaims)` | stub |
-| `chores.decline` | m | `{ claimId }` (adults) | `null` | stub |
-| `routines.today` | q | `{ kind, memberId? }` (the kid, or their parents) | `RoutineRun \| null` | stub |
-| `routines.get` | q | `{ kind, memberId }` (the kid, or their parents) | `Routine \| null` | stub |
-| `routines.check` | m | `{ runId, stepId, done }` (the kid) | `null` | stub |
-| `routines.set` | m | `{ memberId, kind, steps, time, days }` (a parent) | `null` | stub |
-| `bucks.balance` | q | `{ memberId? }` (a kid: own; adults: any kid) | `{ balance }` | stub |
-| `bucks.history` | q | `{ memberId?, paginationOpts }` (same) | page of `BucksLedger` | stub |
-| `bucks.release` | m | `{ source: { kind: "practice", setId } \| { kind: "chore", claimId } \| { kind: "bonus", memberId }, amount }` (adults) | `{ ledgerId, balance }` (idempotent per set / claim) | stub |
-| `store.catalog` | q | — (kids) | `{ balance, items: { id, label, price, hex?, owned, wearing }[] }` | stub (catalog from config) |
-| `store.buy` | m | `{ itemId }` (kids) | `{ purchaseId, balance }` | stub |
+| `shareSuggestions.mine` | q | — (the caller's own) | `ShareSuggestion[]` (pending) | real |
+| `shareSuggestions.get` | q | `{ suggestionId }` (owner only) | `ShareSuggestion` | real |
+| `shareSuggestions.answer` | m | `{ suggestionId, share: boolean }` (owner only) | `null` | real |
+| `proposals.open` | q | — (adults) | `ProposalView[]` = `{ proposal, mega: { megaId, name, hex, sticker }, disclosure, clashEventIds }` (v0.13a: `clashEventIds`) | real |
+| `proposals.get` | q | `{ proposalId }` (adults) | `ProposalView` | real |
+| `proposals.decide` | m | `{ proposalId, approve: boolean }` (admin) | `null` (approve applies the fix; refused if not pending, expired, or membership changed) | real |
+| `gifts.upcoming` | q | — (adults, never the person they're for) | `GiftIdeas[]` | real |
+| `gifts.get` | q | `{ giftIdeasId }` (same rule) | `GiftIdeas` | real |
+| `gifts.generate` | m | `{ forMemberId }` (adults, not for themselves) | `{ giftIdeasId }` (queued) | real |
+| `gifts.addToList` | m | `{ giftIdeasId, index }` (adults) | `id(listItems)` | real |
+| `homework.submit` | m | `{ storageId }` (adults) | `{ sheetId }` (Muse Spark reads it in the background) | real |
+| `homework.sheet` | q | `{ sheetId }` (adults) | `HomeworkSheet` | real |
+| `homework.makePractice` | m | `{ sheetId, forMemberId, count }` (a parent of the kid) | `{ setId }` | real |
+| `practice.get` | q | `{ setId }` (the kid, or their parents) | `PracticeView` (no correct answers, for anyone) | real |
+| `practice.answer` | m | `{ setId, questionId, choiceIndex }` (the kid) | `{ correct, hint?, done }` | real |
+| `practice.hint` | m | `{ setId, questionId }` (the kid) | `{ hint }` | real |
+| `chores.list` | q | `{ memberId? }` (a kid: own; adults: any kid) | `{ chore, today: ChoreClaim \| null }[]` | real |
+| `chores.claim` | q | `{ claimId }` (the kid, or adults) | `{ chore, today }` | real |
+| `chores.create` / `.update` | m | `{ forMemberId, title, bucks?, days, time }` / `{ choreId, patch }` (adults) | `id` / `null` | real |
+| `chores.markDone` | m | `{ choreId }` (the kid) | `id(choreClaims)` | real |
+| `chores.decline` | m | `{ claimId }` (adults) | `null` | real |
+| `routines.today` | q | `{ kind, memberId? }` (the kid, or their parents) | `RoutineRun \| null` | real |
+| `routines.get` | q | `{ kind, memberId }` (the kid, or their parents) | `Routine \| null` | real |
+| `routines.run` | q | `{ runId }` (the kid, or their parents; v0.13a) | `RoutineRun` | real |
+| `routines.check` | m | `{ runId, stepId, done }` (the kid) | `null` | real |
+| `routines.set` | m | `{ memberId, kind, steps, time, days }` (a parent) | `null` | real |
+| `bucks.balance` | q | `{ memberId? }` (a kid: own; adults: any kid) | `{ balance }` | real |
+| `bucks.history` | q | `{ memberId?, paginationOpts }` (same) | page of `BucksLedger` | real |
+| `bucks.entry` | q | `{ ledgerId }` (a kid: own rows; adults: any kid's; v0.13a) | `BucksLedger` | real |
+| `bucks.release` | m | `{ source: { kind: "practice", setId } \| { kind: "chore", claimId } \| { kind: "bonus", memberId }, amount }` (adults) | `{ ledgerId, balance }` (idempotent per set / claim) | real |
+| `store.catalog` | q | — (kids) | `{ balance, items: { id, label, price, hex?, owned, wearing }[] }` | real |
+| `store.buy` | m | `{ itemId }` (kids) | `{ purchaseId, balance }` | real |
 
 ---
 
@@ -359,7 +363,7 @@ Who may call each is stated in its comment in `shared/domain/api.ts`; the rules 
   - `reminder.default`: `on_my_way` "On my way" · `snooze_5` "Snooze 5 min"
   - `request.default`: `yes` "Yes" · `cant` "I can't"
   - `tip.default` and `update.default`: no buttons
-  - `chore.default` (v0.13): `done` "Done" · `later` "Later" (a kid's chore reminder; Done claims it via `notifications.choreId`)
+  - `chore.default` (v0.13, v0.13a): `done` "Done" · `snooze_10` "In 10 min" (a kid's chore reminder; Done claims it via `notifications.choreId`; In 10 min re-reminds after `CHORES.snoozeMinutes`)
 - **Loudness → platform:** `timeSensitive` / `active` / `passive` → iOS `interruptionLevel`; Android channels `mega.loud` and `mega.quiet` (ids in config).
 - **Answer path:** a button tap calls `notifications.answer` while the app is running (from the response listener), or **`POST /push/answer`** (v0.11, `h`) when it's been killed — the background notification-response task has no signed-in session, so it sends `{ notificationId, buttonId, answerToken }` (the token from the payload above) instead of relying on auth. The thread block, `notifications.answer`, and `POST /push/answer` all run the same per-kind effect dispatcher (`convex/model/notificationEffects.ts`), so every answer path is recorded the same way. **Idempotent (G3):** an already-answered notification (`answer` already set) returns its stored `reply` again rather than re-running the button's effect — safe for a retried call from either path.
 

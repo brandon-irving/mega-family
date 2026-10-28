@@ -81,4 +81,39 @@ describe('metaChatModel', () => {
     expect(err).toBeInstanceOf(ChatModelError);
     expect((err as ChatModelError).code).toBe('INVALID_REQUEST');
   });
+
+  // GD: homework photos (Meta image-understanding guide, Chat Completions shape) and per-role model ids.
+  test('sends images as image_url content parts on the user message, with the vision model id', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(okResponse({ choices: [{ message: { content: '{}' }, finish_reason: 'stop' }], usage: { prompt_tokens: 1500, completion_tokens: 20 } }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    await metaChatModel.chat({ messages: [{ role: 'user', content: 'Read this worksheet', images: ['data:image/png;base64,AAAA'] }], maxTokens: 800, model: 'vision' });
+
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body as string);
+    expect(body.model).toBe('muse-spark-1.3');
+    expect(body.messages[0]).toEqual({
+      role: 'user',
+      content: [
+        { type: 'text', text: 'Read this worksheet' },
+        { type: 'image_url', image_url: { url: 'data:image/png;base64,AAAA' } },
+      ],
+    });
+  });
+
+  test("uses Muse Wonder for model: 'wording' and Muse Spark by default", async () => {
+    const fetchMock = vi.fn().mockImplementation(async () => okResponse({ choices: [{ message: { content: 'x' }, finish_reason: 'stop' }], usage: {} }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    await metaChatModel.chat({ messages: [{ role: 'user', content: 'word it' }], maxTokens: 300, model: 'wording' });
+    await metaChatModel.chat({ messages: [{ role: 'user', content: 'plain' }], maxTokens: 300 });
+
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body as string).model).toBe('muse-wonder-1.0');
+    expect(JSON.parse(fetchMock.mock.calls[1][1].body as string).model).toBe('muse-spark-1.3');
+  });
+
+  test('refuses images on a non-user message', async () => {
+    vi.stubGlobal('fetch', vi.fn());
+    const err = await metaChatModel.chat({ messages: [{ role: 'system', content: 's', images: ['data:image/png;base64,AA'] }], maxTokens: 10 }).catch((e) => e);
+    expect((err as ChatModelError).code).toBe('INVALID_REQUEST');
+  });
 });

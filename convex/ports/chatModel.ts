@@ -13,7 +13,15 @@ export interface ChatMessage {
   /** Required on role 'assistant' when it issued tool calls, so a later 'tool' message can be matched back
    * to one of them on the next turn. */
   toolCalls?: ToolCall[];
+  /** GD: images sent with a 'user' message (a homework photo), as `data:<mime>;base64,...` or https URLs.
+   * Only allowed on 'user' messages (Meta image-understanding guide). Adapters without image input ignore
+   * nothing silently: they throw INVALID_REQUEST. */
+  images?: string[];
 }
+
+/** GD: which configured model answers a call (shared/config/models.ts MODELS[role]). Omitted = 'chat'.
+ * Feature code names a role, never a model id; the adapter maps it. */
+export type ModelRole = 'chat' | 'judge' | 'vision' | 'wording';
 
 export interface ToolSpec {
   name: string;
@@ -45,6 +53,8 @@ export interface ChatModelRequest {
   effort?: 'low' | 'medium' | 'high';
   /** Always pass a generous value: Muse Spark's hidden reasoning counts against it (10 tokens → empty reply). */
   maxTokens: number;
+  /** GD: which configured model to use. Omitted = 'chat'. */
+  model?: ModelRole;
 }
 
 export interface ChatModelUsage {

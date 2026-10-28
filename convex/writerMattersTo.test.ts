@@ -127,7 +127,10 @@ describe('S1: the mattersTo cross-member trigger only fires for a proposal that 
     expect(await pendingMattersToTriggers(t, familyId)).toHaveLength(0);
   });
 
-  test('control: an ordinary family-scope proposal that passes the gate DOES produce a trigger and reaches scanFamilyEventTriggers', async () => {
+  // GD (owner's explicit-share rule, Oct 26): the writer's "matters to <member>" is a GUESS, so it can no
+  // longer start a cross-member push at all — not even for a family-scope fact. For a private fact it becomes
+  // at most a share suggestion to the fact's OWN owner; nothing reaches the other member.
+  test('GD: a family-scope fact with mattersToMemberId no longer produces a cross-member trigger', async () => {
     const { t, familyId, members } = await seeded();
     const { threadId, megaId, replyMessageId } = await proposerContext(t, familyId, members.partner);
 
@@ -138,26 +141,40 @@ describe('S1: the mattersTo cross-member trigger only fires for a proposal that 
       megaId,
       threadId,
       replyMessageId,
-      proposals: [
-        {
-          trigger: 'explicit',
-          kind: 'fact',
-          text: "We're out of milk.",
-          suggestedScope: 'family',
-          confidence: 1,
-          sensitive: false,
-          serverConcern: 'ok',
-          mattersToMemberId: members.admin,
-        },
-      ],
+      proposals: [{ trigger: 'explicit', kind: 'fact', text: "We're out of milk.", suggestedScope: 'family', confidence: 1, sensitive: false, serverConcern: 'ok', mattersToMemberId: members.admin }],
     });
 
-    const pending = await pendingMattersToTriggers(t, familyId);
-    expect(pending).toHaveLength(1);
-
-    // and it really does reach the trigger scanner (convex/model/proactive.ts), not just sit unprocessed
+    expect(await pendingMattersToTriggers(t, familyId)).toHaveLength(0);
     await t.mutation(internal.proactive.tickFamily, { familyId });
-    const candidates = await t.run((ctx) => ctx.db.query('candidates').withIndex('by_family_status', (q) => q.eq('familyId', familyId).eq('status', 'new')).collect());
-    expect(candidates.some((c) => c.source?.kind === 'mattersTo')).toBe(true);
+    const candidates = await t.run((ctx) => ctx.db.query('candidates').withIndex('by_family_dedupeKey', (q) => q.eq('familyId', familyId)).collect());
+    expect(candidates.some((c) => c.source?.kind === 'mattersTo')).toBe(false);
+  });
+
+  test('GD: a private fact with mattersToMemberId becomes a share suggestion to its owner only, and the memory stays private', async () => {
+    const { t, familyId, members } = await seeded();
+    const { threadId, megaId, replyMessageId } = await proposerContext(t, familyId, members.partner);
+
+    await t.mutation(internal.agent.writer.applyProposals, {
+      familyId,
+      memberId: members.partner,
+      role: 'adult',
+      megaId,
+      threadId,
+      replyMessageId,
+      proposals: [{ trigger: 'explicit', kind: 'note', text: 'Partner has a work trip next Tuesday.', suggestedScope: 'personal', confidence: 1, sensitive: false, serverConcern: 'ok', mattersToMemberId: members.admin }],
+    });
+
+    const memory = (await t.run((ctx) => ctx.db.query('memories').withIndex('by_family_scopeKey', (q) => q.eq('familyId', familyId).eq('scopeKey', `${familyId}:personal:${members.partner}`)).collect())).find(
+      (m) => m.text === 'Partner has a work trip next Tuesday.',
+    )!;
+    expect(memory.scope).toBe('personal');
+    const suggestions = await t.run((ctx) => ctx.db.query('shareSuggestions').withIndex('by_family_owner_status', (q) => q.eq('familyId', familyId).eq('ownerId', members.partner).eq('status', 'pending')).collect());
+    expect(suggestions).toHaveLength(1);
+    expect(suggestions[0].item).toEqual({ kind: 'memory', memoryId: memory._id });
+    expect(suggestions[0].decidedBy).toMatch(/^model:/);
+    // nothing about it reaches the admin
+    const adminSuggestions = await t.run((ctx) => ctx.db.query('shareSuggestions').withIndex('by_family_owner_status', (q) => q.eq('familyId', familyId).eq('ownerId', members.admin)).collect());
+    expect(adminSuggestions.some((s) => s.item.kind === 'memory' && s.item.memoryId === memory._id)).toBe(false);
+    expect(await pendingMattersToTriggers(t, familyId)).toHaveLength(0);
   });
 });

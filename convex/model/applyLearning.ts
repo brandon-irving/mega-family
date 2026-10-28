@@ -97,6 +97,7 @@ export async function applyLearningDecision(
         pinned: false,
         createdAt: params.now,
         lastUsedAt: params.now,
+        gate: op.gate ? { decidedBy: op.gate.decidedBy, reason: op.gate.reason } : undefined,
       });
       const chip = { memoryId, scope, label: `Saved · ${SCOPE_LABEL[scope]}` };
       return { memoryId, chip, summary: `saved (${SCOPE_LABEL[scope]})` };

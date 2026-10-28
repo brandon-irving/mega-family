@@ -47,9 +47,10 @@ describe('C2: the seed double-notify — a held kid reminder yields exactly one 
     await admin.mutation(api.clock.jump, { to: heldBefore.heldUntil! + 1000 });
     await t.finishAllScheduledFunctions(vi.runAllTimers);
 
-    const notificationsAfter = await t.run((ctx) =>
-      ctx.db.query('notifications').withIndex('by_family_recipient', (q) => q.eq('familyId', familyId).eq('recipientId', members.twin2)).collect(),
-    );
+    // GD: the jump also delivers Twin 2's own routine/chore cards; this test is about the held reminder.
+    const notificationsAfter = (
+      await t.run((ctx) => ctx.db.query('notifications').withIndex('by_family_recipient', (q) => q.eq('familyId', familyId).eq('recipientId', members.twin2)).collect())
+    ).filter((n) => n.reminderId !== undefined);
     expect(notificationsAfter).toHaveLength(1); // exactly one — not two
     expect(notificationsAfter[0]._id).toBe(heldBefore._id); // the SAME row, released — not a brand-new one
     expect(notificationsAfter[0].sentAt).toBeDefined();

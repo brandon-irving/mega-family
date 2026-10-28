@@ -14,7 +14,9 @@ import { applyLearningDecision } from '../model/applyLearning';
 import { gateByServerConcern, isConcernCategory, logDroppedConcern } from '../model/concernGate';
 import { decideLearning, type LearningOp } from '../model/learningPolicy';
 import { createRequestCandidate } from '../model/proactive';
-import { canSeeScoped } from '../model/visibility';
+import { calendarChanged, patchEvent } from '../model/eventWrites';
+import { maybeSuggestEventShare } from '../model/layers';
+import { canSeeEvent, canSeeScoped } from '../model/visibility';
 import { getOrCreateOwnThread } from '../model/threads';
 import { recall } from '../model/recall';
 import { parentOf } from '../model/viewer';
@@ -72,7 +74,9 @@ async function loadMember(ctx: any, familyId: Id<'families'>, raw: unknown, fiel
   return doc;
 }
 
-async function loadEvent(ctx: any, familyId: Id<'families'>, raw: unknown): Promise<Doc<'events'>> {
+/** GD: an event the caller can see — someone else's private event is "not found", same as a missing one, so
+ * a MEGA can't read, move or cancel another member's private layer (CONTRACT v0.13 tightening). */
+async function loadEvent(ctx: any, caller: Pick<Caller, 'familyId' | 'memberId' | 'role'>, raw: unknown): Promise<Doc<'events'>> {
   const idStr = str(raw, 'eventId');
   let doc: Doc<'events'> | null = null;
   try {
@@ -80,7 +84,7 @@ async function loadEvent(ctx: any, familyId: Id<'families'>, raw: unknown): Prom
   } catch {
     doc = null;
   }
-  if (!doc || doc.familyId !== familyId) throw new Error('eventId not found');
+  if (!doc || doc.familyId !== caller.familyId || !canSeeEvent({ memberId: caller.memberId, role: caller.role }, doc)) throw new Error('eventId not found');
   return doc;
 }
 
@@ -108,7 +112,7 @@ async function toolRecall(ctx: any, caller: Caller, raw: Record<string, unknown>
   return hits.map((h) => `- (${h.kind}) ${h.text}`).join('\n');
 }
 
-async function toolRemember(ctx: any, caller: Caller, raw: Record<string, unknown>, now: number, serverConcern: string | undefined): Promise<string> {
+async function toolRemember(ctx: any, caller: Caller, raw: Record<string, unknown>, now: number, serverConcern: string | undefined, serverConcernBy?: string): Promise<string> {
   const text = str(raw.text, 'text');
   const kind = oneOf(raw.kind, MEMORY_KINDS, 'kind');
   const scope = oneOf(raw.scope, SCOPES, 'scope');
@@ -152,7 +156,7 @@ async function toolRemember(ctx: any, caller: Caller, raw: Record<string, unknow
   // content at all. `serverConcern` comes from an independent classifier call (convex/agent/
   // concernClassifier.ts, run by the loop before dispatching this tool call, since this is a mutation and
   // can't call a model itself) plus a keyword backstop; it overrides whatever `sensitive` the caller passed.
-  if (isConcernCategory(serverConcern)) op = gateByServerConcern(op, serverConcern);
+  if (isConcernCategory(serverConcern)) op = gateByServerConcern(op, serverConcern, serverConcernBy);
   const decision = decideLearning(op, caller.memberId);
   if (decision.action === 'drop' && isConcernCategory(serverConcern) && serverConcern !== 'ok') {
     await logDroppedConcern(ctx, { familyId: caller.familyId, memberId: caller.memberId, now }, text, serverConcern, decision.reason);
@@ -161,7 +165,7 @@ async function toolRemember(ctx: any, caller: Caller, raw: Record<string, unknow
   return result.summary;
 }
 
-async function toolEventsCreate(ctx: any, caller: Caller, raw: Record<string, unknown>): Promise<string> {
+async function toolEventsCreate(ctx: any, caller: Caller, raw: Record<string, unknown>, now: number): Promise<string> {
   if (caller.role === 'kid') throw new Error("kids can't create events");
   const title = str(raw.title, 'title');
   const start = localTime(raw.start, 'start', caller.tz);
@@ -169,7 +173,7 @@ async function toolEventsCreate(ctx: any, caller: Caller, raw: Record<string, un
   const who: Id<'members'>[] = [];
   for (const w of whoRaw) who.push((await loadMember(ctx, caller.familyId, w, 'who'))._id);
   const scope = oneOf(raw.scope, SCOPES, 'scope');
-  await ctx.db.insert('events', {
+  const eventId = await ctx.db.insert('events', {
     familyId: caller.familyId,
     title,
     start,
@@ -181,13 +185,19 @@ async function toolEventsCreate(ctx: any, caller: Caller, raw: Record<string, un
     createdBy: caller.memberId,
     scope,
     cancelled: false,
+    // GD: a private event belongs to the person whose MEGA made it — nobody else sees it (canSeeEvent).
+    ownerId: scope === 'personal' ? caller.memberId : undefined,
   });
-  return `created event "${title}"`;
+  // GD: a private event may get a "Share it with the household?" suggestion (to its owner only); a
+  // household one re-runs Hub's clash check.
+  if (scope === 'personal') await maybeSuggestEventShare(ctx, (await ctx.db.get(eventId))!, caller.tz, now);
+  else await calendarChanged(ctx, caller.familyId, now);
+  return scope === 'personal' ? `created event "${title}" on your private calendar (only you can see it)` : `created event "${title}"`;
 }
 
-async function toolEventsUpdate(ctx: any, caller: Caller, raw: Record<string, unknown>): Promise<string> {
+async function toolEventsUpdate(ctx: any, caller: Caller, raw: Record<string, unknown>, now: number): Promise<string> {
   if (caller.role === 'kid') throw new Error("kids can't change events");
-  const event = await loadEvent(ctx, caller.familyId, raw.eventId);
+  const event = await loadEvent(ctx, caller, raw.eventId);
   const patch: Record<string, unknown> = {};
   if (typeof raw.title === 'string') patch.title = raw.title;
   if (typeof raw.start === 'string') patch.start = localTime(raw.start, 'start', caller.tz);
@@ -198,14 +208,15 @@ async function toolEventsUpdate(ctx: any, caller: Caller, raw: Record<string, un
     for (const w of strArray(raw.who)) who.push((await loadMember(ctx, caller.familyId, w, 'who'))._id);
     patch.who = who;
   }
-  await ctx.db.patch(event._id, patch);
+  await patchEvent(ctx, event, patch, now);
   return `updated event "${event.title}"`;
 }
 
-async function toolEventsCancel(ctx: any, caller: Caller, raw: Record<string, unknown>): Promise<string> {
+async function toolEventsCancel(ctx: any, caller: Caller, raw: Record<string, unknown>, now: number): Promise<string> {
   if (caller.role === 'kid') throw new Error("kids can't cancel events");
-  const event = await loadEvent(ctx, caller.familyId, raw.eventId);
+  const event = await loadEvent(ctx, caller, raw.eventId);
   await ctx.db.patch(event._id, { cancelled: true });
+  await calendarChanged(ctx, caller.familyId, now);
   return `cancelled event "${event.title}"`;
 }
 
@@ -234,7 +245,7 @@ async function toolRemindersCreate(ctx: any, caller: Caller, raw: Record<string,
   const dueAt = localTime(raw.dueAt, 'dueAt', caller.tz);
   let eventId: Id<'events'> | undefined;
   const eventRaw = optStr(raw.eventId);
-  if (eventRaw) eventId = (await loadEvent(ctx, caller.familyId, eventRaw))._id;
+  if (eventRaw) eventId = (await loadEvent(ctx, caller, eventRaw))._id;
   await ctx.db.insert('reminders', { familyId: caller.familyId, forMemberId: forMember._id, text, dueAt, eventId, done: false, createdBy: caller.memberId });
   return `set a reminder for ${forMember.name}: "${text}"`;
 }
@@ -394,6 +405,7 @@ export interface DispatchToolArgs {
   /** `remember` only: the independent concern classification `convex/agent/loop.ts` ran before dispatching
    * this call (this is a mutation and can't call a model itself — see convex/agent/concernClassifier.ts). */
   serverConcern?: string;
+  serverConcernBy?: string;
 }
 
 /** The dispatcher's actual logic, as a plain function any mutation can call directly within its own
@@ -426,13 +438,13 @@ export async function dispatchTool(ctx: MutationCtx, args: DispatchToolArgs): Pr
       case 'recall':
         return { ok: true, resultText: await toolRecall(ctx, caller, raw) };
       case 'remember':
-        return { ok: true, resultText: await toolRemember(ctx, caller, raw, now, args.serverConcern) };
+        return { ok: true, resultText: await toolRemember(ctx, caller, raw, now, args.serverConcern, args.serverConcernBy) };
       case 'events_create':
-        return { ok: true, resultText: await toolEventsCreate(ctx, caller, raw) };
+        return { ok: true, resultText: await toolEventsCreate(ctx, caller, raw, now) };
       case 'events_update':
-        return { ok: true, resultText: await toolEventsUpdate(ctx, caller, raw) };
+        return { ok: true, resultText: await toolEventsUpdate(ctx, caller, raw, now) };
       case 'events_cancel':
-        return { ok: true, resultText: await toolEventsCancel(ctx, caller, raw) };
+        return { ok: true, resultText: await toolEventsCancel(ctx, caller, raw, now) };
       case 'reminders_create':
         return { ok: true, resultText: await toolRemindersCreate(ctx, caller, raw) };
       case 'lists_add':
@@ -464,6 +476,7 @@ export const execute = internalMutation({
     name: v.string(),
     argumentsJson: v.string(),
     serverConcern: v.optional(v.string()),
+    serverConcernBy: v.optional(v.string()),
   },
   returns: v.object({ ok: v.boolean(), resultText: v.string() }),
   handler: async (ctx, args) => dispatchTool(ctx, args),

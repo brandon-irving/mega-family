@@ -57,7 +57,7 @@ function buildSystemPrompt(data: ContextData): string {
  * never the model's own labels. Defensive about malformed arguments the same way `agent/tools.ts`'s
  * dispatcher is: a parse failure here just means no override category, and `execute`'s own arg validation
  * still catches the malformed call itself. */
-async function classifyRememberCall(ctx: ActionCtx, familyId: Id<'families'>, argumentsJson: string, roster: ContextData['roster']): Promise<string | undefined> {
+async function classifyRememberCall(ctx: ActionCtx, familyId: Id<'families'>, argumentsJson: string, roster: ContextData['roster']): Promise<{ category: string; decidedBy: string } | undefined> {
   let parsed: Record<string, unknown>;
   try {
     const p = JSON.parse(argumentsJson);
@@ -70,8 +70,8 @@ async function classifyRememberCall(ctx: ActionCtx, familyId: Id<'families'>, ar
   if (!text.trim()) return undefined;
   const aboutIds = Array.isArray(parsed.about) ? parsed.about.filter((x): x is string => typeof x === 'string') : [];
   const aboutNames = roster.filter((m) => aboutIds.includes(m.memberId)).map((m) => m.name);
-  const { category } = await ctx.runAction(internal.agent.concernClassifier.classify, { familyId, text, aboutNames });
-  return category;
+  const { category, decidedBy } = await ctx.runAction(internal.agent.concernClassifier.classify, { familyId, text, aboutNames });
+  return { category, decidedBy };
 }
 
 export const runTurn = internalAction({
@@ -146,8 +146,7 @@ export const runTurn = internalAction({
         // G2 security review (BLOCKER): a `remember` call's own args never say how concerning the fact is —
         // classify it independently before dispatching (agent/tools.ts's `execute` is a mutation and can't
         // call a model itself, so this has to happen here, in the loop, which can).
-        let serverConcern: string | undefined;
-        if (call.name === 'remember') serverConcern = await classifyRememberCall(ctx, args.familyId, call.arguments, data.roster);
+        const concern = call.name === 'remember' ? await classifyRememberCall(ctx, args.familyId, call.arguments, data.roster) : undefined;
 
         const toolResult = await ctx.runMutation(internal.agent.tools.execute, {
           familyId: args.familyId,
@@ -156,7 +155,8 @@ export const runTurn = internalAction({
           threadId: args.threadId,
           name: call.name,
           argumentsJson: call.arguments,
-          serverConcern,
+          serverConcern: concern?.category,
+          serverConcernBy: concern?.decidedBy,
         });
         messages.push({ role: 'tool', content: toolResult.resultText, toolCallId: call.id });
       }

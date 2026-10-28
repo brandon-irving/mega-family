@@ -3,6 +3,7 @@ import { API } from '../shared/domain/api';
 import { mutation } from './_generated/server';
 import { pick } from './model/define';
 import { fail } from './model/errors';
+import { assertKidMayPlace } from './model/store';
 import { requireViewer } from './model/viewer';
 
 export const update = mutation({
@@ -14,6 +15,8 @@ export const update = mutation({
       .withIndex('by_family_owner', (q) => q.eq('familyId', viewer.member.familyId).eq('ownerId', viewer.member._id))
       .unique();
     if (!room) fail('NOT_FOUND');
+    // GD (invariant 6): a kid places only furniture they own (free, bought, or already in the room).
+    if (viewer.member.role === 'kid') await assertKidMayPlace(ctx, viewer.member, viewer.mega, room, args.furniture);
     await ctx.db.patch(room._id, { furniture: args.furniture, ...(args.wallColor ? { wallColor: args.wallColor } : {}) });
     return null;
   },

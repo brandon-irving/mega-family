@@ -5,6 +5,7 @@ import { v } from 'convex/values';
 import { LIMITS } from '../shared/config';
 import { chatCostCents, estimateChatCostCents } from '../shared/config/pricing';
 import { delivery as deliveryValidator, notificationKind } from '../shared/domain/enums';
+import { buttonSetId, type CandidateSource } from '../shared/domain/tables';
 import { internal } from './_generated/api';
 import type { Doc } from './_generated/dataModel';
 import { internalAction, internalMutation, internalQuery } from './_generated/server';
@@ -37,7 +38,8 @@ export const loadDraftContext = internalQuery({
       seedText: v.string(),
       sentTodayCount: v.number(),
       reactionSummary: v.string(),
-      sourceKind: v.union(v.literal('reminder'), v.literal('request'), v.literal('checkin'), v.literal('mattersTo')),
+      // GD: every candidate source kind (CONTRACT §2 candidateSource), including the card-backed ones.
+      sourceKind: v.string(),
     }),
     v.null(),
   ),
@@ -54,7 +56,9 @@ export const processCandidate = internalAction({
   returns: v.null(),
   handler: async (ctx, args) => {
     const data = await ctx.runQuery(internal.proactive.loadDraftContext, { candidateId: args.candidateId });
-    if (!data || data.sourceKind === 'request') return null; // gone, already processed, or a request (handled synchronously — see createRequestCandidate)
+    // gone, already processed, a request (handled synchronously — see createRequestCandidate), or a GD
+    // card-backed source (finalized directly by enqueueCardCandidate; never drafted by the model here)
+    if (!data || !DRAFTED_SOURCE_KINDS.has(data.sourceKind)) return null;
 
     const { system, user, allowedKinds, fallbackKind } = buildDraftJudgePrompt({
       familyId: data.familyId,
@@ -121,6 +125,9 @@ export const processCandidate = internalAction({
     return null;
   },
 });
+
+/** The trigger sources whose text the draft+judge call writes. Everything else arrives already written. */
+const DRAFTED_SOURCE_KINDS = new Set(['reminder', 'checkin', 'mattersTo']);
 
 // Kept as a plain object literal (not re-exported from model/proactive.ts) so the JSON-schema shape the
 // model sees lives next to the `ctx.runAction` call that uses it; `DraftJudgeResult`'s TS type and this
@@ -199,7 +206,8 @@ export const loadPushContext = internalQuery({
       settingsId: v.id('settings'),
       tokens: v.array(v.object({ token: v.string(), platform: v.union(v.literal('ios'), v.literal('android'), v.literal('web')) })),
       answerToken: v.string(),
-      sourceKind: v.optional(v.union(v.literal('reminder'), v.literal('request'), v.literal('checkin'), v.literal('mattersTo'))),
+      sourceKind: v.optional(v.string()),
+      buttonSet: v.optional(buttonSetId),
     }),
     v.null(),
   ),
@@ -237,6 +245,7 @@ export const loadPushContext = internalQuery({
       tokens: settings.pushTokens,
       answerToken,
       sourceKind: candidate?.source?.kind,
+      buttonSet: candidate?.draft.buttons,
     };
   },
 });
@@ -265,7 +274,7 @@ export const sendPush = internalAction({
       return null;
     }
     const notification = data.notification as Doc<'notifications'>;
-    const messages = buildPushMessages(notification, data.megaName, data.threadId, data.messageId, data.tokens, data.answerToken, data.sourceKind);
+    const messages = buildPushMessages(notification, data.megaName, data.threadId, data.messageId, data.tokens, data.answerToken, data.sourceKind as CandidateSource['kind'] | undefined, data.buttonSet);
     const results = await getPushSender().send(messages);
     const deadTokens = results.filter((r) => !r.ok && r.error === 'DeviceNotRegistered').map((r) => r.token);
     if (deadTokens.length) await ctx.runMutation(internal.proactive.pruneTokens, { settingsId: data.settingsId, deadTokens });
