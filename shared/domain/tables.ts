@@ -93,12 +93,20 @@ export const megas = {
   job: megaJob,
 };
 
+/** Screen 9 redesign (CONTRACT v0.14, additive): the MEGA an invite comes with — the one the admin set for
+ * the person (or a default). An adult can keep it or change it when joining; a kid can't. */
+export const inviteMega = v.object({ name: v.string(), look: megaLook, personality });
+
 export const invites = {
   familyId,
   memberId,
   tokenHash: v.string(),
   expiresAt: v.number(),
   redeemedAt: v.optional(v.number()),
+  /** v0.14 (additive): who sent it ("Admin invited you"). */
+  invitedBy: v.optional(memberId),
+  /** v0.14 (additive): the MEGA this person gets on joining (see `inviteMega`). */
+  mega: v.optional(inviteMega),
   // CONTRACT.md v0.4 (additive, pending approval): wrong-parent-code attempts for this invite, so
   // `invites.redeem` can lock it out — see shared/config/limits.ts `maxParentCodeAttempts`.
   failedAttempts: v.optional(v.number()),

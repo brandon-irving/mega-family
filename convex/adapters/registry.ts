@@ -13,15 +13,18 @@ import { defaultFakeChatModel } from './fakeChatModel';
 import { defaultFakePushSender } from './fakePushSender';
 import { defaultFakeTranscriber } from './fakeTranscriber';
 import { expoPushSender } from './expoPushSender';
+import { logEmailSender } from './logEmailSender';
 import { metaChatModel } from './metaChatModel';
 import { metaTranscriber } from './metaTranscriber';
 import type { ChatModel } from '../ports/chatModel';
+import type { EmailSender } from '../ports/emailSender';
 import type { PushSender } from '../ports/pushSender';
 import type { Transcriber } from '../ports/transcriber';
 
 let chatOverride: ChatModel | null = null;
 let transcriberOverride: Transcriber | null = null;
 let pushSenderOverride: PushSender | null = null;
+let emailSenderOverride: EmailSender | null = null;
 
 function wantsRealAdapters(): boolean {
   return process.env.MEGA_MODEL_ADAPTER === 'real';
@@ -60,4 +63,15 @@ export function __setTranscriberForTests(transcriber: Transcriber | null): void 
  * to clear it. */
 export function __setPushSenderForTests(sender: PushSender | null): void {
   pushSenderOverride = sender;
+}
+
+/** Password-reset email (Screen 9 redesign). No real provider is wired yet, so even with
+ * MEGA_MODEL_ADAPTER=real this is the log adapter; a provider adapter goes here when one is chosen. */
+export function getEmailSender(): EmailSender {
+  return emailSenderOverride ?? logEmailSender;
+}
+
+/** Test-only: install a scripted EmailSender. Pass `null` to clear it. */
+export function __setEmailSenderForTests(sender: EmailSender | null): void {
+  emailSenderOverride = sender;
 }

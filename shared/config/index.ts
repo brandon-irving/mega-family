@@ -1,3 +1,4 @@
+export * from './auth';
 export * from './calendar';
 export * from './copy';
 export * from './demo';
