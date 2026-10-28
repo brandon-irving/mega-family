@@ -36,7 +36,7 @@ export default function MemberDetailRoute() {
           <Text variant="label" color="muted" style={{ marginTop: tokens.spacing.md }}>
             THEIR CHAT (READ-ONLY)
           </Text>
-          <KidThreadView messages={kidThread.results} megaById={megaById} />
+          <KidThreadView messages={kidThread.results} megaById={megaById} loading={kidThread.status === 'LoadingFirstPage'} kidName={detail.member.name} />
         </>
       )}
     </Sheet>

@@ -3,9 +3,10 @@
 // no-flicker rule (PLAN.md "UX quality bar": "keep the last data while queries refetch") applies
 // everywhere at once — one call site, not one per hook. src/test/noRawUseQuery.test.ts fails CI if any
 // file outside this one (and useStableQuery.ts itself) imports `useQuery` from 'convex/react'.
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useQueries, useQuery as useConvexQuery, type OptionalRestArgsOrSkip } from 'convex/react';
 import { type FunctionArgs, type FunctionReference, type FunctionReturnType, getFunctionName } from 'convex/server';
+import { recallQuery, rememberQuery } from './queryMemory';
 import { useStableQuery } from './useStableQuery';
 
 export function useQuery<Query extends FunctionReference<'query'>>(
@@ -36,7 +37,13 @@ export function useQueryState<Query extends FunctionReference<'query'>>(query: Q
   const request = useMemo(() => (args === 'skip' ? {} : { q: { query, args } }), [name, key]);
   const result = useQueries(request as Parameters<typeof useQueries>[0]).q as FunctionReturnType<Query> | Error | undefined;
   const value = result instanceof Error ? undefined : result;
-  const stable = useStableQuery(value);
+  // G4 UX review (Oct 28): a card remounting with Chat shows the last value it had (queryMemory.ts) while its
+  // query re-subscribes, instead of flashing its loading state.
+  const memoryKey = args === 'skip' ? null : `${name}:${key}`;
+  useEffect(() => {
+    if (memoryKey && value !== undefined) rememberQuery(memoryKey, value);
+  }, [memoryKey, value]);
+  const stable = useStableQuery(value) ?? (memoryKey ? recallQuery<FunctionReturnType<Query>>(memoryKey) : undefined);
   if (result instanceof Error) return { status: 'error', error: result };
   if (stable === undefined) return { status: 'loading' };
   return { status: 'ok', data: stable };

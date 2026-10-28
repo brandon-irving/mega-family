@@ -5,11 +5,14 @@
 // `useConvexAuth()` here, and `waitForConvexAuth` lets a sign-in wait for it before its first call.
 import { useEffect } from 'react';
 import { useConvexAuth } from 'convex/react';
+import { clearQueryMemory } from '@/data/queryMemory';
 
 let authed = false;
 const waiters = new Set<() => void>();
 
 export function setConvexAuthed(next: boolean) {
+  // A different session (signed out, or someone else signed in) must never see the last one's cards.
+  if (next !== authed) clearQueryMemory();
   authed = next;
   if (next) {
     waiters.forEach((w) => w());

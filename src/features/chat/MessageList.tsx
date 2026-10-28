@@ -85,6 +85,9 @@ export type MessageListProps = {
   /** Rendered instead of `emptyLabel` when there are no messages (the chat screen's loading state while the
    * MEGA's starter is on its way; owner Oct 28: never an empty-state line in a chat). */
   emptyContent?: ReactNode;
+  /** Extra room under the newest message (the list is inverted, so it's the content's top padding), e.g. a
+   * parent's read-only kid chat above the tab bar (G4 UX review, Oct 28). */
+  endPadding?: number;
   /** CONTRACT §6: a deep-link tap (`mega://chat/<messageId>`) lands here once that message is loaded —
    * scrolls the inverted FlatList to it and briefly highlights the row (MessageRow's `highlighted`). If
    * it isn't in the first loaded page, `onLoadMore` is called repeatedly (bounded by
@@ -117,6 +120,7 @@ export function MessageList({
   chipsReadOnly = false,
   emptyLabel = 'No messages yet.',
   emptyContent,
+  endPadding,
   scrollToMessageId,
   paginationExhausted = false,
 }: MessageListProps) {
@@ -254,7 +258,7 @@ export function MessageList({
         data={messages}
         inverted
         keyExtractor={(m) => m._id}
-        contentContainerStyle={{ padding: tokens.spacing.lg }}
+        contentContainerStyle={{ padding: tokens.spacing.lg, paddingTop: tokens.spacing.lg + (endPadding ?? 0) }}
         ListFooterComponent={onLoadMore ? <Button label="Load earlier messages" variant="ghost" onPress={onLoadMore} /> : undefined}
         renderItem={renderItem}
         // No `getItemLayout` (messages have variable height), so a `scrollToIndex` call made before that

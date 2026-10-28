@@ -3,10 +3,10 @@
 import { KIDS_COPY } from '@shared/config/copy';
 import type { QueryState } from '@/data/useQuery';
 import { errorCopyFor } from '@/data/errorCopy';
-import { ThreadCard } from '@/ui/ThreadCard';
+import { CardSkeleton, ThreadCard } from '@/ui/ThreadCard';
 
 export function CardFallback({ state, from }: { state: QueryState<unknown>; from: string }) {
-  if (state.status === 'loading') return <ThreadCard from={from} title={KIDS_COPY.loading} />;
+  if (state.status === 'loading') return <CardSkeleton from={from} label={KIDS_COPY.loadingLabel} />;
   if (state.status === 'error') return <ThreadCard from={from} title={KIDS_COPY.notReady} body={errorCopyFor(state.error)} />;
   return null;
 }
