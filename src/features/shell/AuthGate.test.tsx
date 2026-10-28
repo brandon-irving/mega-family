@@ -82,13 +82,14 @@ describe('AuthGate', () => {
     jest.clearAllMocks();
   });
 
-  // Screen 9 (LoginOpening board): loading is the opening screen — background only at first (no spinner,
-  // no label, so a fast returning user goes straight into chat with nothing flashing).
-  test('auth loading: shows the opening screen', async () => {
+  // Screen 9 (LoginOpening board, Oct 28): loading is never blank — "Opening chats" with a MEGA pacing on
+  // top of it, from the first frame (the shared MegaLoader).
+  test('auth loading: shows the loader with its words right away', async () => {
     mockUseAuthState.mockReturnValue({ status: 'loading' });
     mockUseViewer.mockReturnValue(undefined);
     await renderRouter(ROUTES, { initialUrl: '/welcome' });
     expect(screen.getByTestId('opening')).toBeTruthy();
+    expect(screen.getByText('Opening chats')).toBeTruthy();
     expect(screen.queryByText('WELCOME_SCREEN')).toBeNull();
   });
 

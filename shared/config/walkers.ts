@@ -18,8 +18,9 @@ export const WALKER_MOTION = {
   lookMs: 700,
   /** Walk-cycle length in points walked (stepL / stand / stepR / stand). */
   stride: 16,
-  /** The returning-user opening only plays when loading takes longer than this (owner, Oct 26). */
-  openingDelayMs: 300,
+  /** The shared loader (owner, Oct 28): one MEGA paces over the words, between these fractions of their
+   * width, pausing at each end. Replaces the old "walk in after 300ms" opening (never blank now). */
+  loader: { from: 0.3, to: 0.7, pauseMs: 500, startMs: 400 },
   /** The 32x40 walk frames at 1x, inside a 44pt tap target. */
   spriteScale: 1,
   hitSize: 44,

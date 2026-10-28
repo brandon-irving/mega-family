@@ -6,7 +6,7 @@ import { act, fireEvent, screen } from '@testing-library/react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { renderWithTheme } from '@/test/renderWithTheme';
 import WelcomeRoute from '@/app/welcome';
-import { signInAnonymously, signInWithGoogle } from '@/services/auth';
+import { signInAnonymously, signInWithEmail, signInWithGoogle, signUpWithEmail } from '@/services/auth';
 import { IDENTITY } from '@shared/config/identity';
 
 const mockSignInAs = jest.fn();
@@ -15,6 +15,9 @@ jest.mock('@/services/auth', () => ({
   signInAnonymously: jest.fn(() => Promise.resolve()),
   signInWithApple: jest.fn(() => Promise.resolve()),
   signInWithGoogle: jest.fn(() => Promise.resolve()),
+  signInWithEmail: jest.fn(() => Promise.resolve()),
+  signUpWithEmail: jest.fn(() => Promise.resolve()),
+  appleSignInOffIos: () => false,
   signOut: jest.fn(),
 }));
 // The native Apple button is iOS-only (AppleSignInButton.ios.tsx); a stand-in makes its presence assertable.
@@ -52,21 +55,72 @@ describe('Welcome (Screen 9)', () => {
     expect(screen.queryByText('APPLE_BUTTON')).toBeNull();
   });
 
-  test('Make my MEGA opens the sign-in sheet with Apple, Google and the privacy note', async () => {
+  test('Make my MEGA opens the sheet on Create account: Apple, Google, then email + password, and the privacy note', async () => {
     await renderWelcome(false);
     await act(async () => fireEvent.press(screen.getByText('Make my MEGA')));
-    expect(screen.getByText('Sign in to save your family')).toBeTruthy();
+    expect(screen.getByText('Create your account')).toBeTruthy();
     expect(screen.getByText('APPLE_BUTTON')).toBeTruthy();
     expect(screen.getByText('Continue with Google')).toBeTruthy();
+    expect(screen.getByText('or use email')).toBeTruthy();
+    expect(screen.getByLabelText('Email')).toBeTruthy();
+    expect(screen.getByLabelText('Password')).toBeTruthy();
+    expect(screen.getByText('Use 8 or more characters.')).toBeTruthy();
+    expect(screen.queryByText('Forgot password?')).toBeNull();
     expect(screen.getByText('MEGA only gets your name and email.')).toBeTruthy();
     await act(async () => fireEvent.press(screen.getByText('Continue with Google')));
     expect(signInWithGoogle).toHaveBeenCalledTimes(1);
   });
 
-  test('"Sign in" opens the same sheet', async () => {
+  test('"Sign in" opens the sheet on Sign in, with Forgot password; the toggle switches modes', async () => {
     await renderWelcome(false);
     await act(async () => fireEvent.press(screen.getByText('Sign in')));
-    expect(screen.getByText('Sign in to save your family')).toBeTruthy();
+    expect(screen.getByText('Welcome back')).toBeTruthy();
+    expect(screen.getByText('Forgot password?')).toBeTruthy();
+    await act(async () => fireEvent.press(screen.getByRole('tab', { name: 'Create account' })));
+    expect(screen.getByText('Create your account')).toBeTruthy();
+    expect(screen.getByText('Use 8 or more characters.')).toBeTruthy();
+  });
+
+  test('email sign-in: a bad email or a short password is caught before calling the server', async () => {
+    await renderWelcome(false);
+    await act(async () => fireEvent.press(screen.getByText('Sign in')));
+    await act(async () => fireEvent.changeText(screen.getByLabelText('Email'), 'not-an-email'));
+    await act(async () => fireEvent.changeText(screen.getByLabelText('Password'), 'longenough'));
+    await act(async () => fireEvent.press(screen.getByRole('button', { name: 'Sign in with email' })));
+    expect(screen.getByText('That email doesn’t look right.')).toBeTruthy();
+    await act(async () => fireEvent.changeText(screen.getByLabelText('Email'), 'pat@example.com'));
+    await act(async () => fireEvent.changeText(screen.getByLabelText('Password'), 'short'));
+    await act(async () => fireEvent.press(screen.getByRole('button', { name: 'Sign in with email' })));
+    expect(screen.getByText('Passwords need 8 or more characters.')).toBeTruthy();
+    expect(signInWithEmail).not.toHaveBeenCalled();
+    await act(async () => fireEvent.changeText(screen.getByLabelText('Password'), 'longenough'));
+    await act(async () => fireEvent.press(screen.getByRole('button', { name: 'Sign in with email' })));
+    expect(signInWithEmail).toHaveBeenCalledWith('pat@example.com', 'longenough');
+  });
+
+  test('create account calls sign-up with the trimmed email', async () => {
+    await renderWelcome(false);
+    await act(async () => fireEvent.press(screen.getByText('Make my MEGA')));
+    await act(async () => fireEvent.changeText(screen.getByLabelText('Email'), ' pat@example.com '));
+    await act(async () => fireEvent.changeText(screen.getByLabelText('Password'), 'longenough'));
+    await act(async () => fireEvent.press(screen.getByRole('button', { name: 'Create account with email' })));
+    expect(signUpWithEmail).toHaveBeenCalledWith('pat@example.com', 'longenough');
+  });
+
+  test('Show reveals the password; Forgot password shows the "coming soon" placeholder', async () => {
+    await renderWelcome(false);
+    await act(async () => fireEvent.press(screen.getByText('Sign in')));
+    expect(screen.getByLabelText('Password').props.secureTextEntry).toBe(true);
+    await act(async () => fireEvent.press(screen.getByText('Show')));
+    expect(screen.getByLabelText('Password').props.secureTextEntry).toBe(false);
+    expect(screen.getByText('Hide')).toBeTruthy();
+    await act(async () => fireEvent.press(screen.getByText('Forgot password?')));
+    expect(screen.getByText('Reset by email is coming soon. Ask your family admin for help.')).toBeTruthy();
+  });
+
+  test('Hub stands in the middle of the brand block (no empty band above MEGA)', async () => {
+    await renderWelcome(false);
+    expect(screen.getByLabelText('Hub, your family’s MEGA')).toBeTruthy();
   });
 
   test('the demo pill is hidden unless the build opted into demo mode', async () => {

@@ -1,11 +1,13 @@
-// What the walking MEGAs do on each sign-in screen, ported from the approved Screen 9 boards
-// (design/build/Login.template.html → `scene()`). The boards place MEGAs in a 390pt-wide frame with 24pt
+// What the walking MEGAs do on each sign-in screen, ported from the approved Screen 9 boards (canvas v33,
+// design/build/Login.template.html → `scene()`). The boards place MEGAs in a 390pt-wide frame with 24pt
 // margins; `bx` converts those x values to a fraction along a ledge, so the same choreography plays on any
 // width. Ledge ids match the <Ledge id> marks in the screens:
-//   welcome: floor (above the wordmark), head (the wordmark's capitals), make, invite, signin (under the
-//            "Already have an account?" row), sheet (the sign-in sheet's top edge)
-//   invite:  field (the paste row), cont (Continue)     join: card     locked: lock
-//   family:  start, join                                opening: opening
+//   welcome: floor (where Hub stands, above the wordmark), head (the wordmark's capitals), make, invite,
+//            signin (under the "Already have an account?" row), sheet (the sign-in sheet's top edge)
+//   invite:  field (the paste row), cont (Continue), help (the "No link yet?" card)
+//   adult invite: card    kid invite: kidCard    expired: expiredCard    locked: lock
+//   family:  start, join
+// The loader's scene lives with the loader (src/features/walkers/MegaLoader.tsx).
 import { at, freeze, FOREVER, HIDE, hop, ON_TOP, type Scene, script, SHOW, wait, walk } from '@/features/walkers';
 import { SIGNIN_COPY } from '@shared/config/copy';
 import { WALKER_CAST } from '@shared/config/walkers';
@@ -16,18 +18,13 @@ export const bx = (x: number) => (x - BOARD.margin) / BOARD.width;
 const OUT_L = bx(-30);
 const OUT_R = bx(420);
 
-export type SignInScreen = 'opening' | 'welcome' | 'welcomeSheet' | 'invite' | 'inviteLinked' | 'join' | 'locked' | 'family';
+export type SignInScreen = 'welcome' | 'welcomeSheet' | 'invite' | 'inviteLinked' | 'adultInvite' | 'kidInvite' | 'expired' | 'locked' | 'family';
 
 export const SIGNIN_SCENES: Record<SignInScreen, Scene> = {
-  opening: {
-    teal: script([at('opening', OUT_L, 'right'), SHOW, walk(bx(140)), wait(FOREVER, { happy: true })]),
-    violet: script([at('opening', bx(195)), SHOW, wait(FOREVER)]),
-    coral: script([at('opening', OUT_R, 'left'), SHOW, walk(bx(250)), wait(FOREVER, { happy: true })]),
-  },
   welcome: {
     teal: script(
       [
-        at('floor', OUT_L, 'right'), SHOW, walk(bx(150)), wait(2200, { happy: true, say: SIGNIN_COPY.sayHi(WALKER_CAST.teal.name) }), walk(bx(236)),
+        at('floor', OUT_L, 'right'), SHOW, walk(bx(96)), wait(2200, { happy: true, say: SIGNIN_COPY.sayHi(WALKER_CAST.teal.name) }), walk(bx(300)),
         wait(900, { face: 'right' }), walk(OUT_R), at('make', OUT_R, 'left'), hop('make', bx(316)), wait(2600, { emote: '!', poke: 'make' }),
         walk(bx(56)), wait(1300), hop('invite', OUT_L),
       ],
@@ -56,7 +53,7 @@ export const SIGNIN_SCENES: Record<SignInScreen, Scene> = {
   },
   invite: {
     teal: script([at('cont', bx(330)), SHOW, wait(2600, { emote: '…' }), walk(bx(250)), wait(2000, { face: 'left' }), walk(bx(330))], 2),
-    violet: script([at('field', bx(200), 'left'), SHOW, wait(1400, { emote: '?' }), walk(bx(92)), wait(1600, { poke: 'field' }), walk(bx(200))], 2),
+    violet: script([at('help', bx(300), 'left'), SHOW, wait(1400, { emote: '?' }), walk(bx(92)), wait(1600, { poke: 'help' }), walk(bx(300))], 2),
     coral: script([HIDE]),
   },
   inviteLinked: {
@@ -64,8 +61,20 @@ export const SIGNIN_SCENES: Record<SignInScreen, Scene> = {
     violet: script([SHOW, hop('cont', bx(110)), wait(1600, { face: 'right', emote: '♪' }), wait(FOREVER, { happy: true })]),
     coral: script([HIDE]),
   },
-  join: {
-    teal: script([at('card', OUT_R, 'left'), SHOW, walk(bx(290)), wait(2200, { happy: true, say: SIGNIN_COPY.join.greeting }), walk(bx(100)), wait(1600), walk(bx(290))], 2),
+  // Adult invite: Teal welcomes them from the top of their new MEGA's card.
+  adultInvite: {
+    teal: script([at('card', OUT_R, 'left'), SHOW, walk(bx(300)), wait(2200, { happy: true, say: SIGNIN_COPY.join.greeting }), walk(bx(90)), wait(1600), walk(bx(300))], 2),
+    violet: script([HIDE]),
+    coral: script([HIDE]),
+  },
+  // Kid invite: their big MEGA is the star, so Teal and Coral wait on the grown-up card instead.
+  kidInvite: {
+    teal: script([at('kidCard', OUT_R, 'left'), SHOW, walk(bx(310)), wait(2200, { face: 'left', emote: '…' }), walk(bx(250)), wait(1800), walk(bx(310))], 2),
+    coral: script([HIDE, wait(1800), at('kidCard', OUT_L, 'right'), SHOW, walk(bx(70)), wait(2400, { happy: true, emote: '♪' }), walk(bx(120)), wait(1600), walk(bx(70))], 5),
+    violet: script([HIDE]),
+  },
+  expired: {
+    teal: script([at('expiredCard', bx(300)), SHOW, wait(FOREVER, { emote: '…' })]),
     violet: script([HIDE]),
     coral: script([HIDE]),
   },

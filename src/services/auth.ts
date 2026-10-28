@@ -9,6 +9,7 @@ import { createAuthClient } from 'better-auth/react';
 import { expoClient } from '@better-auth/expo/client';
 import { anonymousClient } from 'better-auth/client/plugins';
 import { convexClient, crossDomainClient } from '@convex-dev/better-auth/client/plugins';
+import { AUTH } from '@shared/config/auth';
 import { IDENTITY } from '@shared/config/identity';
 import { CONVEX_SITE_URL } from './convexConfig';
 
@@ -55,10 +56,22 @@ function messageOf(error: { message?: string } | null | undefined, fallback: str
   return error?.message ?? fallback;
 }
 
-/** iOS only (PLAN.md: "Apple and Google, natively, no browser") — `expo-apple-authentication` gets the
- * identity token, then Better Auth verifies it on the server with no redirect. */
+/** Apple off iOS (web, Android) goes through Apple's web flow, which needs the Apple Services ID set up
+ * (an owner to-do in STATUS.md). Until EXPO_PUBLIC_APPLE_SERVICES_ID is set, the sheet hides Apple there. */
+export function appleSignInOffIos(): boolean {
+  return Boolean(process.env.EXPO_PUBLIC_APPLE_SERVICES_ID);
+}
+
+/** iOS: `expo-apple-authentication` gets the identity token, then Better Auth verifies it on the server
+ * with no redirect (PLAN.md: "Apple and Google, natively, no browser"). Web and Android, once the Services
+ * ID is configured (`appleSignInOffIos`): Apple's OAuth redirect, like Google on web. */
 export async function signInWithApple(): Promise<void> {
-  if (Platform.OS !== 'ios') throw new Error('Sign in with Apple is only available on iOS');
+  if (Platform.OS !== 'ios') {
+    if (!appleSignInOffIos()) throw new Error('Sign in with Apple isn’t set up here yet');
+    const { error } = await authClient.signIn.social({ provider: 'apple', callbackURL: '/' });
+    if (error) throw new Error(messageOf(error, 'Apple sign-in failed'));
+    return;
+  }
   const AppleAuthentication = await import('expo-apple-authentication');
   let credential: Awaited<ReturnType<typeof AppleAuthentication.signInAsync>>;
   try {
@@ -98,6 +111,19 @@ export async function signInWithGoogle(): Promise<void> {
     if (isErrorWithCode(e) && e.code === statusCodes.SIGN_IN_CANCELLED) return; // user dismissed the sheet
     throw e;
   }
+}
+
+/** Email + password (Screen 9 redesign, Oct 28). Better Auth needs a display name on sign-up; until
+ * onboarding asks for one it's the email's local part (AUTH.email.maxDerivedNameLength). */
+export async function signUpWithEmail(email: string, password: string): Promise<void> {
+  const name = email.split('@')[0].slice(0, AUTH.email.maxDerivedNameLength) || email;
+  const { error } = await authClient.signUp.email({ email, password, name });
+  if (error) throw new Error(messageOf(error, 'Could not create the account'));
+}
+
+export async function signInWithEmail(email: string, password: string): Promise<void> {
+  const { error } = await authClient.signIn.email({ email, password });
+  if (error) throw new Error(messageOf(error, 'Email or password didn’t match'));
 }
 
 /** Kids without Apple/Google, and the shared first step of the invite flow in general (PLAN.md →
