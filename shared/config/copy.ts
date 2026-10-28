@@ -27,3 +27,9 @@ export const ERROR_COPY: Record<RetryCopyKey, string> = {
   timeout: 'That took too long to come back.',
   default: 'Something went wrong. Want to try again?',
 };
+
+/** GD (CONTRACT v0.13): the agent-identity disclosure on every clash proposal (brief: the agent's identity
+ * is disclosed). `{mega}` is the family MEGA's name. */
+export const PROPOSAL_DISCLOSURE = '{mega} · your family\u2019s MEGA (AI). Nothing changes until Admin approves.';
+/** The line under the share suggestion and on private events (Screen 12). */
+export const SHARE_RULE_COPY = 'MEGA never shares anything unless you tap Share.';

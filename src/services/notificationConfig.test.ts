@@ -8,7 +8,7 @@ import { androidChannelsFromConfig, notificationCategoriesFromConfig } from './n
 describe('notificationCategoriesFromConfig', () => {
   test('one category per non-empty button set, in config order, opensAppToForeground false on every action', () => {
     const categories = notificationCategoriesFromConfig();
-    expect(categories.map((c) => c.identifier)).toEqual(['reminder.default', 'request.default']);
+    expect(categories.map((c) => c.identifier)).toEqual(['reminder.default', 'request.default', 'chore.default']); // chore.default: CONTRACT v0.13
     for (const category of categories) {
       for (const action of category.actions) {
         expect(action.options.opensAppToForeground).toBe(false);

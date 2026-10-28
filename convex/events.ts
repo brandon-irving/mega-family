@@ -3,6 +3,7 @@ import { API } from '../shared/domain/api';
 import { mutation } from './_generated/server';
 import { pick } from './model/define';
 import { fail } from './model/errors';
+import { notBuiltYet } from './model/gdStub';
 import { requireViewer, sameFamilyMember } from './model/viewer';
 
 export const create = mutation({
@@ -49,5 +50,23 @@ export const cancel = mutation({
     if (event.createdBy !== viewer.member._id && viewer.member.role !== 'admin') fail('FORBIDDEN');
     await ctx.db.patch(event._id, { cancelled: true });
     return null;
+  },
+});
+
+// GD (CONTRACT v0.13) `events.share` / `.unshare`: stubs until the GD backend (docs/gates/GD.md). The real
+// ones are owner-only and write a `shareActions` row in the same mutation as the scope change.
+export const share = mutation({
+  ...pick(API.events.share),
+  handler: async (ctx) => {
+    await requireViewer(ctx);
+    return notBuiltYet('events.share');
+  },
+});
+
+export const unshare = mutation({
+  ...pick(API.events.unshare),
+  handler: async (ctx) => {
+    await requireViewer(ctx);
+    return notBuiltYet('events.unshare');
   },
 });

@@ -23,6 +23,16 @@ export const notificationDoc = withSystemFields('notifications', T.notifications
 export const requestDoc = withSystemFields('requests', T.requests);
 export const roomDoc = withSystemFields('rooms', T.rooms);
 export const kidControlsDoc = withSystemFields('kidControls', T.kidControls);
+// GD (CONTRACT v0.13)
+export const shareSuggestionDoc = withSystemFields('shareSuggestions', T.shareSuggestions);
+export const proposalDoc = withSystemFields('proposals', T.proposals);
+export const giftIdeasDoc = withSystemFields('giftIdeas', T.giftIdeas);
+export const homeworkSheetDoc = withSystemFields('homeworkSheets', T.homeworkSheets);
+export const choreDoc = withSystemFields('chores', T.chores);
+export const choreClaimDoc = withSystemFields('choreClaims', T.choreClaims);
+export const routineDoc = withSystemFields('routines', T.routines);
+export const routineRunDoc = withSystemFields('routineRuns', T.routineRuns);
+export const bucksLedgerDoc = withSystemFields('bucksLedger', T.bucksLedger);
 
 // ---------- view models ----------
 
@@ -94,6 +104,53 @@ const kidControlsPatch = v.object({
   parentsCanReadChat: v.optional(v.boolean()),
   webSearch: v.optional(v.boolean()),
 });
+
+// ---------- GD (CONTRACT v0.13) view models ----------
+
+const megaBadge = v.object({ megaId: v.id('megas'), name: v.string(), hex: v.string(), sticker: v.string() });
+
+/** A clash proposal as the app shows it: the fix, before/after, and the AI disclosure line. */
+export const proposalView = v.object({ proposal: proposalDoc, mega: megaBadge, disclosure: v.string() });
+
+/** A question as the app gets it. The correct choice is never included, for anyone; the server checks
+ * answers. `hint` is filled only once the kid has asked for it (or answered wrong). */
+export const practiceQuestionView = v.object({
+  id: v.string(),
+  prompt: v.string(),
+  choices: v.array(v.string()),
+  hint: v.optional(v.string()),
+  answered: v.union(v.object({ correct: v.boolean(), tries: v.number() }), v.null()),
+});
+export const practiceView = v.object({
+  setId: v.id('practiceSets'),
+  forMemberId: v.id('members'),
+  status: T.practiceSets.status,
+  topic: v.optional(v.string()),
+  questions: v.array(practiceQuestionView),
+  summary: v.optional(T.practiceSets.summary),
+  /** The release for this set, once an adult made it. */
+  released: v.union(v.object({ amount: v.number(), byId: v.id('members'), at: v.number() }), v.null()),
+  /** True for an adult who may release Mega Bucks for it (config MEGA_BUCKS.releasers). */
+  canRelease: v.boolean(),
+});
+
+export const choreView = v.object({ chore: choreDoc, today: v.union(choreClaimDoc, v.null()) });
+
+export const storeItemView = v.object({
+  id: T.storeItemId,
+  label: v.string(),
+  price: v.number(),
+  hex: v.optional(v.string()),
+  owned: v.boolean(),
+  /** Currently on the kid's MEGA (look parts) — furniture placement is read from the room. */
+  wearing: v.boolean(),
+});
+
+const bucksSource = v.union(
+  v.object({ kind: v.literal('practice'), setId: v.id('practiceSets') }),
+  v.object({ kind: v.literal('chore'), claimId: v.id('choreClaims') }),
+  v.object({ kind: v.literal('bonus'), memberId: v.id('members') }),
+);
 
 // ---------- the API ----------
 
@@ -209,6 +266,12 @@ export const API = {
       returns: v.null(),
     }),
     cancel: fn({ kind: 'mutation', day1: 'real', args: { eventId: v.id('events') }, returns: v.null() }),
+    // GD (v0.13). Owner only: the caller must be the event's owner (`ownerId`, else `createdBy`), and the
+    // event must be on their private layer. Moves it to the household layer (scope 'family') and writes a
+    // `shareActions` row in the same mutation. Anyone else → FORBIDDEN; a household event → VALIDATION.
+    share: fn({ kind: 'mutation', day1: 'stub', args: { eventId: v.id('events') }, returns: v.null() }),
+    // GD (v0.13). Owner only: moves an event the caller shared back to their private layer (+ shareActions row).
+    unshare: fn({ kind: 'mutation', day1: 'stub', args: { eventId: v.id('events') }, returns: v.null() }),
   },
   lists: {
     all: fn({ kind: 'query', day1: 'real', args: {}, returns: v.array(listSummary) }),
@@ -269,6 +332,122 @@ export const API = {
     // approval — see CONTRACT.md's changelog). Requires an authenticated identity (an anonymous Better
     // Auth session is fine), FORBIDDEN unless DEMO_MODE==='true', and relinks the chosen sample member.
     signInAs: fn({ kind: 'mutation', day1: 'real', args: { as: literals(['admin', 'partner', 'twin1', 'twin2']) }, returns: v.null() }),
+  },
+
+  // ---------- GD (CONTRACT v0.13): demo features. All 'stub' until the GD backend fills them in. ----------
+
+  shareSuggestions: {
+    // The caller's own pending suggestions (ownerId === viewer). Nobody else ever sees them.
+    mine: fn({ kind: 'query', day1: 'stub', args: {}, returns: v.array(shareSuggestionDoc) }),
+    get: fn({ kind: 'query', day1: 'stub', args: { suggestionId: v.id('shareSuggestions') }, returns: shareSuggestionDoc }),
+    // Owner only. share: true runs the same path as `events.share` (records `suggestionId`); false keeps it
+    // private. Idempotent: answering twice returns null and changes nothing.
+    answer: fn({ kind: 'mutation', day1: 'stub', args: { suggestionId: v.id('shareSuggestions'), share: v.boolean() }, returns: v.null() }),
+  },
+  proposals: {
+    // Adults (admin + adult). Pending proposals, newest first. Kids → FORBIDDEN.
+    open: fn({ kind: 'query', day1: 'stub', args: {}, returns: v.array(proposalView) }),
+    // Adults. Any status (so the card can show "Approved by Admin…").
+    get: fn({ kind: 'query', day1: 'stub', args: { proposalId: v.id('proposals') }, returns: proposalView }),
+    // Admin only (config CLASH.approverRole). approve: true applies the fix through the same path as
+    // `events.update` and then notifies the people it moved; false changes nothing. Refused with VALIDATION
+    // if the proposal isn't pending, has expired, or the family's membership changed since it was made.
+    decide: fn({ kind: 'mutation', day1: 'stub', adminOnly: true, args: { proposalId: v.id('proposals'), approve: v.boolean() }, returns: v.null() }),
+  },
+  gifts: {
+    // Adults only, and never the member the ideas are for. Ready sets for birthdays within GIFTS.lookaheadDays.
+    upcoming: fn({ kind: 'query', day1: 'stub', args: {}, returns: v.array(giftIdeasDoc) }),
+    get: fn({ kind: 'query', day1: 'stub', args: { giftIdeasId: v.id('giftIdeas') }, returns: giftIdeasDoc }),
+    // Adults, not for themselves. Queues a set (Muse Spark + kid-safe web search in G4) built only from
+    // household-shared facts; returns at once with status 'queued'.
+    generate: fn({ kind: 'mutation', day1: 'stub', args: { forMemberId: v.id('members') }, returns: v.object({ giftIdeasId: v.id('giftIdeas') }) }),
+    // Adults. Adds one idea to the adults-scope "Gift ideas" list (created on first use).
+    addToList: fn({ kind: 'mutation', day1: 'stub', args: { giftIdeasId: v.id('giftIdeas'), index: v.number() }, returns: v.id('listItems') }),
+  },
+  homework: {
+    // Adults. `storageId` from `files.uploadUrl`. Muse Spark (models.vision) reads the photo in the background;
+    // the sheet's card appears in the caller's thread when it's ready.
+    submit: fn({ kind: 'mutation', day1: 'stub', args: { storageId: v.id('_storage') }, returns: v.object({ sheetId: v.id('homeworkSheets') }) }),
+    // Adults in the family.
+    sheet: fn({ kind: 'query', day1: 'stub', args: { sheetId: v.id('homeworkSheets') }, returns: homeworkSheetDoc }),
+    // A parent of `forMemberId` (a kid). count within HOMEWORK.questions. Drafts the set in the background
+    // and sends the kid a practice card when it's ready.
+    makePractice: fn({
+      kind: 'mutation',
+      day1: 'stub',
+      args: { sheetId: v.id('homeworkSheets'), forMemberId: v.id('members'), count: v.number() },
+      returns: v.object({ setId: v.id('practiceSets') }),
+    }),
+  },
+  practice: {
+    // The kid it's for, or that kid's parents. Never includes the correct answers.
+    get: fn({ kind: 'query', day1: 'stub', args: { setId: v.id('practiceSets') }, returns: practiceView }),
+    // The kid it's for only. A wrong answer returns the hint (a guiding question, never the answer).
+    answer: fn({
+      kind: 'mutation',
+      day1: 'stub',
+      args: { setId: v.id('practiceSets'), questionId: v.string(), choiceIndex: v.number() },
+      returns: v.object({ correct: v.boolean(), hint: v.optional(v.string()), done: v.boolean() }),
+    }),
+    // The kid it's for only. Records that a hint was used.
+    hint: fn({ kind: 'mutation', day1: 'stub', args: { setId: v.id('practiceSets'), questionId: v.string() }, returns: v.object({ hint: v.string() }) }),
+  },
+  chores: {
+    // A kid: their own chores (memberId omitted or their own id). An adult: any kid's, by memberId. Others → FORBIDDEN.
+    list: fn({ kind: 'query', day1: 'stub', args: { memberId: v.optional(v.id('members')) }, returns: v.array(choreView) }),
+    claim: fn({ kind: 'query', day1: 'stub', args: { claimId: v.id('choreClaims') }, returns: choreView }),
+    // Adults (CHORES.managers), for a kid in the family.
+    create: fn({
+      kind: 'mutation',
+      day1: 'stub',
+      args: { forMemberId: v.id('members'), title: v.string(), bucks: v.optional(v.number()), days: v.array(v.number()), time: v.string() },
+      returns: v.id('chores'),
+    }),
+    update: fn({
+      kind: 'mutation',
+      day1: 'stub',
+      args: {
+        choreId: v.id('chores'),
+        patch: v.object({ title: v.optional(v.string()), bucks: v.optional(v.number()), days: v.optional(v.array(v.number())), time: v.optional(v.string()), active: v.optional(v.boolean()) }),
+      },
+      returns: v.null(),
+    }),
+    // The kid it's for only. Claims today's instance ("Done"); the adults get an approve card. Idempotent.
+    markDone: fn({ kind: 'mutation', day1: 'stub', args: { choreId: v.id('chores') }, returns: v.id('choreClaims') }),
+    // Adults. Declines a claim ("not done yet"); approving is `bucks.release` with source chore.
+    decline: fn({ kind: 'mutation', day1: 'stub', args: { claimId: v.id('choreClaims') }, returns: v.null() }),
+  },
+  routines: {
+    // The kid's own run for today (memberId omitted), or a kid's run for one of their parents. null if none yet.
+    today: fn({ kind: 'query', day1: 'stub', args: { kind: T.routineKind, memberId: v.optional(v.id('members')) }, returns: v.union(routineRunDoc, v.null()) }),
+    // The kid's own, or a parent's view of it.
+    get: fn({ kind: 'query', day1: 'stub', args: { kind: T.routineKind, memberId: v.id('members') }, returns: v.union(routineDoc, v.null()) }),
+    // The run's kid only.
+    check: fn({ kind: 'mutation', day1: 'stub', args: { runId: v.id('routineRuns'), stepId: v.string(), done: v.boolean() }, returns: v.null() }),
+    // A parent of the kid. Bedtime's calendar-derived items are added per run, not stored here.
+    set: fn({
+      kind: 'mutation',
+      day1: 'stub',
+      args: { memberId: v.id('members'), kind: T.routineKind, steps: v.array(T.routineStep), time: v.string(), days: v.array(v.number()) },
+      returns: v.null(),
+    }),
+  },
+  bucks: {
+    // A kid: their own (memberId omitted). An adult: any kid in the family.
+    balance: fn({ kind: 'query', day1: 'stub', args: { memberId: v.optional(v.id('members')) }, returns: v.object({ balance: v.number() }) }),
+    history: fn({ kind: 'query', day1: 'stub', args: { memberId: v.optional(v.id('members')), paginationOpts: paginationOptsValidator }, returns: paginationResultValidator(bucksLedgerDoc) }),
+    // Adults only (MEGA_BUCKS.releasers); amount within minRelease..maxRelease. The kid is derived from the
+    // source (practice set's / chore claim's kid, or `memberId` for a bonus). Idempotent per practice set and
+    // per chore claim (a second release returns the first ledger row). Approves a claimed chore. Sends the kid
+    // a bucks card.
+    release: fn({ kind: 'mutation', day1: 'stub', args: { source: bucksSource, amount: v.number() }, returns: v.object({ ledgerId: v.id('bucksLedger'), balance: v.number() }) }),
+  },
+  store: {
+    // Kids only (STORE_RULES.shoppers); adults → FORBIDDEN. Every catalog item with owned/wearing for the caller.
+    catalog: fn({ kind: 'query', day1: 'stub', args: {}, returns: v.object({ balance: v.number(), items: v.array(storeItemView) }) }),
+    // Kids only. Refused with VALIDATION if already owned or the balance is short. Writes the purchase and its
+    // ledger spend in one mutation. Wearing a look part afterwards is `megas.update`; placing furniture is `rooms.update`.
+    buy: fn({ kind: 'mutation', day1: 'stub', args: { itemId: T.storeItemId }, returns: v.object({ purchaseId: v.id('purchases'), balance: v.number() }) }),
   },
 } as const;
 

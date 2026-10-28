@@ -7,6 +7,7 @@ This is the agreement both build tracks follow. The backend owns `convex/`, the 
 ## Changelog
 | Version | Date | Change |
 |---|---|---|
+| 0.13 | Oct 28 | **Pending approval.** Gate GD (demo features; owner decisions Oct 26–27 in STATUS.md, boards Screens 9–12, brief docs/gates/GD.md). Additive except one tightening, noted last. **New tables (§2):** `shareActions`, `shareSuggestions` (layers and the explicit-share rule), `collisions`, `proposals` (clash fixes, Admin approves), `giftIdeas`, `homeworkSheets`, `practiceSets`, `practiceAttempts`, `chores`, `choreClaims`, `routines`, `routineRuns`, `bucksLedger`, `purchases`. **New optional fields:** `megas.look.antenna` / `.eyes` / `.eyeColor` (Store look parts; missing = `classic`), `events.ownerId` (owner of a private-layer event), `memories.gate` (`{ decidedBy, reason? }`, which rule or model decided `sensitive`), `notifications.choreId`. **New card kinds (§3):** `homework`, `practice`, `chore`, `routine`, `bucks`, `shareSuggestion`, `proposal`, `gifts` (each holds only an id; the app loads it with the matching query). **New functions (§4):** `events.share` / `.unshare`, `shareSuggestions.*`, `proposals.*`, `gifts.*`, `homework.*`, `practice.*`, `chores.*`, `routines.*`, `bucks.*`, `store.*`, all `stub` (registered with real validators; empty results or `NOT_FOUND` "not built yet") until the GD backend fills them in. **New config:** `shared/config/store.ts` (catalog, prices, free set, Mega Bucks defaults), `calendar.ts` (`LAYER_OF_SCOPE`, `CLASH`, `GIFTS`), `kids.ts` (`HOMEWORK`, `CHORES`, `ROUTINES`), `models.vision` / `models.wording` (Muse Wonder words the clash fix only), button set `chore.default` (§5), copy `PROPOSAL_DISCLOSURE` / `SHARE_RULE_COPY`. **Tightening (authorized by the owner's explicit-share rule, Oct 26):** a `personal` event is visible only to its owner (`ownerId`, else `createdBy`); being listed in `who` no longer reveals someone else's private event (`convex/model/visibility.ts` today lets `who` see it). Internal only: the backend adds its new candidate-source kinds with the code that uses them. The privacy grid now reports a function as **skipped** (not passed) while its id args point at a table the seed doesn't fill yet. |
 | 0.12 | Oct 26 | **Pending approval.** G3 backend review fixes (security + correctness + UX; see STATUS.md for the full list). All additive, no breaking change to any public function's args/returns. Schema: `candidates.draft` gains `title?: string` (§2) — the draft+judge call's own sanitized headline for the notification (UX6: "Return the library book", never the MEGA's name), falling back to the trigger's own seed text when the model omits one; optional so a pre-existing/hand-seeded candidate with no title just falls back to the MEGA's name at delivery time, same as before. Ports (§8): `PushSender.send` now also returns each ok ticket's Expo Receipt `id` (`PushSendResult.id?`), and `PushSender` gains `getReceipts(ticketIds)` — Expo's delayed delivery-receipt check (C7); `PushMessage` gains `threadId?` (iOS push grouping, UX4, `aps.thread-id` via `shared/config/notifications.ts` `pushThreadIdFor` — quiet kinds group by MEGA, loud kinds don't; Android has no equivalent field in Expo's push API, a documented gap). §5 Push notifications: the push payload's `body` is now config-redacted to a generic "`<MEGA>` has a message for you" for a mattersTo-sourced tip/update (`shared/config/notifications.ts` `PUSH_BODY_REDACTION`) — the full text always stays in the thread (`notifications.get`), only the lock-screen copy changes; reminders/requests are never redacted. New config, no shape change: `shared/config/proactive.ts` `mattersToDailyCapPerFamily` (a per-family-per-day cap on cross-member "matters to" model calls) and `DRAFT_SANITIZE` (max length + per-kind emoji allowance, default off, for every draft+judge title/text); `shared/config/limits.ts` `LIMITS.push.receiptCheckDelayMinutes`. Internal-only plumbing (no public API change): `convex/proactive.ts` gains `checkPushReceipts` and `dropKidConcernCandidate`; a kid-targeted draft now runs through the same independent concern classifier a memory save does before being scheduled. |
 | 0.11 | Oct 26 | **Pending approval.** Killed-app push answers: iOS's background notification-response task runs headless with no signed-in Better Auth session, so it can't call `notifications.answer`. Additive: push payload `data` gains `answerToken?: string` (§5) — an HMAC-SHA256 token (`convex/model/pushAnswerToken.ts`), scoped to one `(notificationId, recipientId)` pair, expiring with the notification (`LIMITS.push.answerTokenTtlDays`, 7 days default); nothing is persisted for it (it's self-contained — recomputing and `crypto.subtle.verify`-comparing the signature IS the check). New HTTP route `POST /push/answer` (`h`, convex/http.ts) — body `{ notificationId, buttonId, answerToken }`, returns `{ reply: string }` on success, a fixed generic `{ error }` (HTTP 400) on every failure (unknown notification, wrong/expired token, unknown button, locked out) so no response lets a caller tell those apart. Runs the exact same idempotent apply path `notifications.answer` does (`convex/model/notificationAnswer.ts`) — an already-answered notification just returns its stored reply again. Brute-force guard: additive `notifications.answerFailedAttempts?: number` (§2), same shape as `invites.failedAttempts` — `LIMITS.push.maxAnswerTokenAttempts` (10) failed verifications lock out further attempts against that notification. New secret `PUSH_ANSWER_SECRET` (scripts/env.manifest.json, gate G3) — generate with `node scripts/secrets.mjs gen PUSH_ANSWER_SECRET`, then `sync-convex`. |
 | 0.10 | Oct 26 | **Pending approval.** G3 backend build: the proactive engine (PLAN.md -> Proactive engine) is real — triggers (cross-member "matters to", reminders due, a daily check-in greeting, MEGA-to-MEGA requests) -> candidate (`convex/model/proactive.ts`) -> draft+judge (one combined Muse Spark structured call; requests skip it, their text is already written by the asking member) -> timing (quiet hours, daily cap, `ctx.scheduler.runAt`/`cancel`) -> deliver (push via a new `PushSender` port + Expo adapter, mirrored into the recipient's thread) -> `notifications.answer`/`requests.respond` now run real effects (tell the requester, run the request's declared `onAccept` through the SAME tool dispatcher a chat tool call uses, reschedule/acknowledge a reminder), idempotently, and record `👍`/`👎` into `profiles.proactive` via `chat.react`. Day-1 status: `requests.respond` and `notifications.answer` move from `stub` to `real`. Additive schema fields: `candidates.source` (which trigger produced it), `notifications.reminderId`/`requestId` (back-links an answer button acts on), `requests.onAccept` (what accepting it actually does — only `lists_add` for now). New config: `shared/config/proactive.ts` (check-in time, trigger windows, dedupe-key builders). New internal-only module `convex/proactive.ts` + `convex/crons.ts` (no public API change — CONTRACT §4 lists no `proactive.*` functions, delivery is automatic). `clock.jump` now fires the exact same per-family sweep the production cron runs, instead of its old inline "release held notifications" snippet. |
@@ -66,7 +67,7 @@ Every row in a family-owned table has `familyId`, and every index starts with `f
 **relationships**: `familyId`, `from: id(members)`, `to: id(members)`, `kind: Relationship` ("from is to's daughter")
 - index: `by_family_from`
 
-**megas**: `familyId`, `kind: MegaKind`, `ownerId?: id(members)` (empty for the family MEGA; for a care MEGA it's the child), `name`, `look: { hex: string, sticker: string }`, `personality: Personality`, `job: { station: Station, label: string, busy: boolean, since: number }`
+**megas**: `familyId`, `kind: MegaKind`, `ownerId?: id(members)` (empty for the family MEGA; for a care MEGA it's the child), `name`, `look: { hex: string, sticker: string, antenna?: AntennaId, eyes?: EyeStyleId, eyeColor?: EyeColorId }` (v0.13: Store look parts, missing = `classic`; a kid may only wear parts they own), `personality: Personality`, `job: { station: Station, label: string, busy: boolean, since: number }`
 - index: `by_family_owner` (its familyId prefix lists a family's MEGAs)
 
 **invites**: `familyId`, `memberId`, `tokenHash`, `expiresAt`, `redeemedAt?`, `failedAttempts?: number` (wrong parent-code guesses; `invites.redeem` locks the invite RATE_LIMITED at `LIMITS.maxParentCodeAttempts`)
@@ -87,15 +88,16 @@ Every row in a family-owned table has `familyId`, and every index starts with `f
 - index: `by_family_thread_at`
 
 ### Memory and learning
-**memories**: `familyId`, `scope: Scope`, `scopeKey: string` (`<familyId>:family` · `<familyId>:adults` · `<familyId>:personal:<memberId>` · `<familyId>:shared:<grantId>`), `about: id(members)[]`, `kind: MemoryKind`, `text`, `data?: any`, `source: { kind: "message" | "onboarding" | "integration" | "admin" | "profiler", ref?: string }`, `trigger: LearningTrigger`, `confidence: number` (0–1), `confirmed: boolean`, `sensitive: boolean`, `validUntil?`, `supersedes?: id(memories)`, `pinned: boolean`, `createdAt`, `lastUsedAt`
+**memories**: `familyId`, `scope: Scope`, `scopeKey: string` (`<familyId>:family` · `<familyId>:adults` · `<familyId>:personal:<memberId>` · `<familyId>:shared:<grantId>`), `about: id(members)[]`, `kind: MemoryKind`, `text`, `data?: any`, `source: { kind: "message" | "onboarding" | "integration" | "admin" | "profiler", ref?: string }`, `trigger: LearningTrigger`, `confidence: number` (0–1), `confirmed: boolean`, `sensitive: boolean`, `validUntil?`, `supersedes?: id(memories)`, `pinned: boolean`, `createdAt`, `lastUsedAt`, `gate?: { decidedBy: "rule:<id>" | "model:<id>", reason? }` (v0.13: what decided `sensitive`; rules may only make things more private)
 - search index `search_text` on `text`, filtered by `familyId` and `scopeKey`
 - indexes: `by_family_scopeKey`, `by_family_kind`
 
 **profiles**: `familyId`, `memberId`, `callMe`, `basics: {…}`, `routines: { text, days: number[], time?: "HH:MM", confirmed }[]`, `places: { label: "home" | "school" | "work" | string, address, lat, lng }[]`, `proactive: Record<NotificationKind, { sent, answered, ignored, up, down }>`, `checkQuestions: { memoryId, question, askAfter }[]`
 
 ### Plans and lists
-**events**: `familyId`, `title`, `start`, `end?`, `allDay?: "YYYY-MM-DD"`, `who: id(members)[]`, `place?`, `source: "mega" | "ics" | "device"`, `externalId?`, `createdBy?` (empty for imported events), `scope: Scope`, `cancelled: boolean`
+**events**: `familyId`, `title`, `start`, `end?`, `allDay?: "YYYY-MM-DD"`, `who: id(members)[]`, `place?`, `source: "mega" | "ics" | "device"`, `externalId?`, `createdBy?` (empty for imported events), `scope: Scope`, `cancelled: boolean`, `ownerId?: id(members)` (v0.13: owner of a private-layer event)
 - index: `by_family_start`
+- **Layers (v0.13):** an event's layer is derived from `scope` only (`shared/config/calendar.ts` `LAYER_OF_SCOPE`): `family`/`adults` = **household** (Hub checks these for clashes); `personal` = **private** (only `ownerId` sees it; never read by the clash checker, gift ideas, bedtime prep or another member's MEGA; `who` does not grant sight); `shared` = a grant, not household. Only the owner's `events.share` / `shareSuggestions.answer` moves a private event to the household layer.
 
 **reminders**: `familyId`, `forMemberId`, `text`, `dueAt`, `eventId?`, `done: boolean`, `createdBy?`
 - index: `by_family_member_due`
@@ -111,11 +113,55 @@ Every row in a family-owned table has `familyId`, and every index starts with `f
 **candidates**: `familyId`, `recipientId`, `kind: NotificationKind`, `dedupeKey`, `draft: { text, buttons: ButtonSetId }`, `score?: number`, `reason?`, `delivery?: Delivery`, `window: { from, to }`, `deliverAt?`, `scheduledId?`, `status: "new" | "scheduled" | "delivered" | "dropped" | "cancelled"`, `source?: { kind: "reminder", reminderId } | { kind: "request", requestId } | { kind: "checkin", memberId } | { kind: "mattersTo", fromMemberId, familyEventId }` (v0.10, additive — which trigger produced it; internal only, never returned by any API function)
 - indexes: `by_family_dedupeKey`, `by_family_status`
 
-**notifications**: `familyId`, `recipientId`, `candidateId?`, `kind`, `loudness: Loudness`, `title`, `body`, `megaId`, `buttons: Button[]`, `messageId?` (the same card in the thread), `sentAt?` (empty while held), `heldUntil?` (kid quiet hours), `answer?: { buttonId, at, via: Via }`, `reply?: string` (lock-screen reply), `reminderId?`, `requestId?` (v0.10, additive — back-links the row a button's real effect, `notifications.answer`, acts on)
+**notifications**: `familyId`, `recipientId`, `candidateId?`, `kind`, `loudness: Loudness`, `title`, `body`, `megaId`, `buttons: Button[]`, `messageId?` (the same card in the thread), `sentAt?` (empty while held), `heldUntil?` (kid quiet hours), `answer?: { buttonId, at, via: Via }`, `reply?: string` (lock-screen reply), `reminderId?`, `requestId?` (v0.10, additive — back-links the row a button's real effect, `notifications.answer`, acts on), `choreId?` (v0.13: a chore reminder's "Done" claims it)
 - index: `by_family_recipient` (familyId, recipientId, sentAt)
 
 **requests** (MEGA to MEGA): `familyId`, `fromMemberId`, `toMemberId`, `text`, `status: "open" | "accepted" | "declined" | "done"`, `notificationId?`, `onAccept?: { tool: "lists_add", listName, text }` (v0.10, additive — what accepting it actually does, declared by the `ask_member` tool call that created it, never inferred from `text` at answer time)
 - index: `by_family_to`
+
+### Layers, sharing and clashes (v0.13, gate GD)
+**shareActions**: `familyId`, `ownerId`, `item: { kind: "event", eventId }`, `action: "share" | "unshare"`, `fromScope`, `toScope`, `at`, `suggestionId?` — append-only; written only by the owner's own `events.share` / `.unshare` / `shareSuggestions.answer`, in the same mutation as the scope change
+- index: `by_family_owner`
+
+**shareSuggestions**: `familyId`, `ownerId`, `item: { kind: "event", eventId } | { kind: "memory", memoryId }`, `preview` (what the household would see), `audience: id(members)[]`, `status: "pending" | "shared" | "kept" | "expired"`, `createdAt`, `answeredAt?`, `decidedBy` (what proposed it), `messageId?` — only ever readable by `ownerId`; never changes anything by itself (the memory writer's "matters to" becomes one of these)
+- index: `by_family_owner_status`
+
+**collisions** (internal; no public function returns it): `familyId`, `eventIds: id(events)[]` (exactly 2, both household), `memberId` (needed in both), `dedupeKey`, `detectedAt`, `status: "open" | "resolved" | "dismissed" | "stale"`
+- indexes: `by_family_dedupeKey`, `by_family_status`
+
+**proposals**: `familyId`, `collisionId`, `megaId` (Hub, disclosed as AI), `fix: { kind: "reassign", eventId, from, to } | { kind: "move", eventId, start, end? }`, `title`, `text` (worded by Muse Wonder), `before` / `after: { eventId, title, start, end?, who }`, `wordedBy`, `reasonedBy`, `audience: id(members)[]` (membership when made), `status: "pending" | "approved" | "rejected" | "expired" | "stale"`, `createdAt`, `expiresAt`, `decision?: { byId, at, approve, audience }`, `messageId?` — nothing changes until the Admin approves
+- indexes: `by_family_status`, `by_family_collision`
+
+**giftIdeas**: `familyId`, `forMemberId`, `occasion: "birthday"`, `date`, `basedOn: { label, source: { kind: "memory", memoryId } | { kind: "member", field: "activities" } }[]`, `ideas: { title, why, price?, basedOn: number[], url? }[]`, `status: "queued" | "ready" | "failed"`, `createdBy?`, `createdAt`, `addedToList: number[]` — built only from household-shared facts; never visible to `forMemberId` or kids
+- index: `by_family_for`
+
+### Kids: homework, chores, routines, Mega Bucks (v0.13, gate GD)
+**homeworkSheets**: `familyId`, `createdBy` (an adult), `storageId`, `status: "reading" | "ready" | "failed"`, `topic?`, `summary?`, `createdAt`
+- index: `by_family_creator`
+
+**practiceSets**: `familyId`, `sheetId`, `forMemberId` (a kid), `createdBy`, `status: "drafting" | "ready" | "done" | "failed"`, `questions: { id, prompt, choices: string[], answerIndex, hint }[]` (`answerIndex` never leaves the server), `createdAt`, `startedAt?`, `finishedAt?`, `summary?: { correct, total, hintsUsed, minutes, note }`
+- indexes: `by_family_for`, `by_family_sheet`
+
+**practiceAttempts**: `familyId`, `setId`, `questionId`, `memberId`, `kind: "answer" | "hint"`, `choiceIndex?`, `correct?`, `at`
+- index: `by_family_set`
+
+**chores**: `familyId`, `forMemberId`, `title`, `bucks`, `days: number[]`, `time: "HH:MM"`, `createdBy`, `active`
+- index: `by_family_for`
+
+**choreClaims**: `familyId`, `choreId`, `forMemberId`, `date`, `status: "due" | "claimed" | "approved" | "declined"`, `claimedAt?`, `decidedById?`, `decidedAt?`
+- indexes: `by_family_chore_date`, `by_family_status`
+
+**routines**: `familyId`, `memberId`, `kind: "morning" | "bedtime"`, `steps: { id, label, detail? }[]`, `time`, `days`, `updatedBy?`
+- index: `by_family_member_kind`
+
+**routineRuns**: `familyId`, `routineId`, `memberId`, `kind`, `date`, `steps: { id, label, detail?, done, source?: { eventId } }[]` (bedtime items come only from household-layer events), `createdAt`, `finishedAt?`
+- index: `by_family_member_kind_date`
+
+**bucksLedger**: `familyId`, `memberId` (the kid), `delta`, `source: { kind: "practice", setId } | { kind: "chore", claimId } | { kind: "bonus" } | { kind: "purchase", purchaseId }`, `byId`, `note?`, `at` — balance = sum of `delta`, never stored; releases only by adults, spends only by the kid's own purchase
+- index: `by_family_member_at`
+
+**purchases**: `familyId`, `memberId`, `itemId: StoreItemId`, `price`, `at`
+- index: `by_family_member`
 
 ### Places, art and system
 **rooms**: `familyId`, `ownerId?` (empty = HQ), `size: { w, h }`, `wallColor`, `furniture: { kind, x, y, color?, posterImageId? }[]`
@@ -163,6 +209,15 @@ Card =
   | { kind: "travel", to, leaveBy, minutes }
   | { kind: "request", requestId }
   | { kind: "notification", notificationId }                       // a push, mirrored into the thread
+  // v0.13 (GD): id-only cards; the app loads each with its query, which re-checks the viewer
+  | { kind: "homework", sheetId }                                  // parent: "make practice for…?"
+  | { kind: "practice", setId }                                    // kid: practice; parent: summary + release
+  | { kind: "chore", claimId }                                     // kid: Done; parent: approve + release
+  | { kind: "routine", runId }                                     // kid: morning steps / bedtime prep
+  | { kind: "bucks", ledgerId }                                    // kid: "Admin released 5 Mega Bucks!"
+  | { kind: "shareSuggestion", suggestionId }                      // owner only
+  | { kind: "proposal", proposalId }                               // Hub's clash fix (AI), before/after
+  | { kind: "gifts", giftIdeasId }                                 // adults, never the birthday person
 
 SaveChip = { memoryId, scope: Scope, label: string }               // "Saved · Family", tap → change scope / forget
 ```
@@ -231,6 +286,7 @@ This section is mirrored exactly by `shared/domain/api.ts`; `tests/contract.test
 | `family.kidThread` | q | `{ memberId, paginationOpts }` (only if `parentsCanReadChat`) | page of `Message` | real |
 | `calendar.range` | q | `{ from, to }` | `Event[]` | real |
 | `events.create` / `.update` / `.cancel` | m | event fields / `{ eventId, patch }` / `{ eventId }` | `id` / `null` / `null` | real |
+| `events.share` / `.unshare` | m | `{ eventId }` (v0.13; the event's owner only) | `null` (moves it between the owner's private layer and the household layer and writes a `shareActions` row) | stub |
 | `lists.all` | q | — | `{ list, items }[]` | real |
 | `lists.addItem` / `.check` / `.remove` | m | `{ listId, text }` / `{ itemId, checked }` / `{ itemId }` | `id` / `null` / `null` | real |
 | `requests.respond` | m | `{ requestId, accept: boolean }` | `null` | real (G3: real effects, idempotent) |
@@ -258,6 +314,42 @@ This section is mirrored exactly by `shared/domain/api.ts`; `tests/contract.test
 | `clock.jump` | m | `{ to: number }` (admin, demo flag on) | `null` (fires due jobs through the same code) | real |
 | `demo.signInAs` | m | `{ as: "admin" \| "partner" \| "twin1" \| "twin2" }` (requires a signed-in identity, anonymous is fine; demo flag on) | `null` (links the chosen sample member's authId to the caller, unlinking whichever member it was linked to before) | real |
 
+### Demo features (v0.13, gate GD; all `stub` until the GD backend)
+Who may call each is stated in its comment in `shared/domain/api.ts`; the rules in brief: kids act only on their own practice, chores, routines and Store; releases, chores, homework and gifts are adults; clash approval is the Admin; share suggestions are the owner's alone.
+
+| Function | Type | Args | Returns | Day 1 |
+|---|---|---|---|---|
+| `shareSuggestions.mine` | q | — (the caller's own) | `ShareSuggestion[]` (pending) | stub |
+| `shareSuggestions.get` | q | `{ suggestionId }` (owner only) | `ShareSuggestion` | stub |
+| `shareSuggestions.answer` | m | `{ suggestionId, share: boolean }` (owner only) | `null` | stub |
+| `proposals.open` | q | — (adults) | `ProposalView[]` = `{ proposal, mega: { megaId, name, hex, sticker }, disclosure }` | stub |
+| `proposals.get` | q | `{ proposalId }` (adults) | `ProposalView` | stub |
+| `proposals.decide` | m | `{ proposalId, approve: boolean }` (admin) | `null` (approve applies the fix; refused if not pending, expired, or membership changed) | stub |
+| `gifts.upcoming` | q | — (adults, never the person they're for) | `GiftIdeas[]` | stub |
+| `gifts.get` | q | `{ giftIdeasId }` (same rule) | `GiftIdeas` | stub |
+| `gifts.generate` | m | `{ forMemberId }` (adults, not for themselves) | `{ giftIdeasId }` (queued) | stub |
+| `gifts.addToList` | m | `{ giftIdeasId, index }` (adults) | `id(listItems)` | stub |
+| `homework.submit` | m | `{ storageId }` (adults) | `{ sheetId }` (Muse Spark reads it in the background) | stub |
+| `homework.sheet` | q | `{ sheetId }` (adults) | `HomeworkSheet` | stub |
+| `homework.makePractice` | m | `{ sheetId, forMemberId, count }` (a parent of the kid) | `{ setId }` | stub |
+| `practice.get` | q | `{ setId }` (the kid, or their parents) | `PracticeView` (no correct answers, for anyone) | stub |
+| `practice.answer` | m | `{ setId, questionId, choiceIndex }` (the kid) | `{ correct, hint?, done }` | stub |
+| `practice.hint` | m | `{ setId, questionId }` (the kid) | `{ hint }` | stub |
+| `chores.list` | q | `{ memberId? }` (a kid: own; adults: any kid) | `{ chore, today: ChoreClaim \| null }[]` | stub |
+| `chores.claim` | q | `{ claimId }` (the kid, or adults) | `{ chore, today }` | stub |
+| `chores.create` / `.update` | m | `{ forMemberId, title, bucks?, days, time }` / `{ choreId, patch }` (adults) | `id` / `null` | stub |
+| `chores.markDone` | m | `{ choreId }` (the kid) | `id(choreClaims)` | stub |
+| `chores.decline` | m | `{ claimId }` (adults) | `null` | stub |
+| `routines.today` | q | `{ kind, memberId? }` (the kid, or their parents) | `RoutineRun \| null` | stub |
+| `routines.get` | q | `{ kind, memberId }` (the kid, or their parents) | `Routine \| null` | stub |
+| `routines.check` | m | `{ runId, stepId, done }` (the kid) | `null` | stub |
+| `routines.set` | m | `{ memberId, kind, steps, time, days }` (a parent) | `null` | stub |
+| `bucks.balance` | q | `{ memberId? }` (a kid: own; adults: any kid) | `{ balance }` | stub |
+| `bucks.history` | q | `{ memberId?, paginationOpts }` (same) | page of `BucksLedger` | stub |
+| `bucks.release` | m | `{ source: { kind: "practice", setId } \| { kind: "chore", claimId } \| { kind: "bonus", memberId }, amount }` (adults) | `{ ledgerId, balance }` (idempotent per set / claim) | stub |
+| `store.catalog` | q | — (kids) | `{ balance, items: { id, label, price, hex?, owned, wearing }[] }` | stub (catalog from config) |
+| `store.buy` | m | `{ itemId }` (kids) | `{ purchaseId, balance }` | stub |
+
 ---
 
 ## 5. Push notifications
@@ -267,6 +359,7 @@ This section is mirrored exactly by `shared/domain/api.ts`; `tests/contract.test
   - `reminder.default`: `on_my_way` "On my way" · `snooze_5` "Snooze 5 min"
   - `request.default`: `yes` "Yes" · `cant` "I can't"
   - `tip.default` and `update.default`: no buttons
+  - `chore.default` (v0.13): `done` "Done" · `later` "Later" (a kid's chore reminder; Done claims it via `notifications.choreId`)
 - **Loudness → platform:** `timeSensitive` / `active` / `passive` → iOS `interruptionLevel`; Android channels `mega.loud` and `mega.quiet` (ids in config).
 - **Answer path:** a button tap calls `notifications.answer` while the app is running (from the response listener), or **`POST /push/answer`** (v0.11, `h`) when it's been killed — the background notification-response task has no signed-in session, so it sends `{ notificationId, buttonId, answerToken }` (the token from the payload above) instead of relying on auth. The thread block, `notifications.answer`, and `POST /push/answer` all run the same per-kind effect dispatcher (`convex/model/notificationEffects.ts`), so every answer path is recorded the same way. **Idempotent (G3):** an already-answered notification (`answer` already set) returns its stored `reply` again rather than re-running the button's effect — safe for a retried call from either path.
 
@@ -307,6 +400,7 @@ The rule (events in the next 2 hours first, otherwise the top statement) is appl
 - `kidSafety` (age bands, blocked categories, domains)
 - `integrations` (enabled, poll intervals)
 - `demo` (simulated clock allowed)
+- `store` (v0.13: `STORE_CATALOG`, `STORE_TABS`, `STORE_RULES`, `MEGA_BUCKS`), `calendar` (`LAYER_OF_SCOPE`, `CLASH`, `GIFTS`), `kids` (`HOMEWORK`, `CHORES`, `ROUTINES`); `models.vision` / `models.wording`; ids `ANTENNA_IDS`, `EYE_STYLE_IDS`, `EYE_COLOR_IDS`, `STORE_ITEM_IDS`, `ROUTINE_KINDS`
 
 ## 8. Ports (internal to the backend; listed so the master plan is complete)
 `ChatModel.chat({ messages, tools?, schema? })` · `ImageGenerator.generate({ prompt, referenceImage? })` · `Segmenter.segment({ image, prompt })` · `Transcriber.transcribe({ audio })` · `WebSearch.search({ query, safe })` · `MemoryIndex.search({ scopeKeys, query, limit })` · `Weather.forecast({ lat, lng })` / `.alerts(...)` · `Directions.travelTime({ from, to, departAt })` · `CalendarFeed.fetch({ url })` · `PushSender.send(...)` · `BlobStore.put/get` · `Clock.now(familyId)`

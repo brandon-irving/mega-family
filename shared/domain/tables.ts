@@ -20,13 +20,25 @@ import {
   via,
 } from './enums';
 import { author, messageBody, saveChip } from './messages';
-import { BUTTON_SET_IDS, STICKERS, WALLPAPER_PRESET_IDS } from '../config/ids';
+import { ANTENNA_IDS, BUTTON_SET_IDS, EYE_COLOR_IDS, EYE_STYLE_IDS, ROUTINE_KINDS, STICKERS, STORE_ITEM_IDS, WALLPAPER_PRESET_IDS } from '../config/ids';
 import { literals } from './validators';
 
 // Config-backed values: stored as strings, but only ids that exist in shared/config are accepted.
 export const stickerId = literals(STICKERS);
 export const wallpaperPresetId = literals(WALLPAPER_PRESET_IDS);
 export const buttonSetId = literals(BUTTON_SET_IDS);
+export const antennaId = literals(ANTENNA_IDS);
+export const eyeStyleId = literals(EYE_STYLE_IDS);
+export const eyeColorId = literals(EYE_COLOR_IDS);
+export const storeItemId = literals(STORE_ITEM_IDS);
+export const routineKind = literals(ROUTINE_KINDS);
+
+/** GD (CONTRACT v0.13, OpenDuet learning): what made a privacy/judge decision, for audit. Format
+ * `rule:<ruleId>` (a deterministic rule in code/config) or `model:<modelId>` (a model call). Rules may only
+ * ever make something MORE private (mark sensitive, hold, keep private); only a model verdict, or the
+ * owner's own tap, can leave something less restricted. See docs/gates/GD.md -> invariants. */
+export const decidedBy = v.string();
+export type DecidedBy = `rule:${string}` | `model:${string}`;
 
 const familyId = v.id('families');
 const memberId = v.id('members');
@@ -60,7 +72,15 @@ export const members = {
 
 export const relationships = { familyId, from: memberId, to: memberId, kind: relationship };
 
-export const megaLook = v.object({ hex: v.string(), sticker: stickerId });
+/** GD (v0.13, additive): `antenna`, `eyes` and `eyeColor` are optional; missing means `classic`. A kid may
+ * only wear parts they own (shared/config/store.ts STORE_RULES); `megas.update` checks it on the server. */
+export const megaLook = v.object({
+  hex: v.string(),
+  sticker: stickerId,
+  antenna: v.optional(antennaId),
+  eyes: v.optional(eyeStyleId),
+  eyeColor: v.optional(eyeColorId),
+});
 export const megaJob = v.object({ station, label: v.string(), busy: v.boolean(), since: v.number() });
 
 export const megas = {
@@ -165,6 +185,8 @@ export const memories = {
   pinned: v.boolean(),
   createdAt: v.number(),
   lastUsedAt: v.number(),
+  /** GD (v0.13, additive): which rule or model decided `sensitive` (convex/model/concernGate.ts). */
+  gate: v.optional(v.object({ decidedBy, reason: v.optional(v.string()) })),
 };
 
 export const reactionCounts = v.object({ sent: v.number(), answered: v.number(), ignored: v.number(), up: v.number(), down: v.number() });
@@ -195,6 +217,10 @@ export const events = {
   createdBy: v.optional(memberId),
   scope,
   cancelled: v.boolean(),
+  /** GD (v0.13, additive): the owner of a private-layer event (`scope: 'personal'`), the only member who
+   * can see or share it. The server sets it on every new personal event; older personal rows fall back to
+   * `createdBy`. Unused on household events. See shared/config/calendar.ts LAYER_OF_SCOPE. */
+  ownerId: v.optional(memberId),
 };
 
 export const reminders = {
@@ -242,6 +268,8 @@ export const candidateSource = v.union(
   v.object({ kind: v.literal('request'), requestId: v.id('requests') }),
   v.object({ kind: v.literal('checkin'), memberId }),
   v.object({ kind: v.literal('mattersTo'), fromMemberId: memberId, familyEventId: v.id('familyEvents') }),
+  // GD: the backend adds its new trigger kinds here (chore, routine, proposal, shareSuggestion, practice,
+  // gifts) together with the code that switches on them; internal only (docs/gates/GD.md).
 );
 export type CandidateSource = Infer<typeof candidateSource>;
 
@@ -290,6 +318,8 @@ export const notifications = {
    * notification (convex/pushAnswer.ts) — a brute-force guard, same shape as `invites.failedAttempts`.
    * Never the HMAC secret or the token itself; nothing about the answer token is ever persisted. */
   answerFailedAttempts: v.optional(v.number()),
+  /** GD (v0.13, additive): back-link for a chore reminder's "Done" button (`chore.default`). */
+  choreId: v.optional(v.id('chores')),
 };
 
 export const requests = {
@@ -304,6 +334,242 @@ export const requests = {
    * never inferred from the request's free-text `text` at answer time. Only `lists_add` for now; more tools
    * can join this union as the effect dispatcher (convex/model/requestEffects.ts) grows. */
   onAccept: v.optional(v.object({ tool: v.literal('lists_add'), listName: v.string(), text: v.string() })),
+};
+
+// ---------- GD (CONTRACT v0.13): layers and sharing, clashes, gift ideas ----------
+
+/** The owner's own share (or unshare) of one of their private items — the ONLY way anything moves from a
+ * private layer to the household layer (explicit-share rule, owner Oct 26). Written by `events.share` /
+ * `events.unshare` / `shareSuggestions.answer` in the same mutation that changes the event's scope, never
+ * by a model, a trigger or another member. Append-only audit trail. */
+export const shareActions = {
+  familyId,
+  ownerId: memberId,
+  item: v.object({ kind: v.literal('event'), eventId: v.id('events') }),
+  action: v.union(v.literal('share'), v.literal('unshare')),
+  fromScope: scope,
+  toScope: scope,
+  at: v.number(),
+  /** Set when the owner was answering a MEGA's suggestion. */
+  suggestionId: v.optional(v.id('shareSuggestions')),
+};
+
+/** A MEGA asking the owner "Share it with the household?". Only ever shown to `ownerId`; answering it is
+ * the owner's own act. The memory writer's old "matters to" crossing becomes one of these (item kind
+ * 'memory') instead of an automatic trigger. A suggestion never changes anything by itself. */
+export const shareSuggestions = {
+  familyId,
+  ownerId: memberId,
+  item: v.union(v.object({ kind: v.literal('event'), eventId: v.id('events') }), v.object({ kind: v.literal('memory'), memoryId: v.id('memories') })),
+  /** What the household would see if shared ("Dentist · Thu 4:00–5:00 PM"), written from the item itself. */
+  preview: v.string(),
+  /** Who would gain sight of it (snapshot at suggestion time). */
+  audience: v.array(memberId),
+  status: v.union(v.literal('pending'), v.literal('shared'), v.literal('kept'), v.literal('expired')),
+  createdAt: v.number(),
+  answeredAt: v.optional(v.number()),
+  decidedBy, // what proposed the suggestion (rule:<id> | model:<id>)
+  messageId: v.optional(v.id('messages')),
+};
+
+/** Two household-layer events that overlap and need the same person. Internal: no public function returns
+ * this table; the app sees it only through its proposal. Never created from a private event. */
+export const collisions = {
+  familyId,
+  eventIds: v.array(v.id('events')), // exactly 2, both on the household layer when detected
+  memberId, // the person needed in both places
+  dedupeKey: v.string(),
+  detectedAt: v.number(),
+  status: v.union(v.literal('open'), v.literal('resolved'), v.literal('dismissed'), v.literal('stale')),
+};
+
+/** The before/after of the one event a fix changes. */
+export const eventSnapshot = v.object({
+  eventId: v.id('events'),
+  title: v.string(),
+  start: v.number(),
+  end: v.optional(v.number()),
+  who: v.array(memberId),
+});
+
+/** Hub's one proposed fix for a clash. Pending until the Admin approves; nothing changes before that. */
+export const proposals = {
+  familyId,
+  collisionId: v.id('collisions'),
+  /** The MEGA proposing it (the family MEGA, Hub), shown with the AI disclosure (config PROPOSAL_DISCLOSURE). */
+  megaId: v.id('megas'),
+  fix: v.union(
+    v.object({ kind: v.literal('reassign'), eventId: v.id('events'), from: memberId, to: memberId }),
+    v.object({ kind: v.literal('move'), eventId: v.id('events'), start: v.number(), end: v.optional(v.number()) }),
+  ),
+  /** Headline + one-line explanation, worded by Muse Wonder (config models.wording). */
+  title: v.string(),
+  text: v.string(),
+  before: eventSnapshot,
+  after: eventSnapshot,
+  wordedBy: decidedBy, // model:<id>
+  reasonedBy: decidedBy, // model:<id> (or rule:<id>) that picked the fix
+  /** The family's members when the proposal was made. Approval is refused (VALIDATION, status 'stale')
+   * if the membership changed since (OpenDuet learning: approvals are scoped to their audience). */
+  audience: v.array(memberId),
+  status: v.union(v.literal('pending'), v.literal('approved'), v.literal('rejected'), v.literal('expired'), v.literal('stale')),
+  createdAt: v.number(),
+  expiresAt: v.number(),
+  decision: v.optional(v.object({ byId: memberId, at: v.number(), approve: v.boolean(), audience: v.array(memberId) })),
+  messageId: v.optional(v.id('messages')),
+};
+
+/** Gift ideas for an upcoming birthday. Built only from household-shared facts (config GIFTS.sourceScopes);
+ * each idea cites the shared facts it's based on. Never visible to the person it's for, or to kids. */
+export const giftIdeas = {
+  familyId,
+  forMemberId: memberId,
+  occasion: v.literal('birthday'),
+  date: dateOnly,
+  basedOn: v.array(
+    v.object({
+      label: v.string(), // "Twin 1 shared: loves dinosaurs"
+      source: v.union(v.object({ kind: v.literal('memory'), memoryId: v.id('memories') }), v.object({ kind: v.literal('member'), field: v.literal('activities') })),
+    }),
+  ),
+  ideas: v.array(v.object({ title: v.string(), why: v.string(), price: v.optional(v.string()), basedOn: v.array(v.number()), url: v.optional(v.string()) })),
+  status: v.union(v.literal('queued'), v.literal('ready'), v.literal('failed')),
+  createdBy: v.optional(memberId), // empty when Hub offered them on its own
+  createdAt: v.number(),
+  addedToList: v.array(v.number()), // idea indexes already added to the gift list
+};
+
+// ---------- GD: homework practice ----------
+
+/** A worksheet photo an adult took (Convex file storage), and what Muse Spark read from it. */
+export const homeworkSheets = {
+  familyId,
+  createdBy: memberId,
+  storageId: v.id('_storage'),
+  status: v.union(v.literal('reading'), v.literal('ready'), v.literal('failed')),
+  topic: v.optional(v.string()), // "Fractions · Sheet 4"
+  summary: v.optional(v.string()), // "Adding and taking away fractions, 6 problems."
+  createdAt: v.number(),
+};
+
+/** One question. `answerIndex` never leaves the server (see `practiceView` in api.ts). */
+export const practiceQuestion = v.object({
+  id: v.string(),
+  prompt: v.string(),
+  choices: v.array(v.string()),
+  answerIndex: v.number(),
+  hint: v.string(),
+});
+
+export const practiceSets = {
+  familyId,
+  sheetId: v.id('homeworkSheets'),
+  forMemberId: memberId,
+  createdBy: memberId,
+  status: v.union(v.literal('drafting'), v.literal('ready'), v.literal('done'), v.literal('failed')),
+  questions: v.array(practiceQuestion),
+  createdAt: v.number(),
+  startedAt: v.optional(v.number()),
+  finishedAt: v.optional(v.number()),
+  /** Written when the kid finishes; the parent's summary card. */
+  summary: v.optional(v.object({ correct: v.number(), total: v.number(), hintsUsed: v.number(), minutes: v.number(), note: v.string() })),
+};
+
+export const practiceAttempts = {
+  familyId,
+  setId: v.id('practiceSets'),
+  questionId: v.string(),
+  memberId,
+  kind: v.union(v.literal('answer'), v.literal('hint')),
+  choiceIndex: v.optional(v.number()),
+  correct: v.optional(v.boolean()),
+  at: v.number(),
+};
+
+// ---------- GD: chores and routines ----------
+
+export const chores = {
+  familyId,
+  forMemberId: memberId,
+  title: v.string(),
+  bucks: v.number(),
+  days: v.array(v.number()), // 0 = Sunday
+  time: clockTime,
+  createdBy: memberId,
+  active: v.boolean(),
+};
+
+/** One day's instance of a chore: due → claimed (the kid tapped Done) → approved (an adult released bucks). */
+export const choreClaims = {
+  familyId,
+  choreId: v.id('chores'),
+  forMemberId: memberId,
+  date: dateOnly,
+  status: v.union(v.literal('due'), v.literal('claimed'), v.literal('approved'), v.literal('declined')),
+  claimedAt: v.optional(v.number()),
+  decidedById: v.optional(memberId),
+  decidedAt: v.optional(v.number()),
+};
+
+export const routineStep = v.object({ id: v.string(), label: v.string(), detail: v.optional(v.string()) });
+
+export const routines = {
+  familyId,
+  memberId,
+  kind: routineKind,
+  steps: v.array(routineStep),
+  time: clockTime,
+  days: v.array(v.number()),
+  updatedBy: v.optional(memberId),
+};
+
+/** One day's checklist. Bedtime runs add items derived from tomorrow's HOUSEHOLD-layer events that include
+ * the kid (`source.eventId`); private events never feed it. */
+export const routineRuns = {
+  familyId,
+  routineId: v.id('routines'),
+  memberId,
+  kind: routineKind,
+  date: dateOnly,
+  steps: v.array(
+    v.object({
+      id: v.string(),
+      label: v.string(),
+      detail: v.optional(v.string()),
+      done: v.boolean(),
+      source: v.optional(v.object({ eventId: v.id('events') })),
+    }),
+  ),
+  createdAt: v.number(),
+  finishedAt: v.optional(v.number()),
+};
+
+// ---------- GD: Mega Bucks and the Store ----------
+
+/** The Mega Bucks ledger. A kid's balance is the sum of their rows' `delta` (never stored separately).
+ * Releases (+) are written only by an adult's `bucks.release`; spends (−) only by the kid's `store.buy`.
+ * At most one release per practice set or chore claim (idempotent). */
+export const bucksLedger = {
+  familyId,
+  memberId, // the kid
+  delta: v.number(),
+  source: v.union(
+    v.object({ kind: v.literal('practice'), setId: v.id('practiceSets') }),
+    v.object({ kind: v.literal('chore'), claimId: v.id('choreClaims') }),
+    v.object({ kind: v.literal('bonus') }),
+    v.object({ kind: v.literal('purchase'), purchaseId: v.id('purchases') }),
+  ),
+  byId: memberId, // the releasing adult, or the kid buying
+  note: v.optional(v.string()),
+  at: v.number(),
+};
+
+export const purchases = {
+  familyId,
+  memberId,
+  itemId: storeItemId,
+  price: v.number(),
+  at: v.number(),
 };
 
 // ---------- places, art and system ----------
@@ -387,5 +653,19 @@ export const TABLES = {
   integrations,
   usage,
   clocks,
+  shareActions,
+  shareSuggestions,
+  collisions,
+  proposals,
+  giftIdeas,
+  homeworkSheets,
+  practiceSets,
+  practiceAttempts,
+  chores,
+  choreClaims,
+  routines,
+  routineRuns,
+  bucksLedger,
+  purchases,
 } as const;
 export type TableName = keyof typeof TABLES;

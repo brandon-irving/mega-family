@@ -14,6 +14,11 @@ export const BUTTON_SETS = {
   ],
   'tip.default': [],
   'update.default': [],
+  // GD (CONTRACT v0.13): a kid's chore reminder. "Done" claims the chore (an adult then approves it).
+  'chore.default': [
+    { id: 'done', label: 'Done' },
+    { id: 'later', label: 'Later' },
+  ],
 } as const satisfies Record<(typeof BUTTON_SET_IDS)[number], readonly { id: string; label: string }[]>;
 export type ButtonSetId = keyof typeof BUTTON_SETS;
 

@@ -48,4 +48,20 @@ export default defineSchema({
   integrations: defineTable(T.integrations).index('by_family', ['familyId']),
   usage: defineTable(T.usage).index('by_family_day', ['familyId', 'day']),
   clocks: defineTable(T.clocks).index('by_family', ['familyId']),
+
+  // GD (CONTRACT v0.13)
+  shareActions: defineTable(T.shareActions).index('by_family_owner', ['familyId', 'ownerId']),
+  shareSuggestions: defineTable(T.shareSuggestions).index('by_family_owner_status', ['familyId', 'ownerId', 'status']),
+  collisions: defineTable(T.collisions).index('by_family_dedupeKey', ['familyId', 'dedupeKey']).index('by_family_status', ['familyId', 'status']),
+  proposals: defineTable(T.proposals).index('by_family_status', ['familyId', 'status']).index('by_family_collision', ['familyId', 'collisionId']),
+  giftIdeas: defineTable(T.giftIdeas).index('by_family_for', ['familyId', 'forMemberId']),
+  homeworkSheets: defineTable(T.homeworkSheets).index('by_family_creator', ['familyId', 'createdBy']),
+  practiceSets: defineTable(T.practiceSets).index('by_family_for', ['familyId', 'forMemberId']).index('by_family_sheet', ['familyId', 'sheetId']),
+  practiceAttempts: defineTable(T.practiceAttempts).index('by_family_set', ['familyId', 'setId']),
+  chores: defineTable(T.chores).index('by_family_for', ['familyId', 'forMemberId']),
+  choreClaims: defineTable(T.choreClaims).index('by_family_chore_date', ['familyId', 'choreId', 'date']).index('by_family_status', ['familyId', 'status']),
+  routines: defineTable(T.routines).index('by_family_member_kind', ['familyId', 'memberId', 'kind']),
+  routineRuns: defineTable(T.routineRuns).index('by_family_member_kind_date', ['familyId', 'memberId', 'kind', 'date']),
+  bucksLedger: defineTable(T.bucksLedger).index('by_family_member_at', ['familyId', 'memberId', 'at']),
+  purchases: defineTable(T.purchases).index('by_family_member', ['familyId', 'memberId']),
 });
