@@ -84,7 +84,12 @@ describe('invites.create / .redeem', () => {
     const { t, kidId } = await withUnjoinedKid();
     const { url, expiresAt } = await t.withIdentity({ subject: 'sample:admin' }).mutation(api.invites.create, { memberId: kidId });
     expect(url).toContain('mega://join/');
-    expect(expiresAt).toBeGreaterThan(Date.now());
+    // Expiry is measured on the family's Clock (the demo clock is pinned to the seed week), not the wall clock,
+    // so ask the app itself: a fresh invite previews as valid, and it expires `ttlHours` after it was made.
+    const preview = await t.query(api.invites.preview, { token: url.split('/').pop()! });
+    expect(preview.status).toBe('ok');
+    const row = await t.run((ctx) => ctx.db.query('invites').order('desc').first());
+    expect(row!.expiresAt).toBe(expiresAt);
   });
 
   test("a non-parent, non-admin member can't create an invite for someone else's kid", async () => {
