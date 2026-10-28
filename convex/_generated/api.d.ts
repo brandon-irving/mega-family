@@ -94,6 +94,7 @@ import type * as model_sharingAccess from "../model/sharingAccess.js";
 import type * as model_spend from "../model/spend.js";
 import type * as model_store from "../model/store.js";
 import type * as model_threads from "../model/threads.js";
+import type * as model_travel from "../model/travel.js";
 import type * as model_viewer from "../model/viewer.js";
 import type * as model_visibility from "../model/visibility.js";
 import type * as model_weather from "../model/weather.js";
@@ -224,6 +225,7 @@ declare const fullApi: ApiFromModules<{
   "model/spend": typeof model_spend;
   "model/store": typeof model_store;
   "model/threads": typeof model_threads;
+  "model/travel": typeof model_travel;
   "model/viewer": typeof model_viewer;
   "model/visibility": typeof model_visibility;
   "model/weather": typeof model_weather;
