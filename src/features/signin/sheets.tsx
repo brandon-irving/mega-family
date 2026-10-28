@@ -4,6 +4,7 @@
 import { type ReactNode, useEffect, useState } from 'react';
 import { Platform, Pressable, StyleSheet, TextInput, View } from 'react-native';
 import Animated, { FadeIn, FadeOut, SlideInDown, SlideOutDown, useAnimatedStyle } from 'react-native-reanimated';
+import { hiddenFromA11y } from '@/ui/a11y';
 import { CloseButton, useDismiss, useSwipeDown } from '@/ui/dismiss';
 import { useSafeAreaPadding } from '@/ui/Screen';
 import { Ledge } from '@/features/walkers';
@@ -30,7 +31,7 @@ function SheetPanel({ onClose, label, children }: { onClose: () => void; label: 
   const ms = tokens.durations.slow;
   // Owner, Oct 28: every modal closes — the ✕, the scrim, a drag down, Android back and Escape on web.
   const { handlers, dragY } = useSwipeDown(onClose);
-  useDismiss(onClose);
+  useDismiss(onClose, { layer: 'overlay' });
   const dragged = useAnimatedStyle(() => ({ transform: [{ translateY: dragY.value }] }));
   // The sheet's top only becomes a ledge once it has finished sliding up (measured in place, not mid-slide).
   const [settled, setSettled] = useState(false);
@@ -42,7 +43,8 @@ function SheetPanel({ onClose, label, children }: { onClose: () => void; label: 
   return (
     <View style={StyleSheet.absoluteFill}>
       <Animated.View entering={FadeIn.duration(ms)} exiting={FadeOut.duration(ms)} style={[StyleSheet.absoluteFill, { backgroundColor: tokens.scrim }]}>
-        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} accessibilityRole="button" accessibilityLabel={SIGNIN_COPY.sheet.close} />
+        {/* A tap target only: screen readers get the one ✕. */}
+        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} accessible={false} {...hiddenFromA11y()} />
       </Animated.View>
       <Animated.View
         entering={SlideInDown.duration(ms)}

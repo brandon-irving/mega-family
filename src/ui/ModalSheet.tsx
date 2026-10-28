@@ -10,10 +10,12 @@ import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import Animated, { useAnimatedStyle, useReducedMotion } from 'react-native-reanimated';
 import { Path, Svg } from 'react-native-svg';
 import { hiddenFromA11y } from './a11y';
-import { useSwipeDown } from './dismiss';
+import { useDismiss, useSwipeDown } from './dismiss';
 import { useSafeAreaPadding } from './Screen';
 import { Text } from './Text';
 import { useTokens } from './theme';
+
+const noop = () => {};
 
 export type ModalSheetProps = { open: boolean; title: string; closeLabel: string; onClose: () => void; children: ReactNode; showTitle?: boolean; testID?: string };
 
@@ -23,11 +25,15 @@ export function ModalSheet({ open, title, closeLabel, onClose, children, showTit
   const reduced = useReducedMotion();
   const { handlers, dragY } = useSwipeDown(onClose);
   const dragged = useAnimatedStyle(() => ({ transform: [{ translateY: dragY.value }] }));
+  // While open it's the top Escape layer, so the screen under it doesn't close too; the Modal's own
+  // onRequestClose (Escape on web, back on Android) is what closes it.
+  useDismiss(noop, { enabled: open, androidBack: false, layer: 'overlay' });
   return (
     <Modal visible={open} transparent animationType={reduced ? 'none' : 'slide'} onRequestClose={onClose} statusBarTranslucent>
       <KeyboardAvoidingView behavior="padding" style={styles.fill}>
         <View style={styles.fill}>
-          <Pressable testID={testID ? `${testID}-scrim` : undefined} style={[StyleSheet.absoluteFill, { backgroundColor: tokens.scrim }]} onPress={onClose} accessibilityRole="button" accessibilityLabel={closeLabel} />
+          {/* A tap target only: screen readers get the one ✕ (G4 UX review: two "Close" buttons otherwise). */}
+          <Pressable testID={testID ? `${testID}-scrim` : undefined} style={[StyleSheet.absoluteFill, { backgroundColor: tokens.scrim }]} onPress={onClose} accessible={false} {...hiddenFromA11y()} />
           <Animated.View
             testID={testID}
             accessibilityViewIsModal
