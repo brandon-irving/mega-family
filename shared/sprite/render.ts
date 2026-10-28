@@ -1,16 +1,50 @@
 // Pure-TS port of prototypes/megasprite/mega-sprite.mjs — renders a MEGA from the template data.
 // No image generation involved: renderMega(spec, options) -> { w, h, px }.
 import type { StickerId } from '../config/looks';
+import type { AntennaId, EyeColorId, EyeStyleId } from '../config/store';
 import { blank, crop, mirror, onTile, paint, type Part, type Picture, shades, withShades } from './pixelPaint';
-import { BADGE, BADGE_PARTS, EXPRESSIONS, type ExpressionName, FIXED_COLORS, FRAMES, type FrameName, STICKER, STICKER_STANDINS, type ViewName, VIEWS } from './template';
+import {
+  ANTENNAS,
+  BADGE,
+  BADGE_PARTS,
+  EXPRESSIONS,
+  type ExpressionName,
+  EYE_COLORS,
+  EYE_STYLES,
+  FIXED_COLORS,
+  FRAMES,
+  type FrameName,
+  STICKER,
+  STICKER_STANDINS,
+  STORE_PART_COLORS,
+  type ViewName,
+  VIEWS,
+} from './template';
 
-export type SpriteSpec = { shell: string; sticker: StickerId };
+/** GD (CONTRACT v0.13 `megaLook`): `antenna`, `eyes` and `eyeColor` are optional Store parts; missing means
+ * `classic`, so every existing MEGA renders exactly as before. */
+export type SpriteSpec = { shell: string; sticker: StickerId; antenna?: AntennaId; eyes?: EyeStyleId; eyeColor?: EyeColorId };
 export type View = ViewName | 'left' | 'right';
 
 /** Shell shades derived from one color: pick a hex, the rest follows. */
 export function palette(spec: SpriteSpec): Record<string, string> {
   const { light, dark } = shades(spec.shell);
-  return { ...withShades(FIXED_COLORS), shell: spec.shell, shellLight: light, shellDark: dark };
+  return {
+    ...withShades({ ...FIXED_COLORS, ...STORE_PART_COLORS }),
+    // A bought eye color recolors the "eye" key, so every face (open, happy, wink, closed) follows.
+    eye: EYE_COLORS[spec.eyeColor ?? 'classic'] ?? FIXED_COLORS.eye,
+    shell: spec.shell,
+    shellLight: light,
+    shellDark: dark,
+  };
+}
+
+/** Swaps in the spec's antenna (default classic) where the template's antenna parts sit. */
+function withAntenna(parts: Part[], name: AntennaId | undefined): Part[] {
+  if (!name || name === 'classic') return parts;
+  const i = parts.findIndex((p) => p.id.startsWith('antenna'));
+  if (i < 0) return parts;
+  return [...parts.slice(0, i), ...ANTENNAS[name], ...parts.slice(i).filter((p) => !p.id.startsWith('antenna'))];
 }
 
 const overlay = (id: string, fill: string, shapes: Part['shape'][]): Part[] => shapes.map((shape) => ({ id, group: 'body', fill, shape, shade: false, outline: false }));
@@ -46,24 +80,35 @@ function stickerLayers(sticker: StickerId): Part[] {
 }
 
 function layersFor(spec: SpriteSpec, view: ViewName, expression: ExpressionName): Part[] {
-  const face = EXPRESSIONS[expression] ?? EXPRESSIONS.blank;
+  // A bought eye design replaces only the resting "open" eyes; other expressions keep their own.
+  const design = expression === 'open' && spec.eyes && spec.eyes !== 'classic' ? EYE_STYLES[spec.eyes] : null;
+  const face = design ? { ...EXPRESSIONS.open, ...design } : (EXPRESSIONS[expression] ?? EXPRESSIONS.blank);
   if (view === 'front')
-    return [...VIEWS.front, ...stickerLayers(spec.sticker), ...overlay('eyes', 'eye', face.front), ...overlay('blush', 'blush', face.blush ?? [])];
-  if (view === 'side') return [...VIEWS.side, ...overlay('eyes', 'eye', face.side)];
-  return VIEWS[view];
+    return [
+      ...withAntenna(VIEWS.front, spec.antenna),
+      ...stickerLayers(spec.sticker),
+      ...overlay('eyes', 'eye', face.front),
+      ...(design?.paint ?? []).flatMap(({ fill, shape }) => overlay('eyes', fill, [shape])),
+      ...overlay('blush', 'blush', face.blush ?? []),
+    ];
+  if (view === 'side') return [...withAntenna(VIEWS.side, spec.antenna), ...overlay('eyes', 'eye', face.side)];
+  return withAntenna(VIEWS[view], spec.antenna);
 }
+
+/** The badge keeps the head parts plus whichever antenna is on (twin/star/sprout use their own part ids). */
+const inBadge = (p: Part) => BADGE_PARTS.includes(p.id) || p.id.startsWith('antenna');
 
 export type RenderOptions = { view?: View; frame?: FrameName; expression?: ExpressionName; badge?: boolean };
 
 /**
- * @param spec { shell: "#2FB8B0", sticker: "star" | "none" }
+ * @param spec { shell: "#2FB8B0", sticker: "star" | "none", antenna?, eyes?, eyeColor? }
  * @param options { view: front|back|right|left, frame: stand|stepL|stepR, expression, badge }
  */
 export function renderMega(spec: SpriteSpec, options: RenderOptions = {}): Picture {
   const { view = 'front', frame = 'stand', expression = 'open', badge = false } = options;
   const base: ViewName = view === 'right' || view === 'left' ? 'side' : view;
   let layers = layersFor(spec, base, expression);
-  if (badge) layers = layers.filter((p) => BADGE_PARTS.includes(p.id));
+  if (badge) layers = layers.filter(inBadge);
 
   const pal = palette(spec);
   // The sticker's ink color comes from its own standin, not the shell.

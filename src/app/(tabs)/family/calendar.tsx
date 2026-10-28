@@ -1,11 +1,18 @@
-// Full family calendar (PLAN §4): week strip + day agenda, color-coded by member.
+// Full family calendar (PLAN §4; GD Screen 12): week strip + day agenda, household and private layers,
+// color-coded by member, with Hub's clash banner for adults when a fix is waiting.
 import { useEffect, useState } from 'react';
 import { router } from 'expo-router';
+import { LINKS } from '@shared/domain/api';
+import { FAMILY_MEGA_DEFAULTS } from '@shared/config/looks';
 import { useCalendarRange, useFamilyMembers } from '@/data/useFamily';
+import { useOpenProposals } from '@/data/useCalendarLayers';
+import { useViewer } from '@/data/useViewer';
+import { isAdultRole } from '@/features/shell/familyDirectory';
+import { toPath } from '@/features/shell/links';
 import { LoadingScreen } from '@/ui/LoadingScreen';
 import { Sheet } from '@/ui/Sheet';
 import { useTokens } from '@/ui/theme';
-import { CalendarContent } from '@/features/family/CalendarContent';
+import { CalendarContent, type CalendarClash } from '@/features/family/CalendarContent';
 
 function startOfWeek(now: number): number {
   const d = new Date(now);
@@ -19,22 +26,34 @@ export default function CalendarRoute() {
   // screen opens pinned to "this week" as of when it was opened, not recomputed on every re-render.
   // A single setState-on-mount effect is the documented escape hatch for seeding state from an
   // external, non-reactive source (React docs: "You Might Not Need an Effect" — initializing state).
-  const [weekStart, setWeekStart] = useState<number | null>(null);
+  const [opened, setOpened] = useState<number | null>(null);
   // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time mount-only read of the clock
-  useEffect(() => setWeekStart(startOfWeek(Date.now())), []);
+  useEffect(() => setOpened(Date.now()), []);
+  const weekStart = opened !== null ? startOfWeek(opened) : null;
   const weekEnd = weekStart !== null ? weekStart + 7 * 24 * 60 * 60 * 1000 : null;
   const events = useCalendarRange(weekStart, weekEnd);
   const members = useFamilyMembers();
+  const viewer = useViewer();
+  const adult = !!viewer && isAdultRole(viewer.member.role);
+  const proposals = useOpenProposals(adult);
   const tokens = useTokens();
 
-  if (weekStart === null || events === undefined || members === undefined) return <LoadingScreen label="Loading calendar…" />;
+  if (weekStart === null || opened === null || events === undefined || members === undefined) return <LoadingScreen label="Loading calendar…" />;
+
+  const open = proposals.status === 'ok' ? proposals.data.find((p) => p.proposal.status === 'pending') : undefined;
+  const clash: CalendarClash | null = open ? { eventId: open.proposal.before.eventId, line: open.proposal.title, messageId: open.proposal.messageId } : null;
 
   return (
-    <Sheet title="Calendar" onClose={() => router.back()}>
+    <Sheet title={new Date(opened).toLocaleDateString(undefined, { month: 'long', year: 'numeric' })} onClose={() => router.back()}>
       <CalendarContent
         weekStart={weekStart}
+        todayIndex={new Date(opened).getDay()}
         events={events}
         members={members.map((m) => ({ _id: m.member._id, name: m.member.name, hex: m.mega?.look.hex ?? tokens.muted }))}
+        viewerId={viewer?.member._id}
+        hubName={open?.mega.name ?? FAMILY_MEGA_DEFAULTS.name}
+        clash={clash}
+        onSeeClash={(c) => router.push(toPath(c.messageId ? LINKS.chatMessage(c.messageId) : LINKS.chat()) as never)}
       />
     </Sheet>
   );

@@ -45,6 +45,10 @@ export function AuthGate() {
         <Stack.Screen name="mega-profile" options={{ presentation: 'modal' }} />
         <Stack.Screen name="settings" options={{ presentation: 'modal' }} />
         <Stack.Screen name="widgets" options={{ presentation: 'modal' }} />
+        {/* GD (Screens 10–11): the parent's homework photo, the kid's morning routine and the Store. */}
+        <Stack.Screen name="homework" options={{ presentation: 'fullScreenModal', animation: 'slide_from_bottom' }} />
+        <Stack.Screen name="routine/morning" options={{ presentation: 'fullScreenModal', animation: 'slide_from_bottom' }} />
+        <Stack.Screen name="store" options={{ presentation: 'modal' }} />
       </Stack.Protected>
     </Stack>
   );

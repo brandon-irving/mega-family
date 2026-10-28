@@ -14,11 +14,80 @@ export type ThemeTokens = {
   onAccent: string;
   /** A translucent full-bleed backdrop behind a modal/sheet. */
   scrim: string;
+  /** GD (Screens 10–12) semantic colors, from the boards. `bucks*`: Mega Bucks amounts and price tags (the
+   * coin's gold). `household*`: the shared calendar layer, Hub's clash card and "Based on what's shared"
+   * tags. `warn*`: a pending decision / a CLASH tag. `danger*`: a wrong practice answer. `hint*`: the hint
+   * note and kid progress. `success`: a done/approved status line. */
+  bucks: string;
+  bucksSurface: string;
+  household: string;
+  householdSurface: string;
+  householdLine: string;
+  householdText: string;
+  warn: string;
+  warnSurface: string;
+  danger: string;
+  dangerSurface: string;
+  dangerText: string;
+  hint: string;
+  hintSurface: string;
+  hintLine: string;
+  success: string;
 };
 
 export const THEMES: Record<ThemeName, ThemeTokens> = {
-  midnight: { label: 'Midnight', accent: '#2FB8B0', bg: '#0C0E11', surface: '#16191E', line: '#2E343D', text: '#EDEFF2', muted: '#9AA1AB', onAccent: '#FFFFFF', scrim: '#00000088' },
-  light: { label: 'Light', accent: '#1E9A93', bg: '#F5F6F8', surface: '#FFFFFF', line: '#DDE1E6', text: '#14171C', muted: '#5F6670', onAccent: '#FFFFFF', scrim: '#00000088' },
+  midnight: {
+    label: 'Midnight',
+    accent: '#2FB8B0',
+    bg: '#0C0E11',
+    surface: '#16191E',
+    line: '#2E343D',
+    text: '#EDEFF2',
+    muted: '#9AA1AB',
+    onAccent: '#FFFFFF',
+    scrim: '#00000088',
+    bucks: '#FFD54A',
+    bucksSurface: '#2A2410',
+    household: '#5B8DEF',
+    householdSurface: '#10243F',
+    householdLine: '#2B4A7A',
+    householdText: '#C9D8F7',
+    warn: '#F2B33D',
+    warnSurface: '#3A2B10',
+    danger: '#E07A5F',
+    dangerSurface: '#2A1A1A',
+    dangerText: '#F2A08A',
+    hint: '#C4B2F5',
+    hintSurface: '#1F1A33',
+    hintLine: '#8E6CE0',
+    success: '#2FB8B0',
+  },
+  light: {
+    label: 'Light',
+    accent: '#1E9A93',
+    bg: '#F5F6F8',
+    surface: '#FFFFFF',
+    line: '#DDE1E6',
+    text: '#14171C',
+    muted: '#5F6670',
+    onAccent: '#FFFFFF',
+    scrim: '#00000088',
+    bucks: '#9A6A00',
+    bucksSurface: '#FFF4D1',
+    household: '#2F5FC4',
+    householdSurface: '#E6EEFC',
+    householdLine: '#B9CCF3',
+    householdText: '#1E3E80',
+    warn: '#9A6400',
+    warnSurface: '#FFF0D6',
+    danger: '#B4442B',
+    dangerSurface: '#FCE9E4',
+    dangerText: '#A13A23',
+    hint: '#5B3FB8',
+    hintSurface: '#EFEAFC',
+    hintLine: '#8E6CE0',
+    success: '#16807A',
+  },
 };
 
 export const DEFAULT_THEME: ThemeName = 'midnight';

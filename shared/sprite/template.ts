@@ -1,5 +1,6 @@
 // Pure-TS port of prototypes/megasprite/mega-template.mjs — the MEGA body as data on a 32x40 grid.
 // Parts draw in order; each outlined part gets a 1px navy border over whatever is beneath it.
+import type { AntennaId, EyeColorId, EyeStyleId } from '../config/store';
 import { flat, part, type Part, type Shape } from './pixelPaint';
 
 export const GRID = { w: 32, h: 40 };
@@ -21,10 +22,68 @@ export const FIXED_COLORS: Record<string, string> = {
   blush: '#FF9AB2',
 };
 
-const antenna: Part[] = [
-  part('antennaStem', 'body', 'silver', { rect: [15, 4, 2, 4] }),
-  part('antennaTip', 'body', 'tip', { round: [14, 1, 4, 3, 1] }),
-];
+/** GD (Store, owner Oct 27): antenna shapes, ported from prototypes/megasprite/mega-template.mjs ANTENNAS.
+ * Every part id starts with "antenna" and stays above row 8 (the head's top edge), so the renderer swaps
+ * the antenna without touching the rest of the body. `classic` is the one every MEGA starts with. The id
+ * list is config (shared/config/ids.ts ANTENNA_IDS); prices live in shared/config/store.ts. */
+export const ANTENNAS: Record<AntennaId, Part[]> = {
+  classic: [part('antennaStem', 'body', 'silver', { rect: [15, 4, 2, 4] }), part('antennaTip', 'body', 'tip', { round: [14, 1, 4, 3, 1] })],
+  twin: [
+    part('antennaStemL', 'body', 'silver', { rect: [10, 4, 2, 4] }),
+    part('antennaStemR', 'body', 'silver', { rect: [20, 4, 2, 4] }),
+    part('antennaTipL', 'body', 'tip', { round: [9, 1, 4, 3, 1] }),
+    part('antennaTipR', 'body', 'tip', { round: [19, 1, 4, 3, 1] }),
+  ],
+  star: [part('antennaStem', 'body', 'silver', { rect: [15, 6, 2, 2] }), part('antennaStar', 'body', 'star', { pattern: [13, 1, ['..#..', '.###.', '#####', '.###.', '.#.#.']] })],
+  sprout: [
+    part('antennaStem', 'body', 'sprout', { rect: [15, 4, 2, 4] }),
+    part('antennaLeafL', 'body', 'sprout', { pattern: [11, 2, ['##..', '###.', '.###']] }),
+    part('antennaLeafR', 'body', 'sprout', { pattern: [17, 1, ['..##', '.###', '###.']] }),
+  ],
+};
+const antenna: Part[] = ANTENNAS.classic;
+
+/** Colors only Store parts use (their light/dark shades are derived at render time), kept apart from
+ * FIXED_COLORS. The anime* colors come from the Muse Image eyes (ANIME_EYE below). */
+export const STORE_PART_COLORS: Record<string, string> = {
+  star: '#FFD54A',
+  sprout: '#5BBF6A',
+  animeBlue: '#0157B7',
+  animeTeal: '#02A0BC',
+  animeCyan: '#00CCC6',
+  animeAqua: '#00F2CF',
+  animePupil: '#15123D',
+  animeShine: '#FFFFFF',
+};
+
+/** Eye colors recolor the standard eyes in every expression (the renderer swaps the "eye" palette entry). */
+export const EYE_COLORS: Record<EyeColorId, string> = { classic: '#E8FFFF', pink: '#FF9AD5', gold: '#FFD54A', mint: '#7DF2B0', lilac: '#C7A6FF', ember: '#FF8A5B' };
+
+/** Anime eyes: made once with Muse Image (Oct 27; source design/mega-screens/assets/looks/source/
+ * anime-eyes-muse.png) and downscaled to the visor grid — one 7x6 eye drawn twice. Each letter is a palette
+ * key; "." is the visor showing through. */
+export const ANIME_EYE = {
+  at: [
+    [8, 14],
+    [17, 14],
+  ] as [number, number][],
+  rows: ['..bbb..', '.bbpwbb', 'ttppwtt', 'ccpppcc', '.aacaa.', '..aaa..'],
+  keys: { b: 'animeBlue', t: 'animeTeal', c: 'animeCyan', a: 'animeAqua', p: 'animePupil', w: 'animeShine' } as Record<string, string>,
+};
+
+/** One-color patterns per palette key, at both eye positions. */
+function animeFront(): { fill: string; shape: Shape }[] {
+  return ANIME_EYE.at.flatMap(([x, y]) =>
+    Object.entries(ANIME_EYE.keys).map(([ch, fill]) => ({ fill, shape: { pattern: [x, y, ANIME_EYE.rows.map((r) => [...r].map((c) => (c === ch ? '#' : '.')).join(''))] } as Shape })),
+  );
+}
+
+/** Eye designs replace only the resting "open" eyes; other expressions keep their own. `paint` pieces carry
+ * their own palette key. */
+export const EYE_STYLES: Record<EyeStyleId, { front: Shape[]; side: Shape[]; paint?: { fill: string; shape: Shape }[] }> = {
+  classic: { front: [{ rect: [11, 15, 2, 3] }, { rect: [19, 15, 2, 3] }], side: [{ rect: [23, 15, 1, 3] }] },
+  anime: { front: [], paint: animeFront(), side: [{ rect: [23, 15, 1, 3] }] },
+};
 
 export const VIEWS: Record<'front' | 'back' | 'side', Part[]> = {
   front: [

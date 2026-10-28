@@ -1,0 +1,228 @@
+// Boards Store / StoreStickers / StoreColors / StoreAntennas / StoreEyes / StoreConfirm / StoreBought: the
+// kid's Store. Header with the Mega Bucks balance; tabs from config (STORE_TABS); for look tabs, a try-on
+// stage where the kid's own MEGA wears the selected part live (the real sprite engine, including the new
+// antennas, eye colors and the Muse anime eyes); a 3-up grid of pixel tiles with prices; a bottom bar
+// (Wearing / Wear it / Buy for N / Need N more) and the buy sheet (confirm → "It's yours!").
+// Buying is `store.buy` (kids only, server checks balance and ownership); a bought look part is put on
+// right away with `megas.update` (the board's "Zap is wearing the star antenna"); bought furniture waits in
+// the room's Decorate tray (StoreRoom / StoreTray).
+import { useMemo, useState } from 'react';
+import { Modal, Pressable, ScrollView, View } from 'react-native';
+import Animated, { FadeIn, useReducedMotion, ZoomIn } from 'react-native-reanimated';
+import { fillCopy, STORE_COPY } from '@shared/config/copy';
+import { STORE_TABS } from '@shared/config/store';
+import { renderFurniture, type Picture } from '@shared/sprite';
+import type { FurnitureKindId } from '@shared/config/store';
+import { BucksCoin } from '@/ui/BucksCoin';
+import { Button } from '@/ui/Button';
+import { MegaSprite } from '@/ui/MegaSprite';
+import { PixelArt } from '@/ui/PixelArt';
+import { Text } from '@/ui/Text';
+import { useTokens } from '@/ui/theme';
+import { BobbingMega } from '@/features/kids/MorningRoutine';
+import { barFor, type CatalogItem, firstPick, isWearing, type Look, type TabId, type Tile, tilesFor, tryOn } from './storeModel';
+
+const FURNITURE_ART = new Map<FurnitureKindId, Picture>();
+/** Each piece is drawn once per app run (pure function of its kind). */
+export function furniturePicture(kind: FurnitureKindId): Picture {
+  let pic = FURNITURE_ART.get(kind);
+  if (!pic) FURNITURE_ART.set(kind, (pic = renderFurniture(kind)));
+  return pic;
+}
+
+export function TileArt({ tile, look, box }: { tile: Tile; look: Look; box: number }) {
+  if (tile.furniture) {
+    const pic = furniturePicture(tile.furniture);
+    return <PixelArt picture={pic} scale={Math.min(box / pic.w, box / pic.h)} decorative />;
+  }
+  const worn = tryOn(look, tile);
+  return <MegaSprite hex={worn.hex} sticker={worn.sticker} parts={worn} badge scale={box / 30} accessibilityLabel={tile.label} />;
+}
+
+export type SheetState = { kind: 'none' } | { kind: 'confirm' } | { kind: 'bought'; furniture: boolean };
+
+export type StoreScreenViewProps = {
+  megaName: string;
+  balance: number;
+  items: CatalogItem[];
+  look: Look;
+  initialTab?: TabId;
+  busy?: boolean;
+  error?: string | null;
+  onClose: () => void;
+  onBuy: (tile: Tile) => Promise<boolean>;
+  onWear: (look: Look) => void;
+  onDecorate: () => void;
+};
+
+export function StoreScreenView({ megaName, balance, items, look, initialTab = 'furniture', busy, error, onClose, onBuy, onWear, onDecorate }: StoreScreenViewProps) {
+  const tokens = useTokens();
+  const reduced = useReducedMotion();
+  const [tab, setTab] = useState<TabId>(initialTab);
+  const tiles = useMemo(() => tilesFor(tab, items, look), [tab, items, look]);
+  const [picked, setPicked] = useState<Record<string, string>>({});
+  const [sheet, setSheet] = useState<SheetState>({ kind: 'none' });
+  const selKey = picked[tab] ?? firstPick(tiles);
+  const sel = tiles.find((t) => t.key === selKey) ?? tiles[0];
+  const lookTab = tab !== 'furniture';
+  const name = sel ? `${sel.label}${STORE_COPY.noun[tab] ?? ''}` : '';
+  const bar = sel ? barFor(sel, look, balance) : null;
+  const preview = sel ? tryOn(look, sel) : look;
+
+  const barButton = !bar ? null : bar.kind === 'wearing' ? (
+    <Button label={STORE_COPY.wearing} variant="secondary" disabled size={{ height: 56, fontSize: tokens.type.title.fontSize }} />
+  ) : bar.kind === 'inRoom' ? (
+    <Button label={STORE_COPY.inRoom} variant="secondary" disabled size={{ height: 56, fontSize: tokens.type.title.fontSize }} />
+  ) : bar.kind === 'wear' ? (
+    <Button label={STORE_COPY.wearIt} variant="secondary" onPress={() => onWear(preview)} loading={busy} size={{ height: 56, fontSize: tokens.type.title.fontSize }} />
+  ) : bar.kind === 'short' ? (
+    <Button label={fillCopy(STORE_COPY.needMore, { n: bar.short })} variant="secondary" disabled size={{ height: 56, fontSize: tokens.type.title.fontSize }} />
+  ) : (
+    <Button label={fillCopy(STORE_COPY.buyFor, { n: bar.price })} onPress={() => setSheet({ kind: 'confirm' })} size={{ height: 56, fontSize: tokens.type.title.fontSize }} />
+  );
+  const barNote = !bar ? null : bar.kind === 'short' ? STORE_COPY.needNote : bar.kind === 'buy' ? fillCopy(STORE_COPY.afterNote, { have: balance, left: bar.left }) : null;
+
+  return (
+    <View style={{ flex: 1, backgroundColor: tokens.bg }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: tokens.spacing.sm, paddingHorizontal: tokens.spacing.sm, height: 60 }}>
+        <Pressable onPress={onClose} accessibilityRole="button" accessibilityLabel="Back to your room" style={{ width: tokens.touchTarget, height: tokens.touchTarget, alignItems: 'center', justifyContent: 'center' }}>
+          <Text variant="title">‹</Text>
+        </Pressable>
+        <Text variant="headline" style={{ flex: 1 }} accessibilityRole="header">
+          {STORE_COPY.title}
+        </Text>
+        <View accessibilityLabel={fillCopy(STORE_COPY.youHave, { n: balance })} style={{ height: 40, paddingLeft: tokens.spacing.sm, paddingRight: tokens.spacing.md, borderRadius: 20, backgroundColor: tokens.surface, borderWidth: 1, borderColor: tokens.line, flexDirection: 'row', alignItems: 'center', gap: tokens.spacing.sm }}>
+          <BucksCoin size={24} />
+          <Text variant="title" style={{ color: tokens.bucks }}>
+            {balance}
+          </Text>
+        </View>
+      </View>
+
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0 }} contentContainerStyle={{ gap: 6, paddingHorizontal: tokens.spacing.lg, paddingTop: tokens.spacing.md, paddingBottom: tokens.spacing.xs }} accessibilityRole="tablist">
+        {STORE_TABS.map((t) => {
+          const on = t.id === tab;
+          return (
+            <Pressable
+              key={t.id}
+              onPress={() => setTab(t.id as TabId)}
+              accessibilityRole="tab"
+              accessibilityState={{ selected: on }}
+              style={{ height: 40, paddingHorizontal: 14, borderRadius: 20, borderWidth: 1, borderColor: on ? tokens.text : tokens.line, backgroundColor: on ? tokens.text : 'transparent', justifyContent: 'center' }}
+            >
+              <Text variant="label" style={{ color: on ? tokens.bg : tokens.text }}>
+                {t.label}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </ScrollView>
+
+      {lookTab && sel && (
+        <View style={{ marginTop: 10, marginHorizontal: tokens.spacing.lg, height: 236, borderRadius: tokens.radii.xl, backgroundColor: tokens.surface, borderWidth: 1, borderColor: tokens.line, overflow: 'hidden', alignItems: 'center', justifyContent: 'flex-end' }}>
+          <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: 52, backgroundColor: tokens.bg, borderTopWidth: 1, borderTopColor: tokens.line }} />
+          <View style={{ position: 'absolute', left: 14, top: 12, gap: 2 }}>
+            <Text variant="caption" weight="700" color="muted">
+              {(isWearing(look, sel) ? STORE_COPY.wearingNow : STORE_COPY.tryingOn).toUpperCase()}
+            </Text>
+            <Text variant="label">{name}</Text>
+          </View>
+          <View style={{ marginBottom: 18 }} accessibilityLabel={`${megaName} ${isWearing(look, sel) ? STORE_COPY.wearingNow : STORE_COPY.tryingOn} ${name}`}>
+            <BobbingMega mega={{ hex: preview.hex, sticker: preview.sticker, parts: preview }} happy={false} scale={5} />
+          </View>
+        </View>
+      )}
+
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: tokens.spacing.lg, flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
+        {tiles.map((t) => {
+          const on = t.key === sel?.key;
+          const wearing = isWearing(look, t);
+          const tag = wearing ? STORE_COPY.wearing : t.owned ? (t.price ? STORE_COPY.owned : t.section === 'furniture' ? STORE_COPY.free : STORE_COPY.yours) : String(t.price);
+          const priced = !wearing && !t.owned;
+          const afford = t.price <= balance;
+          return (
+            <Pressable
+              key={t.key}
+              onPress={() => setPicked((p) => ({ ...p, [tab]: t.key }))}
+              accessibilityRole="button"
+              accessibilityState={{ selected: on }}
+              accessibilityLabel={`${t.label}${STORE_COPY.noun[tab] ?? ''}, ${priced ? `${t.price} Mega Bucks` : tag}`}
+              style={{ flexBasis: '30%', flexGrow: 1, height: tab === 'furniture' ? 132 : 126, borderRadius: tokens.radii.lg, borderWidth: 2, borderColor: on ? tokens.hint : tokens.line, backgroundColor: on ? tokens.hintSurface : tokens.surface, alignItems: 'center', justifyContent: 'space-between', padding: tokens.spacing.sm }}
+            >
+              <View style={{ height: 64, justifyContent: 'center' }}>
+                <TileArt tile={t} look={look} box={56} />
+              </View>
+              <Text variant="caption" weight="700" numberOfLines={1}>
+                {t.label}
+              </Text>
+              <View style={{ height: 22, paddingHorizontal: tokens.spacing.sm, borderRadius: 11, flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: priced ? tokens.bucksSurface : tokens.line, opacity: priced && !afford ? 0.5 : 1 }}>
+                {priced && <BucksCoin size={12} />}
+                <Text variant="caption" weight="700" style={{ color: priced ? tokens.bucks : tokens.muted }}>
+                  {tag}
+                </Text>
+              </View>
+            </Pressable>
+          );
+        })}
+      </ScrollView>
+
+      <View style={{ padding: tokens.spacing.lg, paddingBottom: tokens.spacing.xl, borderTopWidth: 1, borderTopColor: tokens.line, gap: 6 }}>
+        {barButton}
+        {barNote || error ? (
+          <Text variant="caption" color="muted" style={{ textAlign: 'center' }}>
+            {error ?? barNote}
+          </Text>
+        ) : null}
+      </View>
+
+      <Modal visible={sheet.kind !== 'none' && !!sel} transparent animationType={reduced ? 'none' : 'fade'} onRequestClose={() => setSheet({ kind: 'none' })}>
+        <Pressable accessibilityLabel="Close" onPress={() => setSheet({ kind: 'none' })} style={{ flex: 1, backgroundColor: tokens.scrim }} />
+        {sel && sheet.kind !== 'none' && (
+          <Animated.View entering={reduced ? undefined : FadeIn.duration(tokens.durations.base)} accessibilityViewIsModal style={{ backgroundColor: tokens.surface, borderTopLeftRadius: 28, borderTopRightRadius: 28, borderTopWidth: 1, borderColor: tokens.line, padding: tokens.spacing.xl, paddingTop: tokens.spacing.md, alignItems: 'center', gap: tokens.spacing.sm }}>
+            <View style={{ width: 40, height: 5, borderRadius: 3, backgroundColor: tokens.line }} />
+            <Animated.View key={sheet.kind} entering={sheet.kind === 'bought' && !reduced ? ZoomIn.duration(tokens.durations.slow) : undefined} style={{ marginTop: tokens.spacing.sm }}>
+              {sel.furniture ? <PixelArt picture={furniturePicture(sel.furniture)} scale={2} decorative /> : <MegaSprite hex={preview.hex} sticker={preview.sticker} parts={preview} face={sheet.kind === 'bought' ? 'happy' : 'open'} scale={3} accessibilityLabel={megaName} />}
+            </Animated.View>
+            <Text variant="headline" accessibilityRole="header">
+              {sheet.kind === 'confirm' ? fillCopy(STORE_COPY.confirmTitle, { item: name }) : STORE_COPY.boughtTitle}
+            </Text>
+            <Text color="muted" style={{ textAlign: 'center' }}>
+              {sheet.kind === 'confirm'
+                ? fillCopy(STORE_COPY.confirmBody, { price: sel.price, left: balance - sel.price })
+                : sheet.furniture
+                  ? fillCopy(STORE_COPY.boughtFurniture, { item: sel.label.toLowerCase() })
+                  : fillCopy(STORE_COPY.boughtLook, { mega: megaName, item: name.toLowerCase() })}
+            </Text>
+            <View style={{ alignSelf: 'stretch', gap: tokens.spacing.sm, marginTop: 10 }}>
+              {sheet.kind === 'confirm' ? (
+                <>
+                  <Button
+                    label={STORE_COPY.buyIt}
+                    loading={busy}
+                    size={{ height: 56, fontSize: tokens.type.title.fontSize }}
+                    onPress={async () => {
+                      if (await onBuy(sel)) setSheet({ kind: 'bought', furniture: sel.section === 'furniture' });
+                    }}
+                  />
+                  <Button label={STORE_COPY.notNow} variant="secondary" disabled={busy} size={{ height: 56, fontSize: tokens.type.title.fontSize }} onPress={() => setSheet({ kind: 'none' })} />
+                </>
+              ) : sheet.furniture ? (
+                <>
+                  <Button label={STORE_COPY.decorateNow} size={{ height: 56, fontSize: tokens.type.title.fontSize }} onPress={onDecorate} />
+                  <Button label={STORE_COPY.keepShopping} variant="secondary" size={{ height: 56, fontSize: tokens.type.title.fontSize }} onPress={() => setSheet({ kind: 'none' })} />
+                </>
+              ) : (
+                <Button label={STORE_COPY.done} variant="secondary" size={{ height: 56, fontSize: tokens.type.title.fontSize }} onPress={() => setSheet({ kind: 'none' })} />
+              )}
+            </View>
+            {error ? (
+              <Text variant="caption" style={{ color: tokens.warn }}>
+                {error}
+              </Text>
+            ) : null}
+          </Animated.View>
+        )}
+      </Modal>
+    </View>
+  );
+}

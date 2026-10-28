@@ -8,7 +8,7 @@ import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import Animated, { FadeIn, FadeOut, LinearTransition, useAnimatedStyle, useReducedMotion, useSharedValue, withRepeat, withSequence, withTiming } from 'react-native-reanimated';
 import type { Id } from '@shared/domain/validators';
 import { ROLES_CONFIG } from '@shared/config/roles';
-import { CHAT_STATUS_PLACEHOLDER } from '@shared/config/copy';
+import { CHAT_STATUS_PLACEHOLDER, KIDS_COPY } from '@shared/config/copy';
 import { LINKS } from '@shared/domain/api';
 import { useViewer } from '@/data/useViewer';
 import { useAnswerBlock, useChatThread, useReactToMessage, useSendMessage, useStreamBody } from '@/data/useChat';
@@ -26,6 +26,7 @@ import { Button } from '@/ui/Button';
 import { MegaBadge } from '@/ui/MegaBadge';
 import { useTokens } from '@/ui/theme';
 import { megaInfo, type MegaInfo } from '@/features/shell/megaInfo';
+import { isAdultRole } from '@/features/shell/familyDirectory';
 import { toPath } from '@/features/shell/links';
 import { ChatHeader } from '@/features/chat/ChatHeader';
 import { ChatThread } from '@/features/chat/ChatThread';
@@ -157,7 +158,15 @@ export default function ChatRoute() {
             the friendly line, no retry button. */}
         {streamFailed && <RetryBanner label={streamStatusCopy(stream!.status as 'error' | 'timeout')} reducedMotion={reducedMotion} />}
         {sendError && <RetryBanner label={sendError.line} onRetry={onRetrySend} reducedMotion={reducedMotion} />}
-        <Composer megaName={mega.name} bigTalkButton={bigTalkButton} onSend={onSend} onOpenTalk={() => router.push(toPath(LINKS.talk()) as never)} />
+        <Composer
+          megaName={mega.name}
+          bigTalkButton={bigTalkButton}
+          onSend={onSend}
+          onOpenTalk={() => router.push(toPath(LINKS.talk()) as never)}
+          // GD (board KidsSnap): grown-ups can snap a worksheet for homework practice.
+          onCamera={isAdultRole(viewer.member.role) ? () => router.push('/homework') : undefined}
+          cameraLabel={KIDS_COPY.cameraButton}
+        />
       </Screen>
     </KeyboardAvoidingView>
   );
