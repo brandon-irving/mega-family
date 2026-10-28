@@ -79,6 +79,8 @@
     "smoke:meta": "node scripts/secrets.mjs run --only tool -- node scripts/smoke/meta.mjs",
     "dev": "node scripts/secrets.mjs run --only app -- expo start",
     "dev:web": "node scripts/secrets.mjs run --only app -- expo start --web",
+    "dev:all": "convex dev --start \"npm run dev\"",
+    "dev:all:web": "convex dev --start \"npm run dev:web\"",
     "build:ios:dev": "npx eas-cli@latest build --profile development --platform ios"
   },
   "private": true
