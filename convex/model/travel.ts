@@ -158,7 +158,8 @@ export async function answerTravel(ctx: MutationCtx, p: { event: Doc<'events'>; 
     return { message: 'Have a good trip.', remindAt: null };
   }
   const snooze = p.action === 'snooze_5';
-  const text = snooze ? `Time to leave for ${event.title}` : `${event.title} starts at ${formatLocalTime(event.start, p.tz)}`;
+  // "<title> at <time>", not "starts at": event titles can be phrases like "Soccer practice ends" (G4 review).
+  const text = snooze ? `Time to leave for ${event.title}` : `${event.title} at ${formatLocalTime(event.start, p.tz)}`;
   const reply = (remindAt: number) => ({ message: snooze ? 'Okay, I’ll remind you in 5 minutes.' : `Okay, I’ll remind you at ${formatLocalTime(remindAt, p.tz)}.`, remindAt });
   // G4 review: idempotent like `notifications.answer` — while this action's reminder is still pending, a retry
   // or a double tap returns it instead of adding a second one (one reminder per event × person × action).

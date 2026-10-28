@@ -206,7 +206,7 @@ export function WeatherCardView({ card, tz }: { card: WeatherCard; tz: string })
 export type TravelAction = 'on_my_way' | 'snooze_5' | 'remind_30_before';
 
 /** The line a failed travel check shows instead of numbers (fail closed, G4 invariant 7). With the event known
- * (v0.15a), the not-set-up line names it and its start ("Soccer pickup starts at 5:30 PM."). */
+ * (v0.15a), the not-set-up line names it and its start ("Soccer pickup at 5:30 PM."). */
 export function travelFailureText(failure: NonNullable<TravelCard['failure']>, event?: { title: string; start: string }): { title: string; body?: string } {
   if (failure === 'not_configured')
     return { title: INTEGRATION_COPY.travelNotConfigured, body: event ? fillCopy(G4_COPY.travelNotSetUpBodyEvent, { event: event.title, time: event.start }) : G4_COPY.travelNotSetUpBody };
