@@ -54,7 +54,8 @@ export function parseOpenMeteo(json: unknown, timezone: string): WeatherForecast
   const c = (json as { current?: Record<string, unknown> })?.current;
   const curTemp = num(c?.temperature_2m);
   const curCode = num(c?.weather_code);
-  return { ok: true, ...(curTemp !== null && curCode !== null ? { current: { tempF: curTemp, code: curCode } } : {}), hours, days };
+  const curAt = num(c?.time);
+  return { ok: true, ...(curTemp !== null && curCode !== null ? { current: { ...(curAt !== null ? { at: curAt * 1000 } : {}), tempF: curTemp, code: curCode } } : {}), hours, days };
 }
 
 const toMs = (v: unknown): number | undefined => {

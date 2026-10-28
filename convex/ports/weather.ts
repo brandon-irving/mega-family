@@ -30,7 +30,7 @@ export interface WeatherDay {
 }
 
 /** `current` (v0.15a): Open-Meteo's current-conditions block, when the provider returns it. */
-export type WeatherForecast = IntegrationResult<{ current?: { tempF: number; code: number }; hours: WeatherHour[]; days: WeatherDay[] }>;
+export type WeatherForecast = IntegrationResult<{ current?: { at?: number; tempF: number; code: number }; hours: WeatherHour[]; days: WeatherDay[] }>;
 
 export interface WeatherAlert {
   /** NWS alert id (stable across updates of the same alert; used in the candidate dedupeKey). */

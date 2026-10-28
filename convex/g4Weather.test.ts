@@ -70,6 +70,28 @@ describe('weather.get / weather.refresh', () => {
     expect((await as('partner').mutation(api.weather.refresh, {})).queued).toBe(false);
   });
 
+  test("when the family's (demo) clock is outside the forecast, the view follows the forecast's own now, not the wrong day", async () => {
+    const { t, as, now } = await seeded();
+    const realNow = now + 3 * 24 * 3_600_000; // the demo clock is days behind the real forecast
+    const start = Math.floor(realNow / 3_600_000) * 3_600_000;
+    __setWeatherForTests(
+      makeFakeWeather({
+        forecast: () => ({
+          ok: true,
+          current: { at: realNow, tempF: 61, code: 3 },
+          hours: Array.from({ length: 24 }, (_, i) => ({ at: start - 2 * 3_600_000 + i * 3_600_000, tempF: 40 + i, precipPct: 0, code: 2 })),
+          days: [{ date: '2026-10-28', highF: 63, lowF: 44, precipPct: 0, code: 3 }],
+        }),
+      }),
+    );
+    await as('admin').mutation(api.weather.refresh, {});
+    await t.finishAllScheduledFunctions(vi.runAllTimers);
+    const view = (await as('admin').query(api.weather.get, {}))!;
+    expect(view.now?.tempF).toBe(61);
+    expect(view.hours[0].at).toBe(start); // the hour of the forecast's now, not the first hour of the day
+    expect(view.today).toMatchObject({ highF: 63 });
+  });
+
   test('a provider failure is a failure, never invented numbers', async () => {
     const { t, as } = await seeded();
     __setWeatherForTests(makeFakeWeather({ forecast: () => ({ ok: false, failure: 'error' }), alerts: () => ({ ok: false, failure: 'error' }) }));

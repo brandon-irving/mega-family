@@ -22,7 +22,7 @@ type Ctx = QueryCtx | MutationCtx;
 const MINUTE = 60_000;
 const HOUR = 60 * MINUTE;
 
-export type ForecastData = { current?: { tempF: number; code: number }; hours: WeatherHour[]; days: WeatherDay[] };
+export type ForecastData = { current?: { at?: number; tempF: number; code: number }; hours: WeatherHour[]; days: WeatherDay[] };
 export type AlertsData = { alerts: WeatherAlert[] };
 
 export function summaryFor(code: number): string {
@@ -53,10 +53,15 @@ export async function buildWeatherView(ctx: Ctx, place: Doc<'places'>, tz: strin
   const forecast = await cacheRow(ctx, place.familyId, place._id, 'forecast');
   const alerts = await cacheRow(ctx, place.familyId, place._id, 'alerts');
   const data = forecast && !forecast.failure ? (forecast.data as ForecastData) : null;
-  const hours = (data?.hours ?? []).filter((h) => h.at + HOUR > now).slice(0, WEATHER.viewHours);
+  // Weather is real-world data on real time. When the family's clock (the demo's simulated one) falls outside
+  // the forecast, read it at the forecast's own "now" (Open-Meteo's current block, else when it was fetched)
+  // rather than showing the wrong day's hours.
+  const span = data?.hours.length ? { from: data.hours[0].at, to: data.hours[data.hours.length - 1].at + HOUR } : null;
+  const at = span && (now < span.from || now >= span.to) ? (data?.current?.at ?? forecast?.fetchedAt ?? now) : now;
+  const hours = (data?.hours ?? []).filter((h) => h.at + HOUR > at).slice(0, WEATHER.viewHours);
   // Open-Meteo's own current block when we have it (v0.15a), else the hour we're in.
   const current = data?.current ?? hours[0] ?? null;
-  const today = data?.days.find((d) => d.date === localDate(now, tz)) ?? null;
+  const today = data?.days.find((d) => d.date === localDate(at, tz)) ?? null;
   return {
     placeId: place._id,
     placeLabel: place.label,
