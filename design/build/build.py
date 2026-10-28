@@ -238,3 +238,34 @@ canvas['notes']['screen13defaults'] = {'x': len(ONBOARD_CHAT_BOARDS) * GAP, 'y':
     'Defaults to confirm\n• Flow (owner, Oct 28): sign up → chat opens → "What should I call you?" → integrations one at a time → family steps (Screen 5).\n• Your MEGA starts with a default look; tap its badge in the chat header to customize it (Profile).\n• Gmail first, read-only (gmail.readonly). Google shows an "unverified app" warning while the app is in testing; only listed test users can connect, and access lapses after 7 days until re-consent.\n• Calendar: Google Calendar (calendar.readonly) or this phone\'s calendar (expo-calendar, already in the build). Then .ics links from schools and teams.\n• Everything found lands on YOUR private calendar. MEGA may suggest sharing; only your tap shares.\n• Each card has Not now; skipping never blocks the next step. Everything is also in Settings later.\n• Demo uses a synthetic Gmail account with made-up school, dentist and bill emails (hackathon rule: synthetic data only).'}
 json.dump(canvas, open(cpath, 'w'), ensure_ascii=False)
 print('built onboarding chat')
+
+# Screen 14 (G4, CONTRACT v0.15, Oct 28): search, weather and travel cards in chat, Places, a kid's searches
+# for parents, and picking a saved place for an event. Its own template (cards not in thread.html).
+fill('Integrations')
+INTEGRATION_BOARDS = [
+    ('Integrations', '1 · Search answer with sources (adult)', {}),
+    ('SearchKid', '2 · Kid search: kid sizes, at most 3 kid-safe sources', {'step': 'searchKid'}),
+    ('SearchKidRephrased', '2b · Kid search, rephrased: “I looked up something close to that instead.”', {'step': 'searchKidRephrased'}),
+    ('SearchKidBlocked', '2c · Kid search, blocked: “I can’t look that up. Ask a grown-up.”', {'step': 'searchKidBlocked'}),
+    ('Weather', '3 · Weather card: now, next hours, high/low', {'step': 'weather'}),
+    ('WeatherAlert', '3b · Weather alert (NWS severity on top)', {'step': 'weatherAlert'}),
+    ('Travel', '4 · Leave by, with traffic (matches the leave-by push)', {'step': 'travel'}),
+    ('TravelNotSetUp', '4b · Travel time isn’t set up yet (never a made-up time)', {'step': 'travelNotSetUp'}),
+    ('Places', '5 · Places (adults: Family → Places)', {'step': 'places'}),
+    ('PlaceSheet', '5b · Add / edit a place (sheet with Close)', {'step': 'placeSheet'}),
+    ('PlacesKid', '5c · Kid: Places read-only', {'step': 'placesKid'}),
+    ('SearchLog', '6 · Parent: Twin 1’s blocked and changed searches', {'step': 'searchLog'}),
+    ('EventPlace', '7 · Event: pick a saved place (or type one)', {'step': 'eventPlace'}),
+]
+write_wrappers('Integrations', INTEGRATION_BOARDS)
+ROW14 = 16432
+for i, (stem, title, _) in enumerate(INTEGRATION_BOARDS):
+    f = stem + '.dc.html'
+    canvas['boards'][f] = {'x': i * GAP, 'y': ROW14, 'w': 390, 'h': 844, 'title': title, 'is_interactive': True}
+    if f not in canvas['order']:
+        canvas['order'].append(f)
+canvas['notes']['screen14'] = {'x': 0, 'y': ROW14 - 260, 'text': 'Screen 14 · Search, weather and travel', 'kind': 'title1', 'maxW': len(INTEGRATION_BOARDS) * GAP - 80}
+canvas['notes']['screen14defaults'] = {'x': len(INTEGRATION_BOARDS) * GAP, 'y': ROW14, 'w': 420, 'fill': 'orange', 'size': 's', 'text':
+    'Defaults to confirm\n• Search cards show the answer and tappable sources (title + site). Kids get kid sizes and at most 3 kid-safe sources.\n• A rephrased kid search says so above the answer; a blocked one shows only "I can\'t look that up. Ask a grown-up." and searches nothing.\n• Parents see only blocked and changed searches (Family → kid → Searches), when "Tell me about blocked searches" is on.\n• Weather: Open-Meteo forecast for a saved place; NWS alerts on top, colored by severity. Only Severe/Extreme alerts push.\n• Travel: "Leave by" uses Mapbox traffic between saved places, same words as the leave-by push. Without a Mapbox key the card says travel time isn\'t set up and never guesses.\n• Places are household data, edited by adults; kids read-only. MEGA never uses the phone\'s location.\n• Sample places are public landmarks; Home is a placeholder address.'}
+json.dump(canvas, open(cpath, 'w'), ensure_ascii=False)
+print('built integrations')
