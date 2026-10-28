@@ -28,12 +28,31 @@ describe('ButtonRow', () => {
     expect(onPress).toHaveBeenCalledWith('on_my_way');
   });
 
-  test('lays buttons out 2-up (flexBasis ~half), like the design board', async () => {
+  // Owner, Oct 28 (Image 17): stacked buttons came out content-width ("On my way", "Snooze 5 min" each
+  // hugging its label). Rows are explicit now: short labels pair up 2-up and split the row evenly; anything
+  // stacked (an odd one out, or labels too long to pair) fills the whole width.
+  const styleOf = (el: { props: Record<string, unknown> }) => Object.assign({}, ...([el.props.style].flat(3).filter(Boolean) as object[])) as Record<string, unknown>;
+
+  test('two short labels share one row, each taking an even half', async () => {
     await renderWithTheme(<ButtonRow buttons={[{ id: 'yes', label: 'Yes' }, { id: 'cant', label: "I can't" }]} onPress={() => {}} />);
-    for (const button of screen.getAllByRole('button')) {
-      const flat = (Array.isArray(button.props.style) ? button.props.style : [button.props.style]).filter(Boolean) as Record<string, unknown>[];
-      expect(flat.some((s) => s.flexBasis !== undefined)).toBe(true);
-    }
+    expect(screen.getAllByTestId('button-row-line')).toHaveLength(1);
+    for (const button of screen.getAllByRole('button')) expect(styleOf(button).flex).toBe(1);
+  });
+
+  test('an odd one out gets its own full-width row', async () => {
+    await renderWithTheme(<ButtonRow buttons={[{ id: 'a', label: 'Yes' }, { id: 'b', label: 'No' }, { id: 'c', label: 'Later' }]} onPress={() => {}} />);
+    const lines = screen.getAllByTestId('button-row-line');
+    expect(lines).toHaveLength(2);
+    expect(styleOf(lines[1]).width).toBe('100%');
+    expect(styleOf(screen.getAllByRole('button')[2]).flex).toBe(1);
+  });
+
+  test('labels too long to pair are stacked, every one full width', async () => {
+    await renderWithTheme(<ButtonRow buttons={[{ id: 'a', label: 'On my way right now' }, { id: 'b', label: 'Snooze 5 min' }]} onPress={() => {}} />);
+    const lines = screen.getAllByTestId('button-row-line');
+    expect(lines).toHaveLength(2);
+    for (const line of lines) expect(styleOf(line).width).toBe('100%');
+    for (const button of screen.getAllByRole('button')) expect(styleOf(button).flex).toBe(1);
   });
 
   // G3 review fix (HIGH, kid button sizes): shared/config/theme.ts BUTTON_SIZES, from the design board

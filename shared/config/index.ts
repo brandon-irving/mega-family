@@ -15,6 +15,7 @@ export * from './proactive';
 export * from './roles';
 export * from './rooms';
 export * from './speaker';
+export * from './starters';
 export * from './store';
 export * from './talk';
 export * from './theme';

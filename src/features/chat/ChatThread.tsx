@@ -9,6 +9,10 @@ import type { BlockAnswer, SaveChip } from '@shared/domain/messages';
 import type { Reaction, Role, Scope } from '@shared/domain/enums';
 import type { MegaInfo } from '@/features/shell/megaInfo';
 import type { NotificationDoc } from '@/data/useNotifications';
+import { ActivityIndicator, View } from 'react-native';
+import { CHAT_COPY } from '@shared/config/copy';
+import { Text } from '@/ui/Text';
+import { useTokens } from '@/ui/theme';
 import { MessageList, type MessageDoc } from './MessageList';
 
 export type ChatThreadProps = {
@@ -67,10 +71,24 @@ export function ChatThread({
       onAnswerNotification={onAnswerNotification}
       notificationsById={notificationsById}
       chipsReadOnly={viewerRole === 'kid'}
-      emptyLabel="No messages yet. Say hello."
+      // Owner, Oct 28: never "No messages yet". An empty thread means the MEGA's starter (chat.start) is on
+      // its way, so it's a loading state, not an empty state.
+      emptyContent={<ThreadStarting />}
       scrollToMessageId={scrollToMessageId}
       paginationExhausted={paginationExhausted}
     />
+  );
+}
+
+/** While the MEGA's first messages are on their way. */
+function ThreadStarting() {
+  const tokens = useTokens();
+  // TODO(MegaLoader): swap for the shared walking-MEGA loader (src/features/walkers/MegaLoader.tsx) at merge.
+  return (
+    <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: tokens.spacing.md }}>
+      <ActivityIndicator color={tokens.accent} />
+      <Text color="muted">{CHAT_COPY.opening}</Text>
+    </View>
   );
 }
 

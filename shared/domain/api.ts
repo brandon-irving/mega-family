@@ -242,6 +242,10 @@ export const API = {
       returns: v.object({ answerMessageId: v.id('messages'), streamId: v.optional(v.string()) }),
     }),
     react: fn({ kind: 'mutation', day1: 'real', args: { messageId: v.id('messages'), reaction: v.union(reaction, v.null()) }, returns: v.null() }),
+    // CONTRACT v0.13b (additive, owner Oct 28: never an empty chat). The app calls this when the caller's own
+    // thread is empty; their MEGA starts the conversation (a kid: the KidsIntro messages; an adult: a
+    // get-to-know-you greeting + choices). Idempotent: `started: false` when the thread already has messages.
+    start: fn({ kind: 'mutation', day1: 'real', args: {}, returns: v.object({ started: v.boolean() }) }),
   },
   files: {
     uploadUrl: fn({ kind: 'mutation', day1: 'real', args: {}, returns: v.string() }),

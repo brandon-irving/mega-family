@@ -1,4 +1,5 @@
 // Chat screen data: the thread, sending, the streamed reply, answering a block, and reactions.
+import { useEffect, useRef } from 'react';
 import { insertAtTop, useMutation, usePaginatedQuery } from 'convex/react';
 import type { Infer } from 'convex/values';
 import type { Id } from '@shared/domain/validators';
@@ -9,6 +10,21 @@ import { api } from './api';
 import { useQuery } from './useQuery';
 import { useStablePaginatedQuery } from './useStableQuery';
 import { useViewer } from './useViewer';
+
+/** CONTRACT v0.13b `chat.start` (owner, Oct 28: MEGAs start the conversation): asks once per chat-screen
+ * mount, as soon as the viewer and the first page are in; the server writes the MEGA's starter at most
+ * once per thread, so asking again on a later visit is a cheap no-op. */
+export function useStartChat(ready: boolean) {
+  const start = useMutation(api.chat.start);
+  const asked = useRef(false);
+  useEffect(() => {
+    if (!ready || asked.current) return;
+    asked.current = true;
+    start({}).catch(() => {
+      asked.current = false; // a later render (e.g. back online) tries again
+    });
+  }, [ready, start]);
+}
 
 export function useChatThread() {
   return useStablePaginatedQuery(usePaginatedQuery(api.chat.thread, {}, { initialNumItems: 30 }));

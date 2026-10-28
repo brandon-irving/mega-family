@@ -210,6 +210,19 @@ export const BUTTON_SIZES = {
 } as const;
 export type ButtonSize = (typeof BUTTON_SIZES)[keyof typeof BUTTON_SIZES];
 
+/** The kid chat bar (canvas v33, design/build/thread.html "Kid composer"; owner Oct 28: one bar on every
+ * kid screen). Talk mode: a `height` pill "Talk to {MEGA}" + a round keyboard toggle; typing mode: a
+ * full-width `height` field at `fontSize` + a round mic to go back. Adults keep the 48pt bar. */
+export const COMPOSER_SIZES = {
+  kid: { height: 72, fontSize: 20, toggleIcon: 28, talkIcon: 24, micIcon: 26, fieldBorder: 2 },
+  adult: { height: 48, fontSize: 15, toggleIcon: 22, talkIcon: 22, micIcon: 22, fieldBorder: 1 },
+} as const;
+
+/** How a card's action buttons are laid out (src/ui/ButtonRow.tsx, owner Oct 28): at most `perRow` short
+ * buttons share a row evenly; if any label is longer than `pairMaxChars`, every button stacks full width
+ * (two long labels side by side wrap mid-word at kid sizes). An odd one out always gets its own full row. */
+export const BUTTON_ROW_LAYOUT = { perRow: 2, pairMaxChars: 10 } as const;
+
 /** The sign-in screens' full-width pill buttons (Screen 9 boards: "Make my MEGA" 58/18, the rest 52/16). */
 export const CTA_SIZES = {
   hero: { height: 58, fontSize: 18 },

@@ -29,7 +29,8 @@ export const LIMITS = {
    * this count rather than looping until pagination is exhausted (a years-old message would otherwise
    * page through the whole thread). Once the bound is hit (or pagination actually is exhausted first),
    * it shows "Couldn't find that message" instead of searching forever. */
-  chat: { deepLinkMaxLoadMorePages: 10 },
+  // starterLookback: how many recent thread messages (and family members) `chat.start` checks.
+  chat: { deepLinkMaxLoadMorePages: 10, starterLookback: 50 },
   spend: { centsPerFamilyPerDay: 100, centsTotalUntilG6: 500 },
   comingUpWindowMin: 120,
   maxEventHours: 24, // range queries look back this far for events still running

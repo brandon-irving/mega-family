@@ -8,10 +8,11 @@ import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import Animated, { FadeIn, FadeOut, LinearTransition, useAnimatedStyle, useReducedMotion, useSharedValue, withRepeat, withSequence, withTiming } from 'react-native-reanimated';
 import type { Id } from '@shared/domain/validators';
 import { ROLES_CONFIG } from '@shared/config/roles';
-import { CHAT_STATUS_PLACEHOLDER, KIDS_COPY } from '@shared/config/copy';
+import { CHAT_COPY, CHAT_STATUS_PLACEHOLDER, KIDS_COPY } from '@shared/config/copy';
 import { LINKS } from '@shared/domain/api';
 import { useViewer } from '@/data/useViewer';
-import { useAnswerBlock, useChatThread, useReactToMessage, useSendMessage, useStreamBody } from '@/data/useChat';
+import { useAnswerBlock, useChatThread, useReactToMessage, useSendMessage, useStartChat, useStreamBody } from '@/data/useChat';
+import { pendingMegaStreamId } from '@/features/chat/pendingStream';
 import { useToday, useAnswerNotification } from '@/data/useToday';
 import { useNotificationsFor } from '@/data/useNotifications';
 import { useChangeMemoryScope, useForgetMemory } from '@/data/useMega';
@@ -45,7 +46,12 @@ export default function ChatRoute() {
   const forgetMemory = useForgetMemory();
   const answerNotification = useAnswerNotification();
   const [pendingStreamId, setPendingStreamId] = useState<string | null>(null);
-  const stream = useStreamBody(pendingStreamId);
+  // The streaming line follows whichever MEGA reply is still being written: the viewer's last send, or one
+  // they didn't send (a block answer's follow-up, a kid's "Show me", the MEGA's own starter).
+  const writingStreamId = thread.status === 'LoadingFirstPage' ? null : pendingMegaStreamId(thread.results);
+  const stream = useStreamBody(writingStreamId ?? pendingStreamId);
+  // Owner, Oct 28: MEGAs start the conversation (chat.start, once per thread).
+  useStartChat(!!viewer?.mega && thread.status !== 'LoadingFirstPage');
   const [sendError, setSendError] = useState<{ line: string; retryText: string } | null>(null);
   const reducedMotion = useReducedMotion();
 
@@ -102,11 +108,11 @@ export default function ChatRoute() {
   // persistent-text-streaming wiring isn't live yet) this shows the partial text from streamBody.
   // The next onSend sets a fresh streamId, so there's no need to clear this one when it settles.
   const streamFailed = stream?.status === 'error' || stream?.status === 'timeout';
-  const showStreamBanner = pendingStreamId !== null && stream !== undefined && stream.status !== 'done' && !streamFailed;
+  const showStreamBanner = (writingStreamId ?? pendingStreamId) !== null && stream !== undefined && stream.status !== 'done' && !streamFailed;
 
   const mega = useMemo(() => (viewer?.mega ? megaInfo(viewer.mega) : null), [viewer]);
 
-  if (viewer === undefined || thread.status === 'LoadingFirstPage') return <LoadingScreen label="Opening chat…" />;
+  if (viewer === undefined || thread.status === 'LoadingFirstPage') return <LoadingScreen label={CHAT_COPY.opening} />; // TODO(MegaLoader)
   if (!viewer || !mega) {
     return (
       <Screen>

@@ -90,17 +90,13 @@ describe('ResultCard', () => {
     expect(screen.queryByText(/quiet hours/)).toBeNull();
   });
 
-  // G3 review fix (HIGH, kid button sizes): the board's 2-up grid, not a single wrapped row — each
-  // button takes roughly half the row (flexBasis) so two sit side by side.
-  test('notification buttons lay out 2-up, like the design board', async () => {
-    const flexBasisOf = (style: unknown): string | number | undefined => {
-      const flat = (Array.isArray(style) ? style : [style]).filter(Boolean) as Record<string, unknown>[];
-      return flat.find((s) => s.flexBasis !== undefined)?.flexBasis as string | number | undefined;
-    };
+  // G3 review fix (HIGH, kid button sizes), revised Oct 28: notification buttons go through the shared
+  // ButtonRow lines, every button filling its share of a line (never content-width).
+  test('notification buttons fill their line (shared ButtonRow layout)', async () => {
+    const flexOf = (style: unknown) => Object.assign({}, ...([style].flat(3).filter(Boolean) as object[])).flex as number | undefined;
     const rendered = await renderWithTheme(<ResultCard card={CARDS_BY_KIND.notification} notification={NOTIFICATION_FIXTURE} onAnswerNotification={() => {}} />);
-    for (const button of rendered.getAllByRole('button')) {
-      expect(flexBasisOf(button.props.style)).toBeDefined();
-    }
+    expect(rendered.getAllByTestId('button-row-line').length).toBeGreaterThan(0);
+    for (const button of rendered.getAllByRole('button')) expect(flexOf(button.props.style)).toBe(1);
   });
 
   // G3 review fix (HIGH, reminder card title): the backend now sends a real headline in
