@@ -13,7 +13,7 @@ export const KID_SAFETY = {
     /** 1. Query check before searching: allowed / rephrase to something age-appropriate / blocked. */
     queryCheck: true,
     /** Deterministic backstop before the model check (decidedBy `rule:kidSearchKeyword`): a match blocks. */
-    blockedKeywords: [] as string[],
+    blockedKeywords: ['porn', 'nude', 'naked', 'sex', 'suicide', 'kill myself', 'self harm', 'how to make a bomb', 'buy a gun', 'drugs', 'vape', 'gambling', 'casino', 'beheading', 'gore'] as string[],
     /** 2. The search: kid-friendly `preferredDomains` are named in the search prompt (no API filter exists). */
     preferDomainsInPrompt: true,
     /** 3. Answer check: rewritten for the kid's age band and checked against `blockedCategories`; citations on
