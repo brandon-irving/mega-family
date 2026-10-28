@@ -23,7 +23,7 @@ export default function MemberDetailRoute() {
   if (!detail) return <LoadingScreen label="Member not found" />;
 
   return (
-    <Sheet title={detail.member.name} onClose={() => router.back()}>
+    <Sheet presentation="tab" title={detail.member.name} onClose={() => router.back()}>
       <MemberDetailContent
         detail={detail}
         onMessage={() => router.push('/chat' as never)}

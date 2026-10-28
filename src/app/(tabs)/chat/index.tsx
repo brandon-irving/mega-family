@@ -115,7 +115,7 @@ export default function ChatRoute() {
   if (viewer === undefined || thread.status === 'LoadingFirstPage') return <MegaLoader text={CHAT_COPY.opening} testID="chat-loading" />;
   if (!viewer || !mega) {
     return (
-      <Screen>
+      <Screen presentation="tab">
         <Text color="muted">No MEGA yet — onboarding creates one first.</Text>
       </Screen>
     );
@@ -129,7 +129,7 @@ export default function ChatRoute() {
     // smoothly and keeps the inverted FlatList's newest message pinned at the visual bottom as the
     // keyboard rises, instead of RN core's version jumping on Android / over-shooting on iOS.
     <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding">
-      <Screen padded={false}>
+      <Screen padded={false} presentation="tab">
         {/* G3 review fix (MEDIUM): the status line is a placeholder — PLAN.md's live version ("from the
             same job event that drives HQ", ChatHeader.tsx's own header comment) is G5 scope, not built
             yet. The canvas is the spec (STATUS.md): this says so here rather than silently shipping as

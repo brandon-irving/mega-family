@@ -13,6 +13,7 @@
 // away, matching native tabs' own behavior.
 import { Tabs, TabList, TabSlot, TabTrigger, type TabTriggerSlotProps } from 'expo-router/ui';
 import { Pressable, useWindowDimensions, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text } from '@/ui/Text';
 import { useTheme, useTokens } from '@/ui/theme';
 import { tabsForRole } from '@/features/shell/tabs';
@@ -24,6 +25,9 @@ export default function TabLayout() {
   const tokens = useTokens();
   const { width } = useWindowDimensions();
   const isWide = width >= WIDE_BREAKPOINT;
+  // Tab screens leave the bottom inset to the bar (src/ui/Screen.tsx 'tab'), so the bar keeps it above the
+  // home indicator (iPhone Safari).
+  const insets = useSafeAreaInsets();
   const tabs = tabsForRole(role);
 
   return (
@@ -40,7 +44,7 @@ export default function TabLayout() {
           style={
             isWide
               ? { width: 220, borderRightWidth: 1, borderRightColor: tokens.line, paddingTop: tokens.spacing.xl, gap: tokens.spacing.xs }
-              : { flexDirection: 'row', borderTopWidth: 1, borderTopColor: tokens.line, backgroundColor: tokens.surface }
+              : { flexDirection: 'row', borderTopWidth: 1, borderTopColor: tokens.line, backgroundColor: tokens.surface, paddingBottom: insets.bottom }
           }
         >
           {tabs.map(({ tab, route, label }) => (

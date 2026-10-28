@@ -11,7 +11,7 @@ export default function FamilyRoute() {
   if (members === undefined || comingUp === undefined) return <LoadingScreen label="Loading family…" />;
 
   return (
-    <Screen scroll>
+    <Screen scroll presentation="tab">
       <FamilyContent
         members={members}
         comingUp={comingUp}

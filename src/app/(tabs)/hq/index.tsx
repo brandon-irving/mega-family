@@ -33,7 +33,7 @@ export default function HqRoute() {
   if (room === undefined) return <LoadingScreen label="Opening HQ…" />;
 
   return (
-    <Screen scroll>
+    <Screen scroll presentation="tab">
       <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: tokens.spacing.md }}>
         <Text variant="headline" style={{ flex: 1 }}>
           {memberId ? 'My room' : 'HQ'}

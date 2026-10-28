@@ -2,7 +2,7 @@
 // button, the "Use a different account" link and the full-screen frame with the walking MEGAs.
 import type { ReactNode } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeFrame, type Presentation } from '@/ui/Screen';
 import { Path, Svg } from 'react-native-svg';
 import { Ledge, WalkerStage, type Scene } from '@/features/walkers';
 import { NoContentRegistry } from '@/ui/contentRegistry';
@@ -14,15 +14,16 @@ import { SIGNIN_COPY } from '@shared/config/copy';
 import { IDENTITY } from '@shared/config/identity';
 import { CTA_SIZES, WORDMARK } from '@shared/config/theme';
 
-/** A sign-in screen: the Midnight background edge to edge, safe-area padding, and the walking MEGAs. */
-export function SignInFrame({ scene, busy, children, overlay, testID }: { scene: Scene; busy?: boolean; children: ReactNode; overlay?: ReactNode; testID?: string }) {
+/** A sign-in screen: the Midnight background edge to edge, safe-area padding, and the walking MEGAs.
+ * `presentation` (src/ui/Screen.tsx): 'full' for Welcome and Start, 'sheet' for the invite and join modals. */
+export function SignInFrame({ scene, busy, children, overlay, presentation = 'full', testID }: { scene: Scene; busy?: boolean; children: ReactNode; overlay?: ReactNode; presentation?: Presentation; testID?: string }) {
   const tokens = useTokens();
   return (
     <View style={[styles.fill, { backgroundColor: tokens.bg }]} testID={testID}>
       <WalkerStage scene={scene} busy={busy} overlay={overlay}>
-        <SafeAreaView style={styles.fill} edges={['top', 'bottom']}>
+        <SafeFrame presentation={presentation} testID={testID ? `${testID}-safe` : undefined}>
           <View style={[styles.fill, { paddingHorizontal: tokens.spacing.xl, paddingBottom: tokens.spacing.lg }]}>{children}</View>
-        </SafeAreaView>
+        </SafeFrame>
       </WalkerStage>
     </View>
   );

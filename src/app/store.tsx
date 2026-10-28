@@ -26,7 +26,7 @@ export default function StoreRoute() {
   const mega = viewer?.mega;
   if (!viewer || !mega || viewer.member.role !== 'kid' || catalog.status === 'error') {
     return (
-      <Screen padded={false}>
+      <Screen padded={false} presentation="sheet">
         <View style={{ padding: tokens.spacing.lg, gap: tokens.spacing.lg }}>
           <Text variant="headline">{STORE_COPY.title}</Text>
           <Text color="muted">{viewer?.member.role === 'kid' ? STORE_COPY.unavailable : STORE_COPY.kidsOnly}</Text>
@@ -38,7 +38,7 @@ export default function StoreRoute() {
   const look: Look = mega.look;
   const wear = (next: Look) => run('wear', () => updateMega({ look: next }));
   return (
-    <Screen padded={false}>
+    <Screen padded={false} presentation="sheet">
       <StoreScreenView
         megaName={mega.name}
         balance={catalog.data.balance}

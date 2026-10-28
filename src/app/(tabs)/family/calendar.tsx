@@ -45,7 +45,7 @@ export default function CalendarRoute() {
   const clash: CalendarClash | null = open ? { eventIds: open.clashEventIds, line: open.proposal.title, messageId: open.proposal.messageId } : null;
 
   return (
-    <Sheet title={new Date(opened).toLocaleDateString(undefined, { month: 'long', year: 'numeric' })} onClose={() => router.back()}>
+    <Sheet presentation="tab" title={new Date(opened).toLocaleDateString(undefined, { month: 'long', year: 'numeric' })} onClose={() => router.back()}>
       <CalendarContent
         weekStart={weekStart}
         todayIndex={new Date(opened).getDay()}
