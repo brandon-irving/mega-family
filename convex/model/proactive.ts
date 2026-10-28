@@ -8,7 +8,7 @@
 // simulated-clock jump and the production cron both drive the exact same code, just with a different `now`.
 import { PERSONALITIES } from '../../shared/config/looks';
 import { ANDROID_CHANNELS, BUTTON_SETS, NOTIFICATION_KINDS_CONFIG, PUSH_BODY_REDACTION, genericPushBody, pushThreadIdFor, type ButtonSetId } from '../../shared/config/notifications';
-import { DRAFT_SANITIZE, PROACTIVE, checkinDedupeKey, mattersToDedupeKey, reminderDedupeKey, requestDedupeKey } from '../../shared/config/proactive';
+import { DRAFT_SANITIZE, PROACTIVE, checkinDedupeKey, reminderDedupeKey, requestDedupeKey } from '../../shared/config/proactive';
 import { NOTIFICATION_KINDS, type Delivery, type Loudness, type NotificationKind, type Role } from '../../shared/domain/enums';
 import type { CandidateSource } from '../../shared/domain/tables';
 import { addDays, localDate, localParts, zonedInstant } from '../../shared/time';
@@ -873,86 +873,19 @@ async function scanReminderTriggers(ctx: MutationCtx, familyId: Id<'families'>, 
   }
 }
 
-/** Cross-member trigger (PLAN.md -> Proactive engine: "the memory writer marks 'matters to Teal'"). Reads
- * unprocessed `familyEvents` (`processed.triggers === false`, `type: 'said'`, `payload.mattersToMemberId`
- * set by `agent/writer.ts`). Scoped to one family already (hackathon scale — see `model/spend.ts`'s
- * documented precedent for this same "small family, bounded collect" trade-off); every row is marked
- * processed immediately so the backlog can't grow across sweeps. */
-/** S3 (MEDIUM): how many mattersTo-sourced candidates this family already has from today (its own local
- * day) — the input to `PROACTIVE.mattersToDailyCapPerFamily`. A plain collect-and-filter over the family's
- * candidates, same "small family, bounded scale" trade-off `pushSentToday` already documents — there's no
- * index on `source.kind` (a nested union field), and this build's families are small. */
-async function mattersToModelCallsToday(ctx: MutationCtx, familyId: Id<'families'>, tz: string, now: number): Promise<number> {
-  const today = localDate(now, tz);
-  const all = await ctx.db
-    .query('candidates')
-    .withIndex('by_family_dedupeKey', (q) => q.eq('familyId', familyId))
-    .collect();
-  // `window.from` (set from the SAME Clock-port `now` the trigger scanner used when it created this
-  // candidate), never `_creationTime` — `_creationTime` is Convex's own real-wall-clock insert time, which
-  // diverges from a family's simulated clock (`clocks.offsetMs`) whenever one is in effect (the demo/seed
-  // family always has one). Comparing a real timestamp against a simulated "today" would silently miscount
-  // the cap for any family using the simulated clock.
-  return all.filter((c) => c.source?.kind === 'mattersTo' && localDate(c.window.from, tz) === today).length;
-}
-
-/** S3: logs a mattersTo trigger dropped purely for being over today's per-family model-call cap — distinct
- * from `logDroppedConcern` (that's for content the concern gate itself refused), so the two reasons stay
- * separable in `familyEvents` for anyone reviewing why a cross-member tip never arrived. */
-async function logMattersToCapped(ctx: MutationCtx, familyId: Id<'families'>, now: number, fromMemberId: Id<'members'>, recipientId: Id<'members'>): Promise<void> {
-  await ctx.db.insert('familyEvents', {
-    familyId,
-    at: now,
-    type: 'said',
-    payload: { mattersToCapped: { fromMemberId, recipientId, cap: PROACTIVE.mattersToDailyCapPerFamily } },
-    processed: { memory: true, profiler: true, triggers: true },
-  });
-}
-
-async function scanFamilyEventTriggers(ctx: MutationCtx, familyId: Id<'families'>, now: number): Promise<void> {
-  const family = await ctx.db.get(familyId);
-  const tz = family?.timezone;
+/** Consumes unprocessed `familyEvents` rows for the trigger stage. Since GD this stage makes NO
+ * cross-member trigger (GD security review): the old G3 "matters to" path pushed a 'said' row's text
+ * straight to the member it named, with no owner approval. Explicit share only (STATUS.md, owner Oct 26):
+ * a fact reaches someone else only through its owner's own share; the writer makes an owner-gated share
+ * suggestion instead (agent/writer.ts -> model/layers.ts `suggestShare`). Rows are marked processed so they
+ * can't pile up; nothing else happens to them here. */
+async function scanFamilyEventTriggers(ctx: MutationCtx, familyId: Id<'families'>): Promise<void> {
   const rows = await ctx.db
     .query('familyEvents')
     .withIndex('by_family_at', (q) => q.eq('familyId', familyId))
     .collect();
-  let mattersToCountToday = tz ? await mattersToModelCallsToday(ctx, familyId, tz, now) : 0;
   for (const row of rows) {
-    if (row.processed.triggers || row.type !== 'said') continue;
-    const payload = row.payload as { mattersToMemberId?: string; fromMemberId?: string; text?: string } | undefined;
-    if (!payload?.mattersToMemberId || !payload.text) {
-      await ctx.db.patch(row._id, { processed: { ...row.processed, triggers: true } });
-      continue;
-    }
-    let recipient: Doc<'members'> | null = null;
-    try {
-      recipient = await ctx.db.get(payload.mattersToMemberId as Id<'members'>);
-    } catch {
-      recipient = null;
-    }
-    if (!recipient || recipient.familyId !== familyId) {
-      await ctx.db.patch(row._id, { processed: { ...row.processed, triggers: true } });
-      continue;
-    }
-    const fromMemberId = (payload.fromMemberId as Id<'members'>) ?? recipient._id;
-    if (tz && mattersToCountToday >= PROACTIVE.mattersToDailyCapPerFamily) {
-      await logMattersToCapped(ctx, familyId, now, fromMemberId, recipient._id);
-      await ctx.db.patch(row._id, { processed: { ...row.processed, triggers: true } });
-      continue;
-    }
-    const candidateId = await insertCandidateIfNew(ctx, {
-      familyId,
-      recipientId: recipient._id,
-      kind: 'tip', // placeholder — the draft+judge call picks the real kind (request/tip/update)
-      dedupeKey: mattersToDedupeKey(row._id),
-      draftText: payload.text,
-      window: { from: now, to: now + PROACTIVE.mattersToWindowMinutes * 60_000 },
-      source: { kind: 'mattersTo', fromMemberId, familyEventId: row._id },
-    });
-    if (candidateId) {
-      mattersToCountToday++; // S3: counts toward this same sweep's cap too, not just prior sweeps
-      await ctx.scheduler.runAfter(0, internal.proactive.processCandidate, { candidateId });
-    }
+    if (row.processed.triggers) continue;
     await ctx.db.patch(row._id, { processed: { ...row.processed, triggers: true } });
   }
 }
@@ -1038,7 +971,7 @@ export async function tickFamilyLogic(ctx: MutationCtx, familyId: Id<'families'>
   await releaseHeldNotifications(ctx, familyId, now);
   await fireDueScheduledCandidates(ctx, familyId, now);
   await scanReminderTriggers(ctx, familyId, now);
-  await scanFamilyEventTriggers(ctx, familyId, now);
+  await scanFamilyEventTriggers(ctx, familyId);
   await scanCheckInTriggers(ctx, familyId, now);
   await gdTick(ctx, familyId, now);
 }
