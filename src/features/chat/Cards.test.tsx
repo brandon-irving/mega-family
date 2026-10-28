@@ -6,6 +6,8 @@ import { ResultCard } from './Cards';
 
 // G4: the search/weather/travel cards read the viewer's timezone and role (src/features/integrations).
 jest.mock('@/data/useViewer', () => ({ useViewer: () => ({ member: { role: 'adult' }, family: { timezone: 'America/New_York' } }) }));
+// The travel card's buttons call `travel.answer` (v0.15a); these render tests have no Convex client.
+jest.mock('@/data/useIntegrations', () => ({ useTravelAnswer: () => jest.fn() }));
 
 describe('ResultCard', () => {
   test('event card shows its visibility', async () => {

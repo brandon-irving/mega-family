@@ -35,6 +35,7 @@ export const SEARCH_KID_BLOCKED: Extract<Card, { kind: 'search' }> = {
   answer: 'I can’t look that up. Ask a grown-up.',
   sources: [],
   outcome: 'blocked',
+  parentsTold: true,
 };
 
 export const WEATHER: Extract<Card, { kind: 'weather' }> = {
@@ -67,9 +68,21 @@ export const TRAVEL_OK: Extract<Card, { kind: 'travel' }> = {
   leaveBy: Date.UTC(2026, 9, 29, 20, 50),
   minutes: 18,
   typicalMinutes: 14,
+  checkId: id('tc_1'),
+  eventTitle: 'Soccer pickup',
+  eventStart: Date.UTC(2026, 9, 29, 21, 30),
 };
 
-export const TRAVEL_NOT_SET_UP: Extract<Card, { kind: 'travel' }> = { kind: 'travel', to: 'Riverside Park Field', leaveBy: 0, minutes: 0, failure: 'not_configured' };
+export const TRAVEL_NOT_SET_UP: Extract<Card, { kind: 'travel' }> = {
+  kind: 'travel',
+  to: 'Riverside Park Field',
+  leaveBy: 0,
+  minutes: 0,
+  failure: 'not_configured',
+  checkId: id('tc_2'),
+  eventTitle: 'Soccer pickup',
+  eventStart: Date.UTC(2026, 9, 29, 21, 30),
+};
 
 const place = (key: string, kind: PlaceDoc['kind'], label: string, address: string, status: PlaceDoc['geocode']['status']): PlaceDoc => ({
   _id: id(`pl_${key}`),
