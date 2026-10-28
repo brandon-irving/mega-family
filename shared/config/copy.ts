@@ -12,6 +12,17 @@ export type RetryCopyKey = ErrorCode | 'error' | 'timeout' | 'default';
  * edit at the call site, not a hunt through JSX. */
 export const CHAT_STATUS_PLACEHOLDER = 'Ready to help';
 
+/** The chat composer's words (canvas v33 thread.html). `{mega}` is the MEGA's name. */
+export const COMPOSER_COPY = {
+  talkTo: 'Talk to {mega}',
+  typeInstead: 'Type instead',
+  talkInstead: 'Talk instead',
+  kidPlaceholder: 'Type to {mega}…',
+  adultPlaceholder: 'Message {mega}… (@ to mention)',
+  fieldLabel: 'Message {mega}',
+  send: 'Send message',
+} as const;
+
 /** What a MEGA says when its own turn goes wrong (convex/agent/loop.ts), plus the one nudge prompt, so the
  * wording is a config edit. */
 export const AGENT_COPY = {
