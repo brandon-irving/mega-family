@@ -13,7 +13,7 @@ _Last updated: Oct 28._
 | G2 | Real Muse Spark agent loop with tools, memory writer + learning policy + save chips, talk mode (WAV), transcription, spend guard | ✅ tag `g2` (UX fixes `fab39d5`; talk mode still needs an on-device visual pass) |
 | G3 | Proactive engine (triggers → draft → judge → timing → deliver), push with buttons (expo-notifications categories), answers → effects, MEGA-to-MEGA requests, widget timeline / Today statements | ✅ tag `g3` (needs owner device test: new dev build for expo-task-manager) |
 | GD | Demo features (Screens 9–12): kids (homework, chores, bedtime/morning), Mega Bucks + Store, calendar layers + clash proposals + gift ideas, sign-in redesign (email/Apple/Google, adult and kid invites, MegaLoader), chat starters, OpenDuet learnings (decidedBy, audience-snapshot approvals, evals) | ✅ tag `gd` (Oct 28; needs owner device test on build `323ca3e8`, no new native modules; CONTRACT v0.13–v0.14a pending approval) |
-| G4 | Web search with kid filter, weather + NWS alerts, travel time (Mapbox) | |
+| G4 | Web search with kid filter, weather + NWS alerts, travel time (Mapbox) | 🔨 started Oct 28: contract step |
 | G5 | Onboarding chat, Settings (theme/wallpaper), HQ tile room + own rooms, ICS + device calendar import, nightly profiler + check questions | |
 | G6 | Full end-to-end on web + iPhone, demo script, polish | |
 | G8 | Widgets, QR invite scan, homework viewfinder, invite Paste button (native packages already installed Oct 28) | |
