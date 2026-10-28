@@ -219,6 +219,14 @@ export const checkFix = internalQuery({
   },
 });
 
+/** Live finding (Oct 28): Muse Wonder sometimes repeats the headline on its own line at the start of the
+ * sentence. The card shows the title already, so drop a leading copy of it and fold the rest onto one line. */
+function cleanProposalText(title: string, text: string): string {
+  const lines = text.split('\n').map((l) => l.trim()).filter(Boolean);
+  if (lines.length > 1 && lines[0].toLowerCase() === title.trim().toLowerCase()) lines.shift();
+  return lines.join(' ').replace(/\s+/g, ' ').trim();
+}
+
 /** Writes the pending proposal (before/after snapshots, the family's membership as its audience) and sends
  * the Admin a proposal card from Hub. One proposal per collision. */
 export const createProposal = internalMutation({
@@ -233,6 +241,6 @@ export const createProposal = internalMutation({
       .first();
     if (existing) return null;
     const now = await clock.now(ctx, collision.familyId);
-    return insertProposal(ctx, { collision, fix: args.fix, title: args.title, text: args.text, wordedBy: args.wordedBy as `model:${string}`, reasonedBy: args.reasonedBy as `model:${string}`, now });
+    return insertProposal(ctx, { collision, fix: args.fix, title: args.title, text: cleanProposalText(args.title, args.text), wordedBy: args.wordedBy as `model:${string}`, reasonedBy: args.reasonedBy as `model:${string}`, now });
   },
 });

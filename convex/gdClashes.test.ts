@@ -117,6 +117,27 @@ describe('GD: Hub proposes one fix (Spark reasons, Wonder words) and changes not
   });
 });
 
+describe('GD: the proposal card text is one clean sentence (live finding, Oct 28)', () => {
+  test('Wonder repeating the headline on its own line in "text" is cleaned up', async () => {
+    const { t, familyId, m, proposals, collisions } = await seeded();
+    const open = (await collisions()).find((c) => c.status === 'open')!;
+    await t.run(async (ctx) => {
+      for (const p of await ctx.db.query('proposals').withIndex('by_family_collision', (q) => q.eq('familyId', familyId).eq('collisionId', open._id)).collect()) await ctx.db.delete(p._id);
+    });
+    const pickup = (await t.run((ctx) => ctx.db.get(open.eventIds[1])))!;
+    await t.mutation(internal.clashes.createProposal, {
+      collisionId: open._id,
+      fix: { kind: 'reassign', eventId: pickup._id, from: m.partner, to: m.admin },
+      title: 'Admin takes pickup',
+      text: 'Admin takes pickup\nPartner is at a work dinner then.',
+      wordedBy: 'model:muse-wonder-1.0',
+      reasonedBy: 'model:muse-spark-1.3',
+    });
+    const p = (await proposals()).find((x) => x.collisionId === open._id)!;
+    expect(p.text).toBe('Partner is at a work dinner then.');
+  });
+});
+
 describe('GD invariant 4: nothing changes until the Admin approves', () => {
   async function seededProposal() {
     const s = await seeded();
