@@ -469,7 +469,10 @@ export const resetDemo = internalAction({
   handler: async (ctx, args): Promise<{ familyId: Id<'families'>; members: Record<string, Id<'members'>> }> => {
     const bytes = Uint8Array.from(atob(FRACTIONS_SHEET.base64), (c) => c.charCodeAt(0));
     const homeworkStorageId = await ctx.storage.store(new Blob([bytes], { type: FRACTIONS_SHEET.contentType }));
-    return ctx.runMutation(internal.seed.resetSampleFamily, { weekOf: args.weekOf, homeworkStorageId });
+    const family = await ctx.runMutation(internal.seed.resetSampleFamily, { weekOf: args.weekOf, homeworkStorageId });
+    // G4: the seed has no made-up forecast (invariant 7); fetch the real one through the Weather port instead.
+    await ctx.scheduler.runAfter(0, internal.weather.pollFamily, { familyId: family.familyId, force: true });
+    return family;
   },
 });
 
