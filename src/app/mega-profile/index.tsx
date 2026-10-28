@@ -5,6 +5,7 @@ import { useMegaStatus, useSetSharing, useSharing, useUpdateMega } from '@/data/
 import { LoadingScreen } from '@/ui/LoadingScreen';
 import { Sheet } from '@/ui/Sheet';
 import { ProfileContent } from '@/features/profile/ProfileContent';
+import { PROFILE_COPY } from '@shared/config/copy';
 
 export default function MegaProfileRoute() {
   const viewer = useViewer();
@@ -16,17 +17,18 @@ export default function MegaProfileRoute() {
   if (viewer === undefined) return <LoadingScreen label="Opening profile…" />;
   if (!viewer?.mega) return <LoadingScreen label="No MEGA yet" />;
 
-  const isAdult = viewer.member.role !== 'kid';
   const isAdmin = viewer.member.role === 'admin';
 
   return (
-    <Sheet title="MEGA profile" onClose={() => router.back()}>
+    <Sheet title={PROFILE_COPY.title} onClose={() => router.back()}>
       <ProfileContent
         mega={viewer.mega}
+        role={viewer.member.role}
         statusLine={status ? (status.busy ? status.label : 'Available') : ''}
-        canRename={isAdult}
-        canSeeSharing={isAdult}
         isAdmin={isAdmin}
+        // Notifications, quiet hours and the theme all live in Settings (G5 fills its sections in).
+        onOpenNotifications={() => router.push('/settings' as never)}
+        onOpenTheme={() => router.push('/settings' as never)}
         sharing={sharing ?? undefined}
         onRename={(name) => updateMega({ name })}
         onOpenLookPersonality={() => router.push('/mega-profile/look' as never)}

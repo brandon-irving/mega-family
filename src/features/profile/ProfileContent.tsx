@@ -1,10 +1,17 @@
-// MEGA profile sheet (PLAN §3): sprite, name + rename (adults), status, a Look & personality button,
-// What it shares (adults), and (admin) What it remembers.
+// MEGA profile (PLAN §3, Profile board), opened by tapping the MEGA in the chat header. Owner, Oct 28: it's
+// where you customize your MEGA and handle your own profile concerns. Top to bottom: the MEGA itself (its full
+// look including Store parts, its name with a rename control, its status), the Look & personality row (color,
+// sticker, antenna, eyes, personality), What it shares (adults), and You: notifications and quiet hours,
+// theme, and what it remembers (with forget; not for kids). What each role may do is ROLES_CONFIG.profile.
+// Not built yet from the board: the Admin section's "Rules and limits" and "Activity" rows (G5 Settings).
 import { useState } from 'react';
 import { Pressable, TextInput, View } from 'react-native';
 import type { Infer } from 'convex/values';
 import type { megaDoc } from '@shared/domain/api';
-import type { ShareLevel } from '@shared/domain/enums';
+import type { Role, ShareLevel } from '@shared/domain/enums';
+import { PROFILE_COPY as C } from '@shared/config/copy';
+import { ROLES_CONFIG } from '@shared/config/roles';
+import { Button } from '@/ui/Button';
 import { Card } from '@/ui/Card';
 import { Chip } from '@/ui/Chip';
 import { MegaSprite } from '@/ui/MegaSprite';
@@ -17,13 +24,14 @@ export type Sharing = { schedule: ShareLevel; lists: ShareLevel; hqActivity: Sha
 
 export type ProfileContentProps = {
   mega: MegaDoc;
+  role: Role;
   statusLine: string;
-  canRename: boolean;
-  canSeeSharing: boolean;
   isAdmin: boolean;
   sharing?: Sharing;
   onRename: (name: string) => void;
   onOpenLookPersonality: () => void;
+  onOpenNotifications: () => void;
+  onOpenTheme: () => void;
   onChangeSharing?: (patch: Partial<Sharing>) => void;
   onOpenMemories?: () => void;
 };
@@ -31,46 +39,57 @@ export type ProfileContentProps = {
 const SHARE_LEVELS: ShareLevel[] = ['me', 'partner', 'family'];
 const SHARE_LABEL: Record<ShareLevel, string> = { me: 'Only me', partner: 'Partner', family: 'Family' };
 
-export function ProfileContent({ mega, statusLine, canRename, canSeeSharing, isAdmin, sharing, onRename, onOpenLookPersonality, onChangeSharing, onOpenMemories }: ProfileContentProps) {
+export function ProfileContent({ mega, role, statusLine, sharing, onRename, onOpenLookPersonality, onOpenNotifications, onOpenTheme, onChangeSharing, onOpenMemories }: ProfileContentProps) {
   const tokens = useTokens();
+  const access = ROLES_CONFIG[role].profile;
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(mega.name);
+  const save = () => {
+    const next = name.trim();
+    if (next && next !== mega.name) onRename(next);
+    setEditing(false);
+  };
+  const { hex, sticker, antenna, eyes, eyeColor } = mega.look;
 
   return (
     <>
       <View style={{ alignItems: 'center', gap: tokens.spacing.sm, marginBottom: tokens.spacing.lg }}>
-        <MegaSprite hex={mega.look.hex} sticker={mega.look.sticker} face={faceFor(mega.personality)} scale={5} />
+        <MegaSprite hex={hex} sticker={sticker} parts={{ antenna, eyes, eyeColor }} face={faceFor(mega.personality)} scale={5} accessibilityLabel={mega.name} />
         {editing ? (
-          <TextInput
-            value={name}
-            onChangeText={setName}
-            onSubmitEditing={() => {
-              onRename(name);
-              setEditing(false);
-            }}
-            autoFocus
-            style={{ color: tokens.text, fontSize: tokens.type.title.fontSize, fontWeight: '700', borderBottomWidth: 1, borderColor: tokens.line, minWidth: 160, textAlign: 'center' }}
-            accessibilityLabel="MEGA name"
-          />
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: tokens.spacing.sm }}>
+            <TextInput
+              value={name}
+              onChangeText={setName}
+              onSubmitEditing={save}
+              autoFocus
+              style={{ color: tokens.text, fontSize: tokens.type.title.fontSize, fontWeight: '700', borderBottomWidth: 1, borderColor: tokens.line, minWidth: 160, minHeight: tokens.touchTarget, textAlign: 'center' }}
+              accessibilityLabel={C.nameLabel}
+            />
+            <Button label={C.save} onPress={save} />
+          </View>
         ) : (
-          <Pressable onPress={() => canRename && setEditing(true)} accessibilityRole={canRename ? 'button' : undefined} accessibilityLabel={canRename ? `Rename ${mega.name}` : mega.name}>
-            <Text variant="title">{mega.name}{canRename ? ' ✎' : ''}</Text>
-          </Pressable>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: tokens.spacing.xs }}>
+            <Text variant="headline">{mega.name}</Text>
+            {access.rename ? (
+              <Pressable onPress={() => setEditing(true)} accessibilityRole="button" accessibilityLabel={C.rename(mega.name)} style={{ width: tokens.touchTarget, height: tokens.touchTarget, alignItems: 'center', justifyContent: 'center' }}>
+                <Text variant="title" color="muted">
+                  ✎
+                </Text>
+              </Pressable>
+            ) : null}
+          </View>
         )}
-        <Text color="muted">{statusLine}</Text>
+        {statusLine ? <Text color="muted">{statusLine}</Text> : null}
       </View>
 
-      <Pressable onPress={onOpenLookPersonality} accessibilityRole="button" accessibilityLabel="Look and personality">
-        <Card style={{ marginBottom: tokens.spacing.lg, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-          <Text variant="label">Look &amp; personality</Text>
-          <Text color="muted">›</Text>
-        </Card>
-      </Pressable>
+      <Row label={C.lookLabel} title={C.lookTitle} onPress={onOpenLookPersonality}>
+        <MegaSprite hex={hex} sticker={sticker} parts={{ antenna, eyes, eyeColor }} badge scale={1} accessibilityLabel={mega.name} />
+      </Row>
 
-      {canSeeSharing && sharing && (
-        <Card style={{ marginBottom: tokens.spacing.lg }}>
+      {access.sharing && sharing ? (
+        <Card style={{ marginTop: tokens.spacing.lg }}>
           <Text variant="label" style={{ marginBottom: tokens.spacing.sm }}>
-            What it shares
+            {C.shares(mega.name)}
           </Text>
           {(['schedule', 'lists', 'hqActivity'] as const).map((key) => (
             <View key={key} style={{ marginBottom: tokens.spacing.sm }}>
@@ -85,15 +104,37 @@ export function ProfileContent({ mega, statusLine, canRename, canSeeSharing, isA
             </View>
           ))}
         </Card>
-      )}
+      ) : null}
 
-      {isAdmin && (
-        <Pressable onPress={onOpenMemories} accessibilityRole="button" accessibilityLabel="What it remembers">
-          <Card>
-            <Text variant="label">What it remembers</Text>
-          </Card>
-        </Pressable>
-      )}
+      <Text variant="caption" color="muted" weight="600" style={{ marginTop: tokens.spacing.lg, marginBottom: tokens.spacing.sm, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+        {C.you}
+      </Text>
+      <View style={{ gap: tokens.spacing.sm }}>
+        <Row label={C.notifications} title={C.notifications} hint={C.notificationsHint} onPress={onOpenNotifications} />
+        <Row label={C.theme} title={C.theme} hint={C.themeHint} onPress={onOpenTheme} />
+        {access.memories && onOpenMemories ? <Row label={C.remembers(mega.name)} title={C.remembers(mega.name)} hint={C.remembersHint} onPress={onOpenMemories} /> : null}
+      </View>
     </>
+  );
+}
+
+/** One tappable profile row: an optional picture, a title and hint, and a chevron (the board's rows). */
+function Row({ label, title, hint, onPress, children }: { label: string; title: string; hint?: string; onPress: () => void; children?: React.ReactNode }) {
+  const tokens = useTokens();
+  return (
+    <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={label}>
+      <Card style={{ flexDirection: 'row', alignItems: 'center', gap: tokens.spacing.md, minHeight: tokens.touchTarget }}>
+        {children}
+        <View style={{ flex: 1 }}>
+          <Text variant="label">{title}</Text>
+          {hint ? (
+            <Text variant="caption" color="muted">
+              {hint}
+            </Text>
+          ) : null}
+        </View>
+        <Text color="muted">›</Text>
+      </Card>
+    </Pressable>
   );
 }
