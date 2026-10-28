@@ -27,7 +27,10 @@ function thread(megaId, items, extra) {
     accent: m.hex, mine: m.mine, font: size.font, btnH: size.btnH, btnFont: size.btnFont,
     showCoin: false, coin: coin(2), balance: 0, camera: false, openCamera: () => {}, sheet: SHEET,
     items: items.map((it) => card(it, size)),
-  }, extra || {});
+    // One composer per audience (owner, Oct 28): every kid screen uses the same bar. Kids start on a big
+    // Talk button with a 56pt keyboard toggle; typing swaps in a full-width field with a mic to go back.
+    adultBar: !m.kid, kidTalk: !!m.kid, kidType: false, toggleTyping: () => {},
+  }, extra || {}, m.kid && extra && extra.typing ? { kidTalk: false, kidType: true } : {});
 }
 
 // Fill every flag thread.html reads, so a card only names what it has.

@@ -70,14 +70,16 @@ open(S + '/mega-screens/project/Login.dc.html', 'w').write(t)
 assert '__' not in t.replace('__proto', '')
 
 LOGIN_BOARDS = [
-    ('LoginOpening', '1 · Opening (returning user)', {'step': 'opening'}),
-    ('Login', '2 · Welcome', {}),
-    ('LoginSheet', '3 · Sign-in sheet', {'step': 'welcome', 'sheet': 'signin'}),
+    ('LoginOpening', '1 · Loading: your MEGA paces “Opening chats” (never blank)', {'step': 'opening'}),
+    ('Login', '2 · Welcome: brand block centered, buttons in the thumb zone', {}),
+    ('LoginSheet', '3 · Sign in: Apple, Google, email + password', {'step': 'welcome', 'sheet': 'signin'}),
+    ('LoginCreate', '3b · Create account (from Make my MEGA)', {'step': 'welcome', 'sheet': 'create', 'form': 'filled'}),
     ('LoginDemo', 'Dev builds: demo accounts', {'step': 'welcome', 'sheet': 'demo', 'build': 'dev'}),
-    ('LoginInvite', '4 · I have an invite', {'step': 'invite'}),
+    ('LoginInvite', '4 · I have an invite: paste right under the instructions', {'step': 'invite'}),
+    ('LoginInviteHelp', '4b · Until the G8 camera build: “No link yet?” card', {'step': 'invite', 'scan': 'later'}),
     ('LoginScan', '5 · Scan the QR code (camera: G8 build)', {'step': 'scan'}),
-    ('LoginPreview', '6 · Invite preview (adult)', {'step': 'preview'}),
-    ('LoginPreviewKid', '6b · Invite preview (kid → parent code)', {'step': 'preview', 'who': 'kid'}),
+    ('LoginPreview', '6 · Adult invite: keep or change the MEGA Admin made', {'step': 'preview'}),
+    ('LoginPreviewKid', '6b · Kid invite: their MEGA is ready; a grown-up types the code', {'step': 'preview', 'who': 'kid'}),
     ('LoginExpired', 'Invite expired', {'step': 'preview', 'invite': 'expired'}),
     ('LoginLocked', 'Kid: too many wrong codes', {'step': 'locked', 'who': 'kid'}),
     ('LoginFamily', '7 · Signed in, no family yet', {'step': 'family'}),
@@ -128,6 +130,13 @@ for i, (stem, title, _) in enumerate(LOGIN_BOARDS):
     if f not in canvas['order']:
         canvas['order'].append(f)
 canvas['notes']['screen9'] = {'x': 0, 'y': ROW_Y - 260, 'text': 'Screen 9 · Sign in and joining', 'kind': 'title1', 'maxW': len(LOGIN_BOARDS) * GAP - 80}
+canvas['notes']['screen9defaults'] = {'x': len(LOGIN_BOARDS) * GAP, 'y': ROW_Y, 'w': 420, 'fill': 'orange', 'size': 's', 'text':
+    'Owner feedback, Oct 28 (all applied here)\n'
+    '• No empty band above MEGA: Hub stands in a spotlight and the brand block is centered above the buttons, which sit in the thumb zone (Reddit, Brink and Once on Mobbin).\n'
+    '• The sheet offers Apple and Google first, then email + password with Show and Forgot password (Polarsteps, Fiverr, Cal AI). Make my MEGA opens it on Create account.\n'
+    '• Loading is never blank: your MEGA paces back and forth on “Opening chats”, centered.\n'
+    '• Invite: the paste field and Continue sit right under the instructions, with an example link under the field (Discord). Until the G8 camera build, the QR card is a “No link yet?” help card.\n'
+    '• Adults and kids get different invite screens, chosen from the invite. Admin makes each person’s MEGA when inviting; adults keep or change it (Flighty-style personal invite), kids can’t change it at join and a grown-up types the parent code.'}
 json.dump(canvas, open(cpath, 'w'), ensure_ascii=False)
 print('built login')
 
@@ -159,6 +168,8 @@ KIDS_BOARDS = [
     ('KidsBedtime', '7 · Bedtime: pack for tomorrow', {'step': 'bedtime'}),
     ('KidsMorning', '8 · Morning routine, one step per tap', {'step': 'morning'}),
     ('KidsBucks', '9 · Mega Bucks arrive (kid)', {'step': 'bucks'}),
+    ('KidsIntro', '10 · Kid’s first open: MEGA says hi (never an empty chat) · the one kid composer', {'step': 'intro'}),
+    ('KidsTyping', '10b · The kid composer while typing (nothing cut off)', {'step': 'intro', 'typing': 'on'}),
 ]
 STORE_BOARDS = [
     ('StoreRoom', '1 · Twin 1’s room → Store', {'step': 'room'}),

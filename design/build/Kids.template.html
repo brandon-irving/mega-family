@@ -140,7 +140,7 @@ __THREAD__
   </sc-if>
 </div>
 </x-dc>
-<script type="text/x-dc" data-dc-script data-props='{"step":{"editor":"enum","options":["snap","make","practice","done","summary","chore","choreApprove","bedtime","morning","bucks"],"default":"make"},"hint":{"editor":"enum","options":["off","on"],"default":"off"},"$preview":{"width":390,"height":844}}'>
+<script type="text/x-dc" data-dc-script data-props='{"step":{"editor":"enum","options":["intro","snap","make","practice","done","summary","chore","choreApprove","bedtime","morning","bucks"],"default":"make"},"hint":{"editor":"enum","options":["off","on"],"default":"off"},"typing":{"editor":"enum","options":["off","on"],"default":"off"},"$preview":{"width":390,"height":844}}'>
 // Generated from prototypes/megasprite (mega-template.mjs, pixel-paint.mjs, export-looks.mjs).
 __SPRITE_LIVE__
 const STORE = __STORE__;
@@ -174,11 +174,11 @@ class Component extends DCLogic {
     return {
       step, camera: step === 'snap', kid: 'Twin 1', count: '5', made: false,
       q: p.hint === 'on' ? 3 : 1, hint: p.hint === 'on', miss: '', amount: step === 'choreApprove' ? 3 : 5, released: '',
-      choreDone: false, packed: [true, false, false, false], morning: 1, cheer: false, bucksGone: false,
+      choreDone: false, packed: [true, false, false, false], morning: 1, cheer: false, bucksGone: false, typing: p.typing === 'on',
     };
   }
   componentDidUpdate(prev) {
-    if (prev.step !== this.props.step || prev.hint !== this.props.hint) this.setState(this.fresh(this.props));
+    if (prev.step !== this.props.step || prev.hint !== this.props.hint || prev.typing !== this.props.typing) this.setState(this.fresh(this.props));
   }
   componentWillUnmount() { clearTimeout(this.cheerT); }
 
@@ -284,6 +284,21 @@ class Component extends DCLogic {
           } },
         ], { showCoin: true, balance: 12 }];
       }
+      case 'intro':
+        // A kid's first open (owner, Oct 28): never an empty thread. Their MEGA says hi and shows how it helps.
+        return ['sunny', [
+          { day: 'Today · 3:40 PM' },
+          { from: 'sunny', say: 'Hi Twin 2! I’m Sunny, your MEGA. Admin made me just for you.' },
+          { card: {
+            from: 'Sunny · How I help', title: 'Here’s what we can do', titleSize: 22,
+            rows: [
+              ['Chores and reminders', 'I remind you, you tap Done', 'Show me'],
+              ['Homework practice', 'Hints, never the answers', 'Show me'],
+              ['Ready for tomorrow', 'A checklist from the family calendar', 'Show me'],
+            ].map(([title, why, actLabel]) => ({ title, why, actLabel, aria: actLabel + ': ' + title, act: () => {}, bg: 'transparent', fg: '#EDEFF2', border: '#3A414B' })),
+          } },
+          { from: 'sunny', say: 'Tap Talk to Sunny and ask me anything. Or tap the keyboard to type.' },
+        ], { showCoin: true, balance: 0 }];
       case 'bucks':
         return ['zap', [
           { day: 'Today · 4:33 PM' },
@@ -296,7 +311,8 @@ class Component extends DCLogic {
 
   renderVals() {
     const s = this.state, step = s.step;
-    const [mega, items, extra] = this.items();
+    const [mega, items, extra0] = this.items();
+    const extra = Object.assign({}, extra0, { typing: s.typing, toggleTyping: () => this.setState({ typing: !s.typing }) });
     const finished = s.morning >= MORNING.length, cur = MORNING[Math.min(s.morning, MORNING.length - 1)];
     return {
       showThread: step !== 'morning',

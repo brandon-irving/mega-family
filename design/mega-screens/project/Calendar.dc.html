@@ -211,6 +211,29 @@ a{color:#EDEFF2;text-decoration:none}
       </sc-for>
     </div>
 
+    <!-- Kid composer, talk mode: the one bar every kid screen shares (same 72pt sizes as the Kid board). -->
+    <sc-if value="{{th.kidTalk}}" hint-placeholder-val="{{ false }}">
+      <div style="display: flex; align-items: center; gap: 12px; padding: 8px 16px 30px; flex-shrink: 0">
+        <button type="button" style="flex: 1; min-width: 0; height: 72px; border-radius: 36px; border: none; background: {{th.accent}}; color: #0C0E11; font-size: 20px; font-weight: 800; display: flex; align-items: center; justify-content: center; gap: 10px">
+          <svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"></rect><path d="M5 11a7 7 0 0 0 14 0M12 18v3"></path></svg>
+          Talk to {{th.name}}
+        </button>
+        <button type="button" aria-label="Type instead" onClick="{{th.toggleTyping}}" style="width: 72px; height: 72px; flex-shrink: 0; border-radius: 36px; border: 1px solid #3A414B; background: #16191E; color: #EDEFF2; display: flex; align-items: center; justify-content: center">
+          <svg aria-hidden="true" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="13" rx="2.5"></rect><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M6 14h.01M18 14h.01M9 14.5h6"></path></svg>
+        </button>
+      </div>
+    </sc-if>
+    <!-- Kid composer, typing: the field takes the whole width left; the mic goes back to Talk. -->
+    <sc-if value="{{th.kidType}}" hint-placeholder-val="{{ false }}">
+      <div style="display: flex; align-items: center; gap: 10px; padding: 8px 16px 30px; flex-shrink: 0">
+        <label for="kid-composer" style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0)">Message {{th.name}}</label>
+        <input id="kid-composer" type="text" placeholder="Type to {{th.name}}…" style="flex: 1; min-width: 0; height: 72px; box-sizing: border-box; border-radius: 36px; border: 2px solid {{th.accent}}; background: #16191E; color: #EDEFF2; padding: 0 22px; font-size: 20px; font-family: inherit">
+        <button type="button" aria-label="Talk instead" onClick="{{th.toggleTyping}}" style="width: 72px; height: 72px; flex-shrink: 0; border-radius: 36px; border: none; background: {{th.accent}}; color: #0C0E11; display: flex; align-items: center; justify-content: center">
+          <svg aria-hidden="true" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"></rect><path d="M5 11a7 7 0 0 0 14 0M12 18v3"></path></svg>
+        </button>
+      </div>
+    </sc-if>
+    <sc-if value="{{th.adultBar}}" hint-placeholder-val="{{ true }}">
     <div style="display: flex; align-items: center; gap: 8px; padding: 10px 16px 30px; flex-shrink: 0">
       <sc-if value="{{th.camera}}" hint-placeholder-val="{{ false }}">
         <button type="button" aria-label="Take a photo" onClick="{{th.openCamera}}" style="width: 48px; height: 48px; flex-shrink: 0; border-radius: 24px; border: 1px solid #2E343D; background: #16191E; color: #EDEFF2; display: flex; align-items: center; justify-content: center">
@@ -223,6 +246,7 @@ a{color:#EDEFF2;text-decoration:none}
         <svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"></rect><path d="M5 11a7 7 0 0 0 14 0M12 18v3"></path></svg>
       </button>
     </div>
+    </sc-if>
   </div>
 </sc-if>
 
@@ -451,7 +475,10 @@ function thread(megaId, items, extra) {
     accent: m.hex, mine: m.mine, font: size.font, btnH: size.btnH, btnFont: size.btnFont,
     showCoin: false, coin: coin(2), balance: 0, camera: false, openCamera: () => {}, sheet: SHEET,
     items: items.map((it) => card(it, size)),
-  }, extra || {});
+    // One composer per audience (owner, Oct 28): every kid screen uses the same bar. Kids start on a big
+    // Talk button with a 56pt keyboard toggle; typing swaps in a full-width field with a mic to go back.
+    adultBar: !m.kid, kidTalk: !!m.kid, kidType: false, toggleTyping: () => {},
+  }, extra || {}, m.kid && extra && extra.typing ? { kidTalk: false, kidType: true } : {});
 }
 
 // Fill every flag thread.html reads, so a card only names what it has.

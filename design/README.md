@@ -1,7 +1,7 @@
 # Design canvas (mockups)
 
 The approved screen mockups, published as a private Design-canvas artifact:
-https://claude.ai/artifact/Wa23YjuTXtEhL3hy8PvZZV (version 30 after the Store eyes, Admin-approves-clashes and sign-in wordmark updates on Oct 27).
+https://claude.ai/artifact/Wa23YjuTXtEhL3hy8PvZZV (version 33 after the Oct 28 sign-in redesign and the shared kid composer).
 
 - `mega-screens/project/*.dc.html` — one board per screen state; `canvas.json` places the boards (rows per
   screen: Chat, HQ, Profile, Family, Onboarding, Push, Settings, Widgets, Sign in, Kids, Store,
@@ -33,3 +33,15 @@ one 7x6 eye drawn twice on the visor.
 
 Sign-in wordmark (owner, Oct 27): the Welcome board shows "MEGA" in large letters and the only tagline on any
 sign-in screen, "A little help for the whole family". The capitals' top edge (y 411) is the `head` ledge.
+
+Sign-in redesign (owner feedback, Oct 28; research on Mobbin): the Welcome brand block (Hub in a spotlight,
+the wordmark, the tagline) is centered above the buttons, which sit in the thumb zone; the sheet offers Apple
+and Google, then email + password (Create account / Sign in toggle, Show, Forgot password); loading is your
+MEGA pacing on centered "Opening chats" (never blank); the invite screen puts the paste field and Continue
+right under the instructions; adults and kids get separate invite screens (`who` prop), each showing the MEGA
+the admin made for them (adults keep or change it, kids can't change it at join). Ledges moved: floor 341,
+head 388, make 628, opening 414.
+
+Kid composer (Oct 28): `thread.html` has one kid bar for every kid board (72pt Talk button + 72pt keyboard
+toggle; typing swaps in a full-width field with a mic to go back), matching the Kid board. `KidsIntro` shows a
+kid's first open: their MEGA says hi and how it helps, so a thread is never empty.
