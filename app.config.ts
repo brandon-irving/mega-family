@@ -2,6 +2,7 @@ import 'tsx/cjs'; // lets this file import the shared TypeScript config
 import type { ExpoConfig } from 'expo/config';
 import { IDENTITY } from './shared/config/identity.ts';
 import { THEMES } from './shared/config/theme.ts';
+import { WIDGETS, WIDGETS_ANDROID } from './shared/config/widgets.ts';
 
 // PLAN.md → Sign-in: Google sign-in on iOS needs its reversed client id as a URL scheme
 // (`com.googleusercontent.apps.<id>`), the same value Google's GoogleService-Info.plist calls
@@ -69,11 +70,17 @@ const config: ExpoConfig = {
     ['expo-splash-screen', { backgroundColor: THEMES.midnight.bg, image: './assets/images/splash-icon.png', imageWidth: 76 }],
     // Native modules for later gates, included now so the phone's development build doesn't need rebuilding
     // at each gate: push (G3), talk mode audio + spoken replies (G4), device calendar import (G5), photos (G5).
-    // react-native-keyboard-controller and expo-haptics need no plugin entry; widgets (G8) will need one more build.
+    // react-native-keyboard-controller, expo-haptics and expo-clipboard (the invite Paste button) need no plugin entry.
+    // Owner, Oct 28: every native package the plan needs is installed up front, so later gates add none;
+    // additions or removals found during execution wait until all gates are done (STATUS.md).
     'expo-dev-client',
     ['expo-notifications', { color: THEMES.midnight.accent, enableRemoteNotifications: true }],
     ['expo-audio', { microphonePermission: `${IDENTITY.name} listens only while you hold the Talk button.`, enableBackgroundRecording: false }],
     ['expo-calendar', { calendarPermission: `${IDENTITY.name} can add your calendars' events to the family calendar.` }],
+    // QR invite scanning and the live homework viewfinder. Video isn't recorded, so no Android audio permission.
+    ['expo-camera', { cameraPermission: `${IDENTITY.name} uses the camera to scan invite codes and read homework.`, recordAudioAndroid: false, barcodeScannerEnabled: true }],
+    // Home and lock screen widgets (G8). Kinds come from shared/config/widgets.ts; changing them needs a build.
+    ['expo-widgets', { enableAndroid: WIDGETS_ANDROID, widgets: Object.values(WIDGETS).map((w) => ({ name: w.name, displayName: w.displayName, description: w.description, ios: { supportedFamilies: [...w.families] } })) }],
     ['expo-image-picker', { photosPermission: `${IDENTITY.name} uses the photos you pick for chat and wallpapers.`, cameraPermission: `${IDENTITY.name} uses the camera when you take a photo to share.` }],
   ],
   experiments: { typedRoutes: true, reactCompiler: true },

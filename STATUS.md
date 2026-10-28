@@ -16,7 +16,7 @@ _Last updated: Oct 28._
 | G4 | Web search with kid filter, weather + NWS alerts, travel time (Mapbox) | |
 | G5 | Onboarding chat, Settings (theme/wallpaper), HQ tile room + own rooms, ICS + device calendar import, nightly profiler + check questions | |
 | G6 | Full end-to-end on web + iPhone, demo script, polish | |
-| G8 | Widgets (needs one more native build: expo-widgets) | |
+| G8 | Widgets, QR invite scan, homework viewfinder, invite Paste button (native packages already installed Oct 28) | |
 
 **In flight when this was written:** a background agent fixing the G2 UX review findings: white flash on load/sign-in, tabs reflashing loading states (switch all `src/data/*` queries to `useStableQuery` + a lint test), accent text contrast (WCAG-derived `readableOn`), MessageList memoization, hit targets. It then checks choice blocks, talk mode, the kid shell and desktop. When it commits, verify (all checks below), then `git tag -a g2` and start G3.
 
@@ -60,6 +60,7 @@ _Last updated: Oct 28._
 - **The design canvas is the spec (owner, Oct 26):** gate order stays as planned, but the end result must look like the approved boards (`design/README.md`). Every gate that touches a screen builds it to its board, and the UX reviewer compares the two side by side. A screen that ships as a placeholder says so in its header comment, along with the gate that replaces it. Placeholders still open: HQ room, onboarding chat and Settings (G5), push (G3), widgets (G8), sign-in restyle (Screen 9 boards, approved Oct 26).
 - **UX quality bar (owner's top priority):** mobile-first (the admin sometimes uses desktop); smooth, responsive, intuitive; keyboard-avoiding (react-native-keyboard-controller); Reanimated transitions with theme duration tokens; no flicker (`useStableQuery`, skeletons, stable keys, optimistic sends); no hardcoded colors (enforced by `src/test/noHardcodedColors.test.ts`). A UX reviewer measures web recordings frame by frame each gate.
 - **Live browser checks** catch what unit tests miss (web sign-in, streaming, empty model replies were all found this way): Playwright is installed; demo sign-in list on the welcome screen.
+- **Native packages are frozen (owner, Oct 28):** every native package the plan needs is installed now and treated as part of the contract, so one dev build covers all remaining gates. Added Oct 28: `expo-widgets` (kinds in `shared/config/widgets.ts`: `MegaNext` small/medium/lock-rectangular, `MegaTalk` lock-circular; App Group `group.com.megafamily.app`), `expo-camera` (QR invites, homework viewfinder), `expo-clipboard` (invite Paste button), `expo-asset` (a missing required peer of expo-audio; likely the Oct 28 device crash), `expo-network` (optional peer of @better-auth/expo); Expo patch versions aligned; `expo-doctor` 20/20. **If execution shows a package must be added or removed, do NOT do it mid-gate: note it here and do it after all gates are done.** Widget kinds are build-time too: don't rename or add kinds until then.
 - **Owner rules:** current docs before any library use (Context7 first); config/adapter-driven, DRY, single source of truth; rewards only as parent-released Mega Bucks (Oct 27); generic sample labels only (Admin, Partner, Twin 1, Twin 2, Toddler; MEGAs Teal, Coral, Zap, Sunny, Pebble, family MEGA Hub); never `Date.now()` in backend feature code (Clock port).
 
 ## Checks (all must pass)
@@ -78,7 +79,7 @@ npx expo export --platform web --output-dir <scratch dir>
 - `npm run dev:web` → http://localhost:8081 (demo sign-in list; mobile viewport is the primary target). `npm run dev` for the iPhone dev client.
 - `npx convex dev --once </dev/null` deploys to the cloud dev deployment **colorless-ibis-289** (team brandon-irving, project mega-family). Env there: server secrets, `SITE_URL=http://localhost:8081` (the **web app's** URL; Better Auth crossDomain), `DEMO_MODE=true`, `MEGA_MODEL_ADAPTER=real`.
 - Seed: `npx convex run seed:sampleFamily '{}'` (already seeded; demo clock starts Sunday 4:42 PM New York of the seed week).
-- `npm run build:ios:dev`: EAS development build (project @birving2/mega). The native modules for G2–G7 are already included; widgets (G8) need one more build. Agents must report any new native package before adding it.
+- `npm run build:ios:dev`: EAS development build (project @birving2/mega). All native modules for every remaining gate (incl. widgets, camera, clipboard) are included as of Oct 28; native packages are frozen until all gates are done.
 - `npm run smoke:meta`: Meta API smoke tests.
 
 ## Secrets

@@ -19,3 +19,4 @@ export * from './starters';
 export * from './store';
 export * from './talk';
 export * from './theme';
+export * from './widgets';
