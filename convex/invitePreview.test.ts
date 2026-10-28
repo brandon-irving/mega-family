@@ -126,6 +126,24 @@ describe('invites.redeem: the MEGA comes with the invite', () => {
     expect(code(bad2)).toBe('VALIDATION');
   });
 
+  test('seed.sampleInvites (demo only): an unjoined adult and kid, one invite each, reused on a rerun', async () => {
+    const t = convexTest(schema, modules);
+    process.env.DEMO_MODE = 'true';
+    try {
+      await t.mutation(internal.seed.sampleFamily, { weekOf: WEEK });
+      const { adultUrl, kidUrl } = await t.mutation(internal.seed.sampleInvites, {});
+      const adult = await t.query(api.invites.preview, { token: adultUrl.split('/').pop()! });
+      const kid = await t.query(api.invites.preview, { token: kidUrl.split('/').pop()! });
+      expect(adult.status === 'ok' && adult.kind).toBe('adult');
+      expect(kid.status === 'ok' && kid.kind).toBe('kid');
+      await t.mutation(internal.seed.sampleInvites, {});
+      const names = (await t.run((ctx) => ctx.db.query('members').collect())).map((m) => m.name);
+      expect(names.filter((n) => n === 'Grandparent')).toHaveLength(1);
+    } finally {
+      delete process.env.DEMO_MODE;
+    }
+  });
+
   test('a member who already has a MEGA keeps that one row (patched on change, never duplicated)', async () => {
     const t = convexTest(schema, modules);
     const { familyId } = await t.mutation(internal.seed.sampleFamily, { weekOf: WEEK });
