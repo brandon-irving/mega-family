@@ -6,6 +6,7 @@ import type { MutationCtx } from '../_generated/server';
 import { addDays, zonedInstant } from '../../shared/time';
 import { detectClashes } from './clashes';
 import { sameFamilyMember } from './viewer';
+import { requireFamilyPlace } from './places';
 
 /** The end to store for a new event (GD review): an all-day event saved without one ends at the end of its
  * local day, so it can clash with a timed event that day. */
@@ -14,11 +15,13 @@ export function eventEnd(end: number | undefined, allDay: string | undefined, tz
   return zonedInstant(addDays(allDay, 1), 0, tz);
 }
 
-export type EventPatch = Partial<Pick<Doc<'events'>, 'title' | 'start' | 'end' | 'who' | 'place'>>;
+export type EventPatch = Partial<Pick<Doc<'events'>, 'title' | 'start' | 'end' | 'who' | 'place'>> & { placeId?: Id<'places'> | null };
 
 export async function patchEvent(ctx: MutationCtx, event: Doc<'events'>, patch: EventPatch, now: number): Promise<void> {
   if (patch.who) for (const id of patch.who) await sameFamilyMember(ctx, event.familyId, id);
-  const clean = Object.fromEntries(Object.entries(patch).filter(([, v]) => v !== undefined));
+  if (patch.placeId) await requireFamilyPlace(ctx, event.familyId, patch.placeId);
+  // `placeId: null` clears the saved place (v0.15); Convex removes a field patched to undefined.
+  const clean = Object.fromEntries(Object.entries(patch).filter(([, v]) => v !== undefined).map(([k, v]) => [k, v === null ? undefined : v]));
   await ctx.db.patch(event._id, clean);
   await calendarChanged(ctx, event.familyId, now);
 }

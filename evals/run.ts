@@ -9,7 +9,9 @@
 // Real calls, inside a local convex-test backend (spend recorded in its usage table, so the per-family cap
 // applies). Run from the repo root through the secrets runner, which injects META_API_KEY without this
 // script ever reading or printing it:
-//   node scripts/secrets.mjs run --only tool -- npx tsx evals/run.ts [privacyGate|pushJudge]
+//   evals/kidSearch/cases.jsonl (G4) — kid search queries labeled "allowed" | "rephrase" | "blocked". Runs the
+//     kid filter's query step (keyword backstop + model check, convex/evals.ts kidQueryCase); no web search.
+//   node scripts/secrets.mjs run --only tool -- npx tsx evals/run.ts [privacyGate|pushJudge|kidSearch]
 // Writes evals/<name>/results-<model>.md.
 import fs from 'node:fs';
 import path from 'node:path';
@@ -97,6 +99,19 @@ async function pushJudge(t: TestConvex<typeof schema>, familyId: Id<'families'>)
   return cents;
 }
 
+async function kidSearch(t: TestConvex<typeof schema>, familyId: Id<'families'>): Promise<number> {
+  const cases = readCases<{ id: string; query: string; label: 'allowed' | 'rephrase' | 'blocked' }>('kidSearch');
+  const before = await spentCents(t, familyId);
+  const rows: Row[] = [];
+  for (const c of cases) {
+    const r = await t.action(internal.evals.kidQueryCase, { familyId, query: c.query });
+    rows.push({ id: c.id, label: c.label, predicted: r.verdict, detail: `${r.decidedBy}${r.detail ? ` (${r.detail})` : ''}: "${c.query}"` });
+  }
+  const cents = (await spentCents(t, familyId)) - before;
+  writeResults('kidSearch', 'Kid search filter (query step: keyword backstop + model check)', ['blocked', 'rephrase', 'allowed'], rows, cents, 'The costly miss is a **blocked** query let through as allowed. A rephrase predicted for a "blocked" label still never searches the original words, and the answer check runs after the search either way.');
+  return cents;
+}
+
 async function spentCents(t: TestConvex<typeof schema>, familyId: Id<'families'>): Promise<number> {
   const rows = await t.run((ctx) => ctx.db.query('usage').withIndex('by_family_day', (q) => q.eq('familyId', familyId)).collect());
   return rows.reduce((s, r) => s + r.cents, 0);
@@ -112,6 +127,7 @@ async function main() {
   const { familyId } = await t.mutation(internal.seed.sampleFamily, {});
   if (!which || which === 'privacyGate') await privacyGate(t, familyId);
   if (!which || which === 'pushJudge') await pushJudge(t, familyId);
+  if (!which || which === 'kidSearch') await kidSearch(t, familyId);
   const total = await spentCents(t, familyId);
   console.log(`total eval spend: ${total.toFixed(2)}¢`);
 }

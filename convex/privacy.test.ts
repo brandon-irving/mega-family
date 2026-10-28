@@ -412,6 +412,39 @@ describe('Milestone D: privacy grid', () => {
       expect(await refused(A('admin').query(api.store.catalog, {}))).toBe('FORBIDDEN');
     });
 
+    test('G4 places: every member reads them; a kid can never add, edit or remove one', async () => {
+      // (the grid above has already run every mutation, so read the current rows rather than the setup snapshot)
+      const current = ((await t.run((ctx) => ctx.db.query('places').collect())) as unknown as { _id: Id<'places'>; familyId: string }[]).filter((p) => p.familyId === famA.familyId);
+      const place = current[0];
+      expect((await A('twin1').query(api.places.list, {})).length).toBe(current.length);
+      expect(await refused(A('twin1').mutation(api.places.remove, { placeId: place._id as Id<'places'> }))).toBe('FORBIDDEN');
+      expect(await refused(A('twin2').mutation(api.places.upsert, { kind: 'other', label: 'Park', address: 'A park' }))).toBe('FORBIDDEN');
+    });
+
+    test("G4 travelChecks: a private event's travel is NOT_FOUND to everyone but its owner", async () => {
+      // A fresh private event (the grid's own probes may already have shared the seeded one).
+      const placeId = ((await t.run((ctx) => ctx.db.query('places').collect())) as unknown as { _id: Id<'places'>; familyId: string }[]).find((p) => p.familyId === famA.familyId)?._id;
+      const privateId = (await t.run((ctx) =>
+        ctx.db.insert('events', { familyId: famA.familyId, title: 'Private errand', start: 4_102_444_800_000, who: [famA.members.admin, famA.members.partner], placeId, source: 'mega', createdBy: famA.members.admin, scope: 'personal', ownerId: famA.members.admin, cancelled: false } as never),
+      )) as Id<'events'>;
+      expect(await refused(A('admin').query(api.travel.forEvent, { eventId: privateId }))).toBeUndefined();
+      for (const k of ['partner', 'twin1', 'twin2'] as const) expect(await refused(A(k).query(api.travel.forEvent, { eventId: privateId })), k).toBe('NOT_FOUND');
+    });
+
+    test("G4 searchLog: a sibling can't read a kid's searches; a parent sees only blocked/rephrased ones", async () => {
+      expect(await refused(A('twin1').query(api.search.log, { memberId: famA.members.twin2, paginationOpts: { numItems: 20, cursor: null } }))).toBe('FORBIDDEN');
+      expect(await refused(A('partner').query(api.search.log, { memberId: famA.members.admin, paginationOpts: { numItems: 20, cursor: null } }))).toBe('FORBIDDEN');
+      const parentView = await A('admin').query(api.search.log, { memberId: famA.members.twin2, paginationOpts: { numItems: 20, cursor: null } });
+      expect(parentView.page.every((r) => r.outcome === 'blocked' || r.outcome === 'rephrased')).toBe(true);
+    });
+
+    test('G4 weatherCache: no public function returns raw provider data', async () => {
+      const view = await A('twin1').query(api.weather.get, {});
+      const strings = new Set<string>();
+      collectStrings(view, strings);
+      for (const row of famA.docs.weatherCache ?? []) expect(strings.has(row._id)).toBe(false);
+    });
+
     test('memories.list returns the admin -> partner shared memory to partner (the grantee)', async () => {
       const sharedMemory = (famA.docs.memories as unknown as { scope: string; text: string }[]).find((m) => m.scope === 'shared');
       expect(sharedMemory).toBeDefined();

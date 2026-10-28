@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Onboarding chat</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;family=Pixelify+Sans:wght@400;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#0C0E11}
+button{font-family:inherit;cursor:pointer}
+a{color:#EDEFF2;text-decoration:none}
+</style>
+</helmet>
+<div style="position: relative; width: 390px; height: 844px; overflow: hidden; background: #0C0E11; color: #EDEFF2; font-family: Inter, system-ui, sans-serif">
+__THREAD__
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"step":{"editor":"enum","options":["name","named","gmail","gmailConnected","gmailFound","calendar","ics","next"],"default":"name"},"$preview":{"width":390,"height":844}}'>
+// Generated from prototypes/megasprite (mega-template.mjs, pixel-paint.mjs, export-looks.mjs).
+__SPRITE_LIVE__
+const STORE = __STORE__;
+__STORE_LIVE__
+__THREAD_JS__
+
+// Onboarding chat (owner, Oct 28): sign up → the admin's MEGA opens the chat → "What should I call you?" →
+// MEGA offers integrations one at a time, Gmail first → then the family steps (Screen 5 boards).
+// Everything an integration finds lands in the owner's PRIVATE layer; MEGA may suggest sharing, only the
+// owner's tap shares (explicit-share rule).
+const PRIVATE_FOOT = 'Everything I find stays private to you until you share it.';
+
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = this.fresh(props);
+  }
+  fresh(p) {
+    const step = p.step || 'name';
+    return {
+      gmail: ['gmailConnected', 'gmailFound', 'calendar', 'ics', 'next'].includes(step) ? 'connected' : '',
+      cal: ['ics', 'next'].includes(step) ? 'phone' : '',
+      ics: step === 'next' ? 'skip' : '',
+      added: [], share: '',
+    };
+  }
+  componentDidUpdate(prev) {
+    if (prev.step !== this.props.step) this.setState(this.fresh(this.props));
+  }
+
+  hello() {
+    return [
+      { day: 'Just now' },
+      { from: 'teal', say: 'Hi! I’m Teal, your MEGA. I help you keep the family’s week on track, and I’ll get better the more I know.' },
+      { from: 'teal', say: 'First things first: what should I call you?' },
+    ];
+  }
+  named() {
+    return this.hello().concat([
+      { mine: 'Admin' },
+      { from: 'teal', say: 'Nice to meet you, Admin! A couple of quick things and I can start helping right away.' },
+    ]);
+  }
+  gmailCard() {
+    const s = this.state;
+    return { card: {
+      from: 'Teal', title: 'Want me to watch your Gmail?',
+      body: 'I’ll look for the things families miss: school emails, appointments, bills and deliveries. I only read; I never send, delete or reply.',
+      tagsLabel: 'What I’d look for', tags: [{ text: 'School and teachers' }, { text: 'Appointments' }, { text: 'Bills and due dates' }, { text: 'Deliveries' }],
+      actions: s.gmail ? [] : [btn('Connect Gmail', () => this.setState({ gmail: 'connected' })), btn('Not now', () => this.setState({ gmail: 'skip' }), 'ghost')],
+      status: s.gmail === 'connected' ? 'Gmail connected · checking the last 30 days' : s.gmail === 'skip' ? 'Skipped. You can connect Gmail any time in Settings.' : '',
+      statusColor: s.gmail === 'connected' ? '#2FB8B0' : '#9AA1AB',
+      foot: PRIVATE_FOOT,
+    } };
+  }
+  foundCard() {
+    const s = this.state;
+    const add = (id) => () => this.setState({ added: s.added.concat(id) });
+    const row = (id, title, why) => {
+      const done = s.added.includes(id);
+      return { title, why, act: done ? () => {} : add(id), actLabel: done ? 'Added' : 'Add', aria: (done ? 'Added ' : 'Add ') + title + ' to your calendar',
+        bg: done ? '#123B39' : 'transparent', fg: done ? '#7FE0D8' : '#EDEFF2', border: done ? '#2FB8B0' : '#3A414B' };
+    };
+    return [
+      { from: 'teal', say: 'I found 3 things worth keeping in your email.' },
+      { card: {
+        from: 'Teal', title: 'From your Gmail',
+        rows: [row('picture', 'Picture day · Fri, Nov 6', 'From the school office'), row('dentist', 'Dentist reminder · Tue 3:30 PM', 'From the dental office'), row('water', 'Water bill due · Nov 12', 'From the city, $48')],
+        foot: 'Added items go on your private calendar. Only you see them.',
+      } },
+      { card: {
+        from: 'Teal', title: 'Share picture day with the household?',
+        body: 'Partner and the twins would see “Picture day · Fri, Nov 6”. Right now it’s only yours.',
+        actions: s.share ? [] : [btn('Share it', () => this.setState({ share: 'yes' })), btn('Keep private', () => this.setState({ share: 'no' }), 'ghost')],
+        status: s.share === 'yes' ? 'Shared with the household.' : s.share === 'no' ? 'Kept private. Only you see it.' : '',
+        statusColor: s.share === 'yes' ? '#5B8DEF' : '#9AA1AB',
+        foot: 'MEGA never shares anything unless you tap Share.',
+      } },
+    ];
+  }
+  calendarCard() {
+    const s = this.state;
+    return { card: {
+      from: 'Teal', title: 'Bring in your calendar?',
+      body: 'I’ll add your events to your private calendar so I can plan around them. You choose what the household sees.',
+      actions: s.cal ? [] : [btn('Google Calendar', () => this.setState({ cal: 'google' })), btn('This phone’s calendar', () => this.setState({ cal: 'phone' })), btn('Not now', () => this.setState({ cal: 'skip' }), 'ghost')],
+      cols: 1,
+      status: s.cal === 'google' ? 'Google Calendar connected · 24 events this month' : s.cal === 'phone' ? 'Phone calendar added · 24 events this month' : s.cal === 'skip' ? 'Skipped. You can add a calendar any time in Settings.' : '',
+      statusColor: s.cal && s.cal !== 'skip' ? '#2FB8B0' : '#9AA1AB',
+      foot: PRIVATE_FOOT,
+    } };
+  }
+  icsCard() {
+    const s = this.state;
+    return { card: {
+      from: 'Teal', title: 'Any schedule links?',
+      body: 'Schools and sports teams often share a calendar link (it ends in .ics). Paste one and I’ll keep it up to date.',
+      actions: s.ics ? [] : [btn('Paste a link', () => this.setState({ ics: 'added' })), btn('Skip', () => this.setState({ ics: 'skip' }), 'ghost')],
+      status: s.ics === 'added' ? 'Added “Soccer · Fall season” · updates every few hours' : s.ics === 'skip' ? 'Skipped.' : '',
+      statusColor: s.ics === 'added' ? '#2FB8B0' : '#9AA1AB',
+      foot: PRIVATE_FOOT,
+    } };
+  }
+
+  items() {
+    const step = this.props.step || 'name';
+    if (step === 'name') return this.hello();
+    if (step === 'named') return this.named();
+    const gmail = this.named().slice(-1).concat([this.gmailCard()]);
+    if (step === 'gmail' || step === 'gmailConnected') return [{ day: 'Just now' }].concat(gmail);
+    if (step === 'gmailFound') return [{ day: 'Just now' }, this.gmailCard()].concat(this.foundCard());
+    if (step === 'calendar') return [{ day: 'Just now' }, this.gmailCard(), { from: 'teal', say: 'I’ll keep watching for new ones.' }, this.calendarCard()];
+    if (step === 'ics') return [{ day: 'Just now' }, this.calendarCard(), this.icsCard()];
+    // next: hand off to the family steps (Screen 5 boards: who's in the family, invites, parent code).
+    return [
+      { day: 'Just now' }, this.icsCard(),
+      { from: 'teal', say: 'All set. Now the fun part: who’s in your family?' },
+      { card: {
+        from: 'Teal', title: 'Who should I add first?',
+        body: 'I’ll make each person their own MEGA. Grown-ups can change theirs; kids get the one you pick.',
+        actions: [btn('Partner', () => {}), btn('A kid', () => {}), btn('Someone else', () => {}, 'ghost'), btn('Just me for now', () => {}, 'ghost')],
+        foot: 'You can add people any time from Family.',
+      } },
+    ];
+  }
+
+  renderVals() {
+    return { th: thread('teal', this.items()) };
+  }
+}
+</script>
+</body>
+</html>

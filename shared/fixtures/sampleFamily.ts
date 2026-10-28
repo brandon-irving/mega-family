@@ -53,6 +53,15 @@ export const SAMPLE_FAMILY = {
     [6, 18 * 60, 'Trick-or-treating', 'all'],
   ] as [number, number, string, SampleKey[] | 'all'][],
   lists: [{ name: 'Groceries', scope: 'family', items: ['Eggs', 'Bread', 'Apples'] }] as { name: string; scope: Scope; items: string[] }[],
+  /** G4 (CONTRACT v0.15): the family's places. Synthetic: every address is a PUBLIC landmark in Brooklyn (never
+   * a real home), so they geocode and get real NYC weather and traffic. Coordinates are approximate and fixed
+   * (`geocode.status: 'seed'`) so weather works before MAPBOX_TOKEN exists; the backend may re-geocode them. */
+  places: [
+    { key: 'home', kind: 'home', label: 'Home', address: 'Grand Army Plaza, Brooklyn, NY 11238', lat: 40.674, lng: -73.97 },
+    { key: 'school', kind: 'school', label: 'School', address: 'Brooklyn Museum, 200 Eastern Pkwy, Brooklyn, NY 11238', lat: 40.6712, lng: -73.9636 },
+    { key: 'work', kind: 'work', label: 'Work', address: 'Brooklyn Borough Hall, 209 Joralemon St, Brooklyn, NY 11201', lat: 40.6925, lng: -73.9904 },
+    { key: 'field', kind: 'other', label: 'Soccer field', address: 'Parade Ground, Caton Ave & Coney Island Ave, Brooklyn, NY 11226', lat: 40.6497, lng: -73.9682 },
+  ] as { key: string; kind: 'home' | 'school' | 'work' | 'other'; label: string; address: string; lat: number; lng: number }[],
   /** One or more memories in every scope, so the privacy tests have something to leak. */
   memories: [
     { scope: 'family', about: [], kind: 'fact', text: 'Trash and recycling go out Tuesday night.', pinned: true },
@@ -151,5 +160,17 @@ export const SAMPLE_FAMILY = {
     },
     /** Today's morning list for Twin 1, half done (board KidsMorning). */
     morningRun: { for: 'twin1' as SampleKey, doneSteps: ['dressed', 'teeth'] },
+  },
+  /** G4 (CONTRACT v0.15). Which events sit at which saved place (by title, case-insensitive substring), and one
+   * past search per kid so `search.log` and the parents' view have data (Twin 2's was blocked). */
+  g4: {
+    eventPlaces: [
+      { titleIncludes: 'soccer', place: 'field' },
+      { titleIncludes: 'school drop-off', place: 'school' },
+    ] as { titleIncludes: string; place: string }[],
+    searches: [
+      { for: 'twin1', query: 'how many hearts does an octopus have', outcome: 'answered', sourceCount: 2, minutesAgo: 90 },
+      { for: 'twin2', query: 'scary videos of real accidents', outcome: 'blocked', category: 'violence', decidedBy: 'model:muse-spark-1.3', sourceCount: 0, minutesAgo: 45 },
+    ] as { for: SampleKey; query: string; outcome: 'answered' | 'rephrased' | 'blocked'; category?: string; decidedBy?: string; sourceCount: number; minutesAgo: number }[],
   },
 };

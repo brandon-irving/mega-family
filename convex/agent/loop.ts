@@ -18,7 +18,12 @@ import { internal } from '../_generated/api';
 import { internalAction, type ActionCtx } from '../_generated/server';
 import { ChatModelError, type ChatMessage } from '../ports/chatModel';
 import { getChatModel } from '../adapters/registry';
+import { WEB_SEARCH } from '../../shared/config/integrations';
+import { NET_TOOL_NAMES } from './netTools';
 import { toolsForRole } from './toolSpecs';
+
+/** Tools that only read (or only show something) — the ones still allowed after a search result entered the turn. */
+const READ_ONLY_AFTER_SEARCH = new Set(['recall', 'web_search', 'weather', 'travel_time', 'show_ui']);
 
 type ContextData = {
   now: string;
@@ -95,7 +100,13 @@ export const runTurn = internalAction({
     });
 
     const model = getChatModel();
-    const tools = toolsForRole(args.role);
+    // G4: a kid whose controls turn web search off isn't offered the tool (a forced call is still blocked by
+    // the kid filter in convex/search.ts).
+    const gate = await ctx.runQuery(internal.agent.netTools.toolGate, { familyId: args.familyId, memberId: args.memberId });
+    const tools = toolsForRole(args.role).filter((t) => !(gate.webSearchOff && t.name === 'web_search'));
+    // G4 invariant 1: once a search result is in this turn's context it's untrusted data — from then on only
+    // read-only tools run, so a result can never cause a change by itself; the member confirms in a new turn.
+    let searchedThisTurn = 0;
     const messages: ChatMessage[] = [{ role: 'system', content: buildSystemPrompt(data) }, ...data.recentThread, { role: 'user', content: args.userText }];
     let maxTokens: number = LIMITS.agent.maxTokensReply;
     let retriedForLength = false;
@@ -158,16 +169,33 @@ export const runTurn = internalAction({
         // call a model itself, so this has to happen here, in the loop, which can).
         const concern = call.name === 'remember' ? await classifyRememberCall(ctx, args.familyId, call.arguments, data.roster) : undefined;
 
-        const toolResult = await ctx.runMutation(internal.agent.tools.execute, {
-          familyId: args.familyId,
-          memberId: args.memberId,
-          megaId: args.megaId,
-          threadId: args.threadId,
-          name: call.name,
-          argumentsJson: call.arguments,
-          serverConcern: concern?.category,
-          serverConcernBy: concern?.decidedBy,
-        });
+        let toolResult: { ok: boolean; resultText: string };
+        if (searchedThisTurn > 0 && !READ_ONLY_AFTER_SEARCH.has(call.name)) {
+          toolResult = { ok: false, resultText: AGENT_COPY.actAfterSearchRefusal };
+        } else if (call.name === 'web_search' && searchedThisTurn >= WEB_SEARCH.maxPerReply) {
+          toolResult = { ok: false, resultText: `at most ${WEB_SEARCH.maxPerReply} searches per reply; answer with what you found` };
+        } else if (NET_TOOL_NAMES.has(call.name)) {
+          if (call.name === 'web_search') searchedThisTurn++;
+          toolResult = await ctx.runAction(internal.agent.netTools.run, {
+            familyId: args.familyId,
+            memberId: args.memberId,
+            role: args.role,
+            megaId: args.megaId,
+            name: call.name,
+            argumentsJson: call.arguments,
+          });
+        } else {
+          toolResult = await ctx.runMutation(internal.agent.tools.execute, {
+            familyId: args.familyId,
+            memberId: args.memberId,
+            megaId: args.megaId,
+            threadId: args.threadId,
+            name: call.name,
+            argumentsJson: call.arguments,
+            serverConcern: concern?.category,
+            serverConcernBy: concern?.decidedBy,
+          });
+        }
         messages.push({ role: 'tool', content: toolResult.resultText, toolCallId: call.id });
       }
 

@@ -15,6 +15,12 @@ export const PRICING = {
     cachedInputCentsPerMTok: 20,
     outputCentsPerMTok: 2000,
   },
+  /** G4: each Meta `web_search` tool call, on top of the model's tokens. PLAN.md's third-party figure
+   * (~$2.50 / 1,000 searches) — **verify on Meta's pricing page before the live check**. Mapbox and
+   * Open-Meteo/NWS aren't Meta spend and aren't tracked here (Mapbox's free tier covers the demo). */
+  webSearch: {
+    centsPerSearch: 0.25,
+  },
   /** Muse Voice Transcribe, task brief: $3 / 1000 minutes = $0.003/min = 0.3 cents/min. */
   transcribe: {
     centsPerMinute: 0.3,

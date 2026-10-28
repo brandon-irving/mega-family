@@ -20,6 +20,7 @@ import { internal } from './_generated/api';
 import { internalAction, internalMutation, type MutationCtx } from './_generated/server';
 import { sanitizeDraftText } from './model/proactive';
 import { seedGd } from './model/seedGd';
+import { seedG4 } from './model/seedG4';
 import { FRACTIONS_SHEET } from '../shared/fixtures/homework/fractionsSheet';
 import { scopeKey } from './model/scopes';
 import { randomToken } from './model/random';
@@ -75,6 +76,11 @@ const FAMILY_OWNED_TABLES: readonly [TableNames, string][] = [
   ['routineRuns', 'by_family_member_kind_date'],
   ['bucksLedger', 'by_family_member_at'],
   ['purchases', 'by_family_member'],
+  // G4 (CONTRACT v0.15)
+  ['places', 'by_family_kind'],
+  ['weatherCache', 'by_family_place_kind'],
+  ['travelChecks', 'by_family_event_checked'],
+  ['searchLog', 'by_family_member_at'],
 ];
 
 async function deleteFamilyCompletely(ctx: MutationCtx, familyId: Id<'families'>): Promise<void> {
@@ -179,6 +185,21 @@ async function createSampleFamily(ctx: MutationCtx, weekOf: string | undefined, 
 
     // a short conversation in the admin's thread
     await message(ctx, familyId, thread.admin, demoNow - 30 * 60_000, { kind: 'mega', id: mega.admin }, { type: 'text', text: 'Good afternoon! Soccer pickup is at 4:50.' });
+
+    // places (G4, v0.15): household data, public landmarks only; linking events to them is the G4 backend's
+    for (const p of S.places) {
+      await ctx.db.insert('places', {
+        familyId,
+        kind: p.kind,
+        label: p.label,
+        address: p.address,
+        lat: p.lat,
+        lng: p.lng,
+        geocode: { status: 'seed' },
+        createdBy: m.admin,
+        updatedAt: demoNow,
+      });
+    }
 
     // events
     const everyone = S.members.map((x) => x.key);
@@ -346,6 +367,8 @@ async function createSampleFamily(ctx: MutationCtx, weekOf: string | undefined, 
     // GD (Screens 10–12): layers, the clash + negative control, chores, homework, routines, Mega Bucks, gifts.
     // The homework sheet needs a stored photo; `seed.resetDemo` stores the synthetic worksheet and passes it.
     await seedGd(ctx, { familyId, m, hubId: mega.family, sunday, at, now: demoNow, homeworkStorageId });
+    // G4: events linked to saved places, past kid searches, Thursday's pickup travel check (docs/gates/G4.md).
+    await seedG4(ctx, { familyId, m, now: demoNow });
 
     return { familyId, members: m };
 }
@@ -446,7 +469,10 @@ export const resetDemo = internalAction({
   handler: async (ctx, args): Promise<{ familyId: Id<'families'>; members: Record<string, Id<'members'>> }> => {
     const bytes = Uint8Array.from(atob(FRACTIONS_SHEET.base64), (c) => c.charCodeAt(0));
     const homeworkStorageId = await ctx.storage.store(new Blob([bytes], { type: FRACTIONS_SHEET.contentType }));
-    return ctx.runMutation(internal.seed.resetSampleFamily, { weekOf: args.weekOf, homeworkStorageId });
+    const family = await ctx.runMutation(internal.seed.resetSampleFamily, { weekOf: args.weekOf, homeworkStorageId });
+    // G4: the seed has no made-up forecast (invariant 7); fetch the real one through the Weather port instead.
+    await ctx.scheduler.runAfter(0, internal.weather.pollFamily, { familyId: family.familyId, force: true });
+    return family;
   },
 });
 

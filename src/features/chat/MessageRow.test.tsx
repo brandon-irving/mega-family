@@ -6,6 +6,9 @@ import { FIXTURE_IDS, MESSAGES_BY_TYPE, SAMPLE_SAVE_CHIP, TEAL_INFO } from '@/te
 import { ThemeProvider } from '@/ui/theme';
 import { MessageRow } from './MessageRow';
 
+// G4: the search/weather/travel cards read the viewer's timezone and role (src/features/integrations).
+jest.mock('@/data/useViewer', () => ({ useViewer: () => ({ member: { role: 'adult' }, family: { timezone: 'America/New_York' } }) }));
+
 const noop = () => {};
 const megaById = { [FIXTURE_IDS.teal]: TEAL_INFO };
 

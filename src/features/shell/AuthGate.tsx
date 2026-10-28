@@ -61,6 +61,9 @@ export function AuthGate() {
         <Stack.Screen name="homework" options={{ presentation: 'fullScreenModal', animation: 'slide_from_bottom' }} />
         <Stack.Screen name="routine/morning" options={{ presentation: 'fullScreenModal', animation: 'slide_from_bottom' }} />
         <Stack.Screen name="store" options={{ presentation: 'modal' }} />
+        {/* G4 (Screen 14): family places, and a kid's blocked/changed searches for their parents. */}
+        <Stack.Screen name="places" options={{ presentation: 'modal' }} />
+        <Stack.Screen name="searches/[memberId]" options={{ presentation: 'modal' }} />
       </Stack.Protected>
     </Stack>
   );

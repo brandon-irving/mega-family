@@ -20,7 +20,21 @@ import {
   via,
 } from './enums';
 import { author, messageBody, saveChip } from './messages';
-import { ANTENNA_IDS, BUTTON_SET_IDS, EYE_COLOR_IDS, EYE_STYLE_IDS, ROUTINE_KINDS, STICKERS, STORE_ITEM_IDS, WALLPAPER_PRESET_IDS } from '../config/ids';
+import {
+  ALERT_SEVERITIES,
+  ANTENNA_IDS,
+  BUTTON_SET_IDS,
+  EYE_COLOR_IDS,
+  EYE_STYLE_IDS,
+  GEOCODE_STATUSES,
+  INTEGRATION_FAILURES,
+  PLACE_KINDS,
+  ROUTINE_KINDS,
+  SEARCH_OUTCOMES,
+  STICKERS,
+  STORE_ITEM_IDS,
+  WALLPAPER_PRESET_IDS,
+} from '../config/ids';
 import { literals } from './validators';
 
 // Config-backed values: stored as strings, but only ids that exist in shared/config are accepted.
@@ -207,6 +221,8 @@ export const profiles = {
   callMe: v.string(),
   basics: v.record(v.string(), v.string()),
   routines: v.array(v.object({ text: v.string(), days: v.array(v.number()), time: v.optional(clockTime), confirmed: v.boolean() })),
+  /** Superseded by the family-level `places` table (G4, CONTRACT v0.15): home/school/work are household data,
+   * not per-member. Kept (always `[]`) so existing rows stay valid; nothing reads or writes it. */
   places: v.array(v.object({ label: v.string(), address: v.string(), lat: v.number(), lng: v.number() })),
   proactive: v.object({ reminder: reactionCounts, request: reactionCounts, tip: reactionCounts, update: reactionCounts }),
   checkQuestions: v.array(v.object({ memoryId: v.id('memories'), question: v.string(), askAfter: v.number() })),
@@ -231,6 +247,9 @@ export const events = {
    * can see or share it. The server sets it on every new personal event; older personal rows fall back to
    * `createdBy`. Unused on household events. See shared/config/calendar.ts LAYER_OF_SCOPE. */
   ownerId: v.optional(memberId),
+  /** G4 (v0.15, additive): the family place the event happens at (travel time, weather). `place` stays the
+   * free-text location ("Parade Ground, field 3"); `placeId` is set when it matches a saved place. */
+  placeId: v.optional(v.id('places')),
 };
 
 export const reminders = {
@@ -288,6 +307,15 @@ export const candidateSource = v.union(
   v.object({ kind: v.literal('practice'), setId: v.id('practiceSets') }),
   v.object({ kind: v.literal('gifts'), giftIdeasId: v.id('giftIdeas') }),
   v.object({ kind: v.literal('bucks'), ledgerId: v.id('bucksLedger') }),
+  // G4 (v0.15, internal only). Leave-by reminders (a `reminder`-kind push with the `reminder.default` buttons,
+  // board Push "Soccer pickup in 10 minutes · Leave by 4:50"), weather alerts (NWS, `update` kind) and an
+  // event's weather tip ("Rain at pickup", `tip` kind). All go through the normal judge/timing/caps.
+  v.object({ kind: v.literal('leaveBy'), eventId: v.id('events'), checkId: v.id('travelChecks') }),
+  v.object({ kind: v.literal('weatherAlert'), alertId: v.string(), placeId: v.id('places') }),
+  v.object({ kind: v.literal('weatherEvent'), eventId: v.id('events') }),
+  // G4 backend addendum (v0.15a, internal only): a quiet notice to a kid's parents that the kid filter blocked
+  // or rephrased a search (KID_SAFETY / kidControls.tellsParents.blockedSearches). Always a statement, never a push.
+  v.object({ kind: v.literal('searchNotice'), searchLogId: v.id('searchLog') }),
 );
 export type CandidateSource = Infer<typeof candidateSource>;
 
@@ -650,6 +678,77 @@ export const usage = {
 
 export const clocks = { familyId, mode: v.union(v.literal('real'), v.literal('simulated')), offsetMs: v.number() };
 
+// ---------- G4 (CONTRACT v0.15): places, weather, travel, search ----------
+
+export const placeKind = literals(PLACE_KINDS);
+export const alertSeverity = literals(ALERT_SEVERITIES);
+export const searchOutcome = literals(SEARCH_OUTCOMES);
+export const integrationFailure = literals(INTEGRATION_FAILURES);
+export const geocodeStatus = literals(GEOCODE_STATUSES);
+
+/** A family place (home, school, work, or custom). Household data: every member of the family may read it;
+ * adults add, edit and remove (config PLACES.editors). Coordinates come from the Geocoder port (Mapbox,
+ * `permanent` results so they may be stored) — never from the phone. `lat`/`lng` are empty until geocoded. */
+export const places = {
+  familyId,
+  kind: placeKind,
+  label: v.string(),
+  address: v.string(),
+  lat: v.optional(v.number()),
+  lng: v.optional(v.number()),
+  geocode: v.object({ status: geocodeStatus, at: v.optional(v.number()) }),
+  createdBy: memberId,
+  updatedAt: v.number(),
+};
+
+/** Internal cache of provider responses per place (never returned raw; `weather.get` builds its view from it).
+ * `data` is the Weather port's normalized result (`WeatherForecast` or `WeatherAlert[]`), not the vendor JSON. */
+export const weatherCache = {
+  familyId,
+  placeId: v.id('places'),
+  kind: v.union(v.literal('forecast'), v.literal('alerts')),
+  fetchedAt: v.number(),
+  expiresAt: v.number(),
+  failure: v.optional(integrationFailure),
+  data: v.any(),
+};
+
+/** One travel-time check for an event (leave-by). Visible only to members who can see the event itself. */
+export const travelChecks = {
+  familyId,
+  eventId: v.id('events'),
+  fromPlaceId: v.id('places'),
+  toPlaceId: v.id('places'),
+  /** The departure time asked about (ms). */
+  departAt: v.number(),
+  minutes: v.optional(v.number()),
+  /** Mapbox `duration_typical` (traffic-free typical), for "longer than usual" wording. */
+  typicalMinutes: v.optional(v.number()),
+  distanceMeters: v.optional(v.number()),
+  /** Event start − minutes − TRAVEL.leaveByBufferMinutes. */
+  leaveBy: v.optional(v.number()),
+  failure: v.optional(integrationFailure),
+  checkedAt: v.number(),
+};
+
+/** Every web search a member's MEGA ran, and what the kid filter did. The member reads their own; a kid's
+ * parents read a kid's `blocked`/`rephrased` rows only when that kid's `kidControls.tellsParents.
+ * blockedSearches` is on. Siblings never. `decidedBy` (OpenDuet learning) names the rule or model that
+ * blocked or rephrased it. */
+export const searchLog = {
+  familyId,
+  memberId,
+  at: v.number(),
+  query: v.string(),
+  outcome: searchOutcome,
+  rephrasedTo: v.optional(v.string()),
+  /** The blocked category (KID_SAFETY.blockedCategories), when blocked. */
+  category: v.optional(v.string()),
+  decidedBy: v.optional(decidedBy),
+  sourceCount: v.number(),
+  messageId: v.optional(v.id('messages')),
+};
+
 /** Every table's fields, keyed by table name. convex/schema.ts iterates this, so a table can't be missed. */
 export const TABLES = {
   families,
@@ -692,5 +791,9 @@ export const TABLES = {
   routineRuns,
   bucksLedger,
   purchases,
+  places,
+  weatherCache,
+  travelChecks,
+  searchLog,
 } as const;
 export type TableName = keyof typeof TABLES;

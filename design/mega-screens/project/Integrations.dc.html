@@ -1,0 +1,518 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Search, weather and travel</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;family=Pixelify+Sans:wght@400;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#0C0E11}
+button{font-family:inherit;cursor:pointer}
+a{color:#EDEFF2;text-decoration:none}
+a:hover{color:#FFFFFF}
+</style>
+</helmet>
+<div style="position: relative; width: 390px; height: 844px; overflow: hidden; background: #0C0E11; color: #EDEFF2; font-family: Inter, system-ui, sans-serif">
+
+  <!-- Chat thread with the G4 cards (search, weather, travel). -->
+  <sc-if value="{{showChat}}" hint-placeholder-val="{{ true }}">
+  <div style="position: absolute; inset: 0; display: flex; flex-direction: column">
+    <header style="display: flex; align-items: center; gap: 12px; padding: 54px 16px 12px; border-bottom: 1px solid #22262D; flex-shrink: 0">
+      <span style="position: relative; width: 44px; height: 38px; flex-shrink: 0; border-radius: 10px; overflow: hidden; background: #FFFFFF">
+        <span style="position: absolute; left: 6px; top: 6px; width: 32px; height: 27px">
+          <sc-for list="{{head.rects}}" as="r" hint-placeholder-count="150">
+            <span style="position: absolute; left: {{r.l}}px; top: {{r.t}}px; width: {{r.w}}px; height: {{r.h}}px; background: {{r.c}}"></span>
+          </sc-for>
+        </span>
+      </span>
+      <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px">
+        <div style="font-size: 18px; font-weight: 700">{{megaName}}</div>
+        <div style="font-size: 13px; color: #9AA1AB">{{megaSub}}</div>
+      </div>
+    </header>
+
+    <div style="flex: 1; min-height: 0; overflow: hidden; display: flex; flex-direction: column; justify-content: flex-end; gap: 14px; padding: 16px">
+      <sc-for list="{{items}}" as="m" hint-placeholder-count="3">
+        <sc-if value="{{m.isDay}}" hint-placeholder-val="{{ false }}">
+          <div style="align-self: center; font-size: 12px; font-weight: 600; color: #9AA1AB; padding: 4px 10px; border-radius: 10px; background: #16191E">{{m.text}}</div>
+        </sc-if>
+        <sc-if value="{{m.isMine}}" hint-placeholder-val="{{ false }}">
+          <div style="align-self: flex-end; max-width: 270px; padding: 10px 15px; border-radius: 18px 18px 4px 18px; background: {{mine}}; font-size: {{font}}px; line-height: 1.35">{{m.text}}</div>
+        </sc-if>
+        <sc-if value="{{m.isText}}" hint-placeholder-val="{{ false }}">
+          <div style="display: flex; flex-direction: column; gap: 4px; max-width: 330px">
+            <div style="font-size: 12px; font-weight: 700; color: {{accent}}">{{megaName}}</div>
+            <div style="font-size: {{font}}px; line-height: 1.4">{{m.text}}</div>
+          </div>
+        </sc-if>
+
+        <!-- Search card: answer + tappable sources; kid variants show the rephrased note or the blocked line. -->
+        <sc-if value="{{m.isSearch}}" hint-placeholder-val="{{ true }}">
+          <section aria-label="Search answer" style="border-radius: 20px; background: #16191E; border: 1px solid #2E343D; padding: 14px; display: flex; flex-direction: column; gap: 12px">
+            <div style="display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 700; color: {{accent}}">
+              <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-4-4"></path></svg>
+              <span>{{megaName}} looked it up</span>
+            </div>
+            <sc-if value="{{m.rephrased}}" hint-placeholder-val="{{ false }}">
+              <div style="border-radius: 12px; background: #0C0E11; border: 1px solid #2E343D; padding: 10px 12px; display: flex; flex-direction: column; gap: 2px">
+                <span style="font-size: {{small}}px; color: #B4BAC3">I looked up something close to that instead.</span>
+                <span style="font-size: {{small}}px; font-weight: 700">“{{m.rephrasedTo}}”</span>
+              </div>
+            </sc-if>
+            <div style="font-size: {{body}}px; line-height: 1.45">{{m.answer}}</div>
+            <sc-if value="{{m.hasSources}}" hint-placeholder-val="{{ true }}">
+              <div style="display: flex; flex-direction: column; gap: 6px">
+                <span style="font-size: 11px; font-weight: 700; color: #9AA1AB; letter-spacing: .05em; text-transform: uppercase">Sources</span>
+                <sc-for list="{{m.sources}}" as="s" hint-placeholder-count="2">
+                  <a href="#" aria-label="{{s.title}}, {{s.domain}}" style="display: flex; align-items: center; gap: 10px; min-height: {{rowH}}px; box-sizing: border-box; border-radius: 12px; background: #0C0E11; border: 1px solid #22262D; padding: 8px 12px">
+                    <span style="width: 26px; height: 26px; border-radius: 7px; background: #22262D; color: #B4BAC3; font-size: 12px; font-weight: 800; display: flex; align-items: center; justify-content: center; flex-shrink: 0">{{s.initial}}</span>
+                    <span style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px">
+                      <span style="font-size: {{small}}px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{s.title}}</span>
+                      <span style="font-size: 12px; color: #9AA1AB">{{s.domain}}</span>
+                    </span>
+                    <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B727D" stroke-width="2" stroke-linecap="round"><path d="M9 6l6 6-6 6"></path></svg>
+                  </a>
+                </sc-for>
+              </div>
+            </sc-if>
+            <sc-if value="{{m.blocked}}" hint-placeholder-val="{{ false }}">
+              <div style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: #9AA1AB">
+                <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="10" rx="2"></rect><path d="M8 11V8a4 4 0 0 1 8 0v3"></path></svg>
+                Your grown-ups can see searches like this one.
+              </div>
+            </sc-if>
+          </section>
+        </sc-if>
+
+        <!-- Weather card: place, now, the next hours (pixel icons), high/low; alert variant on top. -->
+        <sc-if value="{{m.isWeather}}" hint-placeholder-val="{{ false }}">
+          <section aria-label="Weather for {{m.place}}" style="border-radius: 20px; background: #16191E; border: 1px solid #2E343D; padding: 14px; display: flex; flex-direction: column; gap: 12px">
+            <sc-if value="{{m.hasAlert}}" hint-placeholder-val="{{ false }}">
+              <div role="alert" style="border-radius: 14px; background: {{m.alertBg}}; border: 1px solid {{m.alertColor}}; padding: 10px 12px; display: flex; flex-direction: column; gap: 3px">
+                <span style="display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 800; color: {{m.alertColor}}; letter-spacing: .04em; text-transform: uppercase">
+                  <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l10 18H2z"></path><path d="M12 10v5M12 18h.01"></path></svg>
+                  {{m.alertEvent}} · {{m.alertSeverity}}
+                </span>
+                <span style="font-size: 15px; font-weight: 700; line-height: 1.35">{{m.alertHeadline}}</span>
+                <span style="font-size: 13px; color: #B4BAC3">{{m.alertEnds}}</span>
+              </div>
+            </sc-if>
+            <div style="display: flex; align-items: center; justify-content: space-between">
+              <span style="display: flex; flex-direction: column; gap: 2px">
+                <span style="font-size: 13px; font-weight: 700; color: #9AA1AB">{{m.place}} · now</span>
+                <span style="font-size: 15px; color: #B4BAC3">{{m.summary}}</span>
+              </span>
+              <span style="font-family: 'Pixelify Sans', monospace; font-size: 40px; font-weight: 600">{{m.now}}°</span>
+            </div>
+            <div style="display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px">
+              <sc-for list="{{m.hours}}" as="h" hint-placeholder-count="5">
+                <div style="border-radius: 12px; background: #0C0E11; border: 1px solid #22262D; padding: 8px 0; display: flex; flex-direction: column; align-items: center; gap: 5px">
+                  <span style="font-size: 12px; color: #9AA1AB">{{h.time}}</span>
+                  <span role="img" aria-label="{{h.label}}" style="position: relative; width: 24px; height: 24px">
+                    <sc-for list="{{h.icon}}" as="p" hint-placeholder-count="20">
+                      <span style="position: absolute; left: {{p.l}}px; top: {{p.t}}px; width: 3px; height: 3px; background: {{p.c}}"></span>
+                    </sc-for>
+                  </span>
+                  <span style="font-size: 15px; font-weight: 700">{{h.temp}}°</span>
+                  <span style="font-size: 12px; color: {{h.rainColor}}">{{h.rain}}%</span>
+                </div>
+              </sc-for>
+            </div>
+            <div style="display: flex; justify-content: space-between; font-size: 13px; color: #9AA1AB">
+              <span>High {{m.high}}° · Low {{m.low}}°</span>
+              <span>{{m.foot}}</span>
+            </div>
+          </section>
+        </sc-if>
+
+        <!-- Travel card: leave-by with traffic, from → to; or the not-set-up state (never a made-up time). -->
+        <sc-if value="{{m.isTravel}}" hint-placeholder-val="{{ false }}">
+          <section aria-label="Travel time" style="border-radius: 20px; background: #16191E; border: 1px solid #2E343D; padding: 14px; display: flex; flex-direction: column; gap: 12px">
+            <div style="display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 700; color: {{accent}}">
+              <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 17h14M6 17l1.5-6h9L18 17M8 11l1-3h6l1 3"></path><circle cx="8" cy="19" r="1.5"></circle><circle cx="16" cy="19" r="1.5"></circle></svg>
+              <span>{{megaName}} · Travel</span>
+            </div>
+            <sc-if value="{{m.ok}}" hint-placeholder-val="{{ true }}">
+              <div style="display: flex; flex-direction: column; gap: 4px">
+                <span style="font-size: 22px; font-weight: 800">Leave by {{m.leaveBy}}</span>
+                <span style="font-size: 15px; color: #B4BAC3">{{m.minutes}} min with traffic (usually {{m.typical}}) · {{m.event}}</span>
+              </div>
+              <div style="display: flex; align-items: center; gap: 10px; border-radius: 14px; background: #0C0E11; border: 1px solid #22262D; padding: 10px 12px">
+                <span style="display: flex; flex-direction: column; align-items: center; gap: 2px; flex-shrink: 0" aria-hidden="true">
+                  <span style="width: 8px; height: 8px; border-radius: 4px; border: 2px solid #9AA1AB; box-sizing: border-box"></span>
+                  <span style="width: 2px; height: 16px; background: #3A414B"></span>
+                  <span style="width: 8px; height: 8px; border-radius: 4px; background: {{accent}}"></span>
+                </span>
+                <span style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 10px">
+                  <span style="font-size: 14px; color: #B4BAC3">{{m.from}}</span>
+                  <span style="font-size: 14px; font-weight: 700">{{m.to}}</span>
+                </span>
+              </div>
+              <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px">
+                <button type="button" onClick="{{m.onWay}}" style="height: 44px; border-radius: 14px; border: 1px solid #EDEFF2; background: #EDEFF2; color: #0C0E11; font-size: 15px; font-weight: 700">On my way</button>
+                <button type="button" onClick="{{m.snooze}}" style="height: 44px; border-radius: 14px; border: 1px solid #3A414B; background: transparent; color: #EDEFF2; font-size: 15px; font-weight: 700">Snooze 5 min</button>
+              </div>
+              <sc-if value="{{m.hasStatus}}" hint-placeholder-val="{{ false }}">
+                <div role="status" style="display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 600; color: {{accent}}"><span style="width: 8px; height: 8px; border-radius: 4px; background: {{accent}}"></span>{{m.status}}</div>
+              </sc-if>
+            </sc-if>
+            <sc-if value="{{m.failed}}" hint-placeholder-val="{{ false }}">
+              <div style="display: flex; flex-direction: column; gap: 4px">
+                <span style="font-size: 17px; font-weight: 700">Travel time isn’t set up yet.</span>
+                <span style="font-size: 15px; color: #B4BAC3; line-height: 1.45">{{m.event}} starts at {{m.starts}}. I can’t check traffic until your family admin turns on travel time, so I won’t guess a leave-by time.</span>
+              </div>
+              <div style="display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px">
+                <button type="button" onClick="{{m.remind}}" style="height: 44px; border-radius: 14px; border: 1px solid #EDEFF2; background: #EDEFF2; color: #0C0E11; font-size: 15px; font-weight: 700">Remind me 30 min before</button>
+              </div>
+              <sc-if value="{{m.hasStatus}}" hint-placeholder-val="{{ false }}">
+                <div role="status" style="display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 600; color: {{accent}}"><span style="width: 8px; height: 8px; border-radius: 4px; background: {{accent}}"></span>{{m.status}}</div>
+              </sc-if>
+            </sc-if>
+          </section>
+        </sc-if>
+      </sc-for>
+    </div>
+
+    <sc-if value="{{kidBar}}" hint-placeholder-val="{{ false }}">
+      <div style="display: flex; align-items: center; gap: 12px; padding: 8px 16px 30px; flex-shrink: 0">
+        <button type="button" style="flex: 1; min-width: 0; height: 72px; border-radius: 36px; border: none; background: {{accent}}; color: #0C0E11; font-size: 20px; font-weight: 800; display: flex; align-items: center; justify-content: center; gap: 10px">
+          <svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"></rect><path d="M5 11a7 7 0 0 0 14 0M12 18v3"></path></svg>
+          Talk to {{megaName}}
+        </button>
+        <button type="button" aria-label="Type instead" style="width: 72px; height: 72px; flex-shrink: 0; border-radius: 36px; border: 1px solid #3A414B; background: #16191E; color: #EDEFF2; display: flex; align-items: center; justify-content: center">
+          <svg aria-hidden="true" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="13" rx="2.5"></rect><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M6 14h.01M18 14h.01M9 14.5h6"></path></svg>
+        </button>
+      </div>
+    </sc-if>
+    <sc-if value="{{adultBar}}" hint-placeholder-val="{{ true }}">
+      <div style="display: flex; align-items: center; gap: 8px; padding: 10px 16px 30px; flex-shrink: 0">
+        <label for="composer" style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0)">Message {{megaName}}</label>
+        <input id="composer" type="text" placeholder="Message {{megaName}}…" style="flex: 1; min-width: 0; height: 48px; box-sizing: border-box; border-radius: 24px; border: 1px solid #2E343D; background: #16191E; color: #EDEFF2; padding: 0 16px; font-size: 15px; font-family: inherit">
+        <button type="button" aria-label="Talk" style="width: 48px; height: 48px; flex-shrink: 0; border-radius: 24px; border: none; background: {{accent}}; color: #0C0E11; display: flex; align-items: center; justify-content: center">
+          <svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"></rect><path d="M5 11a7 7 0 0 0 14 0M12 18v3"></path></svg>
+        </button>
+      </div>
+    </sc-if>
+  </div>
+  </sc-if>
+
+  <!-- Full-screen pages (Places, a kid's searches): a back/close control in the safe-area header. -->
+  <sc-if value="{{showPage}}" hint-placeholder-val="{{ false }}">
+  <section aria-label="{{pageTitle}}" style="position: absolute; inset: 0; display: flex; flex-direction: column; padding-top: 44px">
+    <header style="display: grid; grid-template-columns: 56px 1fr 56px; align-items: center; height: 56px; padding: 0 8px; flex-shrink: 0">
+      <button type="button" aria-label="Back" style="width: 44px; height: 44px; border: none; background: transparent; color: #EDEFF2; display: flex; align-items: center; justify-content: center"><svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"></path></svg></button>
+      <h2 style="margin: 0; text-align: center; font-size: 17px; font-weight: 700">{{pageTitle}}</h2>
+      <span></span>
+    </header>
+    <div style="flex: 1; min-height: 0; overflow: hidden; padding: 8px 16px 34px; display: flex; flex-direction: column; gap: 14px">
+      <sc-if value="{{pageIntro}}" hint-placeholder-val="{{ true }}">
+        <p style="margin: 0; font-size: 15px; line-height: 1.45; color: #B4BAC3">{{pageIntroText}}</p>
+      </sc-if>
+
+      <!-- Places list -->
+      <sc-if value="{{showPlaces}}" hint-placeholder-val="{{ true }}">
+        <div style="display: flex; flex-direction: column; gap: 8px">
+          <sc-for list="{{places}}" as="p" hint-placeholder-count="4">
+            <div style="display: flex; align-items: center; gap: 12px; min-height: 64px; box-sizing: border-box; border-radius: 16px; background: #16191E; border: 1px solid #2E343D; padding: 10px 12px">
+              <span aria-hidden="true" style="width: 40px; height: 40px; border-radius: 12px; background: {{p.tint}}; display: flex; align-items: center; justify-content: center; flex-shrink: 0">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="{{p.color}}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="{{p.icon}}"></path></svg>
+              </span>
+              <span style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px">
+                <span style="font-size: 16px; font-weight: 700">{{p.label}}</span>
+                <span style="font-size: 13px; color: #9AA1AB; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{p.address}}</span>
+                <span style="display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; color: {{p.statusColor}}"><span style="width: 6px; height: 6px; border-radius: 3px; background: {{p.statusColor}}"></span>{{p.status}}</span>
+              </span>
+              <sc-if value="{{canEdit}}" hint-placeholder-val="{{ true }}">
+                <button type="button" onClick="{{p.edit}}" aria-label="Edit {{p.label}}" style="height: 40px; padding: 0 14px; border-radius: 20px; border: 1px solid #3A414B; background: transparent; color: #EDEFF2; font-size: 14px; font-weight: 700; flex-shrink: 0">Edit</button>
+              </sc-if>
+            </div>
+          </sc-for>
+        </div>
+        <sc-if value="{{canEdit}}" hint-placeholder-val="{{ true }}">
+          <button type="button" onClick="{{addPlace}}" style="height: 52px; border-radius: 16px; border: 1px dashed #6B727D; background: transparent; color: #EDEFF2; font-size: 16px; font-weight: 700; display: flex; align-items: center; justify-content: center; gap: 8px">
+            <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"></path></svg>Add a place
+          </button>
+        </sc-if>
+        <sc-if value="{{readOnly}}" hint-placeholder-val="{{ false }}">
+          <div style="display: flex; align-items: center; gap: 8px; font-size: 14px; color: #9AA1AB">
+            <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="10" rx="2"></rect><path d="M8 11V8a4 4 0 0 1 8 0v3"></path></svg>
+            Set by a grown-up
+          </div>
+        </sc-if>
+        <div style="display: flex; align-items: flex-start; gap: 8px; font-size: 12px; color: #9AA1AB; line-height: 1.4">
+          <svg aria-hidden="true" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0; margin-top: 2px"><circle cx="12" cy="12" r="9"></circle><path d="M12 8h.01M11 12h1v5h1"></path></svg>
+          Places are shared with the household. MEGA uses them for travel time and weather, never your phone’s location.
+        </div>
+      </sc-if>
+
+      <!-- A kid's searches, for parents: only blocked and rephrased ones. -->
+      <sc-if value="{{showLog}}" hint-placeholder-val="{{ false }}">
+        <div style="display: flex; align-items: center; justify-content: space-between; border-radius: 16px; background: #16191E; border: 1px solid #2E343D; padding: 12px 14px">
+          <span style="display: flex; flex-direction: column; gap: 2px">
+            <span style="font-size: 15px; font-weight: 700">Tell me about blocked searches</span>
+            <span style="font-size: 13px; color: #9AA1AB">Kid controls · on</span>
+          </span>
+          <span aria-hidden="true" style="width: 48px; height: 28px; border-radius: 14px; background: #2FB8B0; position: relative"><span style="position: absolute; right: 3px; top: 3px; width: 22px; height: 22px; border-radius: 11px; background: #0C0E11"></span></span>
+        </div>
+        <sc-for list="{{log}}" as="g" hint-placeholder-count="3">
+          <div style="display: flex; flex-direction: column; gap: 6px; border-radius: 16px; background: #16191E; border: 1px solid #2E343D; padding: 12px 14px">
+            <span style="display: flex; align-items: center; justify-content: space-between">
+              <span style="padding: 2px 8px; border-radius: 8px; font-size: 12px; font-weight: 800; background: {{g.tagBg}}; color: {{g.tagFg}}">{{g.tag}}</span>
+              <span style="font-size: 12px; color: #9AA1AB">{{g.when}}</span>
+            </span>
+            <span style="font-size: 15px; font-weight: 700">“{{g.query}}”</span>
+            <span style="font-size: 13px; color: #B4BAC3; line-height: 1.4">{{g.what}}</span>
+          </div>
+        </sc-for>
+        <div style="font-size: 12px; color: #9AA1AB; line-height: 1.4">Searches that went through normally aren’t listed here. Twin 1 sees a note on the card when a search is blocked.</div>
+      </sc-if>
+    </div>
+  </section>
+  </sc-if>
+
+  <!-- Sheets: a scrim + a bottom sheet with a close control. -->
+  <sc-if value="{{showSheet}}" hint-placeholder-val="{{ false }}">
+    <div aria-hidden="true" style="position: absolute; inset: 0; background: rgba(0,0,0,.55)"></div>
+    <section role="dialog" aria-label="{{sheetTitle}}" style="position: absolute; left: 0; right: 0; bottom: 0; border-radius: 24px 24px 0 0; background: #16191E; border-top: 1px solid #2E343D; padding: 8px 16px 34px; display: flex; flex-direction: column; gap: 14px">
+      <span aria-hidden="true" style="align-self: center; width: 40px; height: 5px; border-radius: 3px; background: #3A414B"></span>
+      <div style="display: flex; align-items: center; justify-content: space-between">
+        <h2 style="margin: 0; font-size: 20px; font-weight: 800">{{sheetTitle}}</h2>
+        <button type="button" aria-label="Close" onClick="{{closeSheet}}" style="width: 44px; height: 44px; border-radius: 22px; border: none; background: #22262D; color: #EDEFF2; display: flex; align-items: center; justify-content: center"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"></path></svg></button>
+      </div>
+
+      <!-- Add / edit a place -->
+      <sc-if value="{{sheetPlace}}" hint-placeholder-val="{{ true }}">
+        <div style="display: flex; flex-direction: column; gap: 6px">
+          <label for="place-label" style="font-size: 13px; font-weight: 700; color: #9AA1AB">Name</label>
+          <input id="place-label" type="text" value="School" style="height: 52px; box-sizing: border-box; border-radius: 14px; border: 1px solid #3A414B; background: #0C0E11; color: #EDEFF2; padding: 0 14px; font-size: 16px; font-family: inherit">
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 6px">
+          <span style="font-size: 13px; font-weight: 700; color: #9AA1AB">Kind</span>
+          <div role="radiogroup" aria-label="Kind" style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px">
+            <sc-for list="{{kinds}}" as="k" hint-placeholder-count="4">
+              <button type="button" role="radio" aria-checked="{{k.on}}" onClick="{{k.pick}}" style="height: 44px; border-radius: 14px; border: 1px solid {{k.border}}; background: {{k.bg}}; color: {{k.fg}}; font-size: 14px; font-weight: 700">{{k.label}}</button>
+            </sc-for>
+          </div>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 6px">
+          <label for="place-address" style="font-size: 13px; font-weight: 700; color: #9AA1AB">Address</label>
+          <input id="place-address" type="text" value="200 Central Park West, New York" style="height: 52px; box-sizing: border-box; border-radius: 14px; border: 1px solid #3A414B; background: #0C0E11; color: #EDEFF2; padding: 0 14px; font-size: 16px; font-family: inherit">
+          <span style="display: flex; align-items: center; gap: 6px; font-size: 13px; color: #2FB8B0"><span style="width: 6px; height: 6px; border-radius: 3px; background: #2FB8B0"></span>Found on the map</span>
+        </div>
+        <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px">
+          <button type="button" onClick="{{closeSheet}}" style="height: 48px; border-radius: 14px; border: 1px solid #5A3A3A; background: transparent; color: #F2766B; font-size: 15px; font-weight: 700">Remove</button>
+          <button type="button" onClick="{{closeSheet}}" style="height: 48px; border-radius: 14px; border: none; background: #EDEFF2; color: #0C0E11; font-size: 15px; font-weight: 700">Save</button>
+        </div>
+      </sc-if>
+
+      <!-- Event sheet: pick a saved place or keep free text -->
+      <sc-if value="{{sheetEvent}}" hint-placeholder-val="{{ false }}">
+        <div style="display: flex; flex-direction: column; gap: 4px; border-radius: 14px; background: #0C0E11; border: 1px solid #22262D; padding: 10px 12px">
+          <span style="font-size: 16px; font-weight: 700">Soccer practice</span>
+          <span style="font-size: 13px; color: #9AA1AB">Thu 4:30–5:30 PM · Household</span>
+        </div>
+        <span style="font-size: 13px; font-weight: 700; color: #9AA1AB">Where</span>
+        <div role="radiogroup" aria-label="Where" style="display: flex; flex-direction: column; gap: 8px">
+          <sc-for list="{{pickPlaces}}" as="p" hint-placeholder-count="4">
+            <button type="button" role="radio" aria-checked="{{p.on}}" onClick="{{p.pick}}" style="min-height: 52px; border-radius: 14px; border: 1px solid {{p.border}}; background: {{p.bg}}; color: #EDEFF2; padding: 8px 12px; display: flex; align-items: center; gap: 10px; text-align: left">
+              <span aria-hidden="true" style="width: 20px; height: 20px; border-radius: 10px; border: 2px solid {{p.dot}}; box-sizing: border-box; display: flex; align-items: center; justify-content: center; flex-shrink: 0"><span style="width: 10px; height: 10px; border-radius: 5px; background: {{p.fill}}"></span></span>
+              <span style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px">
+                <span style="font-size: 15px; font-weight: 700">{{p.label}}</span>
+                <span style="font-size: 12px; color: #9AA1AB; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{p.sub}}</span>
+              </span>
+            </button>
+          </sc-for>
+        </div>
+        <div style="font-size: 12px; color: #9AA1AB">A saved place gets travel time and weather. Typed-in places are just text.</div>
+        <button type="button" onClick="{{closeSheet}}" style="height: 48px; border-radius: 14px; border: none; background: #EDEFF2; color: #0C0E11; font-size: 15px; font-weight: 700">Save</button>
+      </sc-if>
+    </section>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"step":{"editor":"enum","options":["search","searchKid","searchKidRephrased","searchKidBlocked","weather","weatherAlert","travel","travelNotSetUp","places","placeSheet","placesKid","searchLog","eventPlace"],"default":"search"},"$preview":{"width":390,"height":844}}'>
+// Generated from prototypes/megasprite (mega-template.mjs, pixel-paint.mjs, export-looks.mjs).
+const LOOKS = {"grid":[32,40],"body":[[15,0,2,"outline"],[14,1,1,"outline"],[15,1,2,"tipLight"],[17,1,1,"outline"],[13,2,1,"outline"],[14,2,1,"tipLight"],[15,2,2,"tip"],[17,2,1,"tipLight"],[18,2,1,"outline"],[14,3,1,"outline"],[15,3,2,"tipDark"],[17,3,1,"outline"],[14,4,4,"outline"],[14,5,1,"outline"],[15,5,2,"silver"],[17,5,1,"outline"],[14,6,1,"outline"],[15,6,2,"silver"],[17,6,1,"outline"],[6,7,20,"outline"],[5,8,1,"outline"],[6,8,20,"shellLight"],[26,8,1,"outline"],[4,9,1,"outline"],[5,9,1,"shellLight"],[6,9,20,"shell"],[26,9,1,"shellLight"],[27,9,1,"outline"],[3,10,1,"outline"],[4,10,1,"shellLight"],[5,10,22,"shell"],[27,10,1,"shellLight"],[28,10,1,"outline"],[3,11,1,"outline"],[4,11,4,"shell"],[8,11,16,"visor"],[24,11,4,"shell"],[28,11,1,"outline"],[2,12,2,"outline"],[4,12,3,"shell"],[7,12,3,"visor"],[10,12,3,"glare"],[13,12,12,"visor"],[25,12,3,"shell"],[28,12,2,"outline"],[1,13,1,"outline"],[2,13,1,"shellLight"],[3,13,1,"outline"],[4,13,3,"shell"],[7,13,2,"visor"],[9,13,1,"glare"],[10,13,15,"visor"],[25,13,3,"shell"],[28,13,1,"outline"],[29,13,1,"shellLight"],[30,13,1,"outline"],[0,14,1,"outline"],[1,14,1,"shellLight"],[2,14,1,"shell"],[3,14,1,"outline"],[4,14,3,"shell"],[7,14,2,"visor"],[9,14,1,"glare"],[10,14,15,"visor"],[25,14,3,"shell"],[28,14,1,"outline"],[29,14,1,"shell"],[30,14,1,"shellLight"],[31,14,1,"outline"],[0,15,1,"outline"],[1,15,2,"shell"],[3,15,1,"outline"],[4,15,3,"shell"],[7,15,18,"visor"],[25,15,3,"shell"],[28,15,1,"outline"],[29,15,2,"shell"],[31,15,1,"outline"],[0,16,1,"outline"],[1,16,2,"shell"],[3,16,1,"outline"],[4,16,3,"shell"],[7,16,18,"visor"],[25,16,3,"shell"],[28,16,1,"outline"],[29,16,2,"shell"],[31,16,1,"outline"],[0,17,1,"outline"],[1,17,2,"shell"],[3,17,1,"outline"],[4,17,3,"shell"],[7,17,18,"visor"],[25,17,3,"shell"],[28,17,1,"outline"],[29,17,2,"shell"],[31,17,1,"outline"],[0,18,1,"outline"],[1,18,1,"shellDark"],[2,18,1,"shell"],[3,18,1,"outline"],[4,18,3,"shell"],[7,18,18,"visor"],[25,18,3,"shell"],[28,18,1,"outline"],[29,18,1,"shell"],[30,18,1,"shellDark"],[31,18,1,"outline"],[1,19,1,"outline"],[2,19,1,"shellDark"],[3,19,1,"outline"],[4,19,3,"shell"],[7,19,18,"visor"],[25,19,3,"shell"],[28,19,1,"outline"],[29,19,1,"shellDark"],[30,19,1,"outline"],[2,20,2,"outline"],[4,20,3,"shell"],[7,20,18,"visor"],[25,20,3,"shell"],[28,20,2,"outline"],[3,21,1,"outline"],[4,21,3,"shell"],[7,21,18,"visor"],[25,21,3,"shell"],[28,21,1,"outline"],[3,22,1,"outline"],[4,22,4,"shell"],[8,22,16,"visor"],[24,22,4,"shell"],[28,22,1,"outline"],[3,23,1,"outline"],[4,23,1,"shellDark"],[5,23,22,"shell"],[27,23,1,"shellDark"],[28,23,1,"outline"],[4,24,1,"outline"],[5,24,1,"shellDark"],[6,24,20,"shell"],[26,24,1,"shellDark"],[27,24,1,"outline"],[5,25,1,"outline"],[6,25,20,"shellDark"],[26,25,1,"outline"],[5,26,22,"outline"],[4,27,1,"outline"],[5,27,2,"whiteLight"],[7,27,1,"outline"],[8,27,1,"shellLight"],[9,27,1,"outline"],[10,27,1,"shellLight"],[11,27,2,"shell"],[13,27,6,"outline"],[19,27,2,"shell"],[21,27,1,"shellLight"],[22,27,1,"outline"],[23,27,1,"shellLight"],[24,27,1,"outline"],[25,27,2,"whiteLight"],[27,27,1,"outline"],[3,28,1,"outline"],[4,28,1,"whiteLight"],[5,28,2,"white"],[7,28,1,"whiteLight"],[8,28,2,"outline"],[10,28,2,"shell"],[12,28,1,"outline"],[13,28,6,"whiteLight"],[19,28,1,"outline"],[20,28,2,"shell"],[22,28,2,"outline"],[24,28,1,"whiteLight"],[25,28,2,"white"],[27,28,1,"whiteLight"],[28,28,1,"outline"],[3,29,1,"outline"],[4,29,1,"whiteDark"],[5,29,2,"white"],[7,29,1,"whiteDark"],[8,29,2,"outline"],[10,29,2,"shell"],[12,29,1,"outline"],[13,29,6,"whiteDark"],[19,29,1,"outline"],[20,29,2,"shell"],[22,29,2,"outline"],[24,29,1,"whiteDark"],[25,29,2,"white"],[27,29,1,"whiteDark"],[28,29,1,"outline"],[4,30,1,"outline"],[5,30,2,"whiteDark"],[7,30,1,"outline"],[9,30,1,"outline"],[10,30,1,"shellDark"],[11,30,2,"shell"],[13,30,6,"outline"],[19,30,2,"shell"],[21,30,1,"shellDark"],[22,30,1,"outline"],[24,30,1,"outline"],[25,30,2,"whiteDark"],[27,30,1,"outline"],[5,31,2,"outline"],[10,31,1,"outline"],[11,31,10,"shellDark"],[21,31,1,"outline"],[25,31,2,"outline"],[11,32,10,"outline"],[11,33,1,"outline"],[12,33,2,"shell"],[14,33,1,"outline"],[17,33,1,"outline"],[18,33,2,"shell"],[20,33,1,"outline"],[11,34,4,"outline"],[17,34,4,"outline"],[10,35,1,"outline"],[11,35,3,"whiteLight"],[14,35,1,"outline"],[17,35,1,"outline"],[18,35,3,"whiteLight"],[21,35,1,"outline"],[9,36,1,"outline"],[10,36,1,"whiteLight"],[11,36,3,"white"],[14,36,1,"whiteLight"],[15,36,2,"outline"],[17,36,1,"whiteLight"],[18,36,3,"white"],[21,36,1,"whiteLight"],[22,36,1,"outline"],[10,37,1,"outline"],[11,37,3,"whiteDark"],[14,37,1,"outline"],[17,37,1,"outline"],[18,37,3,"whiteDark"],[21,37,1,"outline"],[11,38,3,"outline"],[18,38,3,"outline"]],"faces":{"calm":[[11,16,2,"eye"],[19,16,2,"eye"],[11,17,2,"eye"],[19,17,2,"eye"]],"happy":[[11,16,2,"eye"],[19,16,2,"eye"],[10,17,1,"eye"],[13,17,1,"eye"],[18,17,1,"eye"],[21,17,1,"eye"],[8,19,2,"blush"],[22,19,2,"blush"]],"wink":[[11,15,2,"eye"],[11,16,2,"eye"],[19,16,2,"eye"],[11,17,2,"eye"],[18,17,1,"eye"],[21,17,1,"eye"]],"open":[[11,15,2,"eye"],[19,15,2,"eye"],[11,16,2,"eye"],[19,16,2,"eye"],[11,17,2,"eye"],[19,17,2,"eye"]],"closed":[[10,17,4,"eye"],[18,17,4,"eye"]]},"fixed":{"outline":"#1B1A3A","visor":"#17143A","glare":"#BFEAF7","white":"#F4F6FB","whiteLight":"#FFFFFF","whiteDark":"#AEB3CC","silver":"#C9CFDB","silverLight":"#E8EBF2","silverDark":"#8E95AB","tip":"#9FF0F7","tipLight":"#F0FFFF","tipDark":"#5FCFE0","eye":"#E8FFFF","blush":"#FF9AB2"},"colors":{"teal":"#2FB8B0","coral":"#F2766B","violet":"#8E6CE0","sun":"#F2B33D","sky":"#5B8DEF","leaf":"#5BBF6A"},"stickers":["star","heart","leaf","bolt"],"personalities":{"calm":{"label":"Calm","face":"calm","blurb":"Gentle and unhurried","sample":"No rush. Practice is at 5:30, and I'll remind you at 4:50."},"cheerful":{"label":"Cheerful","face":"happy","blurb":"Upbeat and encouraging","sample":"Good news! Practice is at 5:30. Want a reminder at 4:50?"},"funny":{"label":"Funny","face":"wink","blurb":"Light jokes, still useful","sample":"Practice at 5:30. I'll ping you at 4:50, before traffic does."},"brief":{"label":"Brief","face":"open","blurb":"Short and to the point","sample":"Practice 5:30. Reminder at 4:50?"}}};
+const STICKER_ART = {"star":"a509b7da6f93811f29bf9e84560af70f","heart":"ef08bdd73525cdfac56fe3c437a18b9c","leaf":"6729bb22fb50e334dd97a073fa44e53a","bolt":"f4bb0c6f1f0fcae62475f582a31df06e"};
+function hexToHsl(hex) {
+  const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255);
+  const max = Math.max(r, g, b), min = Math.min(r, g, b), l = (max + min) / 2;
+  if (max === min) return [0, 0, l];
+  const d = max - min, s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+  const h = max === r ? (g - b) / d + (g < b ? 6 : 0) : max === g ? (b - r) / d + 2 : (r - g) / d + 4;
+  return [h * 60, s, l];
+}
+
+function hslToHex(h, s, l) {
+  const k = (n) => (n + h / 30) % 12, a = s * Math.min(l, 1 - l);
+  const f = (n) => l - a * Math.max(-1, Math.min(k(n) - 3, 9 - k(n), 1));
+  return "#" + [0, 8, 4].map((n) => Math.round(f(n) * 255).toString(16).padStart(2, "0")).join("");
+}
+
+const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
+
+/** Light and dark shades of one colour, with a slight hue shift like hand-pixelled art. */
+function shades(hex) {
+  const [h, s, l] = hexToHsl(hex);
+  return {
+    light: hslToHex((h + 356) % 360, s, clamp(l + 0.13, 0, 0.92)),
+    dark: hslToHex((h + 8) % 360, s, clamp(l - 0.16, 0.08, 1)),
+  };
+}
+
+
+// Shared by boards that draw MEGAs live from template data (LOOKS, STICKER_ART, shades()).
+function paletteFor(hex) {
+  const { light, dark } = shades(hex);
+  return { ...LOOKS.fixed, shell: hex, shellLight: light, shellDark: dark };
+}
+// Pixel runs -> positioned boxes at `scale`, optionally only rows above `maxRow` (head crops).
+function draw(hex, face, scale, maxRow) {
+  const pal = paletteFor(hex);
+  const runs = [...LOOKS.body, ...(LOOKS.faces[face] || [])].filter((r) => maxRow === undefined || r[1] < maxRow);
+  return runs.map(([x, y, w, k]) => ({ l: x * scale, t: y * scale, w: w * scale, h: scale, c: pal[k] }));
+}
+function sprite(hex, face, sticker, scale, maxRow) {
+  const [gw, gh] = LOOKS.grid;
+  return { rects: draw(hex, face, scale, maxRow), hasSticker: sticker !== 'none', sticker: sticker === 'none' ? '' : '/_blob/' + STICKER_ART[sticker], w: gw * scale, h: gh * scale };
+}
+// Dark or light text on a coloured button, whichever reads better.
+function inkOn(hex) {
+  const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255);
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b > 0.45 ? '#0C0E11' : '#FFFFFF';
+}
+
+
+
+// Screen 14 (G4, CONTRACT v0.15): search, weather and travel cards in chat; Places; a kid's searches for
+// parents; picking a saved place for an event. Sample family only; places are public landmarks.
+const MEGAS = {
+  teal: { name: 'Teal', hex: '#2FB8B0', face: 'open', sub: 'Your MEGA', mine: '#123B39' },
+  zap: { name: 'Zap', hex: '#8E6CE0', face: 'happy', sub: 'Twin 1’s MEGA', mine: '#2A2147', kid: true },
+};
+// Severity colors (theme tokens in the app: danger / warn / muted).
+const SEVERITY = { Extreme: '#F2766B', Severe: '#F2766B', Moderate: '#F2B33D', Minor: '#9AA1AB' };
+// 8×8 pixel weather icons, drawn in code (3px cells): S sun, C cloud, R rain drop, B bolt.
+const ICONS = {
+  sun: ['...S....', '.S.S.S..', '..SSS...', 'SSSSSSS.', '..SSS...', '.S.S.S..', '...S....', '........'],
+  cloud: ['........', '...CC...', '..CCCC..', '.CCCCCC.', 'CCCCCCCC', 'CCCCCCCC', '........', '........'],
+  rain: ['...CC...', '..CCCC..', '.CCCCCC.', 'CCCCCCCC', '........', '.R..R..R', 'R..R..R.', '........'],
+  storm: ['...CC...', '..CCCC..', '.CCCCCC.', 'CCCCCCCC', '...B....', '..BB....', '...B....', '..B.....'],
+};
+const PAL = { S: '#FFD54A', C: '#B4BAC3', R: '#5B8DEF', B: '#FFD54A' };
+const icon = (k) => ICONS[k].flatMap((row, y) => [...row].map((ch, x) => (ch === '.' ? null : { l: x * 3, t: y * 3, c: PAL[ch] })).filter(Boolean));
+const hour = (time, k, label, temp, rain) => ({ time, icon: icon(k), label, temp, rain, rainColor: rain >= 50 ? '#5B8DEF' : '#9AA1AB' });
+const src = (title, domain) => ({ title, domain, initial: domain[0].toUpperCase() });
+const PIN = 'M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z M12 12.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5z';
+const HOUSE = 'M3 11l9-7 9 7 M5 10v10h14V10 M10 20v-6h4v6';
+const SCHOOL = 'M3 9l9-5 9 5-9 5z M7 11v5c3 2 7 2 10 0v-5';
+const BAG = 'M4 8h16v12H4z M9 8V5h6v3';
+const BALL = 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18z M12 7l3 2-1 4h-4l-1-4z';
+
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = this.fresh();
+  }
+  fresh() {
+    return { travel: '', kind: 'school', pick: 'park', sheetOpen: true };
+  }
+  componentDidUpdate(prev) {
+    if (prev.step !== this.props.step) this.setState(this.fresh());
+  }
+
+  chat(step) {
+    const s = this.state;
+    if (step === 'search') return { mega: 'teal', items: [
+      { isDay: true, text: 'Today · 10:12 AM' },
+      { isMine: true, text: 'What time does the natural history museum open Saturday?' },
+      { isSearch: true, answer: 'The American Museum of Natural History opens at 10:00 AM on Saturday and closes at 5:30 PM. Timed tickets are recommended on weekends.', sources: [src('Hours and admission', 'amnh.org'), src('Plan your visit · weekend tips', 'nyctourism.com')] },
+    ] };
+    if (step === 'searchKid') return { mega: 'zap', items: [
+      { isMine: true, text: 'How far away is the moon?' },
+      { isSearch: true, answer: 'The Moon is about 239,000 miles away. That’s like driving around the Earth almost 10 times!', sources: [src('How far away is the Moon?', 'spaceplace.nasa.gov'), src('The Moon for kids', 'kids.nationalgeographic.com')] },
+    ] };
+    if (step === 'searchKidRephrased') return { mega: 'zap', items: [
+      { isMine: true, text: 'What’s the scariest animal attack ever?' },
+      { isSearch: true, rephrased: true, rephrasedTo: 'Which animals are the most dangerous, for kids', answer: 'Mosquitoes are actually the most dangerous animals, because they spread sickness. Big animals like hippos and crocodiles can be dangerous too, so people watch them from far away.', sources: [src('Dangerous animals', 'kids.nationalgeographic.com')] },
+    ] };
+    if (step === 'searchKidBlocked') return { mega: 'zap', items: [
+      { isMine: true, text: '[a search a kid shouldn’t do]' },
+      { isSearch: true, blocked: true, answer: 'I can’t look that up. Ask a grown-up.', sources: [] },
+    ] };
+    if (step === 'weather' || step === 'weatherAlert') {
+      const alert = step === 'weatherAlert';
+      return { mega: 'teal', items: [
+        { isText: true, text: alert ? 'Heads up: a storm warning starts during soccer practice.' : 'Rain starts around pickup. Grab the umbrellas.' },
+        { isWeather: true, place: 'Home', now: 61, summary: alert ? 'Cloudy, storms later' : 'Cloudy, rain later', high: 64, low: 52, foot: alert ? 'National Weather Service' : 'Open-Meteo',
+          hours: alert
+            ? [hour('2 PM', 'cloud', 'Cloudy', 62, 20), hour('3 PM', 'rain', 'Rain', 61, 60), hour('4 PM', 'storm', 'Thunderstorm', 59, 90), hour('5 PM', 'storm', 'Thunderstorm', 58, 90), hour('6 PM', 'rain', 'Rain', 57, 70)]
+            : [hour('2 PM', 'sun', 'Sunny', 63, 0), hour('3 PM', 'cloud', 'Cloudy', 62, 10), hour('4 PM', 'cloud', 'Cloudy', 61, 30), hour('5 PM', 'rain', 'Rain', 59, 70), hour('6 PM', 'rain', 'Rain', 58, 80)],
+          hasAlert: alert, alertEvent: 'Severe Thunderstorm Warning', alertSeverity: 'Severe', alertHeadline: 'Damaging winds and hail possible near the soccer field.', alertEnds: 'Until 6:15 PM',
+          alertColor: SEVERITY.Severe, alertBg: '#2A1614' },
+      ] };
+    }
+    if (step === 'travel' || step === 'travelNotSetUp') {
+      const ok = step === 'travel';
+      return { mega: 'teal', items: [
+        { isText: true, text: ok ? 'Traffic is heavier than usual on the way to soccer pickup.' : 'Soccer pickup is at 5:30.' },
+        { isTravel: true, ok, failed: !ok, leaveBy: '4:50 PM', minutes: 18, typical: 14, event: 'Soccer pickup', starts: '5:30 PM', from: 'Home', to: 'Riverside Park Field',
+          onWay: () => this.setState({ travel: 'way' }), snooze: () => this.setState({ travel: 'snooze' }), remind: () => this.setState({ travel: 'remind' }),
+          hasStatus: !!s.travel, status: s.travel === 'way' ? 'Got it. I told Partner you’re on your way.' : s.travel === 'snooze' ? 'I’ll check again in 5 minutes.' : 'I’ll remind you at 5:00 PM.' },
+      ] };
+    }
+    if (step === 'eventPlace') return { mega: 'teal', items: [
+      { isMine: true, text: 'Soccer practice Thursday 4:30 to 5:30 at Riverside Park' },
+      { isText: true, text: 'Added Soccer practice to the household calendar, Thursday 4:30–5:30 PM. Is it at your saved Riverside Park Field?' },
+    ] };
+    return null;
+  }
+
+  renderVals() {
+    const step = this.props.step || 'search', s = this.state;
+    const chat = this.chat(step);
+    const m = MEGAS[chat ? chat.mega : 'teal'];
+    const kid = !!m.kid;
+    const places = [
+      { label: 'Home', kind: 'home', address: '1 Main St (sample)', status: 'Found on the map', statusColor: '#2FB8B0', icon: HOUSE, color: '#2FB8B0', tint: '#123B39' },
+      { label: 'School', kind: 'school', address: '200 Central Park West, New York', status: 'Found on the map', statusColor: '#2FB8B0', icon: SCHOOL, color: '#8E6CE0', tint: '#2A2147' },
+      { label: 'Partner’s work', kind: 'work', address: '11 W 53rd St, New York', status: 'Found on the map', statusColor: '#2FB8B0', icon: BAG, color: '#F2766B', tint: '#3F1F1C' },
+      { label: 'Riverside Park Field', kind: 'other', address: 'Riverside Dr & W 102nd St, New York', status: 'Couldn’t find it · check the address', statusColor: '#F2B33D', icon: BALL, color: '#F2B33D', tint: '#3A2B10' },
+    ].map((p) => Object.assign(p, { edit: () => {} }));
+    const pageSteps = { places: 'Places', placeSheet: 'Places', placesKid: 'Places', searchLog: 'Twin 1 · Searches' };
+    const isPage = step in pageSteps;
+    const sheetOpen = s.sheetOpen && (step === 'placeSheet' || step === 'eventPlace');
+    return {
+      showChat: !isPage, showPage: isPage,
+      head: sprite(m.hex, m.face, 'none', 1, 27), megaName: m.name, megaSub: m.sub, accent: m.hex, mine: m.mine,
+      font: kid ? 20 : 17, body: kid ? 18 : 15, small: kid ? 16 : 14, rowH: kid ? 54 : 44,
+      kidBar: !!chat && kid, adultBar: !!chat && !kid,
+      items: (chat ? chat.items : []).map((it) => Object.assign({ isDay: false, isMine: false, isText: false, isSearch: false, isWeather: false, isTravel: false,
+        rephrased: false, blocked: false, hasAlert: false, ok: false, failed: false, hasStatus: false }, it, { hasSources: !!(it.sources && it.sources.length) })),
+      pageTitle: pageSteps[step] || '', pageIntro: step !== 'searchLog',
+      pageIntroText: step === 'placesKid' ? 'Places your family uses for travel time and weather.' : 'Home, school, work and other places your family goes. MEGA uses them for “leave by” times and weather.',
+      showPlaces: step === 'places' || step === 'placeSheet' || step === 'placesKid', canEdit: step !== 'placesKid', readOnly: step === 'placesKid', places,
+      addPlace: () => this.setState({ sheetOpen: true }),
+      showLog: step === 'searchLog',
+      log: [
+        { tag: 'Blocked', tagBg: '#2A1614', tagFg: '#F2766B', when: 'Today · 4:12 PM', query: '[blocked search]', what: 'Twin 1 saw “I can’t look that up. Ask a grown-up.” Nothing was searched.' },
+        { tag: 'Changed', tagBg: '#3A2B10', tagFg: '#F2B33D', when: 'Yesterday · 6:40 PM', query: 'What’s the scariest animal attack ever?', what: 'Searched instead: “Which animals are the most dangerous, for kids”.' },
+        { tag: 'Changed', tagBg: '#3A2B10', tagFg: '#F2B33D', when: 'Mon · 3:05 PM', query: 'answers to fractions worksheet 4', what: 'Homework mode: Zap gave hints instead of answers.' },
+      ],
+      showSheet: sheetOpen, sheetTitle: step === 'eventPlace' ? 'Event place' : 'Edit place', sheetPlace: step === 'placeSheet', sheetEvent: step === 'eventPlace',
+      closeSheet: () => this.setState({ sheetOpen: false }),
+      kinds: [['home', 'Home'], ['school', 'School'], ['work', 'Work'], ['other', 'Other']].map(([k, label]) => ({ label, on: String(s.kind === k), pick: () => this.setState({ kind: k }),
+        bg: s.kind === k ? '#EDEFF2' : 'transparent', fg: s.kind === k ? '#0C0E11' : '#EDEFF2', border: s.kind === k ? '#EDEFF2' : '#3A414B' })),
+      pickPlaces: [['park', 'Riverside Park Field', 'Saved place · travel time and weather'], ['school', 'School', 'Saved place'], ['home', 'Home', 'Saved place'], ['text', 'Type a place instead', 'Just text, no travel time']].map(([k, label, sub]) => ({
+        label, sub, on: String(s.pick === k), pick: () => this.setState({ pick: k }),
+        bg: s.pick === k ? '#10243F' : '#0C0E11', border: s.pick === k ? '#5B8DEF' : '#22262D', dot: s.pick === k ? '#5B8DEF' : '#6B727D', fill: s.pick === k ? '#5B8DEF' : 'transparent' })),
+    };
+  }
+}
+</script>
+</body>
+</html>

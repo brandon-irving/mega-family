@@ -10,6 +10,7 @@ import { pick } from './model/define';
 import { fail } from './model/errors';
 import { calendarChanged, eventEnd, patchEvent } from './model/eventWrites';
 import { maybeSuggestEventShare, shareItem, unshareEvent } from './model/layers';
+import { requireFamilyPlace } from './model/places';
 import { requireViewer, sameFamilyMember } from './model/viewer';
 import { canSeeEvent } from './model/visibility';
 import { clock } from './ports/clock';
@@ -19,6 +20,7 @@ export const create = mutation({
   handler: async (ctx, args) => {
     const viewer = await requireViewer(ctx);
     for (const id of args.who) await sameFamilyMember(ctx, viewer.member.familyId, id);
+    if (args.placeId) await requireFamilyPlace(ctx, viewer.member.familyId, args.placeId);
     const now = await clock.now(ctx, viewer.member.familyId);
     const eventId = await ctx.db.insert('events', {
       familyId: viewer.member.familyId,
@@ -28,6 +30,7 @@ export const create = mutation({
       allDay: args.allDay,
       who: args.who,
       place: args.place,
+      placeId: args.placeId,
       source: 'mega',
       createdBy: viewer.member._id,
       scope: args.scope,

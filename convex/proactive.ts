@@ -127,7 +127,7 @@ export const processCandidate = internalAction({
 });
 
 /** The trigger sources whose text the draft+judge call writes. Everything else arrives already written. */
-const DRAFTED_SOURCE_KINDS = new Set(['reminder', 'checkin', 'mattersTo']);
+const DRAFTED_SOURCE_KINDS = new Set(['reminder', 'checkin', 'mattersTo', 'weatherEvent']);
 
 // Kept as a plain object literal (not re-exported from model/proactive.ts) so the JSON-schema shape the
 // model sees lives next to the `ctx.runAction` call that uses it; `DraftJudgeResult`'s TS type and this

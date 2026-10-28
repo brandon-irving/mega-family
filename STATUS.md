@@ -14,7 +14,7 @@ _Last updated: Oct 28._
 | G3 | Proactive engine (triggers → draft → judge → timing → deliver), push with buttons (expo-notifications categories), answers → effects, MEGA-to-MEGA requests, widget timeline / Today statements | ✅ tag `g3` (needs owner device test: new dev build for expo-task-manager) |
 | GD | Demo features (Screens 9–12): kids (homework, chores, bedtime/morning), Mega Bucks + Store, calendar layers + clash proposals + gift ideas, sign-in redesign (email/Apple/Google, adult and kid invites, MegaLoader), chat starters, OpenDuet learnings (decidedBy, audience-snapshot approvals, evals) | ✅ tag `gd` (Oct 28; needs owner device test on build `323ca3e8`, no new native modules; CONTRACT v0.13–v0.14a pending approval) |
 | G4 | Web search with kid filter, weather + NWS alerts, travel time (Mapbox) | 🔨 started Oct 28: contract step |
-| G5 | Onboarding chat, Settings (theme/wallpaper), HQ tile room + own rooms, ICS + device calendar import, nightly profiler + check questions | |
+| G5 | **Onboarding chat (owner, Oct 28; Screen 13 boards):** sign up → MEGA asks your name → integrations one at a time (**Gmail first**, read-only via Google OAuth in Testing mode, polled from Convex; then Google Calendar or the phone's calendar; then ICS links) → family steps. Plus Settings (theme/wallpaper), HQ tile room + own rooms, MEGA badge → Profile/customize, nightly profiler + check questions | |
 | G6 | Full end-to-end on web + iPhone, demo script, polish | |
 | G8 | Widgets, QR invite scan, homework viewfinder, invite Paste button (native packages already installed Oct 28) | |
 
@@ -37,6 +37,7 @@ _Last updated: Oct 28._
 - **Sharing rule (owner, Oct 26): explicit share only.** Nothing crosses from private to shared without the owner's own share action (a ShareAction record). The assistant may *suggest* sharing ("Share this with the household?" → the owner taps yes); it must never act on a guess. No "looks household-related" heuristic, no auto-promotion, no surfacing "just in case". This applies to MEGA's memory too: the writer's "matters to" becomes a share suggestion the owner approves, never an automatic trigger.
 - **Rules:** a PUBLIC repo; **synthetic data only** (the organizers get a perpetual licence with no confidentiality), so scrub the real names and home paths still in the design boards, `shared/config/identity.ts`, tests, PLAN/STATUS and `design/build/build.py` before publishing; mark what was built before Oct 26 (`prototypes/megasprite`, the design canvas from Oct 24); the demo must genuinely call Meta models (no mocks); a **3-minute demo video** is a primary artifact, so plan it early.
 - **Open decisions for the owner (Oct 28):** push judge eval scored 77% (it holds back 6 of 9 plain statements; privacy gate 100%) — keep cautious or tune; bedtime title shows "4:30 PM" vs the board's "4:30"; web now loads all routes up front (`asyncRoutes.web: false`, needed to avoid a blank frame).
+- **Gmail setup (owner, before G5's live check):** in Google Cloud (the project that owns the existing Google sign-in clients) enable the Gmail API and Google Calendar API; on the OAuth consent screen add the scopes `gmail.readonly` and `calendar.readonly`, keep publishing status **Testing**, and add test users (your synthetic demo Gmail account and any family testers; max 100). Create a **synthetic Gmail account** for the demo and seed it with made-up school, dentist and bill emails — never connect real mail in the demo or video (hackathon rule: synthetic data only). Consent lasts 7 days in Testing, so reconnect before recording.
 - **Owner-only gates:** claim the $150 Meta credits (form; a card on the account) and verify the key; **employment-IP check** (Credit Acceptance, Infernored) before submitting; due **Nov 4, 9 PM ET** via the Cerebral Valley portal.
 
 ## Next up (as of the context clear on Oct 26)
@@ -91,6 +92,7 @@ npx expo export --platform web --output-dir <scratch dir>
 Owner approved **$5 total for live model checks until G6**; ≈3 cents used. The spend guard (`usage` table, reserved + recorded) enforces daily and global caps. Image generation needs separate approval (off in config).
 
 - **GD evals (Oct 28):** 16.2¢ — privacy gate 6.0¢ (30 cases, 100% precision/recall on "sensitive"), push judge 10.2¢ (30 cases, 77% accuracy; it under-sends "statement"s as drops). Re-run: `node scripts/secrets.mjs run --only tool -- npx tsx evals/run.ts`; results in `evals/*/results-*.md`.
+- **G4 backend (Oct 28):** 16.4¢ — live checks 10.8¢ (three real searches: an adult's, a kid's rephrased, a kid's blocked; weather and travel calls cost nothing), kid search eval 5.6¢ (20 cases, 95% accuracy; no blocked query was let through as allowed, one "sneak out" query was rephrased instead of blocked).
 
 ## Owner to-dos (open)
 
@@ -102,7 +104,7 @@ Owner approved **$5 total for live model checks until G6**; ≈3 cents used. The
 
 - **Muse Spark is a reasoning model:** hidden reasoning counts against `max_tokens`. Use `reasoning_effort: 'low'` (config `LIMITS.agent.effort`) and generous limits, or replies come back empty.
 - **Meta transcription** is `POST /v1/asr/transcribe` (multipart JSON `request` + `audio`) and accepts **WAV only** (mono 16-bit PCM 16/24 kHz). iOS records LINEARPCM; web re-encodes to WAV in JS; Android expo-audio can't record PCM (shows "not supported").
-- **Web search:** `/v1/responses` with `tools: [{ type: 'web_search' }]`; sources in `web_search_call.action.sources` (`include`); `phase: 'commentary'` messages are interim.
+- **Web search:** `/v1/responses` with `tools: [{ type: 'web_search' }]` (Responses API only, not Chat Completions); sources come from `include: ["web_search_call.results"]` (each `{ type: "text_result", title, url, snippet }`) plus `url_citation` annotations on the answer (what it actually cites); `phase: 'commentary'` messages are interim. No safe-search or domain filter exists, so the kid filter runs around the call (G4 docs check, Oct 28).
 - **Better Auth on web** needs the server `crossDomain({ siteUrl })` plugin and `SITE_URL` = the web app's origin.
 - **Chat replies are server-driven** (`chat.send` schedules `generateReply`, which writes chunks via the persistent-text-streaming component's `addChunk`); there is no client-driven stream route.
 - **Convex mutations are atomic:** a counter written in a mutation that then throws is rolled back, which is why `invites.redeem` is an action (lockout counter).

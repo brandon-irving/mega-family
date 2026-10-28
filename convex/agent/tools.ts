@@ -15,6 +15,7 @@ import { gateByServerConcern, isConcernCategory, logDroppedConcern } from '../mo
 import { decideLearning, type LearningOp } from '../model/learningPolicy';
 import { createRequestCandidate } from '../model/proactive';
 import { calendarChanged, eventEnd, patchEvent } from '../model/eventWrites';
+import { placeByLabel } from '../model/places';
 import { maybeSuggestEventShare } from '../model/layers';
 import { canSeeEvent, canSeeScoped } from '../model/visibility';
 import { getOrCreateOwnThread } from '../model/threads';
@@ -173,6 +174,9 @@ async function toolEventsCreate(ctx: any, caller: Caller, raw: Record<string, un
   const who: Id<'members'>[] = [];
   for (const w of whoRaw) who.push((await loadMember(ctx, caller.familyId, w, 'who'))._id);
   const scope = oneOf(raw.scope, SCOPES, 'scope');
+  // G4: a `place` that names a saved family place ("Soccer field", "school") links it, for travel and weather.
+  const place = optStr(raw.place);
+  const saved = place ? await placeByLabel(ctx, caller.familyId, place) : null;
   const eventId = await ctx.db.insert('events', {
     familyId: caller.familyId,
     title,
@@ -180,7 +184,8 @@ async function toolEventsCreate(ctx: any, caller: Caller, raw: Record<string, un
     end: eventEnd(optLocalTime(raw.end, caller.tz), optStr(raw.allDay), caller.tz),
     allDay: optStr(raw.allDay),
     who,
-    place: optStr(raw.place),
+    place,
+    placeId: saved?._id,
     source: 'mega',
     createdBy: caller.memberId,
     scope,
@@ -202,7 +207,10 @@ async function toolEventsUpdate(ctx: any, caller: Caller, raw: Record<string, un
   if (typeof raw.title === 'string') patch.title = raw.title;
   if (typeof raw.start === 'string') patch.start = localTime(raw.start, 'start', caller.tz);
   if (typeof raw.end === 'string') patch.end = localTime(raw.end, 'end', caller.tz);
-  if (typeof raw.place === 'string') patch.place = raw.place;
+  if (typeof raw.place === 'string') {
+    patch.place = raw.place;
+    patch.placeId = (await placeByLabel(ctx, caller.familyId, raw.place))?._id ?? null;
+  }
   if (Array.isArray(raw.who)) {
     const who: Id<'members'>[] = [];
     for (const w of strArray(raw.who)) who.push((await loadMember(ctx, caller.familyId, w, 'who'))._id);
