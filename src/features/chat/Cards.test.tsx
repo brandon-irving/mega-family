@@ -4,6 +4,9 @@ import { renderWithTheme } from '@/test/renderWithTheme';
 import { CARDS_BY_KIND, NOTIFICATION_FIXTURE, NOTIFICATION_HELD_FIXTURE } from '@/test/fixtures';
 import { ResultCard } from './Cards';
 
+// G4: the search/weather/travel cards read the viewer's timezone and role (src/features/integrations).
+jest.mock('@/data/useViewer', () => ({ useViewer: () => ({ member: { role: 'adult' }, family: { timezone: 'America/New_York' } }) }));
+
 describe('ResultCard', () => {
   test('event card shows its visibility', async () => {
     await renderWithTheme(<ResultCard card={CARDS_BY_KIND.event} />);
@@ -41,6 +44,7 @@ describe('ResultCard', () => {
   test('travel card', async () => {
     await renderWithTheme(<ResultCard card={CARDS_BY_KIND.travel} />);
     expect(screen.getByText(/Soccer practice/)).toBeTruthy();
+    expect(screen.getByText(/^Leave by /)).toBeTruthy();
   });
 
   test('request card renders Yes before I can\'t (BUTTON_SETS order, G1 fix #3) and answers through onRespondRequest', async () => {

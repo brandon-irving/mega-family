@@ -12,7 +12,13 @@ import { toPath } from '@/features/shell/links';
 import { LoadingScreen } from '@/ui/LoadingScreen';
 import { Sheet } from '@/ui/Sheet';
 import { useTokens } from '@/ui/theme';
-import { CalendarContent, type CalendarClash } from '@/features/family/CalendarContent';
+import { CalendarContent, eventLayer, type CalendarClash, type EventDoc } from '@/features/family/CalendarContent';
+import { EventPlaceSheet } from '@/features/integrations/EventPlaceSheet';
+import { usePlaces, useSetEventPlace } from '@/data/useIntegrations';
+import { useRunAction } from '@/features/shell/useRunAction';
+import type { Id } from '@shared/domain/validators';
+import { CALENDAR_COPY } from '@shared/config/copy';
+import { formatLocalTime, formatLocalWeekday } from '@shared/time';
 
 function startOfWeek(now: number): number {
   const d = new Date(now);
@@ -38,6 +44,14 @@ export default function CalendarRoute() {
   const proposals = useOpenProposals(adult);
   const hubName = useHubName();
   const tokens = useTokens();
+  // G4 (board EventPlace): an adult taps an event to pick its saved place.
+  const places = usePlaces();
+  const setEventPlace = useSetEventPlace();
+  const placeAction = useRunAction();
+  const [editing, setEditing] = useState<EventDoc | null>(null);
+  const placeList = places.status === 'ok' ? places.data : [];
+  const placeLabels = Object.fromEntries(placeList.map((p) => [p._id, p.label]));
+  const tz = viewer?.family.timezone ?? 'UTC';
 
   if (weekStart === null || opened === null || events === undefined || members === undefined) return <LoadingScreen label="Loading calendar…" />;
 
@@ -55,6 +69,26 @@ export default function CalendarRoute() {
         hubName={open?.mega.name ?? hubName}
         clash={clash}
         onSeeClash={(c) => router.push(toPath(c.messageId ? LINKS.chatMessage(c.messageId) : LINKS.chat()) as never)}
+        onOpenEvent={adult ? (e) => setEditing(e) : undefined}
+        placeLabels={placeLabels}
+      />
+      <EventPlaceSheet
+        open={editing !== null}
+        event={{
+          title: editing?.title ?? '',
+          when: editing ? `${formatLocalWeekday(editing.start, tz)} ${formatLocalTime(editing.start, tz)}` : '',
+          layer: editing && eventLayer(editing) === 'private' ? CALENDAR_COPY.onlyYou : CALENDAR_COPY.household,
+          placeId: editing?.placeId ?? null,
+          place: editing?.place,
+        }}
+        places={placeList}
+        busy={placeAction.busy !== null}
+        error={placeAction.error}
+        onSave={(placeId) => {
+          if (!editing) return;
+          void placeAction.run('place', () => setEventPlace({ eventId: editing._id, patch: { placeId: (placeId as Id<'places'> | null) } })).then((ok) => ok && setEditing(null));
+        }}
+        onClose={() => setEditing(null)}
       />
     </Sheet>
   );

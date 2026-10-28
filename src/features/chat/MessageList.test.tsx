@@ -13,6 +13,9 @@ import { MESSAGES_BY_TYPE, FIXTURE_IDS, NOTIFICATION_FIXTURE, TEAL_INFO } from '
 import { renderWithTheme } from '@/test/renderWithTheme';
 import { MessageList, type MessageDoc } from './MessageList';
 
+// G4: the search/weather/travel cards read the viewer's timezone and role (src/features/integrations).
+jest.mock('@/data/useViewer', () => ({ useViewer: () => ({ member: { role: 'adult' }, family: { timezone: 'America/New_York' } }) }));
+
 // jest's babel-plugin-jest-hoist moves this `jest.mock` call above every import above, including
 // `./MessageList`'s — so MessageList picks up the mocked `./MessageRow` even though this call reads
 // textually after the real imports (the repo's established pattern; see AuthGate.test.tsx). The hoist

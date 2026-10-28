@@ -155,6 +155,8 @@ describe('Welcome (Screen 9)', () => {
 
   test('three MEGAs are on the screen, each one a "say hi" button', async () => {
     await renderWelcome(false);
-    for (const name of ['Teal', 'Coral', 'Zap']) expect(screen.getByLabelText(`${name}, say hi`, { includeHiddenElements: true })).toBeTruthy();
+    // The walkers mount once the stage has measured its ledges, which can land a tick after the first render
+    // under a loaded run (flaked Oct 28): wait for each rather than assuming the same tick.
+    for (const name of ['Teal', 'Coral', 'Zap']) expect(await screen.findByLabelText(`${name}, say hi`, { includeHiddenElements: true })).toBeTruthy();
   });
 });

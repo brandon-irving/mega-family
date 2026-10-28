@@ -33,6 +33,10 @@ export type CalendarContentProps = {
   hubName?: string;
   clash?: CalendarClash | null;
   onSeeClash?: (clash: CalendarClash) => void;
+  /** G4 (board EventPlace): tapping an event the viewer may edit opens its place picker. */
+  onOpenEvent?: (event: EventDoc) => void;
+  /** G4: saved place labels by id, so an event with a `placeId` shows its place's name. */
+  placeLabels?: Record<string, string>;
 };
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -42,7 +46,7 @@ export function eventLayer(e: Pick<EventDoc, 'scope'>) {
   return LAYER_OF_SCOPE[e.scope];
 }
 
-export function CalendarContent({ weekStart, todayIndex = null, events, members, viewerId, hubName = FAMILY_MEGA_DEFAULTS.name, clash, onSeeClash }: CalendarContentProps) {
+export function CalendarContent({ weekStart, todayIndex = null, events, members, viewerId, hubName = FAMILY_MEGA_DEFAULTS.name, clash, onSeeClash, onOpenEvent, placeLabels }: CalendarContentProps) {
   const tokens = useTokens();
   const [selectedDay, setSelectedDay] = useState(todayIndex ?? 0);
   const [showHousehold, setShowHousehold] = useState(true);
@@ -130,8 +134,14 @@ export function CalendarContent({ weekStart, todayIndex = null, events, members,
             const color = colorFor(ownerOf(e));
             const who = priv ? CALENDAR_COPY.you : e.who.map(nameFor).filter(Boolean).join(', ');
             const isClash = !!clash && clash.eventIds.includes(e._id);
+            const where = (e.placeId && placeLabels?.[e.placeId]) || e.place;
+            const Row = onOpenEvent ? Pressable : View;
             return (
-              <View key={e._id} style={{ flexDirection: 'row', alignItems: 'center', gap: 14, minHeight: 62, borderBottomWidth: 1, borderBottomColor: tokens.line, paddingVertical: tokens.spacing.sm }}>
+              <Row
+                key={e._id}
+                {...(onOpenEvent ? { onPress: () => onOpenEvent(e), accessibilityRole: 'button' as const, accessibilityLabel: where ? `${e.title}, ${where}` : e.title } : {})}
+                style={{ flexDirection: 'row', alignItems: 'center', gap: 14, minHeight: 62, borderBottomWidth: 1, borderBottomColor: tokens.line, paddingVertical: tokens.spacing.sm }}
+              >
                 <View style={{ width: 74 }}>
                   <Text variant="caption" color="muted">
                     {e.allDay ? CALENDAR_COPY.allDay : clock(e.start)}
@@ -163,11 +173,11 @@ export function CalendarContent({ weekStart, todayIndex = null, events, members,
                     {priv && <LockGlyph color={tokens.muted} />}
                     <Text variant="caption" color="muted">
                       {fillCopy(priv ? CALENDAR_COPY.whoPrivate : eventLayer(e) === 'grant' ? CALENDAR_COPY.whoShared : CALENDAR_COPY.whoHousehold, { who })}
-                      {e.place ? ` · ${e.place}` : ''}
+                      {where ? ` · ${where}` : ''}
                     </Text>
                   </View>
                 </View>
-              </View>
+              </Row>
             );
           })}
         </View>

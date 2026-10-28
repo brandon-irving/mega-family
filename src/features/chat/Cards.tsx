@@ -4,7 +4,6 @@
 // shareSuggestion, proposal, gifts) carry only an id, so each renders its own connected card from
 // src/features/{kids,calendar}, which loads the item through the query that re-checks who's asking. A kind
 // this build doesn't know yet renders nothing rather than crashing the thread.
-import { View } from 'react-native';
 import type { Card as CardKind } from '@shared/domain/messages';
 import { BUTTON_SETS } from '@shared/config/notifications';
 import type { NotificationDoc } from '@/data/useNotifications';
@@ -21,6 +20,7 @@ import { RoutineCard } from '@/features/kids/RoutineCard';
 import { GiftsCard } from '@/features/calendar/GiftsCard';
 import { ProposalCard } from '@/features/calendar/ProposalCard';
 import { ShareSuggestionCard } from '@/features/calendar/ShareSuggestionCard';
+import { SearchResultCard, TravelResultCard, WeatherResultCard } from '@/features/integrations/IntegrationCards';
 
 export type CardProps = {
   card: CardKind;
@@ -71,39 +71,11 @@ export function ResultCard({ card, onRespondRequest, onAnswerNotification, notif
         </Card>
       );
     case 'search':
-      return (
-        <Card>
-          <Text variant="label" style={{ marginBottom: tokens.spacing.xs }}>
-            {card.query}
-          </Text>
-          <Text>{card.answer}</Text>
-          {card.sources.length > 0 && (
-            <View style={{ marginTop: tokens.spacing.sm, gap: tokens.spacing.xs }}>
-              {card.sources.map((s) => (
-                <Text key={s.url} variant="caption" color="muted">
-                  {s.title}
-                </Text>
-              ))}
-            </View>
-          )}
-        </Card>
-      );
+      return <SearchResultCard card={card} megaName={megaName ?? GD_FALLBACK_FROM} />;
     case 'weather':
-      return (
-        <Card>
-          <Text variant="label">Weather</Text>
-          <Text color="muted">{card.summary}</Text>
-        </Card>
-      );
+      return <WeatherResultCard card={card} />;
     case 'travel':
-      return (
-        <Card>
-          <Text variant="label">Travel time</Text>
-          <Text color="muted">
-            To {card.to}: {card.minutes} min · leave by {new Date(card.leaveBy).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}
-          </Text>
-        </Card>
-      );
+      return <TravelResultCard card={card} megaName={megaName ?? GD_FALLBACK_FROM} />;
     case 'request':
       return (
         <Card>

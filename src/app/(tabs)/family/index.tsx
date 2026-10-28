@@ -17,6 +17,7 @@ export default function FamilyRoute() {
         comingUp={comingUp}
         onOpenMember={(memberId) => router.push(`/family/${memberId}` as never)}
         onOpenCalendar={() => router.push('/family/calendar' as never)}
+        onOpenPlaces={() => router.push('/places' as never)}
       />
     </Screen>
   );
