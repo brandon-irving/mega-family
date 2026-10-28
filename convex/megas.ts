@@ -5,7 +5,8 @@ import { internalQuery, mutation, query } from './_generated/server';
 import { pick } from './model/define';
 import { fail } from './model/errors';
 import { megaStatusFor } from './model/megaStatus';
-import { assertKidMayWear } from './model/store';
+import { assertKidMayWear, keepStartingItems, wornItemIds } from './model/store';
+import { clock } from './ports/clock';
 import { requireAdmin, requireViewer } from './model/viewer';
 
 /** The caller's family MEGAs, by name — used by `talk.transcribe`'s spoken-mention matcher. Lives here
@@ -71,7 +72,10 @@ export const update = mutation({
     if (!viewer.mega) fail('NOT_FOUND');
     if (args.name !== undefined && viewer.member.role === 'kid') fail('FORBIDDEN', "kids can't rename their MEGA");
     // GD (invariant 6): a kid wears only look parts they own (free, bought, or already worn); adults are free.
-    if (args.look && viewer.member.role === 'kid') await assertKidMayWear(ctx, viewer.member, viewer.mega, args.look);
+    if (args.look && viewer.member.role === 'kid') {
+      await assertKidMayWear(ctx, viewer.member, viewer.mega, args.look);
+      await keepStartingItems(ctx, viewer.member, wornItemIds(viewer.mega.look), await clock.now(ctx, viewer.member.familyId));
+    }
     const patch = Object.fromEntries(Object.entries(args).filter(([, v]) => v !== undefined));
     await ctx.db.patch(viewer.mega._id, patch);
     return null;

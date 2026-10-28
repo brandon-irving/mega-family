@@ -89,6 +89,27 @@ export async function assertKidMayWear(ctx: Ctx, kid: Doc<'members'>, mega: Doc<
   }
 }
 
+/** A kid keeps what they started with: before a look or room change, every Store item they're wearing or
+ * have placed that isn't free and wasn't bought is recorded as theirs (a price-0 purchase, no ledger row),
+ * so switching away never means buying it back. */
+export async function keepStartingItems(ctx: MutationCtx, kid: Doc<'members'>, itemIds: StoreItemId[], now: number): Promise<void> {
+  const bought = await purchasedItemIds(ctx, kid.familyId, kid._id);
+  for (const itemId of new Set(itemIds)) {
+    if (bought.has(itemId) || STORE_CATALOG[itemId].price === 0) continue;
+    await ctx.db.insert('purchases', { familyId: kid.familyId, memberId: kid._id, itemId, price: 0, at: now });
+  }
+}
+
+/** The look items a MEGA is wearing now (for `keepStartingItems`). */
+export function wornItemIds(look: Look): StoreItemId[] {
+  return lookItemIds(look);
+}
+
+/** The Store furniture placed in a room now (for `keepStartingItems`). */
+export function placedItemIds(room: Doc<'rooms'>): StoreItemId[] {
+  return room.furniture.map((f) => `furniture:${f.kind}`).filter((id): id is StoreItemId => (STORE_ITEM_IDS as readonly string[]).includes(id));
+}
+
 /** `rooms.update` for a kid: every piece placed must be free, bought, or already in their room. */
 export async function assertKidMayPlace(ctx: Ctx, kid: Doc<'members'>, mega: Doc<'megas'> | null, room: Doc<'rooms'>, furniture: { kind: string }[]): Promise<void> {
   const owned = await ownedItemIds(ctx, kid.familyId, kid._id, mega);

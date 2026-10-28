@@ -257,3 +257,21 @@ describe('GD addenda (frontend requests): one run by id, chore snooze', () => {
     expect(snoozed[0].deliverAt! - at).toBeGreaterThanOrEqual(10 * 60_000 - 5_000);
   });
 });
+
+describe('GD seed: the kid side of the demo (live check found Twin 2’s thread empty)', () => {
+  test('Twin 2’s own thread has their Dishes chore card and a bedtime list for tomorrow’s soccer practice', async () => {
+    const { t, m, as } = await seeded();
+    const cards = await t.run(async (ctx) => {
+      const msgs = await ctx.db.query('messages').collect();
+      const threads = new Map((await ctx.db.query('threads').collect()).map((th) => [th._id, th]));
+      return msgs
+        .filter((x) => threads.get(x.threadId)?.ownerId === m.twin2 && x.body.type === 'card')
+        .map((x) => (x.body as { card: { kind: string; runId?: Id<'routineRuns'> } }).card);
+    });
+    expect(cards.map((c) => c.kind)).toEqual(expect.arrayContaining(['chore', 'routine']));
+    const runId = cards.find((c) => c.kind === 'routine')!.runId!;
+    const run = await as('twin2').query(api.routines.run, { runId });
+    expect(run.kind).toBe('bedtime');
+    expect(run.steps.some((s) => s.source?.title === 'Soccer practice')).toBe(true);
+  });
+});
