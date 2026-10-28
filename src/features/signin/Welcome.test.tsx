@@ -139,6 +139,19 @@ describe('Welcome (Screen 9)', () => {
     expect(mockSignInAs).toHaveBeenCalledWith({ as: 'twin1' });
   });
 
+  // Found live (Oct 28): right after a sign-out, `demo.signInAs` can reach the server before the new
+  // anonymous session's token does (UNAUTHENTICATED). It retries a few times instead of failing.
+  test('demo mode: an UNAUTHENTICATED race right after the anonymous sign-in is retried, not shown', async () => {
+    const { ConvexError } = jest.requireActual('convex/values');
+    mockSignInAs.mockRejectedValueOnce(new ConvexError({ code: 'UNAUTHENTICATED' })).mockResolvedValueOnce({});
+    await renderWelcome(true);
+    await act(async () => fireEvent.press(screen.getByText('Demo')));
+    await act(async () => fireEvent.press(screen.getByText('Admin')));
+    await act(async () => new Promise((r) => setTimeout(r, 1500)));
+    expect(mockSignInAs).toHaveBeenCalledTimes(2);
+    expect(screen.queryByText(/UNAUTHENTICATED/)).toBeNull();
+  });
+
   test('three MEGAs are on the screen, each one a "say hi" button', async () => {
     await renderWelcome(false);
     for (const name of ['Teal', 'Coral', 'Zap']) expect(screen.getByLabelText(`${name}, say hi`, { includeHiddenElements: true })).toBeTruthy();

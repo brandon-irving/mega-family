@@ -10,6 +10,7 @@ import { useMemo, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { router } from 'expo-router';
 import { useMutation } from 'convex/react';
+import { ConvexError } from 'convex/values';
 import { Defs, Ellipse, RadialGradient, Stop, Svg } from 'react-native-svg';
 import { api } from '@/data/api';
 import { Pill, SignInFrame, Wordmark } from '@/features/signin/parts';
@@ -20,6 +21,7 @@ import { signInAnonymously, signInWithApple, signInWithEmail, signInWithGoogle, 
 import { MegaSprite } from '@/ui/MegaSprite';
 import { Text } from '@/ui/Text';
 import { useTokens } from '@/ui/theme';
+import { AUTH } from '@shared/config/auth';
 import { SIGNIN_COPY } from '@shared/config/copy';
 import { IDENTITY } from '@shared/config/identity';
 import { FAMILY_MEGA_DEFAULTS } from '@shared/config/looks';
@@ -67,7 +69,7 @@ export default function WelcomeRoute({ demoMode = process.env.EXPO_PUBLIC_DEMO_M
   const onDemo = (key: (typeof DEMO_KEYS)[number]) =>
     run(key, async () => {
       await signInAnonymously();
-      await signInAs({ as: key });
+      await withFreshSession(() => signInAs({ as: key }));
     })();
   const onEmail = (as: SignInMode, email: string, password: string) => run('email', () => (as === 'create' ? signUpWithEmail(email, password) : signInWithEmail(email, password)))();
 
@@ -90,6 +92,21 @@ export default function WelcomeRoute({ demoMode = process.env.EXPO_PUBLIC_DEMO_M
       {error && sheet === 'none' ? <ErrorLine text={error} /> : null}
     </SignInFrame>
   );
+}
+
+/** Right after an anonymous sign-in, the Convex client can still be sending the old (or no) token, so the
+ * first call may come back UNAUTHENTICATED; retry it a few times (AUTH.freshSessionRetry). */
+async function withFreshSession<T>(call: () => Promise<T>): Promise<T> {
+  const { attempts, delayMs } = AUTH.freshSessionRetry;
+  for (let i = 1; ; i++) {
+    try {
+      return await call();
+    } catch (e) {
+      const code = e instanceof ConvexError ? (e.data as { code?: string } | undefined)?.code : undefined;
+      if (code !== 'UNAUTHENTICATED' || i >= attempts) throw e;
+      await new Promise((r) => setTimeout(r, delayMs));
+    }
+  }
 }
 
 /** Hub in its spotlight, standing on the floor ledge the walking MEGAs stroll along. */

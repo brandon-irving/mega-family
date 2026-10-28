@@ -12,4 +12,7 @@ export const AUTH = {
   /** Password reset needs a real email provider behind the EmailSender port; until one is wired, the app
    * shows a placeholder instead of a reset form (src/features/signin/sheets.tsx). */
   passwordResetByEmail: false,
+  /** Right after an anonymous sign-in the Convex client may not have the new session's token yet; a call
+   * that comes back UNAUTHENTICATED is retried this many times, this far apart (found live, Oct 28). */
+  freshSessionRetry: { attempts: 4, delayMs: 350 },
 } as const;
