@@ -64,4 +64,10 @@ export default defineSchema({
   routineRuns: defineTable(T.routineRuns).index('by_family_member_kind_date', ['familyId', 'memberId', 'kind', 'date']),
   bucksLedger: defineTable(T.bucksLedger).index('by_family_member_at', ['familyId', 'memberId', 'at']),
   purchases: defineTable(T.purchases).index('by_family_member', ['familyId', 'memberId']),
+
+  // G4 (CONTRACT v0.15)
+  places: defineTable(T.places).index('by_family_kind', ['familyId', 'kind']),
+  weatherCache: defineTable(T.weatherCache).index('by_family_place_kind', ['familyId', 'placeId', 'kind']),
+  travelChecks: defineTable(T.travelChecks).index('by_family_event_checked', ['familyId', 'eventId', 'checkedAt']),
+  searchLog: defineTable(T.searchLog).index('by_family_member_at', ['familyId', 'memberId', 'at']),
 });

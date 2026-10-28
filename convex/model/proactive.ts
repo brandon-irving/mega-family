@@ -444,6 +444,15 @@ export async function candidateStillApplies(ctx: Ctx, source: CandidateSource | 
     }
     case 'bucks':
       return !!(await ctx.db.get(source.ledgerId));
+    // G4 (v0.15) contract placeholders: the event must still be on and not started. The G4 backend tightens
+    // these (leave-by: the latest travel check still says leave soon; alert: still active in weatherCache).
+    case 'leaveBy':
+    case 'weatherEvent': {
+      const e = await ctx.db.get(source.eventId);
+      return !!e && !e.cancelled;
+    }
+    case 'weatherAlert':
+      return true;
   }
 }
 

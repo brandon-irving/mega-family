@@ -14,6 +14,17 @@ export const EYE_COLOR_IDS = ['classic', 'pink', 'gold', 'mint', 'lilac', 'ember
 /** GD: a kid's two daily checklists (./kids.ts ROUTINES). */
 export const ROUTINE_KINDS = ['morning', 'bedtime'] as const;
 
+/** G4 (CONTRACT v0.15): a family place's kind (./integrations.ts PLACES). `other` is any custom label. */
+export const PLACE_KINDS = ['home', 'school', 'work', 'other'] as const;
+/** G4: NWS CAP severities (api.weather.gov alerts `properties.severity`), most severe first. */
+export const ALERT_SEVERITIES = ['Extreme', 'Severe', 'Moderate', 'Minor', 'Unknown'] as const;
+/** G4: what a web search did with a query (./kidSafety.ts KID_SAFETY.search for kids). */
+export const SEARCH_OUTCOMES = ['answered', 'rephrased', 'blocked', 'failed'] as const;
+/** G4: why an integration couldn't answer. `not_configured` = its secret (e.g. MAPBOX_TOKEN) isn't set. */
+export const INTEGRATION_FAILURES = ['not_configured', 'no_result', 'rate_limited', 'error'] as const;
+/** G4: how a place's coordinates were found. `seed` = the sample family's fixed public landmarks. */
+export const GEOCODE_STATUSES = ['pending', 'ok', 'failed', 'not_configured', 'seed'] as const;
+
 /** Furniture kinds the Store sells or gives free. G5's room config adds the rest (HQ-only pieces). */
 export const STORE_FURNITURE_IDS = ['bed', 'desk', 'lamp', 'rugSmall', 'plant', 'toybox', 'beanbag'] as const;
 /** Store-only shell colors (the six preset colors in ./looks.ts COLORS are free for everyone). */

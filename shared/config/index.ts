@@ -3,6 +3,7 @@ export * from './calendar';
 export * from './copy';
 export * from './demo';
 export * from './identity';
+export * from './integrations';
 export * from './kids';
 export * from './kidSafety';
 export * from './learning';
