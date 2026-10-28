@@ -468,6 +468,8 @@ export async function candidateStillApplies(ctx: Ctx, source: CandidateSource | 
       const e = await ctx.db.get(source.eventId);
       return !!e && !e.cancelled && e.start > (await clock.now(ctx, e.familyId));
     }
+    case 'searchNotice':
+      return !!(await ctx.db.get(source.searchLogId));
     case 'weatherAlert': {
       const place = await ctx.db.get(source.placeId);
       if (!place) return false;
