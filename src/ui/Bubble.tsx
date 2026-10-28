@@ -12,9 +12,12 @@ export function Bubble({ children, mine = true }: BubbleProps) {
   const tokens = useTokens();
   return (
     <View
+      testID="bubble"
       style={{
         alignSelf: mine ? 'flex-end' : 'flex-start',
-        maxWidth: '82%',
+        // The message column (MessageRow) holds the 82% limit; a percentage here would resolve against a
+        // parent with no width of its own and squeeze short labels to one word per line.
+        maxWidth: '100%',
         backgroundColor: mine ? tokens.accent : tokens.surface,
         borderRadius: tokens.radii.lg,
         borderBottomRightRadius: mine ? tokens.radii.sm : tokens.radii.lg,

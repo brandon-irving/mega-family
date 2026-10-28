@@ -18,6 +18,7 @@ import type { NotificationDoc } from '@/data/useNotifications';
 import { AnsweredBlock, Block } from './Blocks';
 import { ResultCard } from './Cards';
 import { NotificationNotice } from './NotificationNotice';
+import { isMegaStillWriting } from './pendingStream';
 import { SaveChip } from './SaveChip';
 
 export type MessageDoc = Infer<typeof messageDoc>;
@@ -65,6 +66,9 @@ export const MessageRow = memo(function MessageRow({
 }: MessageRowProps) {
   const tokens = useTokens();
   const reducedMotion = useReducedMotion();
+  // Still being written: the chat screen's streaming line shows it (typing dots, then the words), so an
+  // empty row with a bare name under the badge never appears in the thread.
+  if (isMegaStillWriting(message)) return null;
   const showBadge = message.author.kind === 'mega';
   const content = <Body message={message} isMine={isMine} mega={mega} onAnswerBlock={onAnswerBlock} onRespondRequest={onRespondRequest} onAnswerNotification={onAnswerNotification} notification={notification} />;
 
@@ -88,7 +92,10 @@ export const MessageRow = memo(function MessageRow({
       )}
       <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: tokens.spacing.sm, justifyContent: isMine ? 'flex-end' : 'flex-start' }}>
         {showBadge && mega && <MegaBadge hex={mega.hex} sticker={mega.sticker} face={mega.face} size={32} accessibilityLabel={mega.name} />}
-        <View style={{ flex: showBadge ? 1 : undefined, maxWidth: showBadge ? '82%' : undefined }}>
+        {/* The column, not the bubble, carries the width limit: a bubble's own percentage maxWidth resolved
+            against a parent with no width, so long messages were clipped off the left edge on web and short
+            ones ("Answered") wrapped mid-word (owner, Oct 28). */}
+        <View testID="message-column" style={{ flex: showBadge ? 1 : undefined, flexShrink: 1, maxWidth: '82%' }}>
           {showBadge && mega && (
             <Text variant="caption" color="muted" style={{ marginBottom: 2 }}>
               {mega.name}

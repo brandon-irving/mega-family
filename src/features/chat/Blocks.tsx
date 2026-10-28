@@ -4,6 +4,7 @@
 import { useState } from 'react';
 import { Switch, TextInput, View } from 'react-native';
 import type { BlockAnswer, UIBlock } from '@shared/domain/messages';
+import { summarizeAnswer } from '@shared/domain/answerLabel';
 import { COLORS, HEX_RE, PERSONALITIES } from '@shared/config/looks';
 import { STICKERS } from '@shared/config/ids';
 import type { Personality } from '@shared/domain/enums';
@@ -52,16 +53,7 @@ export function AnsweredBlock({ block, answer }: { block: UIBlock; answer: Block
   );
 }
 
-export function summarizeAnswer(block: UIBlock, answer: BlockAnswer): string {
-  if (answer.skipped) return 'Skipped';
-  if (block.kind === 'choice' && answer.optionIds) {
-    const labels = block.options.filter((o) => answer.optionIds!.includes(o.id)).map((o) => o.label);
-    return [...labels, answer.other].filter(Boolean).join(', ') || 'No answer';
-  }
-  if (answer.fields) return Object.values(answer.fields).filter(Boolean).join(' · ') || 'No answer';
-  if (answer.value !== undefined) return String(answer.value);
-  return 'Answered';
-}
+export { summarizeAnswer };
 
 function ChoiceBlock({ block, onAnswer }: { block: Extract<UIBlock, { kind: 'choice' }>; onAnswer: (a: BlockAnswer) => void }) {
   const [selected, setSelected] = useState<string[]>([]);

@@ -183,6 +183,30 @@ describe('chat.answerBlock feeds the answer back into the loop (CONTRACT v0.8)',
   });
 });
 
+describe('answer labels (owner, Oct 28: an answered choice read "Answered")', () => {
+  test("the answer message's label is what the member picked, not the word 'Answered'", async () => {
+    const { t, familyId, members } = await seeded();
+    __setChatModelForTests(makeFakeChatModel((req) => (req.schema ? jsonReply({ operations: [] }) : textReply('9:00 it is.'))));
+    const thread = (await t.run((ctx) => ctx.db.query('threads').withIndex('by_family_owner', (q) => q.eq('familyId', familyId).eq('ownerId', members.admin)).unique()))!;
+    const mega = (await t.run((ctx) => ctx.db.query('megas').withIndex('by_family_owner', (q) => q.eq('familyId', familyId).eq('ownerId', members.admin)).unique()))!;
+    const blockMessageId = await t.run((ctx) =>
+      ctx.db.insert('messages', {
+        familyId,
+        threadId: thread._id,
+        at: Date.now(),
+        author: { kind: 'mega', id: mega._id },
+        via: 'text',
+        body: { type: 'block', block: { kind: 'choice', prompt: 'Bedtime tonight?', multi: false, allowOther: false, options: [{ id: 'a', label: '8:30 PM' }, { id: 'b', label: '9:00 PM' }] } },
+        chips: [],
+      }),
+    );
+    const asAdmin = t.withIdentity({ subject: 'sample:admin' });
+    const { answerMessageId } = await asAdmin.mutation(api.chat.answerBlock, { messageId: blockMessageId, answer: { optionIds: ['b'] }, via: 'text' });
+    const answer = await t.run((ctx) => ctx.db.get(answerMessageId));
+    expect(answer?.body.type === 'answer' && answer.body.label).toBe('9:00 PM');
+  });
+});
+
 describe('memory writer: ask-before-sharing produces a choice block', () => {
   test('a passing mention the writer judges worth sharing drops a confirm block instead of saving immediately', async () => {
     const { t, familyId, members } = await seeded();
@@ -241,6 +265,40 @@ describe('reasoning that runs out of room (G2 live check)', () => {
     await t.finishAllScheduledFunctions(vi.runAllTimers);
     expect((await asAdmin.query(api.chat.streamBody, { streamId })).text).toBe('Here is the week.');
     expect(maxTokensSeen[1]).toBe(maxTokensSeen[0] * 2);
+  });
+
+  test('an empty final reply after tool calls is nudged once for a real answer, not answered with a canned fallback (owner, Oct 28 web walkthrough)', async () => {
+    const { t } = await seeded();
+    let calls = 0;
+    __setChatModelForTests(
+      makeFakeChatModel((req) => {
+        if (req.schema) return jsonReply({ operations: [] });
+        calls++;
+        if (calls === 1) return toolCallReply([{ id: 'c1', name: 'lists_add', arguments: { listName: 'Groceries', text: 'eggs' } }]);
+        // Seen live: Muse Spark ran the tools, then finished with nothing to say (finishReason 'stop').
+        if (calls === 2) return { text: '', toolCalls: [], usage: { tokensIn: 10, tokensOut: 10 }, finishReason: 'stop' };
+        return textReply('Added eggs to Groceries.');
+      }),
+    );
+    const asAdmin = t.withIdentity({ subject: 'sample:admin' });
+    const { streamId } = await asAdmin.mutation(api.chat.send, { text: 'add eggs to groceries', via: 'text' });
+    await t.finishAllScheduledFunctions(vi.runAllTimers);
+    const text = (await asAdmin.query(api.chat.streamBody, { streamId })).text;
+    expect(text).toBe('Added eggs to Groceries.');
+    expect(text).not.toMatch(/not sure how to respond/);
+  });
+
+  test('a turn that still ends empty after the nudge says so honestly and asks to try again, never "not sure how to respond"', async () => {
+    const { t } = await seeded();
+    __setChatModelForTests(
+      makeFakeChatModel((req) => (req.schema ? jsonReply({ operations: [] }) : { text: '', toolCalls: [], usage: { tokensIn: 10, tokensOut: 10 }, finishReason: 'stop' })),
+    );
+    const asAdmin = t.withIdentity({ subject: 'sample:admin' });
+    const { streamId } = await asAdmin.mutation(api.chat.send, { text: 'hi', via: 'text' });
+    await t.finishAllScheduledFunctions(vi.runAllTimers);
+    const text = (await asAdmin.query(api.chat.streamBody, { streamId })).text;
+    expect(text).not.toMatch(/not sure how to respond/);
+    expect(text.length).toBeGreaterThan(0);
   });
 
   test('every agent call uses the configured reasoning effort', async () => {

@@ -6,11 +6,14 @@
 // changing a button set's order is a config edit, never a per-screen one.
 //
 // G3 review fix (HIGH, kid button sizes): sized from the viewer's role (tokens.buttonSize, resolved from
-// shared/config/theme.ts BUTTON_SIZES — the design board's `SIZES`), never a per-call magic number, and
-// laid out 2-up like the board's `grid-template-columns: repeat(2, minmax(0, 1fr))` rather than a single
-// wrapped row — `flexBasis` + `flexGrow` approximates that grid in RN's flexbox: two buttons split the
-// row evenly with a gap between, an odd one out (or a lone button) stretches to fill its row.
+// shared/config/theme.ts BUTTON_SIZES — the design board's `SIZES`), never a per-call magic number.
+//
+// Owner, Oct 28: stacked buttons came out content-width. Rows are now explicit lines (no percentage
+// flexBasis + wrap, which shrink-wrapped on web): short labels pair up and split a line evenly; a stacked
+// button — an odd one out, or every button when a label is too long to pair — fills the whole width.
+// The thresholds are config (BUTTON_ROW_LAYOUT).
 import { View } from 'react-native';
+import { BUTTON_ROW_LAYOUT } from '@shared/config/theme';
 import { Button } from './Button';
 import { useTokens } from './theme';
 
@@ -21,12 +24,24 @@ export type ButtonRowProps = {
   onPress: (buttonId: string) => void;
 };
 
+/** Splits buttons into display lines, in order: pairs when every label is short, else one per line. */
+export function buttonLines<T extends ButtonRowButton>(buttons: readonly T[]): T[][] {
+  const perLine = buttons.every((b) => b.label.length <= BUTTON_ROW_LAYOUT.pairMaxChars) ? BUTTON_ROW_LAYOUT.perRow : 1;
+  const lines: T[][] = [];
+  for (let i = 0; i < buttons.length; i += perLine) lines.push(buttons.slice(i, i + perLine));
+  return lines;
+}
+
 export function ButtonRow({ buttons, onPress }: ButtonRowProps) {
   const tokens = useTokens();
   return (
-    <View style={{ flexDirection: 'row', gap: tokens.spacing.sm, flexWrap: 'wrap' }}>
-      {buttons.map((b) => (
-        <Button key={b.id} label={b.label} variant="secondary" onPress={() => onPress(b.id)} size={tokens.buttonSize} style={{ flexBasis: '45%', flexGrow: 1 }} />
+    <View style={{ alignSelf: 'stretch', gap: tokens.spacing.sm }}>
+      {buttonLines(buttons).map((line) => (
+        <View key={line.map((b) => b.id).join('|')} testID="button-row-line" style={{ width: '100%', flexDirection: 'row', gap: tokens.spacing.sm }}>
+          {line.map((b) => (
+            <Button key={b.id} label={b.label} variant="secondary" onPress={() => onPress(b.id)} size={tokens.buttonSize} style={{ flex: 1 }} />
+          ))}
+        </View>
       ))}
     </View>
   );
