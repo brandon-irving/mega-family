@@ -3,7 +3,7 @@
 // interval — see `convex/model/proactive.ts` `tickFamilyLogic` and `convex/clock.ts`.
 import { cronJobs } from 'convex/server';
 import { PROACTIVE } from '../shared/config';
-import { TRAVEL, WEATHER } from '../shared/config/integrations';
+import { GEOCODING, TRAVEL, WEATHER } from '../shared/config/integrations';
 import { internal } from './_generated/api';
 
 const crons = cronJobs();
@@ -12,5 +12,6 @@ crons.interval('proactive engine sweep', { minutes: PROACTIVE.sweepIntervalMinut
 // G4: weather (Open-Meteo + NWS alerts) and leave-by traffic checks, each family on its own schedule entry.
 crons.interval('weather poll', { minutes: WEATHER.alertsPollMinutes }, internal.weather.pollAll, {});
 crons.interval('leave-by traffic checks', { minutes: TRAVEL.recheckMinutes }, internal.travel.checkAll, {});
+crons.interval('place geocode retries', { minutes: GEOCODING.retrySweepMinutes }, internal.places.retryGeocodes, {});
 
 export default crons;

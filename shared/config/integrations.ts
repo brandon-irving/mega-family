@@ -30,6 +30,14 @@ export const GEOCODING = {
   country: 'us',
   /** Re-geocode a place whose lookup failed at most this often. */
   retryAfterHours: 24,
+  /** How often the retry sweep runs (convex/crons.ts). A place stuck at `not_configured` is re-queued on every
+   * sweep: without a token the adapter returns at once with no network call, and once MAPBOX_TOKEN is added
+   * existing places heal on the next sweep instead of waiting a day. */
+  retrySweepMinutes: 60,
+  /** At most this many places are re-queued per sweep (the rest wait for the next one). */
+  retryPerSweep: 50,
+  /** The sweep reads at most this many places (families × PLACES.maxPerFamily stays far below it for now). */
+  retryScanLimit: 2000,
 } as const;
 
 export const WEB_SEARCH = {
