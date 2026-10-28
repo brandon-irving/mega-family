@@ -50,7 +50,18 @@ export const generate = mutation({
     const forMember = await sameFamilyMember(ctx, viewer.member.familyId, args.forMemberId);
     if (!forMember.birthday) fail('VALIDATION', 'add their birthday first');
     const now = await clock.now(ctx, viewer.member.familyId);
-    const { date } = nextBirthday(forMember.birthday, localDate(now, viewer.family.timezone));
+    const today = localDate(now, viewer.family.timezone);
+    const { date } = nextBirthday(forMember.birthday, today);
+    // G4 review (cost): at most one requested set per birthday person per day (each set runs
+    // GIFTS.ideasPerSet product searches, outside the per-member search cap). A set someone asked for today
+    // that hasn't failed is returned as is; Hub's automatic set (no `createdBy`) doesn't count.
+    const madeToday = (
+      await ctx.db
+        .query('giftIdeas')
+        .withIndex('by_family_for', (q) => q.eq('familyId', viewer.member.familyId).eq('forMemberId', forMember._id))
+        .collect()
+    ).find((g) => g.createdBy !== undefined && g.date === date && g.status !== 'failed' && localDate(g.createdAt, viewer.family.timezone) === today);
+    if (madeToday) return { giftIdeasId: madeToday._id };
     const giftIdeasId = await queueGiftIdeas(ctx, { forMember, date, createdBy: viewer.member._id, now });
     return { giftIdeasId };
   },

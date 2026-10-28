@@ -118,3 +118,36 @@ describe('G4 invariant 5: places are household data; adults edit', () => {
     expect((await t.run((ctx) => ctx.db.get(id)))!.placeId).toBe(home._id);
   });
 });
+
+describe('G4 review (HIGH): stuck geocodes retry', () => {
+  const H = 3_600_000;
+  async function withStuckPlaces() {
+    const s = await seeded();
+    const now = (await s.as('admin').query(api.clock.get, {})).now;
+    const add = (label: string, status: 'failed' | 'not_configured', ageHours: number) =>
+      s.t.run((ctx) => ctx.db.insert('places', { familyId: s.familyId, kind: 'other', label, address: `${label} St, Brooklyn, NY`, geocode: { status, at: now - ageHours * H }, createdBy: s.m.admin, updatedAt: now }));
+    return { ...s, now, add };
+  }
+
+  test('a place that never got coordinates because MAPBOX_TOKEN was missing heals on the next sweep once it works', async () => {
+    const { t, add } = await withStuckPlaces();
+    const id = await add('Library', 'not_configured', 1);
+    __setGeocoderForTests(makeFakeGeocoder());
+    await t.mutation(internal.places.retryGeocodes, {});
+    await t.finishAllScheduledFunctions(vi.runAllTimers);
+    expect((await t.run((ctx) => ctx.db.get(id)))!.geocode.status).toBe('ok');
+  });
+
+  test(`a failed lookup is retried after GEOCODING.retryAfterHours, not before`, async () => {
+    const { t, add } = await withStuckPlaces();
+    const old = await add('Pool', 'failed', 25);
+    const fresh = await add('Gym', 'failed', 1);
+    const fake = makeFakeGeocoder();
+    __setGeocoderForTests(fake);
+    await t.mutation(internal.places.retryGeocodes, {});
+    await t.finishAllScheduledFunctions(vi.runAllTimers);
+    expect((await t.run((ctx) => ctx.db.get(old)))!.geocode.status).toBe('ok');
+    expect((await t.run((ctx) => ctx.db.get(fresh)))!.geocode.status).toBe('failed');
+    expect(fake.requests.map((r) => r.address)).toEqual(['Pool St, Brooklyn, NY']);
+  });
+});

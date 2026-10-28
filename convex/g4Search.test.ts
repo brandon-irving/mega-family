@@ -129,6 +129,41 @@ describe('G4 invariant 3: the kid filter runs every time and rules only tighten'
     expect((await logOf('twin1')).at(-1)!.decidedBy).toMatch(/^model:/);
   });
 
+  test('G4 review (security MEDIUM): sources are screened too — a blocked domain and an unsafe title are dropped', async () => {
+    const { turn, searchCards } = await seeded();
+    const sources = [
+      { title: 'Octopus facts', url: 'https://www.pornhub.com/octopus' },
+      { title: 'Gore compilation: octopus attacks', url: 'https://videos.example.com/x' },
+      { title: 'Octopus | National Geographic Kids', url: 'https://kids.nationalgeographic.com/animals/octopus' },
+    ];
+    __setWebSearchForTests(makeFakeWebSearch(() => ({ ok: true, answer: 'raw', sources, searched: true, usage: { tokensIn: 1, tokensOut: 1, cachedTokensIn: 0, searches: 1 } })));
+    __setChatModelForTests(agentScript('octopus hearts', kidJudge({ verdict: 'allowed' })));
+    await turn('twin1', 'octopus hearts');
+    const card = (await searchCards('twin1')).at(-1)!;
+    expect(card.outcome).toBe('answered');
+    expect(card.sources.map((s) => s.url)).toEqual(['https://kids.nationalgeographic.com/animals/octopus']);
+  });
+
+  test('G4 review (security MEDIUM): the answer check sees the sources and can drop one it judges unsuitable', async () => {
+    const { turn, searchCards } = await seeded();
+    const sources = [
+      { title: 'Octopus forum (anonymous)', url: 'https://chat.example.org/octopus' },
+      { title: 'Octopus | National Geographic Kids', url: 'https://kids.nationalgeographic.com/animals/octopus' },
+    ];
+    __setWebSearchForTests(makeFakeWebSearch(() => ({ ok: true, answer: 'raw', sources, searched: true, usage: { tokensIn: 1, tokensOut: 1, cachedTokensIn: 0, searches: 1 } })));
+    let answerCheckInput = '';
+    __setChatModelForTests(
+      agentScript('octopus hearts', (req) => {
+        if (req.schema!.name === 'kidSearchAnswer') answerCheckInput = JSON.stringify(req.messages);
+        return kidJudge({ verdict: 'allowed' }, { ok: true, rewritten: 'Octopuses have three hearts!', unsafeSources: [0] } as never)(req);
+      }),
+    );
+    await turn('twin1', 'octopus hearts');
+    expect(answerCheckInput).toContain('chat.example.org');
+    const card = (await searchCards('twin1')).at(-1)!;
+    expect(card.sources.map((s) => s.url)).toEqual(['https://kids.nationalgeographic.com/animals/octopus']);
+  });
+
   test('rephrase: the safer query is what gets searched, and the card says so', async () => {
     const { turn, searchCards } = await seeded();
     const fake = makeFakeWebSearch();

@@ -97,6 +97,27 @@ describe('travel.answer', () => {
     expect((await s.as('admin').mutation(api.travel.answer, { travelCheckId: check._id, action: 'on_my_way' })).remindAt).toBeNull();
   });
 
+  test('G4 review (copy): the reminder reads "<title> at <time>", so a title like "Soccer practice ends" stays a sentence', async () => {
+    const s = await seeded();
+    const { check, event } = await pickupCheck(s);
+    await s.t.run((ctx) => ctx.db.patch(event._id, { title: 'Soccer practice ends' }));
+    await s.as('partner').mutation(api.travel.answer, { travelCheckId: check._id, action: 'remind_30_before' });
+    const r = (await s.reminders('partner')).find((x) => x.eventId === event._id)!;
+    expect(r.text).toMatch(/^Soccer practice ends at \d{1,2}:\d{2} [AP]M$/);
+  });
+
+  test('G4 review (HIGH): the same answer twice makes one reminder and returns the same reply (retry / double tap)', async () => {
+    const s = await seeded();
+    const { check, event } = await pickupCheck(s);
+    for (const action of ['snooze_5', 'remind_30_before'] as const) {
+      const a = await s.as('admin').mutation(api.travel.answer, { travelCheckId: check._id, action });
+      const b = await s.as('admin').mutation(api.travel.answer, { travelCheckId: check._id, action });
+      expect(b).toEqual(a);
+    }
+    const mine = (await s.reminders('admin')).filter((x) => x.eventId === event._id);
+    expect(mine.length).toBe(2); // one per action, never two for the same one
+  });
+
   test('only members who can see the event may answer', async () => {
     const s = await seeded();
     __setDirectionsForTests(makeFakeDirections());
