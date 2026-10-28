@@ -10,6 +10,7 @@ import Animated, { FadeIn, useReducedMotion } from 'react-native-reanimated';
 import { readableOn } from '@shared/config/theme';
 import { BucksCoin } from './BucksCoin';
 import { Button } from './Button';
+import { buttonLines } from './ButtonRow';
 import { Text } from './Text';
 import { useTokens, type Tokens } from './theme';
 
@@ -131,23 +132,29 @@ export function LockGlyph({ color, size = 12 }: { color: string; size?: number }
 
 export type CardAction = { id: string; label: string; onPress: () => void; variant?: 'primary' | 'ghost'; loading?: boolean; disabled?: boolean };
 
-/** The card's action buttons, 2-up (or one per row with `cols={1}`), sized from the role (BUTTON_SIZES). */
+/** The card's action buttons, sized from the role (BUTTON_SIZES), laid out in the same explicit lines as
+ * ButtonRow (owner, Oct 28: stacked buttons are full width, pairs split evenly); `cols={1}` always stacks. */
 export function CardActions({ actions, cols = 2 }: { actions: CardAction[]; cols?: 1 | 2 }) {
   const tokens = useTokens();
   if (actions.length === 0) return null;
+  const lines = cols === 1 ? actions.map((a) => [a]) : buttonLines(actions);
   return (
-    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: tokens.spacing.sm }}>
-      {actions.map((a) => (
-        <Button
-          key={a.id}
-          label={a.label}
-          variant={a.variant === 'ghost' ? 'secondary' : 'primary'}
-          onPress={a.onPress}
-          loading={a.loading}
-          disabled={a.disabled}
-          size={tokens.buttonSize}
-          style={{ flexBasis: cols === 1 ? '100%' : '45%', flexGrow: 1 }}
-        />
+    <View style={{ alignSelf: 'stretch', gap: tokens.spacing.sm }}>
+      {lines.map((line) => (
+        <View key={line.map((a) => a.id).join('|')} testID="button-row-line" style={{ width: '100%', flexDirection: 'row', gap: tokens.spacing.sm }}>
+          {line.map((a) => (
+            <Button
+              key={a.id}
+              label={a.label}
+              variant={a.variant === 'ghost' ? 'secondary' : 'primary'}
+              onPress={a.onPress}
+              loading={a.loading}
+              disabled={a.disabled}
+              size={tokens.buttonSize}
+              style={{ flex: 1 }}
+            />
+          ))}
+        </View>
       ))}
     </View>
   );

@@ -210,6 +210,11 @@ export const BUTTON_SIZES = {
 } as const;
 export type ButtonSize = (typeof BUTTON_SIZES)[keyof typeof BUTTON_SIZES];
 
+/** How a card's action buttons are laid out (src/ui/ButtonRow.tsx, owner Oct 28): at most `perRow` short
+ * buttons share a row evenly; if any label is longer than `pairMaxChars`, every button stacks full width
+ * (two long labels side by side wrap mid-word at kid sizes). An odd one out always gets its own full row. */
+export const BUTTON_ROW_LAYOUT = { perRow: 2, pairMaxChars: 10 } as const;
+
 /** The sign-in screens' full-width pill buttons (Screen 9 boards: "Make my MEGA" 58/18, the rest 52/16). */
 export const CTA_SIZES = {
   hero: { height: 58, fontSize: 18 },
