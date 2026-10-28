@@ -3,16 +3,14 @@
 //
 // The board draws this as an overlay over the thread; here it is the card itself (in place, so it stays in
 // the thread's history and never covers a message the kid is reading). "Later" folds it to one line.
-//
-// CONTRACT NOTE (for the backend): there is no read-by-ledgerId query, so the card finds its row in the
-// first page of the kid's own `bucks.history`. A `bucks.entry({ ledgerId })` query would cover older rows.
+// The card loads its ledger row by id (`bucks.entry`, v0.13a), so older rows render too.
 import { useEffect, useState } from 'react';
 import { View } from 'react-native';
 import { router } from 'expo-router';
 import Animated, { useAnimatedStyle, useReducedMotion, useSharedValue, withDelay, withRepeat, withSequence, withSpring, withTiming, ZoomIn } from 'react-native-reanimated';
 import type { Id } from '@shared/domain/validators';
 import { fillCopy, KIDS_COPY } from '@shared/config/copy';
-import { useBucksBalance, useBucksHistory } from '@/data/useKids';
+import { useBucksBalance, useBucksEntry } from '@/data/useKids';
 import { useFamilyDirectory } from '@/features/shell/familyDirectory';
 import { BucksCoin } from '@/ui/BucksCoin';
 import { Text } from '@/ui/Text';
@@ -89,12 +87,11 @@ export function BucksMomentView({ by, amount, sourceKind, balance, onOpenStore }
 }
 
 export function BucksCard({ ledgerId, megaName }: { ledgerId: Id<'bucksLedger'>; megaName: string }) {
-  const history = useBucksHistory();
+  const entry = useBucksEntry(ledgerId);
   const balance = useBucksBalance();
   const dir = useFamilyDirectory();
-  if (history.status !== 'ok') return <CardFallback state={history} from={megaName} />;
-  const row = history.data.page.find((r) => r._id === ledgerId);
-  if (!row) return <CardFallback state={{ status: 'error', error: new Error('older entry') }} from={megaName} />;
+  if (entry.status !== 'ok') return <CardFallback state={entry} from={megaName} />;
+  const row = entry.data;
   return (
     <BucksMomentView
       by={dir.nameOf(row.byId)}

@@ -24,13 +24,18 @@ export function useRoutineToday(kind: RoutineKind, memberId?: Id<'members'>) {
   return useQueryState(api.routines.today, memberId ? { kind, memberId } : { kind });
 }
 
-export function useBucksBalance(memberId?: Id<'members'>) {
-  return useQueryState(api.bucks.balance, memberId ? { memberId } : {});
+/** One routine run by id (GD v0.13a `routines.run`), so a card from any day renders. */
+export function useRoutineRun(runId: Id<'routineRuns'>) {
+  return useQueryState(api.routines.run, { runId });
 }
 
-/** The first page of the kid's ledger (newest first) — enough to find a just-released row for its card. */
-export function useBucksHistory(memberId?: Id<'members'>) {
-  return useQueryState(api.bucks.history, { ...(memberId ? { memberId } : {}), paginationOpts: { numItems: 20, cursor: null } });
+/** One Mega Bucks ledger row by id (GD v0.13a `bucks.entry`). */
+export function useBucksEntry(ledgerId: Id<'bucksLedger'>) {
+  return useQueryState(api.bucks.entry, { ledgerId });
+}
+
+export function useBucksBalance(memberId?: Id<'members'>) {
+  return useQueryState(api.bucks.balance, memberId ? { memberId } : {});
 }
 
 export function useHomeworkActions() {

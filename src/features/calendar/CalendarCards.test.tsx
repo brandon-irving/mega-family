@@ -35,11 +35,17 @@ describe('CalendarContent layers (boards Calendar / CalPartner)', () => {
 
   test('an open clash shows Hub’s banner and tags the event its fix changes', async () => {
     const onSeeClash = jest.fn();
-    await render({ clash: { eventId: 'ev_pickup', line: 'Partner can’t be at soccer pickup', messageId: 'msg_1' }, onSeeClash });
+    await render({ clash: { eventIds: ['ev_pickup'], line: 'Partner can’t be at soccer pickup', messageId: 'msg_1' }, onSeeClash });
     expect(screen.getByText('Hub spotted a clash')).toBeTruthy();
     expect(screen.getByText('CLASH')).toBeTruthy();
     await fireEvent.press(screen.getByText('See the fix'));
     expect(onSeeClash).toHaveBeenCalledWith(expect.objectContaining({ messageId: 'msg_1' }));
+  });
+
+  test('a clash tags BOTH household events in it (clashEventIds), never a private one', async () => {
+    const dinner = { ...THURSDAY_EVENTS[2], _id: 'ev_dinner', title: 'Work dinner', start: THURSDAY_EVENTS[2].start - 30 * 60 * 1000 } as (typeof THURSDAY_EVENTS)[number];
+    await render({ events: [...THURSDAY_EVENTS, dinner], clash: { eventIds: ['ev_pickup', 'ev_dinner'], line: 'Partner can’t be at soccer pickup', messageId: 'msg_1' } });
+    expect(screen.getAllByText('CLASH')).toHaveLength(2);
   });
 
   test('the private-layer note names the family MEGA', async () => {

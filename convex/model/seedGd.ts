@@ -133,6 +133,8 @@ export async function seedGd(
     if (c.key === G.claimedChore) {
       const claimId = await ctx.db.insert('choreClaims', { familyId, choreId, forMemberId: m[c.for], date: today, status: 'claimed', claimedAt: now - 10 * MINUTE });
       for (const adult of ['admin', 'partner'] as const) await postCard(ctx, { familyId, recipientId: m[adult], card: { kind: 'chore', claimId }, now });
+      // …and the kid's own card (board KidsChore), in its "told your grown-ups" state.
+      await postCard(ctx, { familyId, recipientId: m[c.for], card: { kind: 'chore', claimId }, now: now - 10 * MINUTE });
     }
   }
 
@@ -189,6 +191,28 @@ export async function seedGd(
       createdAt: now - 9 * 60 * MINUTE,
     });
     await postCard(ctx, { familyId, recipientId: m[G.morningRun.for], card: { kind: 'routine', runId }, now: now - 9 * 60 * MINUTE });
+  }
+
+  // Twin 2's bedtime list for soccer practice (board KidsBedtime): items sourced from the household event,
+  // then the routine's own steps, as the bedtime sweep would build it.
+  const B = G.bedtimeRun;
+  const bedtime = await ctx.db
+    .query('routines')
+    .withIndex('by_family_member_kind', (q) => q.eq('familyId', familyId).eq('memberId', m[B.for]).eq('kind', 'bedtime'))
+    .first();
+  const bedtimeEvent = G.events.find((e) => e.key === B.event);
+  if (bedtime && bedtimeEvent) {
+    const source = { eventId: ev[B.event], title: bedtimeEvent.title };
+    const runId = await ctx.db.insert('routineRuns', {
+      familyId,
+      routineId: bedtime._id,
+      memberId: m[B.for],
+      kind: 'bedtime',
+      date: today,
+      steps: [...B.items.map((i) => ({ ...i, done: false, source })), ...bedtime.steps.map((s) => ({ id: s.id, label: s.label, detail: s.detail, done: false }))],
+      createdAt: now - 5 * MINUTE,
+    });
+    await postCard(ctx, { familyId, recipientId: m[B.for], card: { kind: 'routine', runId }, now: now - 5 * MINUTE });
   }
 
   // Mega Bucks history and the plant Twin 1 bought (balance 3 for Twin 1)

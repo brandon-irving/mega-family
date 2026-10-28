@@ -8,6 +8,7 @@ import type { Infer } from 'convex/values';
 import type { practiceView } from '@shared/domain/api';
 import type { Id } from '@shared/domain/validators';
 import { fillCopy, KIDS_COPY } from '@shared/config/copy';
+import { HOMEWORK } from '@shared/config/kids';
 import { MEGA_BUCKS } from '@shared/config/store';
 import { usePractice, usePracticeActions, useReleaseBucks } from '@/data/useKids';
 import { useFamilyDirectory } from '@/features/shell/familyDirectory';
@@ -17,9 +18,12 @@ import { CardFallback } from './CardFallback';
 
 export type PracticeView = Infer<typeof practiceView>;
 
-/** The question the kid is on: the first one not yet answered correctly (a wrong answer can be retried). */
+/** The question the kid is on: the first one not yet settled. A wrong answer can be retried until
+ * HOMEWORK.maxTriesPerQuestion, after which the server settles it and the kid moves on (same rule as
+ * convex/model/practice.ts `stateOf`). */
 export function currentQuestionIndex(view: PracticeView): number {
-  const i = view.questions.findIndex((q) => !q.answered?.correct);
+  const settled = (a: PracticeView['questions'][number]['answered']) => !!a && (a.correct || a.tries >= HOMEWORK.maxTriesPerQuestion);
+  const i = view.questions.findIndex((q) => !settled(q.answered));
   return i < 0 ? view.questions.length : i;
 }
 

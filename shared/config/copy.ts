@@ -91,6 +91,7 @@ export const KIDS_COPY = {
   choreDeclined: 'Not yet. {mega} will tell {kid} you’ll check again.',
   bedtimeFrom: '{mega} · Tomorrow',
   bedtimeTitle: 'Get ready for tomorrow',
+  bedtimeTitleEvent: '{event} tomorrow',
   bedtimeBody: 'Pack your bag tonight so the morning is easy. {n} of {total} packed.',
   bedtimeAllPacked: 'All packed! Sleep well.',
   morningFrom: '{mega} · Morning',

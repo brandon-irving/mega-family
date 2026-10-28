@@ -3,12 +3,18 @@
 import { useMutation, usePaginatedQuery } from 'convex/react';
 import type { Id } from '@shared/domain/validators';
 import type { Scope } from '@shared/domain/enums';
+import { FAMILY_MEGA_DEFAULTS } from '@shared/config/looks';
 import { api } from './api';
 import { useQuery } from './useQuery';
 import { useStablePaginatedQuery } from './useStableQuery';
 
 export function useMyMega() {
   return useQuery(api.megas.mine, {});
+}
+
+/** The family MEGA's display name (GD v0.13a `megas.family`), with the config default while it loads. */
+export function useHubName(): string {
+  return useQuery(api.megas.family, {})?.name ?? FAMILY_MEGA_DEFAULTS.name;
 }
 
 export function useMegaStatus(megaId: Id<'megas'> | null) {
