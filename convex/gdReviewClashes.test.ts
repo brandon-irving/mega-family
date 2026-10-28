@@ -11,6 +11,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { api, internal } from './_generated/api';
 import type { Doc, Id } from './_generated/dataModel';
 import { detectClashes, overlapMs } from './model/clashes';
+import { sameSnapshot } from './model/proposals';
 import schema from './schema';
 
 const modules = import.meta.glob('./**/*.ts');
@@ -128,5 +129,16 @@ describe('clash checker: all-day events', () => {
     const allDay = { start: Date.UTC(2027, 2, 10, 5, 0), end: undefined, allDay: '2027-03-10' } as Pick<Doc<'events'>, 'start' | 'end' | 'allDay'>;
     const timed = { start: Date.UTC(2027, 2, 10, 18, 0), end: Date.UTC(2027, 2, 10, 19, 0) } as Pick<Doc<'events'>, 'start' | 'end' | 'allDay'>;
     expect(overlapMs(allDay, timed)).toBeGreaterThan(0);
+  });
+});
+
+describe('proposal snapshot check (GD review LOW)', () => {
+  test('the same people in a different order is the same event, so approval is not refused', () => {
+    const a = 'a' as Id<'members'>;
+    const b = 'b' as Id<'members'>;
+    const event = { title: 'Pickup', start: 1, end: 2, who: [b, a] } as Doc<'events'>;
+    const snap = { eventId: 'e' as Id<'events'>, title: 'Pickup', start: 1, end: 2, who: [a, b] };
+    expect(sameSnapshot(event, snap)).toBe(true);
+    expect(sameSnapshot({ ...event, who: [a] } as Doc<'events'>, snap)).toBe(false);
   });
 });

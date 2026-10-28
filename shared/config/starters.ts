@@ -5,6 +5,8 @@
 /** A kid's first open (board KidsIntro, canvas v33). Written as-is, no model call, so it's always kid-safe. */
 export const KID_INTRO = {
   hello: 'Hi {name}! I’m {mega}, your MEGA. {admin} made me just for you.',
+  /** When no admin can be named (GD review): the same hello without the "{admin} made me" clause. */
+  helloNoAdmin: 'Hi {name}! I’m {mega}, your MEGA, here just for you.',
   card: { from: '{mega} · How I help', title: 'Here’s what we can do' },
   /** Each row's "Show me" sends `ask` to the MEGA as the kid's own message, so the MEGA explains it live. */
   rows: [
