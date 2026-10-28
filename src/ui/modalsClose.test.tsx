@@ -124,6 +124,55 @@ describe('every modal can be closed', () => {
     expect(onClose).toHaveBeenCalledTimes(2);
   });
 
+  // G4 UX review LOW (Oct 28): Places → Edit place, one Escape closed both the sheet and the Places screen.
+  test('Escape closes one layer at a time: a sheet open over a route closes first, the route stays', async () => {
+    const web = asWeb();
+    const closeRoute = jest.fn();
+    const closeSheet = jest.fn();
+    await renderWithTheme(
+      <Sheet title="Places" onClose={closeRoute}>
+        <ModalSheet open title="Edit place" closeLabel="Close" onClose={closeSheet} testID="edit">
+          <Text>Body</Text>
+        </ModalSheet>
+      </Sheet>,
+    );
+    await act(() => web.escape());
+    expect(closeRoute).not.toHaveBeenCalled();
+  });
+
+  test('a route Sheet with nothing over it still closes on Escape', async () => {
+    const web = asWeb();
+    const closeRoute = jest.fn();
+    await renderWithTheme(
+      <Sheet title="Places" onClose={closeRoute}>
+        <ModalSheet open={false} title="Edit place" closeLabel="Close" onClose={noop} testID="edit">
+          <Text>Body</Text>
+        </ModalSheet>
+      </Sheet>,
+    );
+    await act(() => web.escape());
+    expect(closeRoute).toHaveBeenCalledTimes(1);
+  });
+
+  // G4 UX review LOW (Oct 28): sheets exposed two "Close" buttons to screen readers (the scrim and the ✕).
+  test('a sheet has exactly one accessible Close (the ✕); the scrim is not a button', async () => {
+    await renderWithTheme(
+      <ModalSheet open title="Edit place" closeLabel="Close" onClose={noop} testID="edit">
+        <Text>Body</Text>
+      </ModalSheet>,
+    );
+    expect(screen.getAllByLabelText('Close', { includeHiddenElements: true })).toHaveLength(1);
+  });
+
+  test('the sign-in sheet has exactly one accessible Close', async () => {
+    await renderWithTheme(
+      <BottomSheet open onClose={noop} label="Sign in">
+        <Text>Body</Text>
+      </BottomSheet>,
+    );
+    expect(screen.getAllByLabelText('Close', { includeHiddenElements: true })).toHaveLength(1);
+  });
+
   test('the Store’s buy sheet has a ✕ that closes it', async () => {
     await renderWithTheme(<StoreScreenView megaName="Zap" balance={20} items={CATALOG} look={ZAP_LOOK} initialTab="antennas" onClose={noop} onBuy={async () => true} onWear={noop} onDecorate={noop} />, { role: 'kid' });
     await fireEvent.press(screen.getByText('Buy for 12'));

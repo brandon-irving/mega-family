@@ -93,6 +93,30 @@ export function ThreadCard({ from, fromColor, ai, aiLabel = 'AI', progress, titl
   );
 }
 
+/** A card's first load (G4 UX review, Oct 28: never a bare "Loading…" line): the card's frame and "from"
+ * line with two placeholder bars where the title and body will be. */
+export function CardSkeleton({ from, label }: { from: string; label: string }) {
+  const tokens = useTokens();
+  const bar = (width: `${number}%`, height: number) => <View style={{ width, height, borderRadius: height / 2, backgroundColor: tokens.line }} />;
+  return (
+    <View
+      testID="card-skeleton"
+      accessibilityLabel={from ? `${from}. ${label}` : label}
+      style={{ backgroundColor: tokens.surface, borderColor: tokens.line, borderWidth: 1, borderRadius: tokens.radii.xl, padding: tokens.spacing.lg, gap: tokens.spacing.md }}
+    >
+      {from ? (
+        <Text variant="caption" weight="700" color="muted">
+          {from}
+        </Text>
+      ) : null}
+      <View style={{ gap: tokens.spacing.sm }} {...hiddenFromA11y()}>
+        {bar('60%', 18)}
+        {bar('85%', 12)}
+      </View>
+    </View>
+  );
+}
+
 export function ProgressDots({ dots, label }: { dots: ProgressDot[]; label: string }) {
   const tokens = useTokens();
   const fill = (d: ProgressDot) => (d === 'done' ? tokens.hintLine : d === 'current' ? tokens.hint : tokens.line);

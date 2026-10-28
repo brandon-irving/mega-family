@@ -16,6 +16,9 @@ export const CHAT_STATUS_PLACEHOLDER = 'Ready to help';
 export const CHAT_COPY = {
   /** Loading the thread, or waiting for the MEGA's first messages (never an empty-state line). */
   opening: 'Opening chat…',
+  /** A parent's read-only view of a kid's chat (Family → kid): loading, and a kid who hasn't chatted yet. */
+  kidThreadOpening: 'Opening their chat…',
+  kidThreadEmpty: '{name} hasn’t chatted with their MEGA yet.',
 } as const;
 
 /** The chat composer's words (canvas v33 thread.html). `{mega}` is the MEGA's name. */
@@ -166,7 +169,8 @@ export const KIDS_COPY = {
   bucksYouHave: 'You have {n} Mega Bucks',
   openStore: 'Open the Store',
   later: 'Later',
-  loading: 'Loading…',
+  /** Read out by screen readers while a card's first load shows its skeleton (never shown as text). */
+  loadingLabel: 'Getting this ready',
   notReady: 'This isn’t ready yet. Check back in a bit.',
 } as const;
 

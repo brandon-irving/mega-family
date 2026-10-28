@@ -58,9 +58,10 @@ describe('ResultCard', () => {
     expect(onRespondRequest).toHaveBeenCalledWith(true);
   });
 
-  test('notification card shows a loading state until the notification doc resolves', async () => {
+  test('notification card shows its skeleton (never a bare "Loading…") until the notification doc resolves', async () => {
     await renderWithTheme(<ResultCard card={CARDS_BY_KIND.notification} />);
-    expect(screen.getByText('Loading…')).toBeTruthy();
+    expect(screen.queryByText('Loading…')).toBeNull();
+    expect(screen.getByTestId('card-skeleton')).toBeTruthy();
   });
 
   // G1 fix: a `{ kind: 'notification' }` card used to render only the word "Notification" — nothing

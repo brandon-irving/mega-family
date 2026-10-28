@@ -25,6 +25,8 @@ jest.mock('@/services/AppleSignInButton', () => {
   const { Text: MockText } = jest.requireActual('react-native');
   return { AppleSignInButton: () => <MockText>APPLE_BUTTON</MockText> };
 });
+// The Convex client is "authenticated" at once here (the wait itself is tested in demoSignIn.test.ts).
+jest.mock('@/services/convexAuthReady', () => ({ waitForConvexAuth: () => Promise.resolve(true) }));
 const METRICS = { frame: { x: 0, y: 0, width: 390, height: 844 }, insets: { top: 47, left: 0, right: 0, bottom: 34 } };
 const renderWelcome = (demoMode: boolean) =>
   renderWithTheme(
@@ -122,6 +124,16 @@ describe('Welcome (Screen 9)', () => {
   test('Hub stands in the middle of the brand block (no empty band above MEGA)', async () => {
     await renderWelcome(false);
     expect(screen.getByLabelText('Hub, your family’s MEGA')).toBeTruthy();
+  });
+
+  // G4 UX review MEDIUM (Oct 28): the brand block filled all the space above the buttons and centered
+  // itself in it, leaving a dead band between the tagline and "Make my MEGA". The brand block and the buttons
+  // are one composition, centered together.
+  test('the brand block and the buttons are centered together (no dead band between them)', async () => {
+    await renderWelcome(false);
+    const flat = (s: unknown) => Object.assign({}, ...(Array.isArray(s) ? s.flat(Infinity) : [s]).filter(Boolean));
+    expect(flat(screen.getByTestId('welcome-body').props.style).justifyContent).toBe('center');
+    expect(flat(screen.getByTestId('welcome-brand').props.style).flex).toBeUndefined();
   });
 
   test('the demo pill is hidden unless the build opted into demo mode', async () => {

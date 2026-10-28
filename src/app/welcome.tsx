@@ -10,7 +10,6 @@ import { useMemo, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { router } from 'expo-router';
 import { useMutation } from 'convex/react';
-import { ConvexError } from 'convex/values';
 import { Defs, Ellipse, RadialGradient, Stop, Svg } from 'react-native-svg';
 import { api } from '@/data/api';
 import { Pill, SignInFrame, Wordmark } from '@/features/signin/parts';
@@ -18,11 +17,12 @@ import { SIGNIN_SCENES } from '@/features/signin/scenes';
 import { BottomSheet, DemoSheetBody, SignInSheetBody, type DEMO_KEYS, type SignInMode } from '@/features/signin/sheets';
 import { Lane, Ledge } from '@/features/walkers';
 import { signInAnonymously, signInWithApple, signInWithEmail, signInWithGoogle, signUpWithEmail } from '@/services/auth';
+import { waitForConvexAuth } from '@/services/convexAuthReady';
+import { demoSignIn } from '@/services/demoSignIn';
 import { withSignInHold } from '@/services/signInHold';
 import { MegaSprite } from '@/ui/MegaSprite';
 import { Text } from '@/ui/Text';
 import { useTokens } from '@/ui/theme';
-import { AUTH } from '@shared/config/auth';
 import { SIGNIN_COPY } from '@shared/config/copy';
 import { IDENTITY } from '@shared/config/identity';
 import { FAMILY_MEGA_DEFAULTS } from '@shared/config/looks';
@@ -70,10 +70,7 @@ export default function WelcomeRoute({ demoMode = process.env.EXPO_PUBLIC_DEMO_M
   const onDemo = (key: (typeof DEMO_KEYS)[number]) =>
     run(key, async () => {
       // Held so the gate shows the loader, not "join or start", between the two steps.
-      await withSignInHold(async () => {
-        await signInAnonymously();
-        await withFreshSession(() => signInAs({ as: key }));
-      });
+      await withSignInHold(() => demoSignIn({ signInAnonymously, waitForAuth: waitForConvexAuth, linkMember: () => signInAs({ as: key }) }));
     })();
   const onEmail = (as: SignInMode, email: string, password: string) => run('email', () => (as === 'create' ? signUpWithEmail(email, password) : signInWithEmail(email, password)))();
 
@@ -96,21 +93,6 @@ export default function WelcomeRoute({ demoMode = process.env.EXPO_PUBLIC_DEMO_M
       {error && sheet === 'none' ? <ErrorLine text={error} /> : null}
     </SignInFrame>
   );
-}
-
-/** Right after an anonymous sign-in, the Convex client can still be sending the old (or no) token, so the
- * first call may come back UNAUTHENTICATED; retry it a few times (AUTH.freshSessionRetry). */
-async function withFreshSession<T>(call: () => Promise<T>): Promise<T> {
-  const { attempts, delayMs } = AUTH.freshSessionRetry;
-  for (let i = 1; ; i++) {
-    try {
-      return await call();
-    } catch (e) {
-      const code = e instanceof ConvexError ? (e.data as { code?: string } | undefined)?.code : undefined;
-      if (code !== 'UNAUTHENTICATED' || i >= attempts) throw e;
-      await new Promise((r) => setTimeout(r, delayMs));
-    }
-  }
 }
 
 /** Hub in its spotlight, standing on the floor ledge the walking MEGAs stroll along. */
@@ -147,7 +129,7 @@ function WelcomeBody({ onMake, onSignIn, onInvite, inviteBusy }: { onMake: () =>
   // Memoized so the poked ring doesn't rebuild the brand block.
   const brand = useMemo(
     () => (
-      <View style={[styles.fill, styles.brand]}>
+      <View testID="welcome-brand" style={styles.brand}>
         <HubSpot />
         {/* Hub's floor: the walking MEGAs stroll along it, past Hub's feet. */}
         <Ledge id="floor" obstacle={false} style={[styles.floor, { marginTop: -(HUB.light.h - HUB.h) / 2 }]} />
@@ -160,10 +142,12 @@ function WelcomeBody({ onMake, onSignIn, onInvite, inviteBusy }: { onMake: () =>
     ),
     [tokens],
   );
+  // G4 UX review (Oct 28): the brand block and the buttons are one composition centered together, so no dead
+  // band opens between the tagline and "Make my MEGA" on a tall phone.
   return (
-    <View style={styles.fill}>
+    <View testID="welcome-body" style={[styles.fill, styles.body]}>
       {brand}
-      <Ledge id="make" pressable style={{ marginTop: tokens.spacing.xl }}>
+      <Ledge id="make" pressable style={{ marginTop: tokens.spacing.xxl }}>
         {({ poked, lookHere }) => <Pill hero variant="inverse" label={SIGNIN_COPY.welcome.make} poked={poked} onPress={press(lookHere, onMake)} />}
       </Ledge>
       <Ledge id="invite" style={{ marginTop: tokens.spacing.lg }}>
@@ -212,7 +196,8 @@ function ErrorLine({ text }: { text: string }) {
 
 const styles = StyleSheet.create({
   fill: { flex: 1 },
-  brand: { justifyContent: 'center' },
+  body: { justifyContent: 'center' },
+  brand: { alignItems: 'stretch' },
   hubSpot: { alignSelf: 'center', width: HUB.light.w, alignItems: 'center', justifyContent: 'center' },
   floor: { alignSelf: 'stretch' },
   center: { textAlign: 'center' },

@@ -10,6 +10,8 @@ import type { NotificationDoc } from '@/data/useNotifications';
 import { ButtonRow } from '@/ui/ButtonRow';
 import { Card } from '@/ui/Card';
 import { Text } from '@/ui/Text';
+import { CardSkeleton } from '@/ui/ThreadCard';
+import { KIDS_COPY } from '@shared/config/copy';
 import { useTokens } from '@/ui/theme';
 import { BucksCard } from '@/features/kids/BucksCard';
 import { ChoreCard } from '@/features/kids/ChoreCard';
@@ -141,13 +143,7 @@ function shouldShowNotificationTitle(title: string, megaName: string | undefined
 
 function NotificationCard({ notification, onAnswerNotification, megaName }: { notification?: NotificationDoc; onAnswerNotification?: (buttonId: string) => void; megaName?: string }) {
   const tokens = useTokens();
-  if (!notification) {
-    return (
-      <Card>
-        <Text color="muted">Loading…</Text>
-      </Card>
-    );
-  }
+  if (!notification) return <CardSkeleton from={megaName ?? ''} label={KIDS_COPY.loadingLabel} />;
   const answer = notification.answer;
   const answeredLabel = answer ? notification.buttons.find((b) => b.id === answer.buttonId)?.label : undefined;
   const showTitle = shouldShowNotificationTitle(notification.title, megaName);

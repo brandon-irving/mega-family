@@ -14,24 +14,45 @@ import { Text } from './Text';
 import { useTokens } from './theme';
 import { webKeyTarget } from './webKeys';
 
+// Escape closes one layer at a time (G4 UX review, Oct 28: one press closed an Edit sheet and the Places
+// screen under it). Every open overlay pushes itself here; one page listener calls only the topmost.
+// Overlays (bottom sheets) always sit above screens; React runs a child's effects before its parent's, so
+// registration order alone can't tell which is on top.
+export type DismissLayer = 'screen' | 'overlay';
+type EscapeLayer = { close: { current: () => void }; kind: DismissLayer };
+const escapeLayers: EscapeLayer[] = [];
+let escapeTarget: ReturnType<typeof webKeyTarget>;
+const onEscapeKey = (e: { key: string }) => {
+  if (e.key !== 'Escape') return;
+  const overlays = escapeLayers.filter((l) => l.kind === 'overlay');
+  const top = overlays[overlays.length - 1] ?? escapeLayers[escapeLayers.length - 1];
+  top?.close.current();
+};
+
+function pushEscapeLayer(layer: EscapeLayer): () => void {
+  if (escapeLayers.length === 0) {
+    escapeTarget = webKeyTarget();
+    escapeTarget?.addEventListener('keydown', onEscapeKey);
+  }
+  escapeLayers.push(layer);
+  return () => {
+    const i = escapeLayers.indexOf(layer);
+    if (i >= 0) escapeLayers.splice(i, 1);
+    if (escapeLayers.length === 0) escapeTarget?.removeEventListener('keydown', onEscapeKey);
+  };
+}
+
 /** Android back and web Escape close the overlay while it's open. `androidBack: false` for a route modal,
- * where the navigator already pops it on back (handling it twice would close two screens). */
-export function useDismiss(onClose: () => void, { enabled = true, androidBack = true }: { enabled?: boolean; androidBack?: boolean } = {}) {
+ * where the navigator already pops it on back (handling it twice would close two screens). On web only the
+ * topmost open overlay answers Escape. */
+export function useDismiss(onClose: () => void, { enabled = true, androidBack = true, layer = 'screen' }: { enabled?: boolean; androidBack?: boolean; layer?: DismissLayer } = {}) {
   const latest = useRef(onClose);
   useEffect(() => {
     latest.current = onClose;
   }, [onClose]);
   useEffect(() => {
     if (!enabled) return;
-    if (Platform.OS === 'web') {
-      const doc = webKeyTarget();
-      if (!doc) return;
-      const onKey = (e: { key: string }) => {
-        if (e.key === 'Escape') latest.current();
-      };
-      doc.addEventListener('keydown', onKey);
-      return () => doc.removeEventListener('keydown', onKey);
-    }
+    if (Platform.OS === 'web') return pushEscapeLayer({ close: latest, kind: layer });
     if (Platform.OS === 'android' && androidBack) {
       const sub = BackHandler.addEventListener('hardwareBackPress', () => {
         latest.current();
@@ -39,7 +60,7 @@ export function useDismiss(onClose: () => void, { enabled = true, androidBack = 
       });
       return () => sub.remove();
     }
-  }, [enabled, androidBack]);
+  }, [enabled, androidBack, layer]);
 }
 
 /** A released drag closes the sheet when it went far enough down, or was flicked down fast enough. */
