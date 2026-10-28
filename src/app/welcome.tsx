@@ -129,7 +129,7 @@ function WelcomeBody({ onMake, onSignIn, onInvite, inviteBusy }: { onMake: () =>
   // Memoized so the poked ring doesn't rebuild the brand block.
   const brand = useMemo(
     () => (
-      <View style={[styles.fill, styles.brand]}>
+      <View testID="welcome-brand" style={styles.brand}>
         <HubSpot />
         {/* Hub's floor: the walking MEGAs stroll along it, past Hub's feet. */}
         <Ledge id="floor" obstacle={false} style={[styles.floor, { marginTop: -(HUB.light.h - HUB.h) / 2 }]} />
@@ -142,10 +142,12 @@ function WelcomeBody({ onMake, onSignIn, onInvite, inviteBusy }: { onMake: () =>
     ),
     [tokens],
   );
+  // G4 UX review (Oct 28): the brand block and the buttons are one composition centered together, so no dead
+  // band opens between the tagline and "Make my MEGA" on a tall phone.
   return (
-    <View style={styles.fill}>
+    <View testID="welcome-body" style={[styles.fill, styles.body]}>
       {brand}
-      <Ledge id="make" pressable style={{ marginTop: tokens.spacing.xl }}>
+      <Ledge id="make" pressable style={{ marginTop: tokens.spacing.xxl }}>
         {({ poked, lookHere }) => <Pill hero variant="inverse" label={SIGNIN_COPY.welcome.make} poked={poked} onPress={press(lookHere, onMake)} />}
       </Ledge>
       <Ledge id="invite" style={{ marginTop: tokens.spacing.lg }}>
@@ -194,7 +196,8 @@ function ErrorLine({ text }: { text: string }) {
 
 const styles = StyleSheet.create({
   fill: { flex: 1 },
-  brand: { justifyContent: 'center' },
+  body: { justifyContent: 'center' },
+  brand: { alignItems: 'stretch' },
   hubSpot: { alignSelf: 'center', width: HUB.light.w, alignItems: 'center', justifyContent: 'center' },
   floor: { alignSelf: 'stretch' },
   center: { textAlign: 'center' },
