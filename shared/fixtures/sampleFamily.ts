@@ -102,6 +102,17 @@ export const SAMPLE_FAMILY = {
     ] as { key: string; for: SampleKey; title: string; bucks: number; time: string }[],
     /** Today's Dishes claim is waiting for an adult (board KidsChoreApprove). */
     claimedChore: 'dishes',
+    /** Twin 2's bedtime list for Thursday's soccer practice (board KidsBedtime), seeded so the demo doesn't
+     * wait for the bedtime sweep's model call. Items come only from the household event. */
+    bedtimeRun: {
+      for: 'twin2' as SampleKey,
+      event: 'practice',
+      items: [
+        { id: 'cleats', label: 'Soccer cleats', detail: 'By the back door' },
+        { id: 'shin', label: 'Shin guards' },
+        { id: 'bottle', label: 'Water bottle', detail: 'Fill it in the morning' },
+      ] as { id: string; label: string; detail?: string }[],
+    },
     /** Twin 1's finished practice set from the fractions sheet (board KidsSummary: 4 of 5, 2 hints). */
     practice: {
       for: 'twin1' as SampleKey,
