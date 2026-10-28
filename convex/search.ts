@@ -142,22 +142,35 @@ export const record = internalMutation({
       decidedBy: a.decidedBy,
       sourceCount: a.sources.length,
     });
+    const member = await ctx.db.get(a.memberId);
+    const kc =
+      member?.role === 'kid'
+        ? await ctx.db
+            .query('kidControls')
+            .withIndex('by_family_member', (q) => q.eq('familyId', a.familyId).eq('memberId', a.memberId))
+            .unique()
+        : null;
+    const tellsParents = !!kc?.tellsParents.blockedSearches;
     const messageId = await postCard(ctx, {
       familyId: a.familyId,
       recipientId: a.memberId,
       megaId: a.megaId,
       now,
-      card: { kind: 'search', query: a.query, answer: a.answer, sources: a.sources, outcome: a.outcome, rephrasedTo: a.rephrasedTo, searchLogId },
+      card: {
+        kind: 'search',
+        query: a.query,
+        answer: a.answer,
+        sources: a.sources,
+        outcome: a.outcome,
+        rephrasedTo: a.rephrasedTo,
+        searchLogId,
+        // v0.15a: a kid's blocked card says whether their grown-ups were told.
+        ...(member?.role === 'kid' && a.outcome === 'blocked' ? { parentsTold: tellsParents } : {}),
+      },
     });
     if (messageId) await ctx.db.patch(searchLogId, { messageId });
 
-    const member = await ctx.db.get(a.memberId);
-    if (member?.role !== 'kid' || (a.outcome !== 'blocked' && a.outcome !== 'rephrased')) return searchLogId;
-    const kc = await ctx.db
-      .query('kidControls')
-      .withIndex('by_family_member', (q) => q.eq('familyId', a.familyId).eq('memberId', a.memberId))
-      .unique();
-    if (!kc?.tellsParents.blockedSearches) return searchLogId;
+    if (member?.role !== 'kid' || (a.outcome !== 'blocked' && a.outcome !== 'rephrased') || !tellsParents) return searchLogId;
     const rels = await ctx.db
       .query('relationships')
       .withIndex('by_family_from', (q) => q.eq('familyId', a.familyId))

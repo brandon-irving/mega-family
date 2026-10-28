@@ -103,7 +103,7 @@ Owner approved **$5 total for live model checks until G6**; ≈3 cents used. The
 
 - **Muse Spark is a reasoning model:** hidden reasoning counts against `max_tokens`. Use `reasoning_effort: 'low'` (config `LIMITS.agent.effort`) and generous limits, or replies come back empty.
 - **Meta transcription** is `POST /v1/asr/transcribe` (multipart JSON `request` + `audio`) and accepts **WAV only** (mono 16-bit PCM 16/24 kHz). iOS records LINEARPCM; web re-encodes to WAV in JS; Android expo-audio can't record PCM (shows "not supported").
-- **Web search:** `/v1/responses` with `tools: [{ type: 'web_search' }]`; sources in `web_search_call.action.sources` (`include`); `phase: 'commentary'` messages are interim.
+- **Web search:** `/v1/responses` with `tools: [{ type: 'web_search' }]` (Responses API only, not Chat Completions); sources come from `include: ["web_search_call.results"]` (each `{ type: "text_result", title, url, snippet }`) plus `url_citation` annotations on the answer (what it actually cites); `phase: 'commentary'` messages are interim. No safe-search or domain filter exists, so the kid filter runs around the call (G4 docs check, Oct 28).
 - **Better Auth on web** needs the server `crossDomain({ siteUrl })` plugin and `SITE_URL` = the web app's origin.
 - **Chat replies are server-driven** (`chat.send` schedules `generateReply`, which writes chunks via the persistent-text-streaming component's `addChunk`); there is no client-driven stream route.
 - **Convex mutations are atomic:** a counter written in a mutation that then throws is rolled back, which is why `invites.redeem` is an action (lockout counter).

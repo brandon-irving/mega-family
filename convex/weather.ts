@@ -119,7 +119,7 @@ async function fetchTargets(ctx: ActionCtx, tz: string, targets: { placeId: Id<'
     ]);
     await ctx.runMutation(internal.weather.store, {
       placeId: t.placeId,
-      forecast: forecast ? (forecast.ok ? { ok: true as const, data: { hours: forecast.hours, days: forecast.days } } : { ok: false as const, failure: forecast.failure }) : undefined,
+      forecast: forecast ? (forecast.ok ? { ok: true as const, data: { current: forecast.current, hours: forecast.hours, days: forecast.days } } : { ok: false as const, failure: forecast.failure }) : undefined,
       alerts: alerts ? (alerts.ok ? { ok: true as const, data: { alerts: alerts.alerts } } : { ok: false as const, failure: alerts.failure }) : undefined,
     });
   }

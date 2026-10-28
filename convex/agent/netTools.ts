@@ -71,6 +71,7 @@ export const postWeatherCard = internalMutation({
         at: now,
         placeLabel: view.placeLabel,
         hours: view.hours,
+        ...(view.now ? { nowF: view.now.tempF } : {}),
         ...(view.today ? { highF: view.today.highF, lowF: view.today.lowF } : {}),
         ...(a ? { alert: { event: a.event, headline: a.headline, severity: a.severity, ends: a.ends } } : {}),
       },
@@ -141,6 +142,8 @@ export const postTravelCard = internalMutation({
     typicalMinutes: v.optional(v.number()),
     leaveBy: v.number(),
     failure: v.optional(v.union(v.literal('not_configured'), v.literal('no_result'), v.literal('rate_limited'), v.literal('error'))),
+    eventTitle: v.optional(v.string()),
+    eventStart: v.optional(v.number()),
   },
   returns: v.null(),
   handler: async (ctx, a) => {
@@ -150,7 +153,18 @@ export const postTravelCard = internalMutation({
       recipientId: a.memberId,
       megaId: a.megaId,
       now,
-      card: { kind: 'travel', to: a.to, leaveBy: a.leaveBy, minutes: a.minutes, eventId: a.eventId, fromLabel: a.fromLabel, typicalMinutes: a.typicalMinutes, ...(a.failure ? { failure: a.failure } : {}) },
+      card: {
+        kind: 'travel',
+        to: a.to,
+        leaveBy: a.leaveBy,
+        minutes: a.minutes,
+        eventId: a.eventId,
+        fromLabel: a.fromLabel,
+        typicalMinutes: a.typicalMinutes,
+        eventTitle: a.eventTitle,
+        eventStart: a.eventStart,
+        ...(a.failure ? { failure: a.failure } : {}),
+      },
     });
     return null;
   },
@@ -166,7 +180,7 @@ async function travelTool(ctx: ActionCtx, a: { familyId: Id<'families'>; memberI
   if (departAt !== 'now' && departAt <= trip.now) departAt = 'now';
 
   const r = await getDirections().travelTime({ from: trip.from, to: trip.to, departAt });
-  const base = { familyId: a.familyId, memberId: a.memberId, megaId: a.megaId, to: trip.to.label, fromLabel: trip.from.label, eventId: trip.event?.eventId };
+  const base = { familyId: a.familyId, memberId: a.memberId, megaId: a.megaId, to: trip.to.label, fromLabel: trip.from.label, eventId: trip.event?.eventId, eventTitle: trip.event?.title, eventStart: trip.event?.start };
   if (!r.ok) {
     // Fail closed: the card carries the failure and zeros the app never shows as a time (CONTRACT §3 travel).
     await ctx.runMutation(internal.agent.netTools.postTravelCard, { ...base, minutes: 0, leaveBy: 0, failure: r.failure });

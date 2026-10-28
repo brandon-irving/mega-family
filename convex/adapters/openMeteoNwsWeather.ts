@@ -17,6 +17,7 @@ export function openMeteoUrl(p: { lat: number; lng: number; timezone: string; da
   const q = new URLSearchParams({
     latitude: String(p.lat),
     longitude: String(p.lng),
+    current: WEATHER.current.join(','),
     hourly: WEATHER.hourly.join(','),
     daily: WEATHER.daily.join(','),
     timezone: p.timezone,
@@ -50,7 +51,10 @@ export function parseOpenMeteo(json: unknown, timezone: string): WeatherForecast
     if (at === null || highF === null || lowF === null || code === null) return [];
     return [{ date: localDate(at * 1000, timezone), highF, lowF, precipPct: num(d.precipitation_probability_max?.[i]) ?? 0, code }];
   });
-  return { ok: true, hours, days };
+  const c = (json as { current?: Record<string, unknown> })?.current;
+  const curTemp = num(c?.temperature_2m);
+  const curCode = num(c?.weather_code);
+  return { ok: true, ...(curTemp !== null && curCode !== null ? { current: { tempF: curTemp, code: curCode } } : {}), hours, days };
 }
 
 const toMs = (v: unknown): number | undefined => {

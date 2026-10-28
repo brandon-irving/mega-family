@@ -5,11 +5,13 @@
 import { v } from 'convex/values';
 import { API } from '../shared/domain/api';
 import { internal } from './_generated/api';
-import { internalAction, internalMutation, internalQuery, query } from './_generated/server';
+import { internalAction, internalMutation, internalQuery, mutation, query } from './_generated/server';
 import { getDirections } from './adapters/registry';
 import { integrationFailure } from '../shared/domain/tables';
 import { pick } from './model/define';
-import { checkTargets, storeCheck, travelViewFor } from './model/travel';
+import { fail } from './model/errors';
+import { answerTravel, checkTargets, storeCheck, travelViewFor } from './model/travel';
+import { canSeeEvent } from './model/visibility';
 import { requireViewer } from './model/viewer';
 import { clock } from './ports/clock';
 
@@ -18,6 +20,18 @@ export const forEvent = query({
   handler: async (ctx, { eventId }) => {
     const viewer = await requireViewer(ctx);
     return travelViewFor(ctx, { memberId: viewer.member._id, role: viewer.member.role, familyId: viewer.member.familyId }, eventId);
+  },
+});
+
+export const answer = mutation({
+  ...pick(API.travel.answer),
+  handler: async (ctx, { travelCheckId, action }) => {
+    const viewer = await requireViewer(ctx);
+    const check = await ctx.db.get(travelCheckId);
+    if (!check || check.familyId !== viewer.member.familyId) fail('NOT_FOUND');
+    const event = await ctx.db.get(check.eventId);
+    if (!event || !canSeeEvent({ memberId: viewer.member._id, role: viewer.member.role }, event)) fail('NOT_FOUND');
+    return answerTravel(ctx, { event, memberId: viewer.member._id, action, now: await clock.now(ctx, viewer.member.familyId), tz: viewer.family.timezone });
   },
 });
 

@@ -55,6 +55,7 @@ export const WEATHER = {
   userAgent: '(mega.family app, hello@mega.family)',
   units: { temperature: 'fahrenheit', wind: 'mph', precipitation: 'inch' } as const,
   /** Open-Meteo hourly variables we ask for (all documented on open-meteo.com/en/docs). */
+  current: ['temperature_2m', 'weather_code'] as const,
   hourly: ['temperature_2m', 'precipitation_probability', 'weather_code'] as const,
   daily: ['temperature_2m_max', 'temperature_2m_min', 'precipitation_probability_max', 'weather_code'] as const,
   forecastDays: 2,
@@ -119,6 +120,9 @@ export const TRAVEL = {
   leaveByBufferMinutes: 10,
   /** Default origin when the event doesn't say where people come from. */
   defaultFrom: 'home' as PlaceKind,
+  /** v0.15a `travel.answer`: "Snooze 5 min", and "Remind me 30 min before" (the fallback when travel isn't set up). */
+  snoozeMinutes: 5,
+  remindBeforeEventMinutes: 30,
   /** The leave-by reminder fires this many minutes before the leave-by time (Push board: "in 10 minutes"). */
   remindBeforeMinutes: 10,
   /** Start computing leave-by this far ahead (one Directions call per event and origin, kept in `travelChecks`). */

@@ -135,3 +135,39 @@ export async function storeCheck(ctx: MutationCtx, p: { target: CheckTarget; dep
     if (candidateId) await finalizeCandidateLogic(ctx, { candidateId, kind: 'reminder', title, text, score: 1, reason: 'leave-by from a traffic check', forcedDelivery: 'push' });
   }
 }
+
+export type TravelAction = 'on_my_way' | 'snooze_5' | 'remind_30_before';
+
+/** Stops the caller's pending leave-by push for this event (if it hasn't gone out yet). */
+async function stopPendingLeaveBy(ctx: MutationCtx, event: Doc<'events'>, memberId: Id<'members'>): Promise<void> {
+  const c = await ctx.db
+    .query('candidates')
+    .withIndex('by_family_dedupeKey', (q) => q.eq('familyId', event.familyId).eq('dedupeKey', leaveByDedupeKey(event._id, memberId)))
+    .first();
+  if (!c || (c.status !== 'new' && c.status !== 'scheduled')) return;
+  if (c.scheduledId) await ctx.scheduler.cancel(c.scheduledId);
+  await ctx.db.patch(c._id, { status: 'cancelled' });
+}
+
+/** `travel.answer` and the leave-by push buttons (v0.15a) share this one path. Re-reminders are plain `reminders`
+ * rows for the caller, which the proactive pipeline delivers (quiet hours and caps included). */
+export async function answerTravel(ctx: MutationCtx, p: { event: Doc<'events'>; memberId: Id<'members'>; action: TravelAction; now: number; tz: string }): Promise<{ message: string; remindAt: number | null }> {
+  const { event, memberId, now } = p;
+  if (p.action === 'on_my_way') {
+    await stopPendingLeaveBy(ctx, event, memberId);
+    return { message: 'Have a good trip.', remindAt: null };
+  }
+  const snooze = p.action === 'snooze_5';
+  const remindAt = snooze ? now + TRAVEL.snoozeMinutes * MIN : Math.max(now, event.start - TRAVEL.remindBeforeEventMinutes * MIN);
+  if (snooze) await stopPendingLeaveBy(ctx, event, memberId);
+  await ctx.db.insert('reminders', {
+    familyId: event.familyId,
+    forMemberId: memberId,
+    text: snooze ? `Time to leave for ${event.title}` : `${event.title} starts at ${formatLocalTime(event.start, p.tz)}`,
+    dueAt: remindAt,
+    eventId: event._id,
+    done: false,
+    createdBy: memberId,
+  });
+  return { message: snooze ? 'Okay, I’ll remind you in 5 minutes.' : `Okay, I’ll remind you at ${formatLocalTime(remindAt, p.tz)}.`, remindAt };
+}

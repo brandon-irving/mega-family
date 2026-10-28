@@ -5,6 +5,7 @@ import type { Doc } from '../_generated/dataModel';
 import type { MutationCtx } from '../_generated/server';
 import { markChoreDone, snoozeChoreReminder } from './chores';
 import { respondToRequest } from './requestEffects';
+import { answerTravel } from './travel';
 
 /** UX3 (BLOCKER, G3 UX review): a legacy-shaped `request` notification can be missing its own `requestId`
  * back-link (the field is additive/optional — CONTRACT §2 — so any row written before it existed, or
@@ -50,6 +51,14 @@ export async function applyNotificationAnswer(ctx: MutationCtx, params: { notifi
         if (buttonId !== 'done') return 'Got it.';
         await markChoreDone(ctx, { chore, kid, tz: family.timezone, now });
         return 'Nice work! A grown-up will check it.';
+      }
+      // G4 (v0.15a): a leave-by push's On my way / Snooze 5 min take the same path as the travel card's buttons.
+      const leaveBy = notification.candidateId ? await ctx.db.get(notification.candidateId) : null;
+      if (leaveBy?.source?.kind === 'leaveBy' && (buttonId === 'on_my_way' || buttonId === 'snooze_5')) {
+        const event = await ctx.db.get(leaveBy.source.eventId);
+        const family = await ctx.db.get(notification.familyId);
+        if (!event || !family) return 'Got it.';
+        return (await answerTravel(ctx, { event, memberId: notification.recipientId, action: buttonId, now, tz: family.timezone })).message;
       }
       if (!notification.reminderId) return 'Got it.';
       const reminder = await ctx.db.get(notification.reminderId);

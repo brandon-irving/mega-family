@@ -60,6 +60,8 @@ export const card = v.union(
     /** v0.15: the age-appropriate query actually searched, when `outcome` is `rephrased`. */
     rephrasedTo: v.optional(v.string()),
     searchLogId: v.optional(v.id('searchLog')),
+    /** v0.15a: on a kid's blocked card, whether their parents were told (kidControls.tellsParents.blockedSearches). */
+    parentsTold: v.optional(v.boolean()),
   }),
   v.object({
     kind: v.literal('weather'),
@@ -72,6 +74,8 @@ export const card = v.union(
     lowF: v.optional(v.number()),
     alert: v.optional(v.object({ event: v.string(), headline: v.string(), severity: literals(ALERT_SEVERITIES), ends: v.optional(v.number()) })),
     eventId: v.optional(v.id('events')),
+    /** v0.15a: the current temperature (Open-Meteo `current` block), rounded °F. */
+    nowF: v.optional(v.number()),
   }),
   v.object({
     kind: v.literal('travel'),
@@ -86,6 +90,9 @@ export const card = v.union(
     /** Set instead of a real time when travel can't be checked (e.g. `not_configured`: no MAPBOX_TOKEN). The
      * card then shows INTEGRATION_COPY, never a made-up `minutes`/`leaveBy` (both 0). */
     failure: v.optional(literals(INTEGRATION_FAILURES)),
+    /** v0.15a: the event behind the trip ("· Soccer pickup", "starts at 5:30 PM"). */
+    eventTitle: v.optional(v.string()),
+    eventStart: v.optional(v.number()),
   }),
   v.object({ kind: v.literal('request'), requestId: v.id('requests') }),
   v.object({ kind: v.literal('notification'), notificationId: v.id('notifications') }),

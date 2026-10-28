@@ -575,6 +575,17 @@ export const API = {
     // Members who can see the event (private-layer events: the owner only; NOT_FOUND otherwise, same as
     // events). null until a check has run (within TRAVEL.lookaheadHours of the start).
     forEvent: fn({ kind: 'query', day1: 'real', args: { eventId: v.id('events') }, returns: v.union(travelView, v.null()) }),
+    // v0.15a (G4 frontend request). A travel/leave-by card's buttons, for anyone who can see the event (else
+    // NOT_FOUND): `on_my_way` stops the pending leave-by push; `snooze_5` re-reminds in 5 minutes;
+    // `remind_30_before` (the fallback when travel isn't set up) reminds 30 minutes before the event. Both
+    // reminders are plain `reminders` rows for the caller, delivered by the proactive pipeline. The leave-by
+    // push's own buttons (on_my_way / snooze_5) take the same path.
+    answer: fn({
+      kind: 'mutation',
+      day1: 'real',
+      args: { travelCheckId: v.id('travelChecks'), action: v.union(v.literal('on_my_way'), v.literal('snooze_5'), v.literal('remind_30_before')) },
+      returns: v.object({ message: v.string(), remindAt: v.union(v.number(), v.null()) }),
+    }),
   },
   search: {
     // The caller's own searches (memberId omitted). A parent may pass their kid's memberId and gets only that

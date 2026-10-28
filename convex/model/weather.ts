@@ -22,7 +22,7 @@ type Ctx = QueryCtx | MutationCtx;
 const MINUTE = 60_000;
 const HOUR = 60 * MINUTE;
 
-export type ForecastData = { hours: WeatherHour[]; days: WeatherDay[] };
+export type ForecastData = { current?: { tempF: number; code: number }; hours: WeatherHour[]; days: WeatherDay[] };
 export type AlertsData = { alerts: WeatherAlert[] };
 
 export function summaryFor(code: number): string {
@@ -54,7 +54,8 @@ export async function buildWeatherView(ctx: Ctx, place: Doc<'places'>, tz: strin
   const alerts = await cacheRow(ctx, place.familyId, place._id, 'alerts');
   const data = forecast && !forecast.failure ? (forecast.data as ForecastData) : null;
   const hours = (data?.hours ?? []).filter((h) => h.at + HOUR > now).slice(0, WEATHER.viewHours);
-  const current = hours[0] ?? null;
+  // Open-Meteo's own current block when we have it (v0.15a), else the hour we're in.
+  const current = data?.current ?? hours[0] ?? null;
   const today = data?.days.find((d) => d.date === localDate(now, tz)) ?? null;
   return {
     placeId: place._id,
