@@ -2,6 +2,7 @@
 import { StyleSheet } from 'react-native';
 import { fireEvent, screen } from '@testing-library/react-native';
 import { BUTTON_SIZES } from '@shared/config/theme';
+import { HOMEWORK } from '@shared/config/kids';
 import { renderWithTheme } from '@/test/renderWithTheme';
 import { CHORE_CLAIMED, CHORE_DUE, PRACTICE_DONE, PRACTICE_HINTED, PRACTICE_READY } from '@/test/gdFixtures';
 import { BucksMomentView } from './BucksCard';
@@ -9,7 +10,7 @@ import { ChoreApproveView, KidChoreView } from './ChoreCard';
 import { HomeworkCardView } from './HomeworkCard';
 import { MorningRoutineView } from './MorningRoutine';
 import { currentQuestionIndex, KidPracticeView, PracticeSummaryView } from './PracticeCard';
-import { BedtimeView } from './RoutineCard';
+import { BedtimeView, bedtimeTitle } from './RoutineCard';
 
 const noop = () => {};
 
@@ -38,6 +39,13 @@ describe('HomeworkCardView (board Kids)', () => {
 describe('KidPracticeView (boards KidsPractice / KidsHint / KidsDone)', () => {
   test('starts on the first question not yet answered correctly', () => {
     expect(currentQuestionIndex(PRACTICE_READY)).toBe(1);
+  });
+
+  test('a question missed on every allowed try is settled, so the kid moves on (live check: kid was stuck)', () => {
+    const missed = { ...PRACTICE_READY, questions: PRACTICE_READY.questions.map((q, i) => (i === 0 ? { ...q, answered: { correct: false, tries: HOMEWORK.maxTriesPerQuestion } } : { ...q, answered: null })) };
+    expect(currentQuestionIndex(missed)).toBe(1);
+    const once = { ...missed, questions: missed.questions.map((q, i) => (i === 0 ? { ...q, answered: { correct: false, tries: 1 } } : q)) };
+    expect(currentQuestionIndex(once)).toBe(0); // one wrong try can still be retried
   });
 
   test('shows the question, its choices and "Hint, please"; a choice reports its index', async () => {
@@ -136,6 +144,14 @@ describe('routines (boards KidsBedtime / KidsMorning)', () => {
     expect(screen.getByText('Pack your bag tonight so the morning is easy. 1 of 2 packed.')).toBeTruthy();
     await fireEvent.press(screen.getByLabelText('Water bottle'));
     expect(onToggle).toHaveBeenCalledWith('bottle', true);
+  });
+
+  test('bedtime title names tomorrow’s calendar event (board: "Soccer practice at 4:30"), else the generic line', async () => {
+    expect(bedtimeTitle([{ id: 'a', label: 'Cleats', done: false, source: { eventId: 'ev1', title: 'Soccer practice' } }])).toBe('Soccer practice tomorrow');
+    const plain: { id: string; label: string; done: boolean; source?: { title?: string } }[] = [{ id: 'a', label: 'Cleats', done: false }];
+    expect(bedtimeTitle(plain)).toBe('Get ready for tomorrow');
+    await renderWithTheme(<BedtimeView megaName="Zap" title="Soccer practice tomorrow" steps={[{ id: 'a', label: 'Cleats', done: false }]} onToggle={noop} />, { role: 'kid' });
+    expect(screen.getByText('Soccer practice tomorrow')).toBeTruthy();
   });
 
   const morningSteps = [

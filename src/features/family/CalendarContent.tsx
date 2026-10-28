@@ -19,7 +19,8 @@ import { LockGlyph } from '@/ui/ThreadCard';
 export type EventDoc = Infer<typeof eventDoc>;
 export type CalendarMember = { _id: string; name: string; hex: string };
 /** An open clash proposal, as far as the calendar needs it: which event its fix changes, and where its card is. */
-export type CalendarClash = { eventId: string; line: string; messageId?: string };
+/** An open clash: both household events in it (`clashEventIds`, v0.13a) are tagged CLASH. */
+export type CalendarClash = { eventIds: string[]; line: string; messageId?: string };
 
 export type CalendarContentProps = {
   weekStart: number;
@@ -127,7 +128,7 @@ export function CalendarContent({ weekStart, todayIndex = null, events, members,
             const priv = eventLayer(e) === 'private';
             const color = colorFor(ownerOf(e));
             const who = priv ? CALENDAR_COPY.you : e.who.map(nameFor).filter(Boolean).join(', ');
-            const isClash = !!clash && clash.eventId === e._id;
+            const isClash = !!clash && clash.eventIds.includes(e._id);
             return (
               <View key={e._id} style={{ flexDirection: 'row', alignItems: 'center', gap: 14, minHeight: 62, borderBottomWidth: 1, borderBottomColor: tokens.line, paddingVertical: tokens.spacing.sm }}>
                 <View style={{ width: 74 }}>

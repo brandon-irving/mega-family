@@ -3,7 +3,7 @@
 import { renderHook } from '@testing-library/react-native';
 import { useQuery } from 'convex/react';
 import { api } from './api';
-import { useSharing } from './useMega';
+import { useHubName, useSharing } from './useMega';
 
 jest.mock('convex/react', () => ({ useQuery: jest.fn(), useMutation: jest.fn(), usePaginatedQuery: jest.fn() }));
 
@@ -19,5 +19,20 @@ describe('useSharing', () => {
     (useQuery as jest.Mock).mockReturnValue(null);
     const { result } = await renderHook(() => useSharing());
     expect(result.current).toBeNull();
+  });
+});
+
+describe('useHubName (GD v0.13a megas.family)', () => {
+  test('uses the family MEGA’s real name from api.megas.family', async () => {
+    (useQuery as jest.Mock).mockReturnValue({ megaId: 'mg_hub', name: 'Beacon', hex: '#4DA8F0', sticker: 'star' });
+    const { result } = await renderHook(() => useHubName());
+    expect(useQuery).toHaveBeenCalledWith(api.megas.family, {});
+    expect(result.current).toBe('Beacon');
+  });
+
+  test('falls back to the config default while loading', async () => {
+    (useQuery as jest.Mock).mockReturnValue(undefined);
+    const { result } = await renderHook(() => useHubName());
+    expect(result.current).toBe('Hub');
   });
 });
