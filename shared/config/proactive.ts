@@ -43,3 +43,14 @@ export const reminderDedupeKey = (reminderId: string): string => `reminder:${rem
 export const checkinDedupeKey = (memberId: string, date: string): string => `checkin:${memberId}:${date}`;
 export const mattersToDedupeKey = (familyEventId: string): string => `mattersTo:${familyEventId}`;
 export const requestDedupeKey = (requestId: string): string => `request:${requestId}`;
+// GD (v0.13): one key per card-backed trigger, so each card/push is proposed once per recipient.
+export const choreRemindDedupeKey = (claimId: string): string => `chore:remind:${claimId}`;
+export const choreApproveDedupeKey = (claimId: string, adultId: string): string => `chore:approve:${claimId}:${adultId}`;
+export const routineDedupeKey = (runId: string): string => `routine:${runId}`;
+export const proposalDedupeKey = (proposalId: string, recipientId: string): string => `proposal:${proposalId}:${recipientId}`;
+export const shareSuggestionDedupeKey = (suggestionId: string): string => `shareSuggestion:${suggestionId}`;
+export const practiceDedupeKey = (setId: string, recipientId: string): string => `practice:${setId}:${recipientId}`;
+export const giftsDedupeKey = (giftIdeasId: string, recipientId: string): string => `gifts:${giftIdeasId}:${recipientId}`;
+export const bucksDedupeKey = (ledgerId: string): string => `bucks:${ledgerId}`;
+/** A clash between two household events that both need the same person (order-independent). */
+export const clashDedupeKey = (eventIds: string[], memberId: string): string => `clash:${[...eventIds].sort().join('+')}:${memberId}`;

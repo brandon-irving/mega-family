@@ -169,8 +169,12 @@ describe('Milestone D: privacy grid', () => {
   beforeAll(async () => {
     t = convexTest(schema, modules);
     registerPersistentTextStreaming(t); // chat.send/chat.streamBody use the real component
-    const a = await t.mutation(internal.seed.sampleFamily, { weekOf: WEEK });
-    const b = await t.mutation(internal.seed.sampleFamily, { weekOf: WEEK });
+    // GD: each family's homework sheet needs a stored photo (a mutation can't store one), so the grid can
+    // probe homework.*/practice.* too — zero skipped functions (docs/gates/GD.md invariant 9).
+    const photoA = await t.run((ctx) => ctx.storage.store(new Blob(['fixture-photo-a'], { type: 'image/png' })));
+    const photoB = await t.run((ctx) => ctx.storage.store(new Blob(['fixture-photo-b'], { type: 'image/png' })));
+    const a = await t.mutation(internal.seed.sampleFamily, { weekOf: WEEK, homeworkStorageId: photoA });
+    const b = await t.mutation(internal.seed.sampleFamily, { weekOf: WEEK, homeworkStorageId: photoB });
 
     // seed.sampleFamily always assigns authId `sample:<key>` — fine for one family, but two seeded
     // families in the same convexTest instance would collide on "sample:admin" etc. Give family B's
@@ -217,15 +221,12 @@ describe('Milestone D: privacy grid', () => {
   type Caller = Record<FnKind, (ref: unknown, args: unknown) => Promise<unknown>>;
 
   for (const fn of functions) {
-    test(`${fn.mod}.${fn.name}: no cross-family leak, no uncoded crash, for every viewer x every family's args`, async (testCtx) => {
+    test(`${fn.mod}.${fn.name}: no cross-family leak, no uncoded crash, for every viewer x every family's args`, async () => {
       const ref = (api as unknown as Record<string, Record<string, unknown>>)[fn.mod][fn.name];
-      // GD (CONTRACT v0.13): a function whose id args point at a table the seed doesn't fill yet can't be
-      // probed (Convex rejects the missing arg before any permission check runs). Report it as skipped, not
-      // passed; the GD backend's seed additions fill these tables and the skip disappears.
-      if ([famA, famB].some((f) => hasHole(buildArgs(fn.args, f.docs), fn.args))) {
-        testCtx.skip();
-        return;
-      }
+      // GD (invariant 9): every function must be probe-able. One whose id args point at a table the seed
+      // doesn't fill can't be (Convex rejects the missing arg before any permission check runs) — that's a
+      // gap in the seed, so it FAILS here rather than being skipped.
+      expect([famA, famB].some((f) => hasHole(buildArgs(fn.args, f.docs), fn.args)), `${fn.mod}.${fn.name}: the seed leaves one of its id args empty, so the grid can't probe it`).toBe(false);
 
       for (const viewer of viewers) {
         const asViewer = (viewer.subject ? t.withIdentity({ subject: viewer.subject }) : t) as unknown as Caller;
@@ -342,6 +343,73 @@ describe('Milestone D: privacy grid', () => {
 
       const twin2Texts = await memoryTextsFor('sample:twin2');
       expect(twin2Texts, 'twin2 is not a grantee of the admin -> partner share').not.toContain(sharedMemory!.text);
+    });
+
+    // ---------- GD (CONTRACT v0.13, invariant 9): one within-family row per new table. The generic grid
+    // above proves no cross-family leak; these prove who INSIDE the family can read each one. ----------
+
+    const A = (k: 'admin' | 'partner' | 'twin1' | 'twin2') => t.withIdentity({ subject: `sample:${k}` });
+    const firstA = <T,>(table: string) => (famA.docs as Record<string, unknown[]>)[table][0] as T & { _id: string };
+    const refused = async (p: Promise<unknown>) => codeOf(await p.then(() => 'ok').catch((e) => e));
+
+    test('GD calendar layers (events): a private event is visible only to its owner, even to people in its who', async () => {
+      // A fresh one: the generic grid above legitimately ran the owner's own share on the seeded Dentist.
+      const start = Date.parse('2026-10-29T20:00:00Z');
+      const eventId = await t.run((ctx) =>
+        ctx.db.insert('events', { familyId: famA.familyId, title: 'Private grid check', start, end: start + 3_600_000, who: [famA.members.admin, famA.members.partner, famA.members.twin1], source: 'mega', createdBy: famA.members.admin, ownerId: famA.members.admin, scope: 'personal', cancelled: false }),
+      );
+      const window = { from: start - 86_400_000, to: start + 86_400_000 };
+      expect((await A('admin').query(api.calendar.range, window)).map((e) => e._id)).toContain(eventId);
+      for (const k of ['partner', 'twin1', 'twin2'] as const) expect((await A(k).query(api.calendar.range, window)).map((e) => e._id)).not.toContain(eventId);
+    });
+
+    test('GD shareSuggestions + shareActions: only the owner reads a suggestion; no public function returns shareActions', async () => {
+      const s = firstA<{ ownerId: string }>('shareSuggestions');
+      for (const k of ['partner', 'twin1'] as const) expect(await refused(A(k).query(api.shareSuggestions.get, { suggestionId: s._id as Id<'shareSuggestions'> }))).toBe('FORBIDDEN');
+      expect(Object.keys(API)).not.toContain('shareActions');
+    });
+
+    test('GD collisions are internal (no public module) and proposals are adults-only', async () => {
+      expect(Object.keys(API)).not.toContain('collisions');
+      const p = firstA<object>('proposals');
+      for (const k of ['twin1', 'twin2'] as const) expect(await refused(A(k).query(api.proposals.get, { proposalId: p._id as Id<'proposals'> }))).toBe('FORBIDDEN');
+    });
+
+    test('GD giftIdeas: never to the birthday person or any kid', async () => {
+      const g = firstA<object>('giftIdeas');
+      for (const k of ['twin1', 'twin2'] as const) expect(await refused(A(k).query(api.gifts.get, { giftIdeasId: g._id as Id<'giftIdeas'> }))).toBe('FORBIDDEN');
+    });
+
+    test('GD homeworkSheets: adults only', async () => {
+      const h = firstA<object>('homeworkSheets');
+      expect(await refused(A('twin1').query(api.homework.sheet, { sheetId: h._id as Id<'homeworkSheets'> }))).toBe('FORBIDDEN');
+    });
+
+    test('GD practiceSets + practiceAttempts: the kid and their parents only, and never the answer', async () => {
+      const set = firstA<{ forMemberId: string }>('practiceSets');
+      const sibling = set.forMemberId === famA.members.twin1 ? 'twin2' : 'twin1';
+      expect(await refused(A(sibling).query(api.practice.get, { setId: set._id as Id<'practiceSets'> }))).toBe('FORBIDDEN');
+      const view = await A('admin').query(api.practice.get, { setId: set._id as Id<'practiceSets'> });
+      expect(JSON.stringify(view)).not.toContain('answerIndex');
+    });
+
+    test('GD chores + choreClaims: a kid sees only their own', async () => {
+      const claim = firstA<{ forMemberId: string }>('choreClaims');
+      const sibling = claim.forMemberId === famA.members.twin1 ? 'twin2' : 'twin1';
+      expect(await refused(A(sibling).query(api.chores.claim, { claimId: claim._id as Id<'choreClaims'> }))).toBe('FORBIDDEN');
+      expect(await refused(A(sibling).query(api.chores.list, { memberId: claim.forMemberId as Id<'members'> }))).toBe('FORBIDDEN');
+    });
+
+    test('GD routines + routineRuns: a kid sees only their own', async () => {
+      const run = firstA<{ memberId: string }>('routineRuns');
+      const sibling = run.memberId === famA.members.twin1 ? 'twin2' : 'twin1';
+      expect(await refused(A(sibling).query(api.routines.today, { kind: 'morning', memberId: run.memberId as Id<'members'> }))).toBe('FORBIDDEN');
+      expect(await refused(A(sibling).mutation(api.routines.check, { runId: run._id as Id<'routineRuns'>, stepId: 'teeth', done: true }))).toBe('FORBIDDEN');
+    });
+
+    test('GD bucksLedger + purchases: a kid sees only their own balance; the Store is kids-only', async () => {
+      expect(await refused(A('twin2').query(api.bucks.balance, { memberId: famA.members.twin1 }))).toBe('FORBIDDEN');
+      expect(await refused(A('admin').query(api.store.catalog, {}))).toBe('FORBIDDEN');
     });
 
     test('memories.list returns the admin -> partner shared memory to partner (the grantee)', async () => {

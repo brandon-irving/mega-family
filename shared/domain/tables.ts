@@ -268,8 +268,16 @@ export const candidateSource = v.union(
   v.object({ kind: v.literal('request'), requestId: v.id('requests') }),
   v.object({ kind: v.literal('checkin'), memberId }),
   v.object({ kind: v.literal('mattersTo'), fromMemberId: memberId, familyEventId: v.id('familyEvents') }),
-  // GD: the backend adds its new trigger kinds here (chore, routine, proposal, shareSuggestion, practice,
-  // gifts) together with the code that switches on them; internal only (docs/gates/GD.md).
+  // GD (v0.13, internal only): card-backed triggers. Each one's thread message is its own GD card (§3)
+  // instead of a `notification` card, and its push (if any) goes through the same timing/cap/quiet-hours
+  // pipeline as everything else (convex/model/proactive.ts `enqueueCardCandidate`).
+  v.object({ kind: v.literal('chore'), claimId: v.id('choreClaims') }),
+  v.object({ kind: v.literal('routine'), runId: v.id('routineRuns') }),
+  v.object({ kind: v.literal('proposal'), proposalId: v.id('proposals') }),
+  v.object({ kind: v.literal('shareSuggestion'), suggestionId: v.id('shareSuggestions') }),
+  v.object({ kind: v.literal('practice'), setId: v.id('practiceSets') }),
+  v.object({ kind: v.literal('gifts'), giftIdeasId: v.id('giftIdeas') }),
+  v.object({ kind: v.literal('bucks'), ledgerId: v.id('bucksLedger') }),
 );
 export type CandidateSource = Infer<typeof candidateSource>;
 
@@ -345,7 +353,9 @@ export const requests = {
 export const shareActions = {
   familyId,
   ownerId: memberId,
-  item: v.object({ kind: v.literal('event'), eventId: v.id('events') }),
+  /** GD backend (v0.13 addendum, additive, pending approval): `memory` items too, because
+   * `shareSuggestions.answer` can share a private memory and every private→shared move needs this record. */
+  item: v.union(v.object({ kind: v.literal('event'), eventId: v.id('events') }), v.object({ kind: v.literal('memory'), memoryId: v.id('memories') })),
   action: v.union(v.literal('share'), v.literal('unshare')),
   fromScope: scope,
   toScope: scope,
@@ -537,7 +547,9 @@ export const routineRuns = {
       label: v.string(),
       detail: v.optional(v.string()),
       done: v.boolean(),
-      source: v.optional(v.object({ eventId: v.id('events') })),
+      // GD backend addendum (pending approval): `title` is the household event's title when the item was made
+      // ("Soccer practice"), so the card can say "Soccer tomorrow". Household events only, never private.
+      source: v.optional(v.object({ eventId: v.id('events'), title: v.optional(v.string()) })),
     }),
   ),
   createdAt: v.number(),

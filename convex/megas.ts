@@ -5,6 +5,7 @@ import { internalQuery, mutation, query } from './_generated/server';
 import { pick } from './model/define';
 import { fail } from './model/errors';
 import { megaStatusFor } from './model/megaStatus';
+import { assertKidMayWear } from './model/store';
 import { requireAdmin, requireViewer } from './model/viewer';
 
 /** The caller's family MEGAs, by name — used by `talk.transcribe`'s spoken-mention matcher. Lives here
@@ -48,12 +49,29 @@ export const mine = query({
   },
 });
 
+/** GD backend addendum: the family MEGA's badge (Hub), for any member. */
+export const family = query({
+  ...pick(API.megas.family),
+  handler: async (ctx) => {
+    const viewer = await requireViewer(ctx);
+    const megas = await ctx.db
+      .query('megas')
+      .withIndex('by_family_owner', (q) => q.eq('familyId', viewer.member.familyId))
+      .collect();
+    const hub = megas.find((x) => x.kind === 'family');
+    if (!hub) fail('NOT_FOUND');
+    return { megaId: hub._id, name: hub.name, hex: hub.look.hex, sticker: hub.look.sticker };
+  },
+});
+
 export const update = mutation({
   ...pick(API.megas.update),
   handler: async (ctx, args) => {
     const viewer = await requireViewer(ctx);
     if (!viewer.mega) fail('NOT_FOUND');
     if (args.name !== undefined && viewer.member.role === 'kid') fail('FORBIDDEN', "kids can't rename their MEGA");
+    // GD (invariant 6): a kid wears only look parts they own (free, bought, or already worn); adults are free.
+    if (args.look && viewer.member.role === 'kid') await assertKidMayWear(ctx, viewer.member, viewer.mega, args.look);
     const patch = Object.fromEntries(Object.entries(args).filter(([, v]) => v !== undefined));
     await ctx.db.patch(viewer.mega._id, patch);
     return null;

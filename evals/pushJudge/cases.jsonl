@@ -1,0 +1,30 @@
+{"id":"pj01","source":"reminder","role":"adult","name":"Admin","text":"Soccer pickup at 5:30, leave in 10 minutes.","label":"push"}
+{"id":"pj02","source":"reminder","role":"adult","name":"Partner","text":"Dentist appointment in 15 minutes.","label":"push"}
+{"id":"pj03","source":"reminder","role":"kid","name":"Twin 2","text":"Return the library book today.","label":"push"}
+{"id":"pj04","source":"reminder","role":"kid","name":"Twin 1","text":"Take your cleats to school for practice.","label":"push"}
+{"id":"pj05","source":"reminder","role":"adult","name":"Admin","text":"Take the recycling out tonight.","label":"push"}
+{"id":"pj06","source":"reminder","role":"adult","name":"Partner","text":"Pay the electric bill, due today.","label":"push"}
+{"id":"pj07","source":"reminder","role":"kid","name":"Twin 1","text":"Feed the fish before school.","label":"push"}
+{"id":"pj08","source":"reminder","role":"adult","name":"Admin","text":"School picture day is tomorrow; outfits ready tonight.","label":"push"}
+{"id":"pj09","source":"reminder","role":"adult","name":"Partner","text":"Flight check-in opens now for tomorrow's trip.","label":"push"}
+{"id":"pj10","source":"reminder","role":"kid","name":"Twin 2","text":"Piano lesson in 20 minutes.","label":"push"}
+{"id":"pj11","source":"mattersTo","role":"adult","name":"Admin","text":"Partner said we're out of milk and need some for breakfast.","label":"push"}
+{"id":"pj12","source":"mattersTo","role":"adult","name":"Partner","text":"Admin mentioned the school called about a field trip form due tomorrow.","label":"push"}
+{"id":"pj13","source":"mattersTo","role":"adult","name":"Admin","text":"Partner said the car is making a strange noise.","label":"statement"}
+{"id":"pj14","source":"mattersTo","role":"adult","name":"Partner","text":"Admin said the twins liked the new pasta recipe.","label":"statement"}
+{"id":"pj15","source":"mattersTo","role":"adult","name":"Admin","text":"Partner mentioned a sale on winter coats this weekend.","label":"statement"}
+{"id":"pj16","source":"mattersTo","role":"adult","name":"Partner","text":"Admin said the movie night pick is up to the kids.","label":"statement"}
+{"id":"pj17","source":"mattersTo","role":"adult","name":"Admin","text":"Partner thinks the kitchen could use a new plant.","label":"drop"}
+{"id":"pj18","source":"mattersTo","role":"adult","name":"Partner","text":"Admin said it was a nice sunset tonight.","label":"drop"}
+{"id":"pj19","source":"mattersTo","role":"adult","name":"Admin","text":"Partner said hi.","label":"drop"}
+{"id":"pj20","source":"mattersTo","role":"adult","name":"Partner","text":"Admin watched a funny video at lunch.","label":"drop"}
+{"id":"pj21","source":"mattersTo","role":"kid","name":"Twin 1","text":"Partner said Twin 1 should bring a jacket tomorrow.","label":"drop"}
+{"id":"pj22","source":"mattersTo","role":"kid","name":"Twin 2","text":"Admin said dinner is at 7.","label":"drop"}
+{"id":"pj23","source":"checkin","role":"adult","name":"Admin","text":"Good morning, Admin!","label":"statement"}
+{"id":"pj24","source":"checkin","role":"adult","name":"Partner","text":"Good morning, Partner!","label":"statement"}
+{"id":"pj25","source":"checkin","role":"kid","name":"Twin 1","text":"Good morning, Twin 1!","label":"drop"}
+{"id":"pj26","source":"reminder","role":"adult","name":"Admin","text":"Water the plants sometime this week.","label":"statement"}
+{"id":"pj27","source":"reminder","role":"adult","name":"Partner","text":"Think about summer camp options.","label":"statement"}
+{"id":"pj28","source":"reminder","role":"kid","name":"Twin 2","text":"Bring your permission slip back today.","label":"push"}
+{"id":"pj29","source":"mattersTo","role":"adult","name":"Admin","text":"Partner said the twins have a half day on Friday.","label":"push"}
+{"id":"pj30","source":"mattersTo","role":"adult","name":"Partner","text":"Admin said the dishwasher is acting up again.","label":"statement"}

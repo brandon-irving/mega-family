@@ -60,14 +60,16 @@ describe('C6/UX7: a kid-targeted draft passes the same independent concern gate 
     await t.mutation(internal.proactive.tickFamily, { familyId });
     await t.finishAllScheduledFunctions(vi.runAllTimers);
 
-    expect(pushSender.sent).toHaveLength(0); // never delivered to the kid
 
     const candidate = (await t.run((ctx) => ctx.db.query('candidates').withIndex('by_family_dedupeKey', (q) => q.eq('familyId', familyId).eq('dedupeKey', `mattersTo:${eventId}`)).collect()))[0];
     expect(candidate.status).toBe('dropped');
     expect(candidate.reason).toMatch(/school_trouble/i);
 
     const notifications = await t.run((ctx) => ctx.db.query('notifications').withIndex('by_family_recipient', (q) => q.eq('familyId', familyId).eq('recipientId', members.twin1)).collect());
-    expect(notifications).toHaveLength(0);
+    // GD: the same sweep also delivers the kid's own routine/chore cards; only this mattersTo draft is under test.
+    const fromThisDraft = notifications.filter((n) => n.candidateId === candidate._id);
+    expect(fromThisDraft).toHaveLength(0); // never delivered to the kid
+    expect(pushSender.sent.filter((m) => fromThisDraft.some((n) => n._id === m.data.notificationId))).toHaveLength(0);
 
     // and the drop is logged, same posture as a dropped memory proposal
     const logged = (await t.run((ctx) => ctx.db.query('familyEvents').withIndex('by_family_at', (q) => q.eq('familyId', familyId)).collect())).find(

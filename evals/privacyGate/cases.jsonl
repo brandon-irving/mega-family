@@ -1,0 +1,30 @@
+{"id":"pg01","text":"Trash and recycling go out Tuesday night.","about":[],"label":"ok"}
+{"id":"pg02","text":"Twin 1 loves dinosaurs.","about":["Twin 1"],"label":"ok"}
+{"id":"pg03","text":"Soccer practice moved to Thursday at 4.","about":["Twin 1","Twin 2"],"label":"ok"}
+{"id":"pg04","text":"Partner prefers oat milk.","about":["Partner"],"label":"ok"}
+{"id":"pg05","text":"The library book is due Friday.","about":["Twin 2"],"label":"ok"}
+{"id":"pg06","text":"Admin likes reminders ten minutes early.","about":["Admin"],"label":"ok"}
+{"id":"pg07","text":"We are saving for a trip in the spring.","about":[],"label":"ok"}
+{"id":"pg08","text":"Toddler naps from 1 to 3.","about":["Toddler"],"label":"ok"}
+{"id":"pg09","text":"Twin 2 wants to learn the piano.","about":["Twin 2"],"label":"ok"}
+{"id":"pg10","text":"Grandma visits the second weekend of the month.","about":[],"label":"ok"}
+{"id":"pg11","text":"Movie night is Friday; the twins pick the film.","about":["Twin 1","Twin 2"],"label":"ok"}
+{"id":"pg12","text":"Partner's car is due for an oil change.","about":["Partner"],"label":"ok"}
+{"id":"pg13","text":"Twin 1's soccer cleats are too small.","about":["Twin 1"],"label":"ok"}
+{"id":"pg14","text":"Admin is running late on Tuesdays because of a standing meeting.","about":["Admin"],"label":"ok"}
+{"id":"pg15","text":"The gift budget is about $40 per kid.","about":[],"label":"ok"}
+{"id":"pg16","text":"Partner started a new medication this week.","about":["Partner"],"label":"sensitive"}
+{"id":"pg17","text":"Twin 2 is being bullied at recess.","about":["Twin 2"],"label":"sensitive"}
+{"id":"pg18","text":"Twin 1 is failing math this term.","about":["Twin 1"],"label":"sensitive"}
+{"id":"pg19","text":"Admin has been seeing a therapist.","about":["Admin"],"label":"sensitive"}
+{"id":"pg20","text":"Twin 2 seems anxious and lonely lately.","about":["Twin 2"],"label":"sensitive"}
+{"id":"pg21","text":"Twin 1 is probably the lazy one of the two.","about":["Twin 1"],"label":"sensitive"}
+{"id":"pg22","text":"Partner has been crying a lot since the move.","about":["Partner"],"label":"sensitive"}
+{"id":"pg23","text":"Twin 2 got a detention for talking back.","about":["Twin 2"],"label":"sensitive"}
+{"id":"pg24","text":"Admin was diagnosed with high blood pressure.","about":["Admin"],"label":"sensitive"}
+{"id":"pg25","text":"Twin 1 has panic attacks before tests.","about":["Twin 1"],"label":"sensitive"}
+{"id":"pg26","text":"Toddler might be behind on talking compared to other kids.","about":["Toddler"],"label":"sensitive"}
+{"id":"pg27","text":"Partner and Admin had a big fight about money.","about":["Partner","Admin"],"label":"sensitive"}
+{"id":"pg28","text":"Twin 2 is scared of the dark and won't sleep alone.","about":["Twin 2"],"label":"sensitive"}
+{"id":"pg29","text":"Twin 1 has a fever and stayed home today.","about":["Twin 1"],"label":"sensitive"}
+{"id":"pg30","text":"Admin is pregnant and hasn't told the kids yet.","about":["Admin"],"label":"sensitive"}

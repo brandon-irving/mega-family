@@ -13,7 +13,8 @@ import { literals } from '../../shared/domain/validators';
 import { internal } from '../_generated/api';
 import { internalAction } from '../_generated/server';
 import { getChatModel } from '../adapters/registry';
-import { keywordBackstopCategory } from '../model/concernGate';
+import { MODELS } from '../../shared/config/models';
+import { combineWithBackstop, keywordBackstopCategory } from '../model/concernGate';
 import { ChatModelError } from '../ports/chatModel';
 
 const SCHEMA = {
@@ -34,13 +35,13 @@ function systemPrompt(aboutNames: string[]): string {
 
 export const classify = internalAction({
   args: { familyId: v.id('families'), text: v.string(), aboutNames: v.array(v.string()) },
-  returns: v.object({ category: literals(CONCERN_CATEGORIES), confidence: v.number() }),
+  returns: v.object({ category: literals(CONCERN_CATEGORIES), confidence: v.number(), decidedBy: v.string() }),
   handler: async (ctx, args) => {
     const backstop = keywordBackstopCategory(args.text);
     const maxTokens = LIMITS.agent.maxTokensStructured;
     const estimatedCents = estimateChatCostCents(args.text.length + 200, maxTokens);
 
-    let category: (typeof CONCERN_CATEGORIES)[number] = 'ok';
+    let modelCategory: (typeof CONCERN_CATEGORIES)[number] | null = null;
     let confidence = 0;
     let reserved = false;
     try {
@@ -65,7 +66,7 @@ export const classify = internalAction({
       });
       reserved = false;
       const parsed = result.text ? JSON.parse(result.text) : {};
-      if ((CONCERN_CATEGORIES as readonly string[]).includes(parsed?.category)) category = parsed.category;
+      modelCategory = (CONCERN_CATEGORIES as readonly string[]).includes(parsed?.category) ? parsed.category : 'ok';
       if (typeof parsed?.confidence === 'number' && Number.isFinite(parsed.confidence)) confidence = Math.max(0, Math.min(1, parsed.confidence));
     } catch (e) {
       if (reserved) await ctx.runMutation(internal.spend.releaseReservation, { familyId: args.familyId, estimatedCents });
@@ -75,7 +76,9 @@ export const classify = internalAction({
       if (!(e instanceof ChatModelError)) throw e;
     }
 
-    if (category === 'ok' && backstop) category = backstop;
-    return { category, confidence };
+    // GD: the backstop rule may only escalate the model's "ok" (never clear a flag), and the result says
+    // which one decided (convex/model/concernGate.ts `combineWithBackstop`).
+    const { category, decidedBy } = combineWithBackstop(modelCategory, backstop, MODELS.chat.model);
+    return { category, confidence, decidedBy };
   },
 });

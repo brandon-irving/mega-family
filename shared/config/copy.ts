@@ -34,12 +34,6 @@ export const PROPOSAL_DISCLOSURE = '{mega} · your family\u2019s MEGA (AI). Noth
 /** The line under the share suggestion and on private events (Screen 12). */
 export const SHARE_RULE_COPY = 'MEGA never shares anything unless you tap Share.';
 
-/** Fills `{name}` placeholders in a copy string (missing keys are left as-is, so a typo shows up on screen
- * instead of silently vanishing). The one formatter for every templated line below. */
-export function fillCopy(template: string, vars: Record<string, string | number>): string {
-  return template.replace(/\{(\w+)\}/g, (whole, key: string) => (key in vars ? String(vars[key]) : whole));
-}
-
 /** GD Screen 10 (Kids: homework, chores, routines, Mega Bucks). Wording from the boards; names are filled in. */
 export const KIDS_COPY = {
   cameraTitle: 'Homework photo',
@@ -246,3 +240,29 @@ export const SIGNIN_COPY = {
   sayHiLabel: (name: string) => `${name}, say hi`,
   failed: 'Something went wrong. Try again.',
 } as const;
+
+/** GD backend: the deterministic headline + body for each card-backed push (convex/model/proactive.ts
+ * `enqueueCardCandidate`). The model already wrote the card's real content (a proposal, a practice set, gift
+ * ideas); these are just the lock-screen line, so they're templates, not model calls. `{x}` slots are filled
+ * with plain values from the row (`fillCopy`). */
+export const GD_PUSH_COPY = {
+  choreRemind: { title: '{chore}', text: 'Time for {chore}. Tap Done when it’s finished.' },
+  choreApprove: { title: '{kid} finished {chore}', text: '{kid} says {chore} is done. Release {bucks} Mega Bucks?' },
+  practiceReady: { title: 'Practice time', text: '{topic} practice is ready. {count} questions. You’ve got this!' },
+  practiceSummary: { title: '{kid} finished practice', text: '{kid} got {correct} of {total}. {note}' },
+  bucksReleased: { title: '{bucks} Mega Bucks!', text: '{by} released {bucks} Mega Bucks. You have {balance} now.' },
+  routineMorning: { title: 'Good morning', text: 'Your morning list is ready. One step at a time.' },
+  routineBedtime: { title: 'Ready for tomorrow?', text: 'A few things to get ready for tomorrow.' },
+  shareSuggestion: { title: 'Share with the household?', text: '{preview}. Right now only you can see it.' },
+  proposal: { title: '{title}', text: '{text}' },
+  proposalApplied: { title: 'Calendar updated', text: '{title}. Approved by {by}.' },
+  gifts: { title: 'Gift ideas for {name}', text: '{name}’s birthday is {when}. Here are a few ideas from what’s been shared.' },
+} as const;
+
+/** Fills `{key}` slots in a GD_PUSH_COPY template. Unknown slots become empty, never "undefined". */
+export function fillCopy(template: string, values: Record<string, string | number>): string {
+  return template.replace(/\{(\w+)\}/g, (_, k: string) => (values[k] === undefined ? '' : String(values[k]))).trim();
+}
+
+/** The adults-scope list `gifts.addToList` adds to (created on first use). */
+export const GIFT_LIST_NAME = 'Gift ideas';

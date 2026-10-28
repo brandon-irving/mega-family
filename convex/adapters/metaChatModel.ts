@@ -3,7 +3,7 @@
 // through `ports/chatModel.ts`. Convex's default (non-"use node") runtime has global `fetch`, so this needs
 // no Node builtins and no `"use node"` directive.
 import { MODELS } from '../../shared/config/models';
-import type { ChatMessage, ChatModel, ChatModelRequest, ChatModelResult, ChatModelUsage, ToolCall } from '../ports/chatModel';
+import type { ChatMessage, ChatModel, ChatModelRequest, ChatModelResult, ChatModelUsage, ModelRole, ToolCall } from '../ports/chatModel';
 import { ChatModelError } from '../ports/chatModel';
 
 const RETRY_STATUSES = new Set([429, 500, 502, 503, 504]);
@@ -19,7 +19,21 @@ function toOpenAiMessage(m: ChatMessage): Record<string, unknown> {
       tool_calls: m.toolCalls.map((tc) => ({ id: tc.id, type: 'function', function: { name: tc.name, arguments: tc.arguments } })),
     };
   }
+  if (m.images?.length) {
+    // Meta image-understanding guide (Oct 28), Chat Completions shape: images only in 'user' messages, as
+    // `image_url` parts whose `image_url` is an object with a `url` (https or a base64 data URL).
+    if (m.role !== 'user') throw new ChatModelError('INVALID_REQUEST', 'images are only allowed on user messages');
+    return {
+      role: 'user',
+      content: [{ type: 'text', text: m.content }, ...m.images.map((url) => ({ type: 'image_url', image_url: { url } }))],
+    };
+  }
   return { role: m.role, content: m.content };
+}
+
+/** The model id for a role (shared/config/models.ts). The one place a role becomes a vendor model id. */
+function modelIdFor(role: ModelRole | undefined): string {
+  return MODELS[role ?? 'chat'].model;
 }
 
 function usageFrom(json: unknown): ChatModelUsage {
@@ -53,7 +67,7 @@ export const metaChatModel: ChatModel = {
   async chat(req: ChatModelRequest): Promise<ChatModelResult> {
     const key = requireApiKey();
     const body: Record<string, unknown> = {
-      model: MODELS.chat.model,
+      model: modelIdFor(req.model),
       messages: req.messages.map(toOpenAiMessage),
       max_tokens: req.maxTokens,
     };

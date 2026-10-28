@@ -15,8 +15,9 @@ import { internalAction, internalMutation, internalQuery } from '../_generated/s
 import { getChatModel } from '../adapters/registry';
 import { applyLearningDecision } from '../model/applyLearning';
 import { gateByServerConcern, isConcernCategory, logDroppedConcern } from '../model/concernGate';
-import { decideLearning, type LearningDecision, type LearningOp } from '../model/learningPolicy';
-import { canSeeScoped } from '../model/visibility';
+import { suggestShare } from '../model/layers';
+import { decideLearning, type LearningOp } from '../model/learningPolicy';
+import { decidedByModel } from '../model/modelCall';
 import { clock } from '../ports/clock';
 import { ChatModelError } from '../ports/chatModel';
 
@@ -136,11 +137,11 @@ export const run = internalAction({
         // the never-save gate — classify each proposed fact independently (text + who it's about only,
         // never this conversation) the same way the `remember` tool's calls are (convex/agent/
         // concernClassifier.ts, convex/model/concernGate.ts).
-        const classified: (RawProposal & { serverConcern: (typeof SERVER_CONCERN_CATEGORIES)[number] })[] = [];
+        const classified: (RawProposal & { serverConcern: (typeof SERVER_CONCERN_CATEGORIES)[number]; serverConcernBy: string })[] = [];
         for (const op of operations) {
           const aboutNames = op.about?.length ? await ctx.runQuery(internal.agent.writer.memberNamesForConcernCheck, { familyId: args.familyId, memberIds: op.about }) : [];
-          const { category } = await ctx.runAction(internal.agent.concernClassifier.classify, { familyId: args.familyId, text: op.text, aboutNames });
-          classified.push({ ...op, serverConcern: category });
+          const { category, decidedBy } = await ctx.runAction(internal.agent.concernClassifier.classify, { familyId: args.familyId, text: op.text, aboutNames });
+          classified.push({ ...op, serverConcern: category, serverConcernBy: decidedBy });
         }
         await ctx.runMutation(internal.agent.writer.applyProposals, {
           familyId: args.familyId,
@@ -199,25 +200,6 @@ export const rosterFor = internalQuery({
   },
 });
 
-/** S1: the visibility half of the mattersTo trigger gate. The proposer (`ownerId`) is NEVER the target
- * (the call site already checked `targetId !== args.memberId`), so a `personal` decision — whose owner is
- * always the proposer — can never be visible to the target; this matches the intent exactly ("a personal
- * fact should never become a cross-member trigger"). `shared` is visible only when the target is one of
- * the members actually being shared with. `queueForProfiler` (no scope was even decided yet) is treated as
- * not visible — there's nothing confirmed to show anyone. */
-function mattersToTriggerVisibleToTarget(decision: LearningDecision, target: { memberId: Id<'members'>; role: Doc<'members'>['role'] }, ownerId: Id<'members'>): boolean {
-  switch (decision.action) {
-    case 'saveConfirmed':
-    case 'saveUnconfirmed':
-      return canSeeScoped(decision.scope, target, { ownerId, who: decision.action === 'saveConfirmed' ? decision.shareWithMemberIds : undefined });
-    case 'askBeforeSharing':
-      return canSeeScoped(decision.scope, target, { ownerId, who: decision.shareWithMemberIds });
-    case 'queueForProfiler':
-    case 'drop':
-      return false;
-  }
-}
-
 export const applyProposals = internalMutation({
   args: {
     familyId: v.id('families'),
@@ -242,6 +224,8 @@ export const applyProposals = internalMutation({
         /** The independent classification `run` computed per-op before calling here (never the writer
          * model's own `concernCategory` above) — the only thing the gate below actually trusts. */
         serverConcern: literals(SERVER_CONCERN_CATEGORIES),
+        /** GD: what decided `serverConcern` (rule:<id> | model:<id>), saved on the memory as `gate`. */
+        serverConcernBy: v.optional(v.string()),
       }),
     ),
   },
@@ -289,7 +273,7 @@ export const applyProposals = internalMutation({
         concernCategory: undefined, // never the writer's own (untrusted) label — only `gateByServerConcern` below sets this
         derivedFromWebSearch: false, // G2: the web_search tool isn't implemented yet; gateByServerConcern may still set this from serverConcern
       };
-      if (isConcernCategory(p.serverConcern)) op = gateByServerConcern(op, p.serverConcern);
+      if (isConcernCategory(p.serverConcern)) op = gateByServerConcern(op, p.serverConcern, p.serverConcernBy);
       const decision = decideLearning(op, args.memberId);
       if (decision.action === 'drop' && p.serverConcern !== 'ok') {
         await logDroppedConcern(ctx, { familyId: args.familyId, memberId: args.memberId, now }, p.text, p.serverConcern, decision.reason);
@@ -297,34 +281,17 @@ export const applyProposals = internalMutation({
       const applied = await applyLearningDecision(ctx, { familyId: args.familyId, memberId: args.memberId, role: args.role, megaId: args.megaId ?? null, threadId: args.threadId, now }, op, decision, supersedes);
       if (applied.chip) chips.push(applied.chip);
 
-      // PLAN.md -> Proactive engine trigger source #1 ("the memory writer marks 'matters to Teal'"): never
-      // trusted for anything about the fact's own content — only this one pointer, and only once it
-      // resolves to a real, different member of this family. convex/model/proactive.ts's cross-member
-      // trigger (`scanFamilyEventTriggers`) picks this up and runs it through the full draft+judge pipeline.
-      //
-      // S1 (BLOCKER, G3 security review): this used to fire unconditionally off the model's own
-      // `mattersToMemberId` label, even for a proposal the concern gate just dropped (a concerning guess
-      // about THIS member) or one scoped `personal`/`shared`-not-including-the-target (private content the
-      // target was never meant to see). A personal fact, a concern-flagged one, or a dropped one must never
-      // become a cross-member trigger — so the SAME three things that decided whether this got saved as a
-      // memory (never trusting the model's own labels) also gate whether it can ever reach another member
-      // as a notification: the proposal has to have actually passed the gate (`decision.action !== 'drop'`
-      // and the independent `serverConcern === 'ok'`), AND the content has to be visible to the target
-      // under the normal scope/sharing rules (`canSeeScoped`, reused rather than re-derived) — e.g. a
-      // `personal` memory is never visible to anyone but its own owner, so it can never trigger here either.
-      if (p.mattersToMemberId) {
+      // GD (owner's explicit-share rule, Oct 26): "this matters to <another member>" used to fire a
+      // cross-member push on the writer model's guess (G3, PLAN.md -> Proactive engine trigger source #1).
+      // That guess may no longer move anything: when the saved fact is private, the model's pointer becomes
+      // at most a share SUGGESTION to the fact's own owner ("Share it with the household?"), who decides.
+      // Same gates as before (never for a dropped or concern-flagged fact), and nothing reaches the other
+      // member unless the owner taps Share.
+      if (p.mattersToMemberId && applied.memoryId && decision.action !== 'drop' && p.serverConcern === 'ok') {
         const targetId = await loadMemberId(ctx, args.familyId, p.mattersToMemberId);
-        if (targetId && targetId !== args.memberId && decision.action !== 'drop' && p.serverConcern === 'ok') {
-          const target = await ctx.db.get(targetId);
-          if (target && mattersToTriggerVisibleToTarget(decision, { memberId: targetId, role: target.role }, args.memberId)) {
-            await ctx.db.insert('familyEvents', {
-              familyId: args.familyId,
-              at: now,
-              type: 'said',
-              payload: { mattersToMemberId: targetId, fromMemberId: args.memberId, text: p.text },
-              processed: { memory: true, profiler: false, triggers: false },
-            });
-          }
+        const memory = await ctx.db.get(applied.memoryId);
+        if (targetId && targetId !== args.memberId && memory && memory.scope === 'personal') {
+          await suggestShare(ctx, { familyId: args.familyId, ownerId: args.memberId, item: { kind: 'memory', memoryId: memory._id }, preview: memory.text, decidedBy: decidedByModel('chat'), now });
         }
       }
     }

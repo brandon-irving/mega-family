@@ -66,6 +66,7 @@ export const PROPOSAL_PENDING: ProposalView = {
   },
   mega: { megaId: id('mg_hub'), name: 'Hub', hex: '#5B8DEF', sticker: 'none' },
   disclosure: 'Hub · your family’s MEGA (AI). Nothing changes until Admin approves.',
+  clashEventIds: [id('ev_pickup'), id('ev_dinner')],
 };
 
 export const GIFTS_READY: GiftIdeas = {

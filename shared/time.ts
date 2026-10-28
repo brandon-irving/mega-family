@@ -83,7 +83,30 @@ export function formatLocalDateTime(at: number, tz: string, opts: { weekday?: 'l
   return `${p.weekday}${sep}${p.month} ${p.day}, ${p.hour}:${p.minute} ${p.dayPeriod}`;
 }
 
-const LOCAL_DATETIME_RE = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/;
+/** GD: "4:00 PM" — the local clock time of an instant (event previews, before/after cards). */
+export function formatLocalTime(at: number, tz: string): string {
+  const p = localParts(at, tz);
+  const hour12 = p.hour % 12 === 0 ? 12 : p.hour % 12;
+  return `${hour12}:${String(p.minute).padStart(2, '0')} ${p.hour < 12 ? 'AM' : 'PM'}`;
+}
+
+const SHORT_WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const;
+
+/** GD: "Thu" — the local short weekday of an instant. */
+export function formatLocalWeekday(at: number, tz: string): string {
+  return SHORT_WEEKDAYS[dayOfWeek(localDate(at, tz))];
+}
+
+/** GD: "HH:MM" (24h, from config/routines/chores) → minutes after midnight, or null if malformed. */
+export function parseClockTime(hm: string): number | null {
+  const m = /^(\d{2}):(\d{2})$/.exec(hm);
+  if (!m) return null;
+  const h = Number(m[1]);
+  const min = Number(m[2]);
+  return h < 24 && min < 60 ? h * 60 + min : null;
+}
+
+const LOCAL_DATETIME_RE =/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/;
 
 /** Parses a tool-facing local date-time ("YYYY-MM-DDTHH:MM", the model's `events_create`/`events_update`/
  * `reminders_create` schema — convex/agent/toolSpecs.ts) into the instant it names in `tz`, validating both

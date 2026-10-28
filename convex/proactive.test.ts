@@ -172,7 +172,8 @@ describe('proactive engine: quiet hours hold a kid reminder until they end', () 
     )[0];
     expect(candidate.deliverAt).toBeGreaterThan(dueAt); // quiet hours pushed it well past the raw due time
     expect(candidate.status).toBe('delivered'); // and it did eventually go out
-    expect(pushSender.sent).toHaveLength(1);
+    // GD: the same jump also delivers GD cards (routines, chores); count only this reminder's push.
+    expect(pushSender.sent.filter((m) => m.body.includes('Pack your bag'))).toHaveLength(1);
   });
 });
 
