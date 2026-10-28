@@ -92,6 +92,7 @@ npx expo export --platform web --output-dir <scratch dir>
 Owner approved **$5 total for live model checks until G6**; ≈3 cents used. The spend guard (`usage` table, reserved + recorded) enforces daily and global caps. Image generation needs separate approval (off in config).
 
 - **GD evals (Oct 28):** 16.2¢ — privacy gate 6.0¢ (30 cases, 100% precision/recall on "sensitive"), push judge 10.2¢ (30 cases, 77% accuracy; it under-sends "statement"s as drops). Re-run: `node scripts/secrets.mjs run --only tool -- npx tsx evals/run.ts`; results in `evals/*/results-*.md`.
+- **G4 backend (Oct 28):** 16.4¢ — live checks 10.8¢ (three real searches: an adult's, a kid's rephrased, a kid's blocked; weather and travel calls cost nothing), kid search eval 5.6¢ (20 cases, 95% accuracy; no blocked query was let through as allowed, one "sneak out" query was rephrased instead of blocked).
 
 ## Owner to-dos (open)
 
