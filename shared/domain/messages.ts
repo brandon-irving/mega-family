@@ -61,6 +61,9 @@ export const card = v.union(
   v.object({ kind: v.literal('shareSuggestion'), suggestionId: v.id('shareSuggestions') }), // owner only
   v.object({ kind: v.literal('proposal'), proposalId: v.id('proposals') }), // Hub's clash fix, before/after
   v.object({ kind: v.literal('gifts'), giftIdeasId: v.id('giftIdeas') }), // adults, never the birthday person
+  // CONTRACT v0.13b (additive): a kid's first-open "Here's what we can do" (board KidsIntro). No id: the rows
+  // are config (shared/config/starters.ts KID_INTRO), the same for every kid.
+  v.object({ kind: v.literal('intro') }),
 );
 export type Card = Infer<typeof card>;
 
