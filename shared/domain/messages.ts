@@ -1,6 +1,8 @@
 // CONTRACT §3. Chat message bodies, thread UI blocks, block answers, cards and save chips.
 import { type Infer, v } from 'convex/values';
 import { personality, scope } from './enums';
+import { ALERT_SEVERITIES, INTEGRATION_FAILURES, SEARCH_OUTCOMES } from '../config/ids';
+import { literals } from './validators';
 
 const option = v.object({ id: v.string(), label: v.string() });
 
@@ -46,9 +48,45 @@ export const card = v.union(
   v.object({ kind: v.literal('event'), eventId: v.id('events'), visibleTo: scope }),
   v.object({ kind: v.literal('reminder'), reminderId: v.id('reminders'), visibleTo: scope }),
   v.object({ kind: v.literal('list'), listId: v.id('lists'), added: v.optional(v.array(v.string())), visibleTo: scope }),
-  v.object({ kind: v.literal('search'), query: v.string(), answer: v.string(), sources: v.array(v.object({ title: v.string(), url: v.string() })) }),
-  v.object({ kind: v.literal('weather'), summary: v.string(), at: v.number() }),
-  v.object({ kind: v.literal('travel'), to: v.string(), leaveBy: v.number(), minutes: v.number() }),
+  // G4 (CONTRACT v0.15): the search, weather and travel cards keep their content inline (they're written only
+  // into the thread of the member who asked or who the reminder is for). New fields are all optional (additive).
+  v.object({
+    kind: v.literal('search'),
+    query: v.string(),
+    answer: v.string(),
+    sources: v.array(v.object({ title: v.string(), url: v.string() })),
+    /** v0.15: what the (kid) filter did. `blocked` → `answer` is KID_SAFETY.blockedMessage and no sources. */
+    outcome: v.optional(literals(SEARCH_OUTCOMES)),
+    /** v0.15: the age-appropriate query actually searched, when `outcome` is `rephrased`. */
+    rephrasedTo: v.optional(v.string()),
+    searchLogId: v.optional(v.id('searchLog')),
+  }),
+  v.object({
+    kind: v.literal('weather'),
+    summary: v.string(),
+    at: v.number(),
+    /** v0.15 (all optional): where, the next hours, today's range, and an NWS alert when this card is one. */
+    placeLabel: v.optional(v.string()),
+    hours: v.optional(v.array(v.object({ at: v.number(), tempF: v.number(), precipPct: v.number(), code: v.number() }))),
+    highF: v.optional(v.number()),
+    lowF: v.optional(v.number()),
+    alert: v.optional(v.object({ event: v.string(), headline: v.string(), severity: literals(ALERT_SEVERITIES), ends: v.optional(v.number()) })),
+    eventId: v.optional(v.id('events')),
+  }),
+  v.object({
+    kind: v.literal('travel'),
+    to: v.string(),
+    leaveBy: v.number(),
+    minutes: v.number(),
+    /** v0.15 (all optional): the event and places behind it, and Mapbox's typical (traffic-free) minutes. */
+    eventId: v.optional(v.id('events')),
+    fromLabel: v.optional(v.string()),
+    typicalMinutes: v.optional(v.number()),
+    checkId: v.optional(v.id('travelChecks')),
+    /** Set instead of a real time when travel can't be checked (e.g. `not_configured`: no MAPBOX_TOKEN). The
+     * card then shows INTEGRATION_COPY, never a made-up `minutes`/`leaveBy` (both 0). */
+    failure: v.optional(literals(INTEGRATION_FAILURES)),
+  }),
   v.object({ kind: v.literal('request'), requestId: v.id('requests') }),
   v.object({ kind: v.literal('notification'), notificationId: v.id('notifications') }),
   // GD (CONTRACT v0.13, additive). Each card holds only an id; the app loads it with the matching query,

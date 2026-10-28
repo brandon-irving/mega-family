@@ -11,7 +11,9 @@ export const MODELS = {
   wording: { adapter: 'metaModelApi', model: 'muse-wonder-1.0' },
   image: { adapter: 'metaModelApi', model: 'muse-image-1.0', enabled: false }, // spend needs the owner's go-ahead
   transcribe: { adapter: 'metaModelApi', model: 'muse-voice-transcribe-1.0' },
-  webSearch: { adapter: 'metaWebSearch', fallback: null as null | 'tavily' }, // all-Meta for now
+  // G4: Meta's `web_search` tool runs only on the Responses API (`/v1/responses`, not Chat Completions), so it has
+  // its own adapter (convex/adapters/metaWebSearch.ts). Sources: `include: ['web_search_call.results']`.
+  webSearch: { adapter: 'metaWebSearch', model: 'muse-spark-1.3', api: 'responses' as const, fallback: null as null | 'tavily' }, // all-Meta for now
   segment: { adapter: 'metaModelApi', model: 'sam-3.1' },
   memoryIndex: { adapter: 'convexSearch' },
 } as const;

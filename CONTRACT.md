@@ -7,6 +7,7 @@ This is the agreement both build tracks follow. The backend owns `convex/`, the 
 ## Changelog
 | Version | Date | Change |
 |---|---|---|
+| 0.15 | Oct 28 | **Pending approval.** Gate G4: web search with the kid filter, weather + NWS alerts, travel time (brief: docs/gates/G4.md). All additive. **New tables (§2):** `places` (family places: home/school/work/custom — household data, every member reads, adults edit; coordinates from the new `Geocoder` port, never the phone), `weatherCache` (internal), `travelChecks` (leave-by results; visible only to members who can see the event), `searchLog` (every search and what the kid filter did, with `decidedBy`; the member reads their own, a kid's parents only that kid's blocked/rephrased rows and only when `tellsParents.blockedSearches` is on). **New optional fields:** `events.placeId`; `profiles.places` is superseded by `places` (kept, always `[]`). **Cards (§3):** `search` gains `outcome?`, `rephrasedTo?`, `searchLogId?`; `weather` gains `placeLabel?`, `hours?`, `highF?`, `lowF?`, `alert?`, `eventId?`; `travel` gains `eventId?`, `fromLabel?`, `typicalMinutes?`, `checkId?`, `failure?` (fail closed: no made-up times). **New functions (§4):** `places.list` / `.upsert` / `.remove`, `weather.get` / `.refresh`, `travel.forEvent`, `search.log`, all `stub` (real validators; empty results or `NOT_FOUND` "not built yet") until the G4 backend; `events.create` / `.update` take optional `placeId` (update: `null` clears). Search itself stays the agent's `web_search` tool (no public function). **Ports (§8):** `WebSearch`, `Weather`, `Directions`, `Geocoder`, each returning `{ ok: true, … } \| { ok: false, failure }` (`not_configured` when a secret such as MAPBOX_TOKEN is missing); fakes for tests, fail-closed placeholders in real mode until the G4 adapters land. **Config (§7):** `shared/config/integrations.ts` (`PLACES`, `GEOCODING`, `WEB_SEARCH`, `WEATHER`, `TRAVEL`, `INTEGRATION_COPY`), `KID_SAFETY.search`, `models.webSearch.model`/`api`, `PRICING.webSearch`, ids `PLACE_KINDS`, `ALERT_SEVERITIES`, `SEARCH_OUTCOMES`, `INTEGRATION_FAILURES`, `GEOCODE_STATUSES`. **Internal only:** `candidateSource` gains `leaveBy`, `weatherAlert`, `weatherEvent`. **Seed (§10):** four places at public Brooklyn landmarks (home, school, work, a soccer field). |
 | 0.14a | Oct 28 | **Pending approval.** GD review fixes (all additive). **§4:** `chores.snooze({ choreId })` (m, the kid it's for, on today's still-due instance) → `{ remindAt }`: the chore card's "In 10 min", the same re-remind as the push's `snooze_10` (after `CHORES.snoozeMinutes`, through the normal quiet hours and caps); VALIDATION when nothing is due. **§2:** `routineRuns.steps[].source` gains `start?` (the household event's start, ms) so the bedtime card can say "…at 4:30"; `collisions.fingerprint?` (internal: both events' timing and people when detected; a dismissed or resolved clash is raised again only once this changes). **Behavior, no shape change:** the clash checker now also sees household events already in progress; an all-day event saved without `end` gets the end of its local day; a stale clash that recurs is raised again; `invites.redeem` refuses a second claim of one invite (INVALID_INVITE) even when two redeems race; the old cross-member "matters to" trigger is removed (no `familyEvents` row can push to another member). |
 | 0.14 | Oct 28 | **Pending approval.** Screen 9 sign-in redesign (owner's Oct 28 walkthrough; canvas v33). All additive. **§2:** `invites.invitedBy?: Id<members>` (who sent it) and `invites.mega?: { name, look, personality }` (the MEGA the person gets on joining). **§4:** `invites.create` takes optional `mega` (the admin's choice; omitted → the member's existing MEGA, else the first preset color no family MEGA wears, named after it — config `INVITE_MEGA_DEFAULTS`). New query `invites.preview({ token })` — callable signed out (the token is the credential) — returns `{ status: 'invalid' }`, `{ status: 'expired' | 'locked', inviterName }` or `{ status: 'ok', kind: 'adult' | 'kid', inviterName, memberName, mega, family: [{ name, hex, sticker }] }` (joined members only); never ids, the parent code or the token hash. `invites.redeem` takes optional `mega`: an adult's change to the invite's MEGA (VALIDATION on an empty/long name or a non-hex color; **FORBIDDEN for a kid**, refused before the parent code is checked so it isn't counted as a wrong guess). Joining now always gives the member a MEGA (the adult's change, else the invite's, else the default) and sets `hasMega`; a member who already has one keeps that row (patched, never duplicated). **Auth:** Better Auth email + password is on (`requireEmailVerification: false`, 8–128 characters, config `AUTH.email`); password reset goes through a new `EmailSender` port whose only adapter logs (no provider yet — the app shows a "coming soon" placeholder). |
 | 0.13b | Oct 28 | **Pending approval.** Owner's Oct 28 walkthrough: never an empty chat; MEGAs start the conversation. All additive. **§4:** `chat.start` (m, `{}` → `{ started: boolean }`): the app calls it on opening chat; once per thread it writes the MEGA's starter: a kid gets the KidsIntro board's hello, an `intro` card and a tip (config `KID_INTRO`, no model call); an adult gets a greeting their MEGA writes through the agent loop, then a choice block (`ADULT_STARTER`). MEGA cards already in the thread don't block it; a member who has already written something is never started over. **§2:** `threads.startedAt?` (when that first open was handled). **§3:** card kind `{ kind: "intro" }` (no id; its rows are config). Also, no shape change: `chat.answerBlock`'s `answer` message label is now what the member picked ("9:00 PM"), not the word "Answered" (one shared `summarizeAnswer` in `shared/domain/answerLabel.ts`). |
@@ -99,7 +100,7 @@ Every row in a family-owned table has `familyId`, and every index starts with `f
 **profiles**: `familyId`, `memberId`, `callMe`, `basics: {…}`, `routines: { text, days: number[], time?: "HH:MM", confirmed }[]`, `places: { label: "home" | "school" | "work" | string, address, lat, lng }[]`, `proactive: Record<NotificationKind, { sent, answered, ignored, up, down }>`, `checkQuestions: { memoryId, question, askAfter }[]`
 
 ### Plans and lists
-**events**: `familyId`, `title`, `start`, `end?`, `allDay?: "YYYY-MM-DD"`, `who: id(members)[]`, `place?`, `source: "mega" | "ics" | "device"`, `externalId?`, `createdBy?` (empty for imported events), `scope: Scope`, `cancelled: boolean`, `ownerId?: id(members)` (v0.13: owner of a private-layer event)
+**events**: `familyId`, `title`, `start`, `end?`, `allDay?: "YYYY-MM-DD"`, `who: id(members)[]`, `place?`, `source: "mega" | "ics" | "device"`, `externalId?`, `createdBy?` (empty for imported events), `scope: Scope`, `cancelled: boolean`, `ownerId?: id(members)` (v0.13: owner of a private-layer event), `placeId?: id(places)` (v0.15: the saved place it's at; `place` stays the free text)
 - index: `by_family_start`
 - **Layers (v0.13):** an event's layer is derived from `scope` only (`shared/config/calendar.ts` `LAYER_OF_SCOPE`): `family`/`adults` = **household** (Hub checks these for clashes); `personal` = **private** (only `ownerId` sees it; never read by the clash checker, gift ideas, bedtime prep or another member's MEGA; `who` does not grant sight); `shared` = a grant, not household. Only the owner's `events.share` / `shareSuggestions.answer` moves a private event to the household layer.
 
@@ -178,6 +179,17 @@ Every row in a family-owned table has `familyId`, and every index starts with `f
 
 **clocks**: `familyId`, `mode: "real" | "simulated"`, `offsetMs: number`
 
+### Places, weather, travel and search (v0.15, gate G4)
+**places**: `familyId`, `kind: "home" | "school" | "work" | "other"`, `label`, `address`, `lat?`, `lng?`, `geocode: { status: "pending" | "ok" | "failed" | "not_configured" | "seed", at? }`, `createdBy`, `updatedAt` — household data: every member reads; adults (`PLACES.editors`) write; at most one `home`. Coordinates only from the `Geocoder` port (Mapbox, `permanent` results), never the phone. Supersedes `profiles.places`.
+
+**weatherCache**: `familyId`, `placeId`, `kind: "forecast" | "alerts"`, `fetchedAt`, `expiresAt`, `failure?: IntegrationFailure`, `data` (the Weather port's normalized result) — internal; never returned raw.
+
+**travelChecks**: `familyId`, `eventId`, `fromPlaceId`, `toPlaceId`, `departAt`, `minutes?`, `typicalMinutes?`, `distanceMeters?`, `leaveBy?`, `failure?: IntegrationFailure`, `checkedAt` — read only by members who can see the event.
+
+**searchLog**: `familyId`, `memberId`, `at`, `query`, `outcome: "answered" | "rephrased" | "blocked" | "failed"`, `rephrasedTo?`, `category?`, `decidedBy?: "rule:<id>" | "model:<id>"`, `sourceCount`, `messageId?` — the member reads their own; a kid's parents read that kid's `blocked`/`rephrased` rows only when `tellsParents.blockedSearches` is on; siblings never.
+
+`IntegrationFailure = "not_configured" | "no_result" | "rate_limited" | "error"`
+
 ---
 
 ## 3. Messages and UI blocks (`shared/domain/messages`, `shared/domain/uiBlocks`)
@@ -208,9 +220,12 @@ Card =
   | { kind: "event", eventId, visibleTo: Scope }
   | { kind: "reminder", reminderId, visibleTo: Scope }
   | { kind: "list", listId, added?: string[], visibleTo: Scope }
-  | { kind: "search", query, answer, sources: { title, url }[] }
-  | { kind: "weather", summary, at }
-  | { kind: "travel", to, leaveBy, minutes }
+  | { kind: "search", query, answer, sources: { title, url }[],
+      outcome?: "answered" | "rephrased" | "blocked" | "failed", rephrasedTo?, searchLogId? }   // v0.15 fields optional
+  | { kind: "weather", summary, at, placeLabel?, hours?: { at, tempF, precipPct, code }[], highF?, lowF?,
+      alert?: { event, headline, severity, ends? }, eventId? }                                  // v0.15 fields optional
+  | { kind: "travel", to, leaveBy, minutes, eventId?, fromLabel?, typicalMinutes?, checkId?,
+      failure?: IntegrationFailure }                                  // v0.15; with failure, minutes/leaveBy are 0 and the card shows INTEGRATION_COPY
   | { kind: "request", requestId }
   | { kind: "notification", notificationId }                       // a push, mirrored into the thread
   // v0.13 (GD): id-only cards; the app loads each with its query, which re-checks the viewer
@@ -361,6 +376,19 @@ Who may call each is stated in its comment in `shared/domain/api.ts`; the rules 
 | `store.catalog` | q | — (kids) | `{ balance, items: { id, label, price, hex?, owned, wearing }[] }` | real |
 | `store.buy` | m | `{ itemId }` (kids) | `{ purchaseId, balance }` | real |
 
+### Places, weather, travel and search (v0.15, gate G4; stubs until the G4 backend)
+Web search has no public function: it's the agent's `web_search` tool (`chat.send`), and its result is a `search` card in the asker's own thread; likewise the `weather` and `travel_time` tools. `events.create` / `.update` take optional `placeId` (update: `null` clears it).
+
+| Function | Type | Args | Returns | Day 1 |
+|---|---|---|---|---|
+| `places.list` | q | — (any member; household data) | `Place[]` (home, school, work, then custom) | stub |
+| `places.upsert` | m | `{ placeId?, kind, label, address }` (adults) | `id(places)` (a new or changed address queues geocoding) | stub |
+| `places.remove` | m | `{ placeId }` (adults) | `null` (events keep their free-text `place`) | stub |
+| `weather.get` | q | `{ placeId? }` (any member; home when omitted) | `WeatherView \| null` = `{ placeId, placeLabel, fetchedAt, stale, failure?, now, hours, today, alerts }` | stub |
+| `weather.refresh` | m | `{ placeId? }` (any member) | `{ queued }` (only when the cache is past its TTL) | stub |
+| `travel.forEvent` | q | `{ eventId }` (members who can see the event) | `TravelView \| null` = `{ eventId, from, to, minutes, typicalMinutes, leaveBy, checkedAt, failure? }` | stub |
+| `search.log` | q | `{ memberId?, paginationOpts }` (own; a parent: a kid's blocked/rephrased rows if `tellsParents.blockedSearches`) | page of `SearchLog` | stub |
+
 ---
 
 ## 5. Push notifications
@@ -408,19 +436,19 @@ The rule (events in the next 2 hours first, otherwise the top statement) is appl
 - `proactive` (G3: daily check-in time/window, reminder grace period, cross-member trigger window, production sweep interval, dedupe-key builders)
 - `limits` (daily caps, quiet hours defaults, agent max steps, spend per family per day)
 - `learningPolicy` (trigger × kind → save now / save unconfirmed / queue / ask / drop, default scope, pattern N and window, fade half-life)
-- `kidSafety` (age bands, blocked categories, domains)
-- `integrations` (enabled, poll intervals)
+- `kidSafety` (age bands, blocked categories, domains; v0.15: `KID_SAFETY.search` — query check, keyword backstop, answer check, max sources, homework hints)
+- `integrations` (v0.15, `shared/config/integrations.ts`: `PLACES`, `GEOCODING`, `WEB_SEARCH`, `WEATHER` (TTLs, poll interval, push/quiet severities, rain threshold), `TRAVEL` (profile, leave-by buffer, lookahead, recheck), `INTEGRATION_COPY`)
 - `demo` (simulated clock allowed)
 - `store` (v0.13: `STORE_CATALOG`, `STORE_TABS`, `STORE_RULES`, `MEGA_BUCKS`), `calendar` (`LAYER_OF_SCOPE`, `CLASH`, `GIFTS`), `kids` (`HOMEWORK`, `CHORES`, `ROUTINES`); `models.vision` / `models.wording`; ids `ANTENNA_IDS`, `EYE_STYLE_IDS`, `EYE_COLOR_IDS`, `STORE_ITEM_IDS`, `ROUTINE_KINDS`
 
 ## 8. Ports (internal to the backend; listed so the master plan is complete)
-`ChatModel.chat({ messages, tools?, schema? })` · `ImageGenerator.generate({ prompt, referenceImage? })` · `Segmenter.segment({ image, prompt })` · `Transcriber.transcribe({ audio })` · `WebSearch.search({ query, safe })` · `MemoryIndex.search({ scopeKeys, query, limit })` · `Weather.forecast({ lat, lng })` / `.alerts(...)` · `Directions.travelTime({ from, to, departAt })` · `CalendarFeed.fetch({ url })` · `PushSender.send(...)` · `BlobStore.put/get` · `Clock.now(familyId)`
+`ChatModel.chat({ messages, tools?, schema? })` · `ImageGenerator.generate({ prompt, referenceImage? })` · `Segmenter.segment({ image, prompt })` · `Transcriber.transcribe({ audio })` · `WebSearch.search({ query, instructions?, approximateLocation?, contextSize })` (v0.15; no `safe` flag — Meta's tool has none, so the kid filter runs around it) · `MemoryIndex.search({ scopeKeys, query, limit })` · `Weather.forecast({ lat, lng, timezone, days })` / `.alerts({ lat, lng })` · `Directions.travelTime({ from, to, departAt })` · `Geocoder.geocode({ address, country?, proximity? })` (v0.15) — the four G4 ports return `{ ok: true, … } | { ok: false, failure: IntegrationFailure }` · `CalendarFeed.fetch({ url })` · `PushSender.send(...)` · `BlobStore.put/get` · `Clock.now(familyId)`
 
 ## 9. Error codes
 `UNAUTHENTICATED` · `NOT_A_MEMBER` · `FORBIDDEN` (role or parent check) · `NOT_FOUND` · `INVALID_INVITE` · `WRONG_PARENT_CODE` · `RATE_LIMITED` · `BUDGET_EXCEEDED` · `KID_BLOCKED` (kid filter) · `VALIDATION`
 
 ## 10. Seed: the sample family (`seed.sampleFamily`, internal)
-Members use generic labels: Admin (MEGA Teal), Partner (MEGA Coral), Twin 1 (MEGA Zap), Twin 2 (MEGA Sunny), Toddler (care MEGA, used by parents). The seed also adds a week of events (from the mockups' `family-data.js`), a Groceries list, a few memories in each scope, one open request (milk) and a kid's held reminder, so every screen has data on day 1.
+Members use generic labels: Admin (MEGA Teal), Partner (MEGA Coral), Twin 1 (MEGA Zap), Twin 2 (MEGA Sunny), Toddler (care MEGA, used by parents). The seed also adds a week of events (from the mockups' `family-data.js`), a Groceries list, a few memories in each scope, one open request (milk) and a kid's held reminder, so every screen has data on day 1. v0.15: four `places` at public Brooklyn landmarks (Home: Grand Army Plaza; School: Brooklyn Museum; Work: Brooklyn Borough Hall; Soccer field: Parade Ground), with fixed coordinates (`geocode.status: "seed"`) — never a real home.
 
 ---
 

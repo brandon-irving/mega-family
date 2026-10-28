@@ -33,6 +33,9 @@ export const choreClaimDoc = withSystemFields('choreClaims', T.choreClaims);
 export const routineDoc = withSystemFields('routines', T.routines);
 export const routineRunDoc = withSystemFields('routineRuns', T.routineRuns);
 export const bucksLedgerDoc = withSystemFields('bucksLedger', T.bucksLedger);
+// G4 (CONTRACT v0.15)
+export const placeDoc = withSystemFields('places', T.places);
+export const searchLogDoc = withSystemFields('searchLog', T.searchLog);
 
 // ---------- view models ----------
 
@@ -87,6 +90,8 @@ const eventFields = {
   who: v.array(v.id('members')),
   place: v.optional(v.string()),
   scope,
+  /** v0.15 (additive): a saved family place (`places`), for travel time and weather. */
+  placeId: v.optional(v.id('places')),
 };
 
 const megaPatchFields = {
@@ -174,6 +179,38 @@ export const invitePreview = v.union(
   }),
 );
 export type InvitePreview = Infer<typeof invitePreview>;
+
+// ---------- G4 (CONTRACT v0.15) view models ----------
+
+/** The weather for one place, built from `weatherCache` (never the vendor JSON). `stale` when the cache is past
+ * its TTL (a refresh is queued); `failure` when there's no usable data at all. */
+export const weatherView = v.object({
+  placeId: v.id('places'),
+  placeLabel: v.string(),
+  fetchedAt: v.union(v.number(), v.null()),
+  stale: v.boolean(),
+  failure: v.optional(T.integrationFailure),
+  now: v.union(v.object({ tempF: v.number(), code: v.number(), summary: v.string() }), v.null()),
+  hours: v.array(v.object({ at: v.number(), tempF: v.number(), precipPct: v.number(), code: v.number() })),
+  today: v.union(v.object({ highF: v.number(), lowF: v.number(), precipPct: v.number(), code: v.number() }), v.null()),
+  alerts: v.array(v.object({ id: v.string(), event: v.string(), headline: v.string(), severity: T.alertSeverity, ends: v.optional(v.number()) })),
+});
+export type WeatherView = Infer<typeof weatherView>;
+
+/** Leave-by for one event, from its latest `travelChecks` row. `failure` instead of numbers when it can't be
+ * checked: `not_configured` (no MAPBOX_TOKEN), `no_result` (no route), or `noPlace` when the event or the
+ * origin has no geocoded place. */
+export const travelView = v.object({
+  eventId: v.id('events'),
+  from: v.union(v.object({ placeId: v.id('places'), label: v.string() }), v.null()),
+  to: v.union(v.object({ placeId: v.id('places'), label: v.string() }), v.null()),
+  minutes: v.union(v.number(), v.null()),
+  typicalMinutes: v.union(v.number(), v.null()),
+  leaveBy: v.union(v.number(), v.null()),
+  checkedAt: v.union(v.number(), v.null()),
+  failure: v.optional(v.union(T.integrationFailure, v.literal('noPlace'))),
+});
+export type TravelView = Infer<typeof travelView>;
 
 // ---------- the API ----------
 
@@ -298,7 +335,18 @@ export const API = {
     update: fn({
       kind: 'mutation',
       day1: 'real',
-      args: { eventId: v.id('events'), patch: v.object({ title: v.optional(v.string()), start: v.optional(v.number()), end: v.optional(v.number()), who: v.optional(v.array(v.id('members'))), place: v.optional(v.string()) }) },
+      // v0.15 (additive): `placeId` — set or change the event's saved place (null clears it).
+      args: {
+        eventId: v.id('events'),
+        patch: v.object({
+          title: v.optional(v.string()),
+          start: v.optional(v.number()),
+          end: v.optional(v.number()),
+          who: v.optional(v.array(v.id('members'))),
+          place: v.optional(v.string()),
+          placeId: v.optional(v.union(v.id('places'), v.null())),
+        }),
+      },
       returns: v.null(),
     }),
     cancel: fn({ kind: 'mutation', day1: 'real', args: { eventId: v.id('events') }, returns: v.null() }),
@@ -494,6 +542,50 @@ export const API = {
     // Kids only. Refused with VALIDATION if already owned or the balance is short. Writes the purchase and its
     // ledger spend in one mutation. Wearing a look part afterwards is `megas.update`; placing furniture is `rooms.update`.
     buy: fn({ kind: 'mutation', day1: 'real', args: { itemId: T.storeItemId }, returns: v.object({ purchaseId: v.id('purchases'), balance: v.number() }) }),
+  },
+
+  // ---------- G4 (CONTRACT v0.15): places, weather, travel time, web search. Stubs until the G4 backend. ----------
+  // Search itself has no public function: it's the agent's `web_search` tool (chat.send), whose result is a
+  // `search` card in the asker's own thread. The same goes for the `weather` and `travel_time` tools.
+
+  places: {
+    // Any member of the family (household data). Sorted home, school, work, then custom by label.
+    list: fn({ kind: 'query', day1: 'stub', args: {}, returns: v.array(placeDoc) }),
+    // Adults only (PLACES.editors). Creates (no placeId) or edits a place; a changed address resets
+    // `geocode` to pending and queues the Geocoder (Mapbox) in the background. VALIDATION past PLACES limits
+    // or for a second `home`.
+    upsert: fn({
+      kind: 'mutation',
+      day1: 'stub',
+      args: { placeId: v.optional(v.id('places')), kind: T.placeKind, label: v.string(), address: v.string() },
+      returns: v.id('places'),
+    }),
+    // Adults only. Events keep their free-text `place`; their `placeId` is cleared.
+    remove: fn({ kind: 'mutation', day1: 'stub', args: { placeId: v.id('places') }, returns: v.null() }),
+  },
+  weather: {
+    // Any member. The family's home when placeId is omitted. null when the family has no geocoded place.
+    // Reads the cache only (queries can't call out); a stale or missing cache is refreshed by `weather.refresh`
+    // and the cron (WEATHER.alertsPollMinutes).
+    get: fn({ kind: 'query', day1: 'stub', args: { placeId: v.optional(v.id('places')) }, returns: v.union(weatherView, v.null()) }),
+    // Any member. Queues a refresh for that place if its cache is past its TTL; otherwise does nothing.
+    refresh: fn({ kind: 'mutation', day1: 'stub', args: { placeId: v.optional(v.id('places')) }, returns: v.object({ queued: v.boolean() }) }),
+  },
+  travel: {
+    // Members who can see the event (private-layer events: the owner only; NOT_FOUND otherwise, same as
+    // events). null until a check has run (within TRAVEL.lookaheadHours of the start).
+    forEvent: fn({ kind: 'query', day1: 'stub', args: { eventId: v.id('events') }, returns: v.union(travelView, v.null()) }),
+  },
+  search: {
+    // The caller's own searches (memberId omitted). A parent may pass their kid's memberId and gets only that
+    // kid's `blocked`/`rephrased` rows, and only when the kid's kidControls.tellsParents.blockedSearches is on
+    // (FORBIDDEN otherwise). Anyone else → FORBIDDEN. Newest first.
+    log: fn({
+      kind: 'query',
+      day1: 'stub',
+      args: { memberId: v.optional(v.id('members')), paginationOpts: paginationOptsValidator },
+      returns: paginationResultValidator(searchLogDoc),
+    }),
   },
 } as const;
 

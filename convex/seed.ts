@@ -75,6 +75,11 @@ const FAMILY_OWNED_TABLES: readonly [TableNames, string][] = [
   ['routineRuns', 'by_family_member_kind_date'],
   ['bucksLedger', 'by_family_member_at'],
   ['purchases', 'by_family_member'],
+  // G4 (CONTRACT v0.15)
+  ['places', 'by_family_kind'],
+  ['weatherCache', 'by_family_place_kind'],
+  ['travelChecks', 'by_family_event_checked'],
+  ['searchLog', 'by_family_member_at'],
 ];
 
 async function deleteFamilyCompletely(ctx: MutationCtx, familyId: Id<'families'>): Promise<void> {
@@ -179,6 +184,21 @@ async function createSampleFamily(ctx: MutationCtx, weekOf: string | undefined, 
 
     // a short conversation in the admin's thread
     await message(ctx, familyId, thread.admin, demoNow - 30 * 60_000, { kind: 'mega', id: mega.admin }, { type: 'text', text: 'Good afternoon! Soccer pickup is at 4:50.' });
+
+    // places (G4, v0.15): household data, public landmarks only; linking events to them is the G4 backend's
+    for (const p of S.places) {
+      await ctx.db.insert('places', {
+        familyId,
+        kind: p.kind,
+        label: p.label,
+        address: p.address,
+        lat: p.lat,
+        lng: p.lng,
+        geocode: { status: 'seed' },
+        createdBy: m.admin,
+        updatedAt: demoNow,
+      });
+    }
 
     // events
     const everyone = S.members.map((x) => x.key);
