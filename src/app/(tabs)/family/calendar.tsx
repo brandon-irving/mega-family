@@ -15,6 +15,7 @@ import { useTokens } from '@/ui/theme';
 import { CalendarContent, eventLayer, type CalendarClash, type EventDoc } from '@/features/family/CalendarContent';
 import { EventPlaceSheet } from '@/features/integrations/EventPlaceSheet';
 import { usePlaces, useSetEventPlace } from '@/data/useIntegrations';
+import { useUpcomingHolidays } from '@/data/useShopping';
 import { useRunAction } from '@/features/shell/useRunAction';
 import type { Id } from '@shared/domain/validators';
 import { CALENDAR_COPY } from '@shared/config/copy';
@@ -46,6 +47,8 @@ export default function CalendarRoute() {
   const tokens = useTokens();
   // G4 (board EventPlace): an adult taps an event to pick its saved place.
   const places = usePlaces();
+  // G4b (board HolidayCalendar): public holidays marked on their day; a failed or stub read marks none.
+  const holidays = useUpcomingHolidays();
   const setEventPlace = useSetEventPlace();
   const placeAction = useRunAction();
   const [editing, setEditing] = useState<EventDoc | null>(null);
@@ -71,6 +74,7 @@ export default function CalendarRoute() {
         onSeeClash={(c) => router.push(toPath(c.messageId ? LINKS.chatMessage(c.messageId) : LINKS.chat()) as never)}
         onOpenEvent={adult ? (e) => setEditing(e) : undefined}
         placeLabels={placeLabels}
+        holidays={holidays.status === 'ok' ? holidays.data : undefined}
       />
       <EventPlaceSheet
         open={editing !== null}

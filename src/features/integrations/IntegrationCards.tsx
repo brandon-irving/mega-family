@@ -4,10 +4,10 @@
 // the viewer's timezone and role. Kid sizing comes from tokens (type scale, buttonSize), never a per-card number.
 // Fail closed (G4 invariant 7): a travel card with `failure` never shows minutes; a weather card without data
 // shows only its summary line.
-import { useState, type ReactNode } from 'react';
+import { useState } from 'react';
 import { Pressable, View } from 'react-native';
 import type { Card as CardKind } from '@shared/domain/messages';
-import { G4_COPY, fillCopy } from '@shared/config/copy';
+import { G4_COPY, G4B_COPY, G4B_UI_COPY, fillCopy } from '@shared/config/copy';
 import { INTEGRATION_COPY } from '@shared/config/integrations';
 import { WEATHER_CARD, weatherIconFor } from '@shared/config/weatherIcons';
 import { formatLocalHour, formatLocalTime } from '@shared/time';
@@ -18,34 +18,14 @@ import { domainOf, openLink } from '@/services/openLink';
 import { Text } from '@/ui/Text';
 import { type CardAction, CardActions, LockNote } from '@/ui/ThreadCard';
 import { useTokens, type Tokens } from '@/ui/theme';
-import { Glyph, WeatherIcon, type GlyphName } from './glyphs';
+import { Glyph, WeatherIcon } from './glyphs';
+import { G4Card, IconCard } from './G4Card';
+import { aqiLevel, type LevelInfo, toneColors, uvLevel } from './airLevels';
 
 type SearchCard = Extract<CardKind, { kind: 'search' }>;
 type WeatherCard = Extract<CardKind, { kind: 'weather' }>;
 type TravelCard = Extract<CardKind, { kind: 'travel' }>;
 type Severity = NonNullable<WeatherCard['alert']>['severity'];
-
-/** The boards' card frame: surface, line, xl radius, a colored "from" line with its icon, then the content. */
-function G4Card({ label, from, fromIcon, fromColor, children, testID }: { label: string; from?: string; fromIcon?: GlyphName; fromColor?: string; children: ReactNode; testID?: string }) {
-  const tokens = useTokens();
-  return (
-    <View
-      testID={testID}
-      accessibilityLabel={label}
-      style={{ alignSelf: 'stretch', backgroundColor: tokens.surface, borderColor: tokens.line, borderWidth: 1, borderRadius: tokens.radii.xl, padding: tokens.spacing.lg, gap: tokens.spacing.md }}
-    >
-      {from ? (
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: tokens.spacing.sm }}>
-          {fromIcon ? <Glyph name={fromIcon} color={fromColor ?? tokens.accent} size={14} stroke={2.4} /> : null}
-          <Text variant="caption" weight="700" style={{ color: fromColor ?? tokens.accent, flexShrink: 1 }}>
-            {from}
-          </Text>
-        </View>
-      ) : null}
-      {children}
-    </View>
-  );
-}
 
 // ---------- Search ----------
 
@@ -125,8 +105,9 @@ export function severityColors(tokens: Tokens, severity: Severity): { fg: string
   return { fg: tokens.muted, bg: tokens.bg };
 }
 
-export function WeatherCardView({ card, tz }: { card: WeatherCard; tz: string }) {
+export function WeatherCardView({ card, tz, megaName = 'MEGA' }: { card: WeatherCard; tz: string; megaName?: string }) {
   const tokens = useTokens();
+  if (card.tip === 'uv' || card.tip === 'air') return <AirTipCardView card={card} tz={tz} megaName={megaName} />;
   const place = card.placeLabel ?? '';
   const hours = (card.hours ?? []).slice(0, WEATHER_CARD.hours);
   // "Now" is the live current temperature (v0.15a `nowF`, Open-Meteo's current block); older cards fall back to
@@ -196,7 +177,94 @@ export function WeatherCardView({ card, tz }: { card: WeatherCard; tz: string })
           </Text>
         </View>
       ) : null}
+      <AirTiles air={card.air} />
     </G4Card>
+  );
+}
+
+// ---------- Air quality and UV (G4b, boards WeatherAir / WeatherAirTips) ----------
+
+/** The two tiles under the forecast (board WeatherAir): today's peak UV and the US AQI now, each a pixel
+ * number, its level word in the level's color, and a small line under it. Missing numbers draw no tile (never
+ * a guessed reading); no air at all (the air call failed or hasn't run) draws nothing. Board gap: the hourly
+ * tiles keep the rain chance, because the card's hours carry no UV (CONTRACT v0.16 `weather.hours`). */
+export function AirTiles({ air }: { air: WeatherCard['air'] }) {
+  const tokens = useTokens();
+  const tiles: { key: string; label: string; info: LevelInfo; sub: string; a11y: string }[] = [];
+  if (air?.uvIndexMax !== undefined) {
+    const info = uvLevel(air.uvIndexMax);
+    tiles.push({ key: 'uv', label: G4B_UI_COPY.airUvTile, info, sub: fillCopy(G4B_COPY.airUv, { uv: info.value }), a11y: fillCopy(G4B_UI_COPY.airUvLabel, { uv: info.value, level: info.word }) });
+  }
+  if (air?.usAqi !== undefined) {
+    const info = aqiLevel(air.usAqi);
+    tiles.push({ key: 'aqi', label: G4B_UI_COPY.airAqiTile, info, sub: G4B_UI_COPY.airAqiUnit, a11y: fillCopy(G4B_UI_COPY.airAqiLabel, { aqi: info.value, level: info.word }) });
+  }
+  if (tiles.length === 0) return null;
+  return (
+    <View style={{ flexDirection: 'row', gap: tokens.spacing.sm }}>
+      {tiles.map((t) => (
+        <LevelTile key={t.key} label={t.label} info={t.info} sub={t.sub} a11y={t.a11y} />
+      ))}
+    </View>
+  );
+}
+
+function LevelTile({ label, info, sub, a11y }: { label: string; info: LevelInfo; sub: string; a11y: string }) {
+  const tokens = useTokens();
+  const c = toneColors(tokens, info.tone);
+  return (
+    <View accessible accessibilityLabel={a11y} testID="air-tile" style={{ flex: 1, minWidth: 0, borderRadius: tokens.radii.lg, backgroundColor: c.bg, borderWidth: 1, borderColor: c.fg, paddingVertical: 10, paddingHorizontal: tokens.spacing.md, gap: 2 }}>
+      <Text variant="caption" weight="700" color="muted" numberOfLines={1} style={{ letterSpacing: 0.5, textTransform: 'uppercase' }}>
+        {label}
+      </Text>
+      <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: tokens.spacing.sm }}>
+        <Text variant="headline" style={{ fontVariant: ['tabular-nums'] }}>
+          {info.value}
+        </Text>
+        <Text variant="label" numberOfLines={1} style={{ color: c.fg, flexShrink: 1 }}>
+          {info.word}
+        </Text>
+      </View>
+      <Text variant="caption" color="muted" numberOfLines={1}>
+        {sub}
+      </Text>
+    </View>
+  );
+}
+
+/** A UV or air-quality event tip (board WeatherAirTips): the tip line as the title, where and when as the body,
+ * and the number + level in a chip matching the weather card's tile. Board gap: "Add to the bag list" / "Thanks"
+ * have no function in CONTRACT v0.16, so the tip has no buttons. */
+export function AirTipCardView({ card, tz, megaName }: { card: WeatherCard; tz: string; megaName: string }) {
+  const tokens = useTokens();
+  const uv = card.tip === 'uv';
+  const value = uv ? (card.air?.uvAt ?? card.air?.uvIndexMax) : card.air?.usAqi;
+  const info = value === undefined ? null : uv ? uvLevel(value) : aqiLevel(value);
+  const c = info ? toneColors(tokens, info.tone) : null;
+  const when = card.at !== undefined ? formatLocalTime(card.at, tz) : '';
+  const body = [card.placeLabel, when].filter(Boolean).join(' · ');
+  return (
+    <IconCard from={fillCopy(uv ? G4B_UI_COPY.tipUvFrom : G4B_UI_COPY.tipAirFrom, { mega: megaName })} icon={uv ? 'sun' : 'air'} title={card.summary} body={body || undefined} testID="air-tip-card">
+      {info && c ? (
+        <View
+          accessible
+          accessibilityLabel={uv ? fillCopy(G4B_UI_COPY.airUvLabel, { uv: info.value, level: info.word }) : fillCopy(G4B_UI_COPY.airAqiLabel, { aqi: info.value, level: info.word })}
+          style={{ flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: tokens.radii.lg, backgroundColor: c.bg, borderWidth: 1, borderColor: c.fg, paddingVertical: 10, paddingHorizontal: tokens.spacing.md }}
+        >
+          <Text variant="headline" style={{ fontVariant: ['tabular-nums'] }}>
+            {info.value}
+          </Text>
+          <View style={{ flex: 1, minWidth: 0, gap: 1 }}>
+            <Text variant="label" numberOfLines={1} style={{ color: c.fg }}>
+              {info.word}
+            </Text>
+            <Text variant="caption" color="muted" numberOfLines={1}>
+              {uv ? G4B_UI_COPY.tipUvWhen : G4B_UI_COPY.tipAirWhen}
+            </Text>
+          </View>
+        </View>
+      ) : null}
+    </IconCard>
   );
 }
 
@@ -304,9 +372,9 @@ export function SearchResultCard({ card, megaName }: { card: SearchCard; megaNam
   return <SearchCardView card={card} megaName={megaName} isKid={viewer?.member.role === 'kid'} onOpenSource={(url) => void openLink(url)} />;
 }
 
-export function WeatherResultCard({ card }: { card: WeatherCard }) {
+export function WeatherResultCard({ card, megaName }: { card: WeatherCard; megaName?: string }) {
   const viewer = useViewer();
-  return <WeatherCardView card={card} tz={viewer?.family.timezone ?? 'UTC'} />;
+  return <WeatherCardView card={card} tz={viewer?.family.timezone ?? 'UTC'} megaName={megaName} />;
 }
 
 export function TravelResultCard({ card, megaName }: { card: TravelCard; megaName: string }) {

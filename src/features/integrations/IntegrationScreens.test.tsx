@@ -70,7 +70,7 @@ describe('PlaceSheet (board PlaceSheet)', () => {
     expect(screen.queryByLabelText('Home')).toBeNull(); // the family already has a Home
     await fireEvent.changeText(screen.getByLabelText('Address'), '1 Library Way');
     await fireEvent.press(screen.getByText('Save'));
-    expect(onSave).toHaveBeenCalledWith({ kind: 'school', label: 'School', address: '1 Library Way' });
+    expect(onSave).toHaveBeenCalledWith({ kind: 'school', label: 'School', address: '1 Library Way', outdoor: false });
     await fireEvent.press(screen.getByText('Remove'));
     expect(onRemove).toHaveBeenCalled();
   });

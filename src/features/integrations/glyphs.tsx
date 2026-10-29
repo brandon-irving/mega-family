@@ -22,6 +22,14 @@ export const GLYPHS = {
   school: 'M3 9l9-5 9 5-9 5z M7 11v5c3 2 7 2 10 0v-5',
   work: 'M4 8h16v12H4z M9 8V5h6v3',
   pin: 'M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z M12 12.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5z',
+  // G4b (Screen 15 boards).
+  gift: 'M4 11h16v9H4z M3 7h18v4H3z M12 7v13 M12 7c-2-4-6-3-5 0M12 7c2-4 6-3 5 0',
+  tag: 'M3 12V4h8l10 10-8 8z M7.5 7.5h.01',
+  cart: 'M3 4h2l2.5 11h11L21 7H6.5 M9 20h.01M18 20h.01',
+  sun: 'M12 4v2M12 18v2M4 12h2M18 12h2M6.3 6.3l1.4 1.4M16.3 16.3l1.4 1.4M6.3 17.7l1.4-1.4M16.3 7.7l1.4-1.4 M12 8.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7z',
+  air: 'M3 9h11a3 3 0 1 0-3-3 M3 14h15a3 3 0 1 1-3 3 M3 19h6',
+  flag: 'M5 21V4 M5 4h11l-2 4 2 4H5',
+  external: 'M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5',
 } as const;
 export type GlyphName = keyof typeof GLYPHS;
 export type PlaceKind = (typeof PLACE_KINDS)[number];
