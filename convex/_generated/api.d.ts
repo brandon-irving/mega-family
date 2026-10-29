@@ -24,6 +24,7 @@ import type * as adapters_gmail from "../adapters/gmail.js";
 import type * as adapters_googleCalendar from "../adapters/googleCalendar.js";
 import type * as adapters_googleHttp from "../adapters/googleHttp.js";
 import type * as adapters_googleOAuth from "../adapters/googleOAuth.js";
+import type * as adapters_hostGuard from "../adapters/hostGuard.js";
 import type * as adapters_httpFetch from "../adapters/httpFetch.js";
 import type * as adapters_icsHttp from "../adapters/icsHttp.js";
 import type * as adapters_logEmailSender from "../adapters/logEmailSender.js";
@@ -192,6 +193,7 @@ declare const fullApi: ApiFromModules<{
   "adapters/googleCalendar": typeof adapters_googleCalendar;
   "adapters/googleHttp": typeof adapters_googleHttp;
   "adapters/googleOAuth": typeof adapters_googleOAuth;
+  "adapters/hostGuard": typeof adapters_hostGuard;
   "adapters/httpFetch": typeof adapters_httpFetch;
   "adapters/icsHttp": typeof adapters_icsHttp;
   "adapters/logEmailSender": typeof adapters_logEmailSender;
