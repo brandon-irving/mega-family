@@ -1015,6 +1015,7 @@ export const G8_UI_COPY = {
   orScan: 'or scan instead',
   // Paste (boards PasteNothing, PasteNotInvite)
   pasteLabel: 'Paste the invite link',
+  pasteLinkLabel: 'Paste the schedule link',
   // Homework camera (boards SnapStarting, SnapDenied, SnapFailed)
   snapOpenSettings: 'Open Settings',
   snapTryAgain: 'Try the camera again',

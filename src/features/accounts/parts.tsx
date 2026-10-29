@@ -4,6 +4,8 @@
 // button. Colors from theme tokens only.
 import type { ReactNode } from 'react';
 import { Pressable, TextInput, View } from 'react-native';
+import { G8_UI_COPY } from '@shared/config/copy';
+import { PASTE_BUTTON_WIDTH, PasteButton } from '@/ui/PasteButton';
 import { Text } from '@/ui/Text';
 import { useTokens, type Tokens } from '@/ui/theme';
 import { Glyph, type GlyphName } from '@/features/integrations/glyphs';
@@ -92,22 +94,38 @@ export function LinkField({ label, value, placeholder, error, onChange, onSubmit
       <Text variant="caption" weight="700" color="muted">
         {label.toUpperCase()}
       </Text>
-      <TextInput
-        testID={testID}
-        value={value}
-        onChangeText={onChange}
-        onSubmitEditing={onSubmit}
-        placeholder={placeholder}
-        placeholderTextColor={tokens.muted}
-        autoCapitalize="none"
-        autoCorrect={false}
-        keyboardType="url"
-        inputMode="url"
-        returnKeyType="go"
-        accessibilityLabel={label}
-        {...invalid}
-        style={{ height: 48, color: tokens.text, paddingHorizontal: tokens.spacing.md, borderRadius: tokens.radii.md, borderWidth: 1, borderColor: error ? tokens.danger : tokens.line, backgroundColor: tokens.bg, minWidth: 0 }}
-      />
+      <View style={{ justifyContent: 'center' }}>
+        <TextInput
+          testID={testID}
+          value={value}
+          onChangeText={onChange}
+          onSubmitEditing={onSubmit}
+          placeholder={placeholder}
+          placeholderTextColor={tokens.muted}
+          autoCapitalize="none"
+          autoCorrect={false}
+          keyboardType="url"
+          inputMode="url"
+          returnKeyType="go"
+          accessibilityLabel={label}
+          {...invalid}
+          style={{
+            height: 48,
+            color: tokens.text,
+            paddingLeft: tokens.spacing.md,
+            // G8: room for the Paste button inside the field's right edge (same control as the invite field).
+            paddingRight: PASTE_BUTTON_WIDTH + tokens.spacing.md,
+            borderRadius: tokens.radii.md,
+            borderWidth: 1,
+            borderColor: error ? tokens.danger : tokens.line,
+            backgroundColor: tokens.bg,
+            minWidth: 0,
+          }}
+        />
+        <View style={{ position: 'absolute', right: tokens.spacing.sm, top: 0, bottom: 0, justifyContent: 'center' }}>
+          <PasteButton label={G8_UI_COPY.pasteLinkLabel} onPasted={(text) => text.trim() && onChange(text.trim())} />
+        </View>
+      </View>
       {error ? (
         <Text accessibilityRole="alert" variant="caption" style={{ color: tokens.dangerText }}>
           {error}

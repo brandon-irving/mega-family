@@ -8,12 +8,12 @@ import { Platform, Pressable, StyleSheet, TextInput, View } from 'react-native';
 import { router } from 'expo-router';
 import { Glyph } from '@/features/integrations/glyphs';
 import { extractToken, pastedInvite } from '@/features/signin/inviteToken';
-import { PasteButton } from '@/features/signin/PasteButton';
 import { BackButton, Heading, Pill, SignInFrame } from '@/features/signin/parts';
 import { SIGNIN_SCENES } from '@/features/signin/scenes';
 import { Ledge } from '@/features/walkers';
 import { signOut } from '@/services/auth';
 import { MegaSprite } from '@/ui/MegaSprite';
+import { PASTE_BUTTON_WIDTH, PasteButton } from '@/ui/PasteButton';
 import { Text } from '@/ui/Text';
 import { useTokens } from '@/ui/theme';
 import { G8_COPY, G8_UI_COPY, SIGNIN_COPY } from '@shared/config/copy';
@@ -77,14 +77,14 @@ export default function InviteRoute() {
                 borderRadius: tokens.radii.lg,
                 paddingLeft: tokens.spacing.md,
                 // Room for the Paste button inside the field's right edge (board LoginInvite).
-                paddingRight: 96 + tokens.spacing.md,
+                paddingRight: PASTE_BUTTON_WIDTH + tokens.spacing.md,
                 height: CTA_SIZES.normal.height,
                 fontSize: tokens.type.body.fontSize,
               }}
               accessibilityLabel={C.label}
             />
             <View style={[styles.pasteSlot, { right: tokens.spacing.sm }]}>
-              <PasteButton onPasted={onPasted} />
+              <PasteButton label={G8_UI_COPY.pasteLabel} onPasted={onPasted} />
             </View>
           </View>
         )}
