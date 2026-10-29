@@ -322,3 +322,57 @@ describe('proactive engine: 👍/👎 feeds profiles.proactive', () => {
     expect(after.proactive.request.up).toBe(before.proactive.request.up + 1);
   });
 });
+
+describe('proactive engine: G6 #6a — clock.jump must deliver a candidate finalized by an async action chain', () => {
+  test('a bedtime card whose candidate is only finalized once routines.prepBedtime’s model call returns (convex/routines.ts) is still delivered during the SAME jump, not left "scheduled" waiting on a real-world scheduler callback', async () => {
+    const { t, familyId, members } = await seeded();
+    const admin = t.withIdentity({ subject: 'sample:admin' });
+
+    __setChatModelForTests(
+      makeFakeChatModel((req) => {
+        if (req.schema?.name === 'bedtimePrep') {
+          const seen = req.messages.map((x) => x.content).join('\n');
+          const id = /\[([^\]]+)\] Soccer practice/.exec(seen)?.[1] ?? '';
+          return jsonReply({ items: [{ eventId: id, label: 'Cleats', detail: '' }] });
+        }
+        return jsonReply({ kind: 'update', title: '', text: '', score: 0, reason: '' }); // incidental check-in draft, not under test
+      }),
+    );
+
+    // Wednesday 7:50 PM NY: tomorrow (Thursday) is the sample family's seeded soccer practice, so the
+    // bedtime run needs routines.ts's prepBedtime action (a real model call) before its card candidate
+    // exists at all — unlike a plain reminder/check-in candidate, this one is only finalized well after
+    // `clock.jump`'s own `tickFamilyLogic` mutation has already returned (convex/model/gdTick.ts ->
+    // scanRoutineTriggers schedules `prepBedtime` via `ctx.scheduler.runAfter(0, ...)`, an action).
+    await admin.mutation(api.clock.jump, { to: Date.parse('2026-10-28T23:50:00Z') });
+
+    // Advance just enough (real demo sessions get this for free, instantly) for that one `runAfter(0)` async
+    // chain to run to completion — NOT all the way to the resulting push candidate's own `deliverAt` schedule,
+    // which sits days ahead on the real/fake clock the same way it would sit days ahead of a live demo's
+    // actual wall-clock time. `finishAllScheduledFunctions(vi.runAllTimers)` would fast-forward straight past
+    // that gap (it keeps advancing until the queue is empty, however far out), which is exactly why the
+    // existing "bedtime prep comes from tomorrow's household events" test (convex/gdKids.test.ts) never
+    // caught this: it never checked delivery, only the drafted content.
+    await vi.advanceTimersByTimeAsync(50);
+    await t.finishInProgressScheduledFunctions();
+
+    // CONTRACT §4 / convex/clock.ts: "clock.jump drives the same tick ... releasing held notifications,
+    // firing any candidate whose deliverAt the jump leapt past". A candidate stuck at 'scheduled' here means
+    // that promise broke for this candidate: its own `ctx.scheduler.runAt(deliverAt, deliverCandidate)`
+    // callback is scheduled for a REAL future instant (the family clock's offset ahead of actual wall time),
+    // which nothing in this same session forces — the exact gap the Oct 29 web walkthrough hit
+    // (docs/gates/G6-walkthrough.md #6): the push candidate stayed "scheduled" and never reached the thread.
+    const stuck = await t.run((ctx) => ctx.db.query('candidates').withIndex('by_family_status', (q) => q.eq('familyId', familyId).eq('status', 'scheduled')).collect());
+    expect(stuck.filter((c) => c.source?.kind === 'routine')).toHaveLength(0);
+
+    const delivered = await t.run((ctx) => ctx.db.query('candidates').withIndex('by_family_status', (q) => q.eq('familyId', familyId).eq('status', 'delivered')).collect());
+    expect(delivered.some((c) => c.source?.kind === 'routine')).toBe(true);
+
+    // The card actually landed in the kid's own thread (not just a database row) — this is the "appeared as
+    // a chat card in the session" the walkthrough found missing.
+    const twin1Thread = await t.run((ctx) => ctx.db.query('threads').withIndex('by_family_owner', (q) => q.eq('familyId', familyId).eq('ownerId', members.twin1)).unique());
+    const cards = await t.run((ctx) => ctx.db.query('messages').withIndex('by_family_thread_at', (q) => q.eq('familyId', familyId).eq('threadId', twin1Thread!._id)).collect());
+    const bedtimeCard = cards.find((msg) => msg.body.type === 'card' && msg.body.card.kind === 'routine');
+    expect(bedtimeCard).toBeDefined();
+  });
+});

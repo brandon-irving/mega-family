@@ -870,6 +870,22 @@ export async function finalizeCandidateLogic(
     deliverAt,
     scheduledId,
   });
+
+  // G6 #6 (web walkthrough, Oct 29): `ctx.scheduler.runAt(deliverAt, ...)` fires against the REAL clock —
+  // for a candidate finalized straight out of `tickFamilyLogic` (a GD card source, scanned synchronously by
+  // `gdTick`) that's harmless, because the sweep's own trailing `fireDueScheduledCandidates` call (same
+  // mutation) catches it immediately. But a candidate that only reaches here after an async action chain —
+  // `routines.ts`'s `prepBedtime` → `finishBedtime` is the one that bit the demo: its model call and the
+  // `finishBedtime` mutation both run well after `clock.jump`'s own tick already returned — never gets that
+  // second chance. `deliverAt` is already in the past relative to the *family's* simulated `now` whenever a
+  // forced/immediate delivery was decided (reminder grace windows, GD card sources), so just deliver it here
+  // instead of only via the real-time callback; cancel the now-redundant schedule so it can't also fire
+  // later and double-deliver. Matches `fireDueScheduledCandidates`'s own check — see convex/clock.ts's
+  // comment ("clock.jump drives the same tick... firing any candidate whose deliverAt the jump leapt past").
+  if (deliverAt <= now) {
+    await ctx.scheduler.cancel(scheduledId);
+    await deliverCandidateLogic(ctx, candidate._id);
+  }
 }
 
 // ---------- triggers: reminders, cross-member "matters to", daily check-in ----------
