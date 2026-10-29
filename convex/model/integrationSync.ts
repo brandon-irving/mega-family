@@ -17,7 +17,7 @@ import type { IntegrationFailure } from '../ports/integrationResult';
 import { accessTokenFor } from './googleAccess';
 import { parseIcs } from './ics';
 import { windowAround } from './integrations';
-import { cleanSenderName, extractItems, isSkippedSender, type ExtractedItem } from './mailExtract';
+import { cleanSenderName, configuredSubjectPrefix, extractItems, isSkippedSender, subjectAfterPrefix, type ExtractedItem } from './mailExtract';
 
 type IntegrationStatus = (typeof INTEGRATION_STATUSES)[number];
 export type SyncOutcome = { status: IntegrationStatus; failure?: IntegrationFailure };
@@ -64,6 +64,7 @@ async function syncGmailLeased(ctx: ActionCtx, integrationId: Id<'integrations'>
   const source = getMailSource();
   const cfg = (integration.config ?? {}) as GmailConfig;
 
+  const prefix = configuredSubjectPrefix();
   let historyId = cfg.historyId;
   let newIds: string[] = [];
   let full = !historyId;
@@ -85,7 +86,7 @@ async function syncGmailLeased(ctx: ActionCtx, integrationId: Id<'integrations'>
       if (profile.failure === 'unauthorized') await ctx.runMutation(internal.integrations.markLapsed, { familyId: integration.familyId, memberId: integration.memberId! });
       return failed(ctx, integrationId, profile.failure, firstLook);
     }
-    const list = await source.listRecent({ accessToken: token.accessToken, newerThanDays: GMAIL.firstSyncDays, max: GMAIL.maxMessagesPerPoll + GMAIL.pendingMax });
+    const list = await source.listRecent({ accessToken: token.accessToken, newerThanDays: GMAIL.firstSyncDays, max: GMAIL.maxMessagesPerPoll + GMAIL.pendingMax, subjectPrefix: prefix ?? undefined });
     if (!list.ok) return failed(ctx, integrationId, list.failure, firstLook);
     historyId = profile.historyId;
     newIds = list.messageIds;
@@ -109,12 +110,13 @@ async function syncGmailLeased(ctx: ActionCtx, integrationId: Id<'integrations'>
       rest = [...batch.slice(i), ...rest].slice(0, GMAIL.pendingMax);
       break;
     }
-    if (isSkippedSender(got.message.fromAddress)) {
-      processed.push(id);
+    const subject = subjectAfterPrefix(got.message.subject, prefix);
+    if (subject === null || isSkippedSender(got.message.fromAddress)) {
+      processed.push(id); // not ours to read: remembered as seen, never sent to the model
       continue;
     }
     try {
-      const r = await extractItems(ctx, integration.familyId, got.message, timezone, now);
+      const r = await extractItems(ctx, integration.familyId, { ...got.message, subject }, timezone, now);
       decidedBy = r.decidedBy;
       if (r.items.length) found.push({ gmailMessageId: id, sourceLabel: cleanSenderName(got.message.fromName) || 'Gmail', items: r.items });
       processed.push(id);

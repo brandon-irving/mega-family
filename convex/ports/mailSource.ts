@@ -11,7 +11,7 @@ import type { IntegrationResult } from './integrationResult';
 
 export interface MailSource {
   profile(request: { accessToken: string }): Promise<IntegrationResult<{ email: string; historyId: string }>>;
-  listRecent(request: { accessToken: string; newerThanDays: number; max: number }): Promise<IntegrationResult<{ messageIds: string[] }>>;
+  listRecent(request: { accessToken: string; newerThanDays: number; max: number; subjectPrefix?: string }): Promise<IntegrationResult<{ messageIds: string[] }>>;
   /** `stale: true` = Google answered 404 for the start id: the caller does a full sync. */
   history(request: { accessToken: string; startHistoryId: string; max: number }): Promise<IntegrationResult<{ messageIds: string[]; historyId: string; stale: false } | { stale: true }>>;
   getMessage(request: { accessToken: string; id: string; maxBodyChars: number }): Promise<IntegrationResult<{ message: MailMessage }>>;

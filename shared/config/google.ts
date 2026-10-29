@@ -33,6 +33,10 @@ export const GOOGLE = {
     iosClientId: 'GOOGLE_IOS_CLIENT_ID',
     clientSecret: 'GOOGLE_CLIENT_SECRET',
     tokenKey: 'INTEGRATION_TOKEN_KEY',
+    /** Optional deployment setting (not a secret): when set, Gmail reads only mail whose subject starts with it
+     * (case-insensitive) and strips it before anything sees the subject. The demo inbox uses MEGA_TEST so it can
+     * hold other projects' test mail; unset for real families. */
+    subjectPrefix: 'MEGA_GMAIL_SUBJECT_PREFIX',
   },
   /** The OAuth `state` row lives this long (one consent screen). */
   stateTtlMinutes: 15,

@@ -46,8 +46,8 @@ export function makeFakeMailSource(inbox: MailMessage[] = FAKE_INBOX, opts: { st
       requests.push('profile');
       return { ok: true, email: FAKE_GOOGLE_EMAIL, historyId: '1000' };
     },
-    async listRecent({ max }) {
-      requests.push('listRecent');
+    async listRecent({ max, subjectPrefix }) {
+      requests.push(`listRecent:${subjectPrefix ?? ''}`);
       return { ok: true, messageIds: inbox.slice(0, max).map((m) => m.id) };
     },
     async history({ startHistoryId }) {

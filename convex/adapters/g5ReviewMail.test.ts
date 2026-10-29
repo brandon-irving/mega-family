@@ -3,7 +3,7 @@
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import { GMAIL } from '../../shared/config/google';
 import type { MailMessage } from '../../shared/domain/integrationShapes';
-import { buildExtractPrompt, cleanSenderName } from '../model/mailExtract';
+import { buildExtractPrompt, cleanSenderName, receivedDateFor, subjectAfterPrefix } from '../model/mailExtract';
 import { bodyText, gmailMailSource } from './gmail';
 
 let urls: string[] = [];
@@ -81,5 +81,35 @@ describe('S3: the sender display name is untrusted too', () => {
     expect(cleanSenderName('  "PTA\u0007 Office" ')).toBe('"PTA Office"');
     expect(cleanSenderName('x'.repeat(200))).toHaveLength(80);
     expect(cleanSenderName('<>')).toBe('');
+  });
+});
+
+describe('the received date never runs ahead of the family\'s today (demo clock)', () => {
+  test('mail received after the demo\'s today is described as received today; earlier mail keeps its date', () => {
+    const today = '2026-10-25';
+    expect(receivedDateFor({ today, internalDate: Date.UTC(2026, 9, 29, 15), tz: 'America/New_York' })).toBe('2026-10-25');
+    expect(receivedDateFor({ today, internalDate: Date.UTC(2026, 9, 23, 15), tz: 'America/New_York' })).toBe('2026-10-23');
+    expect(receivedDateFor({ today, internalDate: undefined, tz: 'America/New_York' })).toBe('2026-10-25');
+  });
+});
+
+describe('subjectAfterPrefix', () => {
+  test('matches the prefix at the start, any case, with an optional separator, and strips it', () => {
+    expect(subjectAfterPrefix('MEGA_TEST Picture day', 'MEGA_TEST')).toBe('Picture day');
+    expect(subjectAfterPrefix('mega_test: Bill', 'MEGA_TEST')).toBe('Bill');
+    expect(subjectAfterPrefix('[MEGA_TEST] Bill', 'MEGA_TEST')).toBe('Bill');
+    expect(subjectAfterPrefix('Re: MEGA_TEST Bill', 'MEGA_TEST')).toBeNull();
+    expect(subjectAfterPrefix('MEGA_TESTING', 'MEGA_TEST')).toBeNull();
+    expect(subjectAfterPrefix('Anything', null)).toBe('Anything');
+  });
+});
+
+describe('Gmail list query', () => {
+  test('a subject prefix narrows the first look on Gmail\'s side; no prefix keeps the plain window', async () => {
+    stubPages({ '': { messages: [{ id: 'a' }] } });
+    await gmailMailSource.listRecent({ accessToken: 't', newerThanDays: 30, max: 10, subjectPrefix: 'MEGA_TEST' });
+    expect(new URL(urls[0]).searchParams.get('q')).toBe('newer_than:30d subject:MEGA_TEST');
+    await gmailMailSource.listRecent({ accessToken: 't', newerThanDays: 30, max: 10 });
+    expect(new URL(urls[1]).searchParams.get('q')).toBe('newer_than:30d');
   });
 });

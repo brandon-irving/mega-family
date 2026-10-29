@@ -117,8 +117,10 @@ export const gmailMailSource: MailSource = {
     return { ok: true, email: j.emailAddress ?? '', historyId: String(j.historyId) };
   },
 
-  async listRecent({ accessToken, newerThanDays, max }) {
-    const r = await googleGet(withQuery(`${GMAIL.baseUrl}/messages`, { q: `newer_than:${newerThanDays}d`, labelIds: GMAIL.labelId, maxResults: Math.min(max, 500) }), accessToken);
+  async listRecent({ accessToken, newerThanDays, max, subjectPrefix }) {
+    // Gmail search is word-based, so this only narrows the list; the sync still checks the subject itself.
+    const q = subjectPrefix ? `newer_than:${newerThanDays}d subject:${subjectPrefix}` : `newer_than:${newerThanDays}d`;
+    const r = await googleGet(withQuery(`${GMAIL.baseUrl}/messages`, { q, labelIds: GMAIL.labelId, maxResults: Math.min(max, 500) }), accessToken);
     if (!r.ok) return { ok: false, failure: r.failure, detail: r.detail };
     const j = r.json as { messages?: { id?: string }[] };
     return { ok: true, messageIds: (j.messages ?? []).map((m) => m.id).filter((id): id is string => !!id) };

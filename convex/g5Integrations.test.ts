@@ -392,3 +392,42 @@ describe('owner only (invariant 2) and tokens never returned (invariant 1)', () 
     expect((await s.as('partner').query(api.mail.items, { itemIds: [item._id] }))[0]).toMatchObject({ status: 'dismissed' });
   });
 });
+
+describe('demo: only mail whose subject starts with the configured prefix is read (MEGA_GMAIL_SUBJECT_PREFIX)', () => {
+  afterEach(() => {
+    delete process.env[GOOGLE.env.subjectPrefix];
+  });
+
+  test('unprefixed mail never reaches the model and makes nothing; the prefix is stripped before the model sees the subject; the list asks Gmail for the prefix', async () => {
+    process.env[GOOGLE.env.subjectPrefix] = 'MEGA_TEST';
+    const inbox: MailMessage[] = [
+      { ...FAKE_INBOX[0], subject: 'MEGA_TEST Picture day is Friday, Nov 6' },
+      { ...FAKE_INBOX[1], subject: 'mega_test: Appointment reminder' },
+      FAKE_INBOX[2], // the water bill, no prefix
+      { ...FAKE_INBOX[3], subject: 'Re: MEGA_TEST notes' }, // the prefix not at the start
+    ];
+    mail = makeFakeMailSource(inbox);
+    __setMailSourceForTests(mail);
+    const s = await seeded();
+    await s.connectGoogle('partner', ['gmail']);
+    await s.settle();
+    const items = await s.t.run((ctx) => ctx.db.query('mailItems').withIndex('by_family_member_found', (q) => q.eq('familyId', s.familyId).eq('memberId', s.m.partner)).collect());
+    expect(items.map((i) => i.title).sort()).toEqual(['Dentist appointment', 'Picture day']);
+    const prompts = modelRequests.map((r) => r.messages.find((m) => m.role === 'user')?.content ?? '');
+    expect(prompts).toHaveLength(2);
+    for (const p of prompts) expect(p.toLowerCase()).not.toContain('mega_test');
+    expect(prompts.some((p) => p.includes('water bill'))).toBe(false);
+    expect(mail.requests).toContain('listRecent:MEGA_TEST');
+    // Skipped mail is remembered as seen, so a full resync never reads it again.
+    const cfg = (await s.integ('partner', 'gmail'))!.config as { seen?: string[] };
+    expect(cfg.seen).toEqual(expect.arrayContaining(inbox.map((m) => m.id)));
+  });
+
+  test('without the setting every inbox message is read (real families)', async () => {
+    const s = await seeded();
+    await s.connectGoogle('partner', ['gmail']);
+    await s.settle();
+    expect(modelRequests).toHaveLength(FAKE_INBOX.length);
+    expect(mail.requests).toContain('listRecent:');
+  });
+});

@@ -4,7 +4,7 @@
 // family-relevant flag). Nothing in the email can make MEGA call a tool, share, message someone or save a
 // memory: the caller turns items into the owner's PRIVATE events/reminders and, at most, *proposes* a share.
 // Skipped senders (security codes, one-time passwords) never reach the model. No body or address is stored.
-import { GMAIL } from '../../shared/config/google';
+import { GMAIL, GOOGLE } from '../../shared/config/google';
 import { LIMITS } from '../../shared/config';
 import { MAIL_ITEM_KINDS } from '../../shared/config/ids';
 import type { MailMessage } from '../../shared/domain/integrationShapes';
@@ -21,6 +21,29 @@ export type ExtractedItem = { kind: MailItemKind; title: string; date: string; t
 export function isSkippedSender(fromAddress: string): boolean {
   const a = fromAddress.toLowerCase();
   return GMAIL.skipSenderPatterns.some((p) => a.includes(p.toLowerCase()));
+}
+
+/** The deployment's subject prefix (GOOGLE.env.subjectPrefix), or null when every inbox message is read. */
+export function configuredSubjectPrefix(): string | null {
+  const p = process.env[GOOGLE.env.subjectPrefix]?.trim();
+  return p ? p : null;
+}
+
+/** With a prefix: the subject without it when it starts the subject (any case, optionally bracketed, then a
+ * space or `:`/`-` separator), else null (not ours to read). Without one: the subject unchanged. */
+export function subjectAfterPrefix(subject: string, prefix: string | null): string | null {
+  if (!prefix) return subject;
+  const esc = prefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const m = new RegExp(`^\\s*\\[?${esc}\\]?(?:\\s*[:\\-]\\s*|\\s+|$)(.*)$`, 'is').exec(subject);
+  return m ? m[1].trim() : null;
+}
+
+/** The received date the prompt states, capped at the family's today: on the demo clock real mail arrives
+ * "after" today, and a future received date would skew relative wording. */
+export function receivedDateFor(p: { today: string; internalDate: number | undefined; tz: string }): string {
+  if (!p.internalDate) return p.today;
+  const d = localDate(p.internalDate, p.tz);
+  return d > p.today ? p.today : d;
 }
 
 export const MAIL_EXTRACT_SCHEMA = {
@@ -128,7 +151,7 @@ export function validateItems(raw: unknown, today: string): ExtractedItem[] {
  * retries the rest next poll). */
 export async function extractItems(ctx: ActionCtx, familyId: Id<'families'>, m: MailMessage, tz: string, now: number): Promise<{ items: ExtractedItem[]; decidedBy: DecidedBy }> {
   const today = localDate(now, tz);
-  const prompt = buildExtractPrompt(m, { today, weekday: formatLocalWeekday(now, tz), receivedDate: m.internalDate ? localDate(m.internalDate, tz) : today });
+  const prompt = buildExtractPrompt(m, { today, weekday: formatLocalWeekday(now, tz), receivedDate: receivedDateFor({ today, internalDate: m.internalDate, tz }) });
   const result = await callModel(ctx, familyId, {
     model: 'judge',
     effort: 'low',
