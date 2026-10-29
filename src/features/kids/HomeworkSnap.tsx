@@ -184,6 +184,8 @@ function HomeworkSnapLive({ megaName, onDone }: { megaName: string; onDone: () =
   const { phase, send, fromPicker } = useSubmitPhoto(onDone);
   const [permission, requestPermission] = useCameraPermissions();
   const camera = useRef<CameraView>(null);
+  // One photo per press burst: set before takePictureAsync, since `busy` only flips once the upload starts.
+  const shooting = useRef(false);
   const [ready, setReady] = useState(false);
   const [failed, setFailed] = useState(false);
   const [mountKey, setMountKey] = useState(0);
@@ -227,12 +229,15 @@ function HomeworkSnapLive({ megaName, onDone }: { megaName: string; onDone: () =
         setMountKey((k) => k + 1);
       }}
       onShoot={async () => {
-        if (!ready || !camera.current) return;
+        if (!ready || !camera.current || shooting.current) return;
+        shooting.current = true;
         try {
           const photo = await camera.current.takePictureAsync(HOMEWORK.capture);
           await send(photo.uri, 'image/jpeg');
         } catch {
           setFailed(true);
+        } finally {
+          shooting.current = false;
         }
       }}
     />

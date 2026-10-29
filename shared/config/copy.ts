@@ -1003,6 +1003,11 @@ export const G8_UI_COPY = {
   // Widgets (boards WidgetsStale, WidgetsSignedOut, WidgetsLockSignedOut)
   widgetLastChecked: 'Last checked {n} hours ago',
   widgetLastCheckedOne: 'Last checked 1 hour ago',
+  // The small widget's time tag drops "in " (board Widgets: smallTag). Medium and lock keep "in {n} min".
+  widgetTagMinutes: '{n} min',
+  widgetTagHours: '{n}h',
+  // Paste when the clipboard can't be read (web without permission, a read that never answers).
+  pasteFailed: 'Couldn’t read the clipboard. Paste it into the field instead.',
   widgetSignedOutFoot: 'Nothing personal shows until you sign in',
   // The in-app sheet behind mega://widgets (the widgets themselves live on the home and lock screens)
   widgetsSheetTitle: 'Widgets',

@@ -2,7 +2,7 @@
 // the status pill with its dot, a tappable option row (dashed and not tappable when it isn't available), the
 // schedule-link field (a visible label, `aria-invalid` and an alert-role error under it) and the 44pt × remove
 // button. Colors from theme tokens only.
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Pressable, TextInput, View } from 'react-native';
 import { G8_UI_COPY } from '@shared/config/copy';
 import { PASTE_BUTTON_WIDTH, PasteButton } from '@/ui/PasteButton';
@@ -87,6 +87,7 @@ export function OptionRow({ icon, label, sub, off, onPress, loading }: { icon: G
 /** The schedule-link field (boards IcsPaste / IcsPasteError). */
 export function LinkField({ label, value, placeholder, error, onChange, onSubmit, testID }: { label: string; value: string; placeholder: string; error?: string | null; onChange: (t: string) => void; onSubmit: () => void; testID?: string }) {
   const tokens = useTokens();
+  const [pasteFailed, setPasteFailed] = useState(false);
   // `aria-invalid` reaches the DOM on web (react-native-web); RN's types don't list it yet.
   const invalid = { 'aria-invalid': error ? 'true' : 'false' } as object;
   return (
@@ -123,12 +124,25 @@ export function LinkField({ label, value, placeholder, error, onChange, onSubmit
           }}
         />
         <View style={{ position: 'absolute', right: tokens.spacing.sm, top: 0, bottom: 0, justifyContent: 'center' }}>
-          <PasteButton label={G8_UI_COPY.pasteLinkLabel} onPasted={(text) => text.trim() && onChange(text.trim())} />
+          <PasteButton
+            label={G8_UI_COPY.pasteLinkLabel}
+            size="compact"
+            onPasted={(text) => {
+              setPasteFailed(false);
+              if (text.trim()) onChange(text.trim());
+            }}
+            onFailed={() => setPasteFailed(true)}
+          />
         </View>
       </View>
       {error ? (
         <Text accessibilityRole="alert" variant="caption" style={{ color: tokens.dangerText }}>
           {error}
+        </Text>
+      ) : null}
+      {pasteFailed && !error ? (
+        <Text accessibilityRole="alert" accessibilityLiveRegion="assertive" variant="caption" style={{ color: tokens.warn }}>
+          {G8_UI_COPY.pasteFailed}
         </Text>
       ) : null}
     </View>

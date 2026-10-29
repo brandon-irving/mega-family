@@ -67,10 +67,10 @@ describe('MegaNext · medium (board WidgetsThree)', () => {
 });
 
 describe('MegaNext · small', () => {
-  test('the time tag and the first title', () => {
+  test('the time tag (no "in ", board smallTag) and the first title', () => {
     const tree = renderWidget(MegaNextLayout, entryProps(WIDGET_ADMIN_AFTERNOON), env('systemSmall', thu(15, 40)));
     const texts = textsIn(tree);
-    expect(texts).toContain('in 20 min');
+    expect(texts).toContain('20 min');
     expect(texts).toContain('Dentist');
     expect(texts).not.toContain('Soccer pickup');
   });

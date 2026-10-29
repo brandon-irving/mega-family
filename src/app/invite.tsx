@@ -27,7 +27,7 @@ export default function InviteRoute() {
   const tokens = useTokens();
   const C = SIGNIN_COPY.invite;
   const [input, setInput] = useState('');
-  const [pasted, setPasted] = useState<'none' | 'nothing' | 'notInvite'>('none');
+  const [pasted, setPasted] = useState<'none' | 'nothing' | 'notInvite' | 'failed'>('none');
   const token = extractToken(input);
   const linked = token.length > 0;
   const go = () => linked && router.push(`/join/${token}` as never);
@@ -84,7 +84,7 @@ export default function InviteRoute() {
               accessibilityLabel={C.label}
             />
             <View style={[styles.pasteSlot, { right: tokens.spacing.sm }]}>
-              <PasteButton label={G8_UI_COPY.pasteLabel} onPasted={onPasted} />
+              <PasteButton label={G8_UI_COPY.pasteLabel} onPasted={onPasted} onFailed={() => setPasted('failed')} />
             </View>
           </View>
         )}
@@ -97,7 +97,7 @@ export default function InviteRoute() {
         <View accessibilityRole="alert" accessibilityLiveRegion="assertive" style={[styles.feedback, { marginTop: tokens.spacing.sm, gap: tokens.spacing.xs }]}>
           <Glyph name="info" color={tokens.warn} size={16} />
           <Text variant="caption" style={{ flex: 1, color: tokens.warn }}>
-            {pasted === 'nothing' ? G8_COPY.pasteNothing : G8_COPY.pasteNotInvite}
+            {pasted === 'nothing' ? G8_COPY.pasteNothing : pasted === 'failed' ? G8_UI_COPY.pasteFailed : G8_COPY.pasteNotInvite}
           </Text>
         </View>
       )}

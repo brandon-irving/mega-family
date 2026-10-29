@@ -6,6 +6,7 @@ import { HStack, Rectangle, Text, VStack } from '@expo/ui/swift-ui';
 import { containerBackground, font, foregroundStyle, frame, opacity, widgetURL } from '@expo/ui/swift-ui/modifiers';
 import { createWidget, type WidgetEnvironment } from 'expo-widgets';
 import { WIDGETS } from '@shared/config/widgets';
+import { initialTalkProps } from '@/services/widgetSync';
 import type { MegaTalkProps } from './types';
 
 export const MegaTalkLayout = (props: MegaTalkProps, _environment: WidgetEnvironment) => {
@@ -28,4 +29,4 @@ export const MegaTalkLayout = (props: MegaTalkProps, _environment: WidgetEnviron
   );
 };
 
-export const MegaTalk = createWidget<MegaTalkProps>(WIDGETS.talk.name, MegaTalkLayout);
+export const MegaTalk = createWidget<MegaTalkProps>(WIDGETS.talk.name, MegaTalkLayout, initialTalkProps());

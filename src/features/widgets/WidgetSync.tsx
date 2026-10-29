@@ -42,6 +42,9 @@ function MemberWidgets({ memberId, colors }: { memberId: string; colors: WidgetC
   const [foregrounds, setForegrounds] = useState(0);
   const forcedFor = useRef(-1);
 
+  // Leaving this member (sign-out, account switch): drop a write still waiting out the throttle window.
+  useEffect(() => () => writer.dispose(), []);
+
   useEffect(() => {
     const sub = AppState.addEventListener('change', (state) => {
       if (state === 'active') setForegrounds((n) => n + 1);

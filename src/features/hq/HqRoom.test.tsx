@@ -45,22 +45,26 @@ describe('HqRoom walker timer', () => {
     jest.useFakeTimers();
     const setSpy = jest.spyOn(global, 'setInterval');
     const clearSpy = jest.spyOn(global, 'clearInterval');
-    const walking = [mega('teal', { station: 'desk', busy: true, label: 'Homework' })];
-    const view = await renderWithTheme(<HqRoom {...props(walking)} />);
-    const sets = setSpy.mock.calls.length;
-    const clears = clearSpy.mock.calls.length;
-    await act(async () => {
-      await view.rerender(
-        <ThemeProvider initialRole="adult">
-          <HqRoom {...props(walking.map((m) => ({ ...m })))} />
-        </ThemeProvider>,
-      );
-    });
-    expect(setSpy.mock.calls.length).toBe(sets);
-    expect(clearSpy.mock.calls.length).toBe(clears);
-    setSpy.mockRestore();
-    clearSpy.mockRestore();
-    jest.useRealTimers();
+    // try/finally: a failed assertion must not leak fake timers into the rest of the file (G8 review).
+    try {
+      const walking = [mega('teal', { station: 'desk', busy: true, label: 'Homework' })];
+      const view = await renderWithTheme(<HqRoom {...props(walking)} />);
+      const sets = setSpy.mock.calls.length;
+      const clears = clearSpy.mock.calls.length;
+      await act(async () => {
+        await view.rerender(
+          <ThemeProvider initialRole="adult">
+            <HqRoom {...props(walking.map((m) => ({ ...m })))} />
+          </ThemeProvider>,
+        );
+      });
+      expect(setSpy.mock.calls.length).toBe(sets);
+      expect(clearSpy.mock.calls.length).toBe(clears);
+    } finally {
+      setSpy.mockRestore();
+      clearSpy.mockRestore();
+      jest.useRealTimers();
+    }
   });
 });
 
