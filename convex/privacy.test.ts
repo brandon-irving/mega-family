@@ -22,6 +22,8 @@ import { TABLES, type TableName } from '../shared/domain/tables';
 import { api, internal } from './_generated/api';
 import type { Doc, Id } from './_generated/dataModel';
 import schema from './schema';
+import { clock } from './ports/clock';
+import { zonedInstant } from '../shared/time';
 
 const modules = import.meta.glob('./**/*.ts');
 const WEEK = '2026-10-25';
@@ -542,6 +544,31 @@ describe('Milestone D: privacy grid', () => {
       // v0.17b reconcile: a kid's buzz cap is readable only by that kid's parents.
       expect(codeOf(await as('twin1').query(api.kidControls.dailyCap, { memberId: famA.members.twin2 }).catch((e) => e))).toBe('FORBIDDEN');
       expect(await as('admin').query(api.kidControls.dailyCap, { memberId: famA.members.twin2 })).toMatchObject({ dailyCap: expect.any(Number) });
+    });
+
+    test("G8 widgets.next: an adult's private event is on their own widget only (even with others in who); a kid's widget never has an adult's event; family B sees none of A", async () => {
+      const as = (subject: string) => t.withIdentity({ subject });
+      const before = (await as('sample:admin').query(api.clock.get, {})).now;
+      const fam = (await t.run((ctx) => ctx.db.get(famA.familyId)))!;
+      // Thursday 3 PM of the seeded week (Soccer practice at 4, Work dinner at 5, Soccer pickup at 5:30). A fresh
+      // private event, since the generic grid above legitimately ran the owner's own share on the seeded Dentist.
+      const at = zonedInstant('2026-10-29', 15 * 60, fam.timezone);
+      await t.run((ctx) =>
+        ctx.db.insert('events', { familyId: famA.familyId, title: 'Widget private check', start: at + 1_800_000, end: at + 2_700_000, who: [famA.members.admin, famA.members.partner, famA.members.twin1], source: 'mega', createdBy: famA.members.admin, ownerId: famA.members.admin, scope: 'personal', cancelled: false }),
+      );
+      await t.run((ctx) => clock.jumpTo(ctx, famA.familyId, at));
+      try {
+        const text = async (subject: string) => JSON.stringify(await as(subject).query(api.widgets.next, {}));
+        expect(await text('sample:admin')).toContain('Widget private check');
+        for (const s of ['sample:partner', 'sample:twin1', 'sample:twin2', 'sample:B:admin', 'sample:B:partner']) expect(await text(s), s).not.toContain('Widget private check');
+        for (const s of ['sample:twin1', 'sample:twin2']) {
+          expect(await text(s), s).not.toContain('Work dinner');
+          expect(await text(s), s).not.toContain('Soccer pickup');
+        }
+        expect(await text('sample:partner')).toContain('Work dinner');
+      } finally {
+        await t.run((ctx) => clock.jumpTo(ctx, famA.familyId, before));
+      }
     });
   });
 });
