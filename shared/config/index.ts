@@ -26,3 +26,4 @@ export * from './talk';
 export * from './theme';
 export * from './weatherIcons';
 export * from './widgets';
+export * from './appTimeouts';

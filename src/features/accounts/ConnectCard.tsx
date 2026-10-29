@@ -8,7 +8,7 @@
 // private layer, which the foot says.
 import { useState } from 'react';
 import type { OfferView } from '@shared/domain/api';
-import { G5_COPY, G5_UI_COPY as U, fillCopy } from '@shared/config/copy';
+import { G5_COPY, G5_FIX_COPY, G5_UI_COPY as U, fillCopy } from '@shared/config/copy';
 import { ONBOARDING } from '@shared/config/onboarding';
 import { useAccountActions, useOffer } from '@/data/useAccounts';
 import type { ConnectOffer } from '@/data/useOnboarding';
@@ -23,14 +23,13 @@ import type { GlyphName } from '@/features/integrations/glyphs';
 import { CardActions, TagList, type CardAction } from '@/ui/ThreadCard';
 import { useTokens } from '@/ui/theme';
 import { View } from 'react-native';
+import { looksLikeFeedUrl } from './feedUrl';
 import { LinkField, OptionRow } from './parts';
 import { PhoneCalendarSheet } from './PhoneCalendarSheet';
+import { useAddIcsLink } from './useAddIcsLink';
 import { usePhoneCalendarFlow } from './usePhoneCalendarFlow';
 
-/** A schedule link the app will try: https:// or webcal:// (the server re-checks and fetches it). */
-export function looksLikeFeedUrl(url: string): boolean {
-  return /^(https|webcal):\/\/\S+$/i.test(url.trim());
-}
+export { looksLikeFeedUrl };
 
 export type ConnectHandlers = {
   onGoogle: () => void;
@@ -44,8 +43,10 @@ export type ConnectHandlers = {
 };
 
 export type ConnectLocal = {
-  /** Which action is running (`google`, `phone`, `ics`, `skip`). */
+  /** Which action is running (`google`, `phone`, `skip`). */
   busy?: string | null;
+  /** A schedule link is being added. Only Add link waits; Not now stays live (skipping never blocks). */
+  icsBusy?: boolean;
   error?: string | null;
   phoneDenied?: boolean;
   phoneSupported: boolean;
@@ -179,7 +180,7 @@ export function ConnectCardView({ view, megaName, local, on }: { view: OfferView
           <LinkField label={U.icsFieldLabel} value={local.icsText} placeholder={G5_COPY.icsPlaceholder} error={local.icsError} onChange={on.onIcsChange} onSubmit={on.onIcsSubmit} testID="ics-field" />
           <CardActions
             cols={1}
-            actions={[{ id: 'ics', label: local.busy === 'ics' ? U.icsAdding : U.icsAdd, onPress: on.onIcsSubmit, loading: local.busy === 'ics', disabled: !!local.busy && local.busy !== 'ics' }, ...(view.state === 'connected' ? [] : [notNow])]}
+            actions={[{ id: 'ics', label: local.icsBusy ? G5_FIX_COPY.icsAdding : U.icsAdd, onPress: on.onIcsSubmit, loading: !!local.icsBusy, disabled: !!local.icsBusy || !!local.busy }, ...(view.state === 'connected' ? [] : [notNow])]}
           />
         </>
       ) : null}
@@ -195,8 +196,7 @@ export function ConnectCard({ offer, megaName }: { offer: ConnectOffer; megaName
   const now = useFamilyNow();
   const { busy, error, run } = useRunAction();
   const [googleFailed, setGoogleFailed] = useState(false);
-  const [icsText, setIcsText] = useState('');
-  const [icsError, setIcsError] = useState<string | null>(null);
+  const ics = useAddIcsLink(actions.addIcs);
   const [icsAdded, setIcsAdded] = useState<{ label: string; events: number } | null>(null);
   const [icsDone, setIcsDone] = useState(false);
   const [icsReopen, setIcsReopen] = useState(false);
@@ -210,25 +210,13 @@ export function ConnectCard({ offer, megaName }: { offer: ConnectOffer; megaName
       const result = await connectGoogle(offer === 'gmail' ? ['gmail'] : ['googleCalendar'], actions);
       if (result === 'failed') setGoogleFailed(true);
     });
-  const onIcsSubmit = () => {
-    const url = icsText.trim();
-    if (!looksLikeFeedUrl(url)) {
-      setIcsError(G5_COPY.icsBad);
-      return;
-    }
-    void run('ics', async () => {
-      const r = await actions.addIcs({ url });
-      if (r.failure || !r.integrationId) {
-        setIcsError(G5_COPY.icsBad);
-        return;
-      }
-      setIcsError(null);
-      setIcsText('');
+  const onIcsSubmit = () =>
+    void ics.submit().then((r) => {
+      if (!r) return;
       setIcsDone(false);
       setIcsReopen(false);
       setIcsAdded({ label: r.label ?? U.sectionLinks, events: r.events });
     });
-  };
 
   return (
     <>
@@ -240,8 +228,9 @@ export function ConnectCard({ offer, megaName }: { offer: ConnectOffer; megaName
           error: googleFailed ? U.connectFailed : (phone.error ?? error),
           phoneDenied: phone.stage === 'denied',
           phoneSupported: phone.supported,
-          icsText,
-          icsError,
+          icsBusy: ics.busy,
+          icsText: ics.text,
+          icsError: ics.error,
           icsAdded,
           icsDone,
           icsReopen,
@@ -251,10 +240,7 @@ export function ConnectCard({ offer, megaName }: { offer: ConnectOffer; megaName
           onPhone: () => void phone.start(),
           onOpenSettings: () => void openPhoneSettings(),
           onSkip: () => void run('skip', () => skip(offer)),
-          onIcsChange: (t) => {
-            setIcsText(t);
-            setIcsError(null);
-          },
+          onIcsChange: ics.setText,
           onIcsSubmit,
           onIcsAnother: () => {
             setIcsAdded(null);

@@ -4,7 +4,7 @@
 // Account (sign out; a kid's is "Switch person"). Presentational: the route wires the data and opens the sheets.
 import { useState } from 'react';
 import { View } from 'react-native';
-import { G5_UI_COPY as U, fillCopy } from '@shared/config/copy';
+import { G5_FIX_COPY, G5_UI_COPY as U, fillCopy } from '@shared/config/copy';
 import { THEMES, WALLPAPER_PRESETS } from '@shared/config/theme';
 import type { NotificationKind, Role, ThemeName } from '@shared/domain/enums';
 import { Text } from '@/ui/Text';
@@ -29,6 +29,8 @@ export type SettingsContentProps = {
   parentCode?: string | null;
   memberCount?: number;
   connectedCount?: number;
+  /** A kid's: whether their parents can read their chats (`kidControls.mine`); undefined = not known, hidden. */
+  parentsCanReadChat?: boolean;
   on: {
     openTheme: () => void;
     openWallpaper: () => void;
@@ -37,6 +39,8 @@ export type SettingsContentProps = {
     openAccounts: () => void;
     openPlaces: () => void;
     signOut: () => void;
+    /** A kid's own Rules and limits, read-only (board ProfileRulesKid). Shown when given. */
+    openRules?: () => void;
   };
 };
 
@@ -58,7 +62,7 @@ export function loudText(kinds: NotificationKind[]): string {
   return labels.map((l, i) => (i ? l.toLowerCase() : l)).join(', ');
 }
 
-export function SettingsContent({ role, megaName, theme, accent, accentHex, wallpaper, notify, email, parentCode, memberCount, connectedCount, on }: SettingsContentProps) {
+export function SettingsContent({ role, megaName, theme, accent, accentHex, wallpaper, notify, email, parentCode, memberCount, connectedCount, parentsCanReadChat, on }: SettingsContentProps) {
   const tokens = useTokens();
   const [codeShown, setCodeShown] = useState(false);
   const kid = role === 'kid';
@@ -76,6 +80,8 @@ export function SettingsContent({ role, megaName, theme, accent, accentHex, wall
         <SettingsSection title={U.sectionNotifications} note={U.kidNotifyNote}>
           <LockedRow label={U.quietHours} locked={U.setByParent} value={quiet} />
           <LockedRow label={U.dailyLimit} locked={U.setByParent} value={fillCopy(U.dailyLimitValue, { n: notify.dailyCap })} />
+          {parentsCanReadChat !== undefined ? <LockedRow label={G5_FIX_COPY.kidReadChats} locked={U.setByParent} value={parentsCanReadChat ? U.rulesOn : U.rulesOff} /> : null}
+          {on.openRules ? <LinkRow label={U.rulesRow} hint={G5_FIX_COPY.kidRulesHint} onPress={on.openRules} /> : null}
         </SettingsSection>
       ) : (
         <SettingsSection title={U.sectionNotifications}>

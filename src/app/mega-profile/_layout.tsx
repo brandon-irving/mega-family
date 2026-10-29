@@ -9,6 +9,7 @@ export default function MegaProfileLayout() {
       <Stack.Screen name="memories" />
       {/* G5 (Screen 16, board ProfileActivity): admin only. */}
       <Stack.Screen name="activity" />
+      <Stack.Screen name="rules" />
     </Stack>
   );
 }

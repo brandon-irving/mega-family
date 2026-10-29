@@ -7,7 +7,7 @@ import { router } from 'expo-router';
 import type { ThemeName } from '@shared/domain/enums';
 import { G5_UI_COPY as U } from '@shared/config/copy';
 import { useViewer } from '@/data/useViewer';
-import { useFamilyMembers } from '@/data/useFamily';
+import { useFamilyMembers, useMyRules } from '@/data/useFamily';
 import { useIntegrations } from '@/data/useAccounts';
 import { useParentCode, useSetSettings } from '@/data/useSettings';
 import { signOut, useSignedInEmail } from '@/services/auth';
@@ -27,6 +27,7 @@ export default function SettingsRoute() {
   const email = useSignedInEmail();
   const isAdmin = viewer?.member.role === 'admin';
   const parentCode = useParentCode(isAdmin);
+  const myRules = useMyRules(viewer?.member.role === 'kid');
   const [sheet, setSheet] = useState<'theme' | 'wallpaper' | 'notify' | null>(null);
 
   if (!viewer) return <MegaLoader />;
@@ -56,6 +57,7 @@ export default function SettingsRoute() {
         parentCode={parentCode}
         memberCount={members?.length}
         connectedCount={connected}
+        parentsCanReadChat={myRules ? myRules.parentsCanReadChat : undefined}
         on={{
           openTheme: () => setSheet('theme'),
           openWallpaper: () => setSheet('wallpaper'),
@@ -64,6 +66,7 @@ export default function SettingsRoute() {
           openAccounts: () => router.push('/accounts' as never),
           openPlaces: () => router.push('/places' as never),
           signOut: () => void signOut(),
+          openRules: role === 'kid' && myRules ? () => router.push('/mega-profile/rules' as never) : undefined,
         }}
       />
       <ThemeSheet

@@ -913,3 +913,42 @@ export const G5_UI_COPY = {
     door: 'MEGAs head out here for errands.',
   },
 } as const;
+
+/** G5 review fixes (Oct 29): the app's lines for the fixes, kept apart from G5_COPY / G5_UI_COPY. */
+export const G5_FIX_COPY = {
+  // Schedule links (UX review finding 1)
+  icsAdding: 'Adding…',
+  icsUnreachable: 'Couldn’t reach that link. Check it opens in a browser, then try again — or skip it for now.',
+  icsNotCalendar: 'That link opened, but there’s no calendar in it. School and team sites usually call it “Subscribe” or “iCal”.',
+  icsCouldntAdd: 'Couldn’t add that link right now. Try again in a bit, or skip it for now.',
+  // Invites (UX review finding 3; board OnboardInvite)
+  inviteTitle: 'Invite',
+  inviteHint: 'Scan this on {name}’s device, or send the link if {name} isn’t nearby.',
+  inviteShow: 'Show QR code and link',
+  inviteQrLabel: 'QR code to join',
+  inviteSend: 'Send invite link',
+  inviteCopy: 'Copy link',
+  inviteCopied: 'Copied',
+  inviteNew: 'New code',
+  inviteExpires: 'Works until {when}',
+  inviteShareMessage: '{name}, here’s your MEGA invite: {url}',
+  inviteWaiting: 'An invite is waiting · works until {when}',
+  inviteFoot: 'A new code doesn’t cancel the old one; each works until it expires or someone joins with it.',
+  // A kid's own rules (UX review finding 4; boards SettingsKid / ProfileRulesKid)
+  kidReadChats: 'Your parents can read your chats',
+  kidRulesHint: 'What your parents set',
+  // HQ (UX review findings 6–7; board HQ)
+  hubTalk: 'Talk to {name}',
+  hubAbout: '{name} is your family’s MEGA. It keeps the shared calendar and lists, and passes messages between everyone’s MEGAs.',
+  rooms: 'Rooms',
+  // Activity "who decided" (board ProfileActivity)
+  decidedRule: 'Rule',
+  decidedAi: 'MEGA (AI)',
+  decidedYou: 'You',
+  // Rules: a kid's daily buzz cap (board ProfileRules "Buzzes a day")
+  buzzesTitle: 'Buzzes a day',
+  buzzesHint: 'The most times {mega} can buzz {kid} in a day',
+  buzzesValue: '{n} a day',
+  buzzesFewer: 'Fewer: {label}',
+  buzzesMore: 'More: {label}',
+} as const;

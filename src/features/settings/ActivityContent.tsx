@@ -1,14 +1,14 @@
 // Profile → Activity (canvas Screen 16, board ProfileActivity; admin, since `megas.activity` is admin only):
 // one-line filter chips (All · Calendar · Reminders · Learned · Accounts), the family's MEGA activity grouped by
 // day with its time, then "What {mega} learned" — the newest memories, each with Forget (then "Forgotten…") —
-// and a link to everything it remembers. Board gap, noted: CONTRACT's `activityItem` is `{ at, type, summary }`
-// with no `decidedBy`, so rows don't show the board's "who decided" chip (Rule · MEGA (AI) · You) yet; that
-// needs `decidedBy` on `megas.activity` (a contract addition for the backend). Never empty: with nothing yet,
-// a line says what will show up here.
+// and a link to everything it remembers. Each row shows the board's "who decided" chip (Rule · MEGA (AI) · You)
+// and its short reason when the item carries `decidedBy` / `why` (CONTRACT v0.17b, pending on the backend);
+// an item without them shows no chip, never a guess. Never empty: with nothing yet, a line says what will show
+// up here.
 import { View } from 'react-native';
 import type { Infer } from 'convex/values';
 import type { activityItem, memoryDoc } from '@shared/domain/api';
-import { G5_UI_COPY as U, fillCopy } from '@shared/config/copy';
+import { G5_FIX_COPY, G5_UI_COPY as U, fillCopy } from '@shared/config/copy';
 import { Button } from '@/ui/Button';
 import { Text } from '@/ui/Text';
 import { useTokens } from '@/ui/theme';
@@ -16,7 +16,22 @@ import type { GlyphName } from '@/features/integrations/glyphs';
 import { IconTile } from '@/features/accounts/parts';
 import { ChipLine, LinkRow, SettingsSection } from './rows';
 
-export type ActivityItem = Infer<typeof activityItem>;
+/** A row; `decidedBy` (`rule:<id>` | `model:<id>` | `member:<id>`) and `why` arrive with CONTRACT v0.17b. */
+export type ActivityItem = Infer<typeof activityItem> & { decidedBy?: string; why?: string };
+
+type Decided = 'rule' | 'ai' | 'you';
+function decidedKind(decidedBy: string | undefined): Decided | null {
+  if (!decidedBy) return null;
+  if (decidedBy.startsWith('rule:')) return 'rule';
+  if (decidedBy.startsWith('model:')) return 'ai';
+  return 'you';
+}
+
+/** The chip's word for who decided, or null when the item doesn't say. */
+export function decidedLabel(decidedBy: string | undefined): string | null {
+  const k = decidedKind(decidedBy);
+  return k === 'rule' ? G5_FIX_COPY.decidedRule : k === 'ai' ? G5_FIX_COPY.decidedAi : k === 'you' ? G5_FIX_COPY.decidedYou : null;
+}
 export type MemoryDoc = Infer<typeof memoryDoc>;
 export type ActivityFilter = 'all' | 'calendar' | 'reminders' | 'learned' | 'accounts';
 
@@ -98,7 +113,10 @@ export function ActivityContent({
             return (
               <View key={`${r.at}-${i}`} style={{ flexDirection: 'row', alignItems: 'center', gap: tokens.spacing.md, padding: tokens.spacing.lg }}>
                 <IconTile icon={GLYPH[f]} tone={f === 'calendar' ? 'household' : f === 'accounts' ? 'accent' : 'muted'} size={36} />
-                <Text style={{ flex: 1 }}>{r.summary}</Text>
+                <View style={{ flex: 1, gap: tokens.spacing.xs }}>
+                  <Text>{r.summary}</Text>
+                  <DecidedChip decidedBy={r.decidedBy} why={r.why} />
+                </View>
                 <Text variant="caption" color="muted">
                   {time(r.at)}
                 </Text>
@@ -135,6 +153,28 @@ export function ActivityContent({
           })}
           <LinkRow label={fillCopy(U.everything, { mega: megaName })} hint={U.everythingHint} onPress={onOpenMemories} />
         </SettingsSection>
+      ) : null}
+    </View>
+  );
+}
+
+/** "Rule" (grey) · "MEGA (AI)" (accent) · "You" (gold), then the reason, on one line (board ProfileActivity). */
+function DecidedChip({ decidedBy, why }: { decidedBy?: string; why?: string }) {
+  const tokens = useTokens();
+  const kind = decidedKind(decidedBy);
+  if (!kind) return null;
+  const tone = kind === 'rule' ? { bg: tokens.surface, line: tokens.line, ink: tokens.muted } : kind === 'ai' ? { bg: tokens.householdSurface, line: tokens.accent, ink: tokens.accent } : { bg: tokens.bucksSurface, line: tokens.bucks, ink: tokens.bucks };
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: tokens.spacing.sm }}>
+      <View style={{ flexShrink: 0, paddingHorizontal: tokens.spacing.sm, paddingVertical: 2, borderRadius: tokens.radii.sm, borderWidth: 1, borderColor: tone.line, backgroundColor: tone.bg }}>
+        <Text variant="caption" style={{ color: tone.ink, fontWeight: '700' }}>
+          {decidedLabel(decidedBy)}
+        </Text>
+      </View>
+      {why ? (
+        <Text variant="caption" color="muted" numberOfLines={1} style={{ flexShrink: 1 }}>
+          {why}
+        </Text>
       ) : null}
     </View>
   );

@@ -35,6 +35,7 @@ export default function MegaProfileRoute() {
         onChangeSharing={(patch) => setSharing(patch)}
         onOpenMemories={() => router.push('/mega-profile/memories' as never)}
         onOpenActivity={isAdmin ? () => router.push('/mega-profile/activity' as never) : undefined}
+        onOpenRules={viewer.member.role === 'kid' ? () => router.push('/mega-profile/rules' as never) : undefined}
       />
     </Sheet>
   );

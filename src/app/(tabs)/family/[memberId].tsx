@@ -1,6 +1,9 @@
-// Member detail sheet (PLAN §4): Message / Visit room / Kid controls / read kid chat.
+// Member detail sheet (PLAN §4): Message / Visit room / Kid controls / read kid chat, and for someone who
+// hasn't joined yet, their invite (QR code + link; G5 UX review).
 import { router, useLocalSearchParams } from 'expo-router';
 import type { Id } from '@shared/domain/validators';
+import { G5_FIX_COPY } from '@shared/config/copy';
+import { InvitePanel } from '@/features/family/InvitePanel';
 import { useKidThread, useMemberDetail, useSetKidControls } from '@/data/useFamily';
 import { useMegaDirectory } from '@/data/useMegaDirectory';
 import { LoadingScreen } from '@/ui/LoadingScreen';
@@ -32,6 +35,14 @@ export default function MemberDetailRoute() {
         onOpenSearches={() => router.push(`/searches/${id}` as never)}
         onOpenRules={() => router.push(`/rules/${id}` as never)}
       />
+      {detail.member.joinedAt == null && (
+        <>
+          <Text variant="label" color="muted" style={{ marginTop: tokens.spacing.md, marginBottom: tokens.spacing.sm }}>
+            {G5_FIX_COPY.inviteTitle}
+          </Text>
+          <InvitePanel memberId={id} name={detail.member.name} />
+        </>
+      )}
       {detail.canReadChat && detail.member.role === 'kid' && (
         <>
           <Text variant="label" color="muted" style={{ marginTop: tokens.spacing.md }}>
