@@ -1,6 +1,7 @@
 // Renders every Thread UI block kind (CONTRACT §3 / PLAN "Thread UI blocks"): choice, toggle, text,
 // number, date, fields, look, questions, invite, confirm. Pure presentational — takes the block and an
-// onAnswer callback, so it's testable from fixtures and reusable from both chat and the kid thread.
+// onAnswer callback, so it's testable from fixtures and reusable from both chat and the kid thread. The one
+// exception is the invite block, whose panel makes the invite code on request (G5 UX review).
 import { useState } from 'react';
 import { Switch, TextInput, View } from 'react-native';
 import type { BlockAnswer, UIBlock } from '@shared/domain/messages';
@@ -14,6 +15,7 @@ import { Chip } from '@/ui/Chip';
 import { Text } from '@/ui/Text';
 import { useTokens } from '@/ui/theme';
 import { MegaSprite } from '@/ui/MegaSprite';
+import { InvitePanel } from '@/features/family/InvitePanel';
 
 export type BlockProps = { block: UIBlock; onAnswer: (answer: BlockAnswer) => void };
 
@@ -287,17 +289,15 @@ function QuestionsBlock({ block, onAnswer }: { block: Extract<UIBlock, { kind: '
   );
 }
 
-function InviteBlock({ block: _block }: { block: Extract<UIBlock, { kind: 'invite' }> }) {
+/** "Invite sent" (board OnboardInvite): the real QR code and link, the same panel as the member's Family page. */
+function InviteBlock({ block }: { block: Extract<UIBlock, { kind: 'invite' }> }) {
   const tokens = useTokens();
   return (
     <Card>
       <Text variant="label" style={{ marginBottom: tokens.spacing.sm }}>
         Invite sent
       </Text>
-      <Text color="muted">A QR code and link are ready to share — open the member&rsquo;s row in Family to view them.</Text>
-      <View style={{ height: 96, borderRadius: tokens.radii.sm, borderWidth: 1, borderColor: tokens.line, marginTop: tokens.spacing.sm, alignItems: 'center', justifyContent: 'center' }}>
-        <Text color="muted">QR code</Text>
-      </View>
+      <InvitePanel memberId={block.memberId} />
     </Card>
   );
 }

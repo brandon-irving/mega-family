@@ -5,6 +5,13 @@ import { renderWithTheme } from '@/test/renderWithTheme';
 import { BLOCKS_BY_KIND } from '@/test/fixtures';
 import { AnsweredBlock, Block, summarizeAnswer } from './Blocks';
 
+// The invite block's panel makes the code through Convex (its own tests: features/family/InvitePanel.test.tsx).
+jest.mock('@/features/family/InvitePanel', () => {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { Text } = require('react-native');
+  return { InvitePanel: ({ memberId }: { memberId: string }) => <Text>{`invite-panel:${memberId}`}</Text> };
+});
+
 describe('Block', () => {
   test.each(Object.values(BLOCKS_BY_KIND))('renders the $kind block with its prompt', async (block) => {
     const onAnswer = jest.fn();
@@ -26,9 +33,11 @@ describe('Block', () => {
     expect(onAnswer).toHaveBeenCalledWith({ value: false });
   });
 
-  test('invite: shows a QR placeholder', async () => {
+  test('invite: the real invite panel for its member, not a "QR code" placeholder (G5 UX review)', async () => {
     await renderWithTheme(<Block block={BLOCKS_BY_KIND.invite} onAnswer={jest.fn()} />);
-    expect(screen.getByText('QR code')).toBeTruthy();
+    const invite = BLOCKS_BY_KIND.invite as Extract<typeof BLOCKS_BY_KIND.invite, { kind: 'invite' }>;
+    expect(screen.getByText(`invite-panel:${invite.memberId}`)).toBeTruthy();
+    expect(screen.queryByText('QR code')).toBeNull();
   });
 
   test('confirm: Confirm and Change both answer', async () => {

@@ -918,4 +918,17 @@ export const G5_FIX_COPY = {
   icsUnreachable: 'Couldn’t reach that link. Check it opens in a browser, then try again — or skip it for now.',
   icsNotCalendar: 'That link opened, but there’s no calendar in it. School and team sites usually call it “Subscribe” or “iCal”.',
   icsCouldntAdd: 'Couldn’t add that link right now. Try again in a bit, or skip it for now.',
+  // Invites (UX review finding 3; board OnboardInvite)
+  inviteTitle: 'Invite',
+  inviteHint: 'Scan this on {name}’s device, or send the link if {name} isn’t nearby.',
+  inviteShow: 'Show QR code and link',
+  inviteQrLabel: 'QR code to join',
+  inviteSend: 'Send invite link',
+  inviteCopy: 'Copy link',
+  inviteCopied: 'Copied',
+  inviteNew: 'New code',
+  inviteExpires: 'Works until {when}',
+  inviteShareMessage: '{name}, here’s your MEGA invite: {url}',
+  inviteWaiting: 'An invite is waiting · works until {when}',
+  inviteFoot: 'A new code doesn’t cancel the old one; each works until it expires or someone joins with it.',
 } as const;
