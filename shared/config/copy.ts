@@ -48,6 +48,11 @@ export const PROFILE_COPY = {
   notificationsHint: 'What wakes your phone, and when it stays quiet',
   theme: 'Theme',
   themeHint: 'Dark or light, and your color',
+  // G6 walkthrough fix (P2): sign out used to be three taps deep, via this "Theme" row (which doesn't
+  // open a theme picker — it opens all of Settings, where Sign out sits at the very bottom). A direct
+  // Settings row gets there in one tap; Theme and Notifications stay exactly as they were.
+  settings: 'Settings',
+  settingsHint: 'Account, connected services, sign out',
   remembers: (name: string) => `What ${name} remembers`,
   remembersHint: 'Search and forget',
 } as const;

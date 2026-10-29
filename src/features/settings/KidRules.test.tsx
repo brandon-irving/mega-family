@@ -85,6 +85,7 @@ describe('kid MEGA profile', () => {
         onOpenLookPersonality={jest.fn()}
         onOpenNotifications={jest.fn()}
         onOpenTheme={jest.fn()}
+        onOpenSettings={jest.fn()}
         onOpenRules={onOpenRules}
       />,
     );

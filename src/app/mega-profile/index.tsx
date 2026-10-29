@@ -29,6 +29,9 @@ export default function MegaProfileRoute() {
         // Notifications, quiet hours and the theme all live in Settings (G5).
         onOpenNotifications={() => router.push('/settings' as never)}
         onOpenTheme={() => router.push('/settings' as never)}
+        // G6 walkthrough fix (P2): a direct Settings row (sign out lives at the bottom of that screen),
+        // alongside — not instead of — the Theme/Notifications rows above, which keep their own behavior.
+        onOpenSettings={() => router.push('/settings' as never)}
         sharing={sharing ?? undefined}
         onRename={(name) => updateMega({ name })}
         onOpenLookPersonality={() => router.push('/mega-profile/look' as never)}
