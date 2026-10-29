@@ -188,6 +188,13 @@ export const HIT_SLOP = { normal: 8, big: 12 } as const;
 
 export const DURATIONS = { fast: 120, base: 200, slow: 400, greeting: 2000 } as const;
 
+/** G6 polish fix: on wide desktop web, every screen's content ran edge-to-edge (the chat column hit
+ * ~1140px at 1440px wide; the Invite/QR sheet and HQ room showed the same dead-space-beside-content
+ * pattern). One token, applied once in the shared screen/sheet containers (src/ui/Screen.tsx,
+ * src/ui/Sheet.tsx) instead of a per-screen max-width hack, so every screen gets a centered, readable
+ * column on wide viewports. Phones never reach this width, so it's a no-op there. */
+export const LAYOUT = { contentMaxWidth: 720 } as const;
+
 /** The sign-in wordmark (Screen 9 boards, owner Oct 27: "MEGA in large letters"). Its own token rather
  * than a TYPE_SCALE step: it appears once, on the welcome screen, and the walking MEGAs stand on the tops
  * of its capitals (`capTop` is where those tops sit below the line box's top, as a fraction of fontSize). */

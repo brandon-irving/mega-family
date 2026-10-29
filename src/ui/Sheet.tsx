@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { Pressable, ScrollView, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useDismiss } from './dismiss';
 import { SafeFrame, type Presentation } from './Screen';
 import { Text } from './Text';
@@ -19,31 +19,40 @@ export function Sheet({ title, onClose, presentation = 'sheet', children }: Shee
   useDismiss(onClose ?? noop, { enabled: !!onClose, androidBack: false });
   return (
     <SafeFrame presentation={presentation} testID="sheet">
-      <View
-        style={{
-          flexDirection: 'row',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          padding: tokens.spacing.lg,
-          borderBottomWidth: 1,
-          borderBottomColor: tokens.line,
-        }}
-      >
-        <Text variant="title">{title}</Text>
-        {onClose && (
-          <Pressable
-            onPress={onClose}
-            accessibilityRole="button"
-            accessibilityLabel="Close"
-            style={{ width: tokens.touchTarget, height: tokens.touchTarget, alignItems: 'center', justifyContent: 'center' }}
+      {/* G6 polish fix: wide desktop web ran a sheet's content edge-to-edge (the Invite/QR panel showed
+          content pinned to one side with dead space beside it) — same tokens.layout.contentMaxWidth
+          centered column as src/ui/Screen.tsx, applied once here so every sheet benefits. */}
+      <View style={styles.center}>
+        <View testID="sheet-content" style={[styles.fill, { width: '100%', maxWidth: tokens.layout.contentMaxWidth }]}>
+          <View
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: tokens.spacing.lg,
+              borderBottomWidth: 1,
+              borderBottomColor: tokens.line,
+            }}
           >
-            <Text variant="title">✕</Text>
-          </Pressable>
-        )}
+            <Text variant="title">{title}</Text>
+            {onClose && (
+              <Pressable
+                onPress={onClose}
+                accessibilityRole="button"
+                accessibilityLabel="Close"
+                style={{ width: tokens.touchTarget, height: tokens.touchTarget, alignItems: 'center', justifyContent: 'center' }}
+              >
+                <Text variant="title">✕</Text>
+              </Pressable>
+            )}
+          </View>
+          <ScrollView contentContainerStyle={{ padding: tokens.spacing.lg, gap: tokens.spacing.md }}>{children}</ScrollView>
+        </View>
       </View>
-      <ScrollView contentContainerStyle={{ padding: tokens.spacing.lg, gap: tokens.spacing.md }}>{children}</ScrollView>
     </SafeFrame>
   );
 }
 
 const noop = () => {};
+
+const styles = StyleSheet.create({ fill: { flex: 1 }, center: { flex: 1, alignItems: 'center' } });

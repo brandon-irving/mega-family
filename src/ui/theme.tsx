@@ -4,7 +4,7 @@
 import { createContext, type ReactNode, useContext, useEffect, useMemo, useState } from 'react';
 import { Platform } from 'react-native';
 import * as SystemUI from 'expo-system-ui';
-import { DEFAULT_THEME, DURATIONS, RADII, resolveAccent, resolveButtonSizing, resolveSizing, SPACING, THEMES, type ButtonSize, type ThemeTokens } from '@shared/config/theme';
+import { DEFAULT_THEME, DURATIONS, LAYOUT, RADII, resolveAccent, resolveButtonSizing, resolveSizing, SPACING, THEMES, type ButtonSize, type ThemeTokens } from '@shared/config/theme';
 import type { Role, ThemeName } from '@shared/domain/enums';
 import { ROLES_CONFIG } from '@shared/config/roles';
 
@@ -12,6 +12,9 @@ export type Tokens = ThemeTokens & {
   spacing: typeof SPACING;
   radii: typeof RADII;
   durations: typeof DURATIONS;
+  /** G6 polish fix: the shared max-width column every Screen/Sheet centers wide desktop content in
+   * (shared/config/theme.ts LAYOUT). */
+  layout: typeof LAYOUT;
   type: ReturnType<typeof resolveSizing>['type'];
   touchTarget: number;
   /** Extra tappable margin past `touchTarget` on every side (RN `hitSlop`) — G2 polish fix: the composer's
@@ -71,6 +74,7 @@ export function ThemeProvider({
       spacing: SPACING,
       radii: RADII,
       durations: DURATIONS,
+      layout: LAYOUT,
       type: sizing.type,
       touchTarget: sizing.touchTarget,
       hitSlop: sizing.hitSlop,

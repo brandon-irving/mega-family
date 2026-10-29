@@ -5,7 +5,7 @@ import { fireEvent } from '@testing-library/react-native';
 import { StyleSheet } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { renderWithTheme } from '@/test/renderWithTheme';
-import { TOUCH_TARGET } from '@shared/config/theme';
+import { LAYOUT, TOUCH_TARGET } from '@shared/config/theme';
 import { Sheet } from './Sheet';
 import { Text } from './Text';
 
@@ -42,5 +42,22 @@ describe('Sheet', () => {
     expect(s.height).toBeGreaterThanOrEqual(TOUCH_TARGET.normal);
     await fireEvent.press(close);
     expect(onClose).toHaveBeenCalled();
+  });
+
+  // G6 walkthrough fix (P1): the Invite/QR sheet (a member's InvitePanel inside this same Sheet) ran its
+  // content edge-to-edge on wide desktop web, same dead-space-beside-content pattern as the chat column
+  // (Screen.test.tsx has the matching check and explains why checking the style rule is enough here).
+  test('caps its content at tokens.layout.contentMaxWidth, centered (G6 polish)', async () => {
+    const view = await renderWithTheme(
+      <SafeAreaProvider initialMetrics={METRICS}>
+        <Sheet title="Today" onClose={() => {}}>
+          <Text>Row</Text>
+        </Sheet>
+      </SafeAreaProvider>,
+    );
+    const content = view.getByTestId('sheet-content');
+    const style = StyleSheet.flatten(content.props.style) as { width?: string; maxWidth?: number };
+    expect(style.width).toBe('100%');
+    expect(style.maxWidth).toBe(LAYOUT.contentMaxWidth);
   });
 });

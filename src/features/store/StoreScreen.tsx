@@ -64,12 +64,24 @@ export function StoreScreenView({ megaName, balance, items, look, initialTab = '
   const tiles = useMemo(() => tilesFor(tab, items, look), [tab, items, look]);
   const [picked, setPicked] = useState<Record<string, string>>({});
   const [sheet, setSheet] = useState<SheetState>({ kind: 'none' });
+  // G6 walkthrough fix (P1): when nothing's explicitly picked (`picked[tab]` unset), `selKey` falls back
+  // to `firstPick(tiles)` — live, every render. Buying flips the purchased tile to `owned` in `items`
+  // (the real screen's `store.catalog` query re-renders with that), so `firstPick` then re-picks the
+  // *next* unowned tile — and the "bought" sheet used to read its name/art straight off that recomputed
+  // `sel`, naming whatever got re-selected instead of what was actually bought. `bought` snapshots the
+  // purchased tile (and its already-correct display name) the moment the purchase succeeds, so the sheet
+  // keeps showing it regardless of how `sel` moves afterwards.
+  const [bought, setBought] = useState<{ tile: Tile; name: string } | null>(null);
   const selKey = picked[tab] ?? firstPick(tiles);
   const sel = tiles.find((t) => t.key === selKey) ?? tiles[0];
   const lookTab = tab !== 'furniture';
   const name = sel ? `${sel.label}${STORE_COPY.noun[tab] ?? ''}` : '';
   const bar = sel ? barFor(sel, look, balance) : null;
   const preview = sel ? tryOn(look, sel) : look;
+  // The "bought" sheet always shows the snapshot, never the live (possibly-moved-on) `sel`/`name`/`preview`.
+  const shown = sheet.kind === 'bought' && bought ? bought.tile : sel;
+  const shownName = sheet.kind === 'bought' && bought ? bought.name : name;
+  const shownPreview = sheet.kind === 'bought' && bought ? tryOn(look, bought.tile) : preview;
 
   const barButton = !bar ? null : bar.kind === 'wearing' ? (
     <Button label={STORE_COPY.wearing} variant="secondary" disabled size={{ height: 56, fontSize: tokens.type.title.fontSize }} />
@@ -180,11 +192,11 @@ export function StoreScreenView({ megaName, balance, items, look, initialTab = '
       </View>
 
       {/* Closes with its ✕, the scrim, a drag down, Android back or Escape (src/ui/ModalSheet). */}
-      <ModalSheet open={sheet.kind !== 'none' && !!sel} closeLabel={MODAL_COPY.close} showTitle={false} testID="store-sheet" onClose={() => setSheet({ kind: 'none' })} title={sheet.kind === 'confirm' ? fillCopy(STORE_COPY.confirmTitle, { item: name }) : STORE_COPY.boughtTitle}>
-        {sel && sheet.kind !== 'none' && (
+      <ModalSheet open={sheet.kind !== 'none' && !!shown} closeLabel={MODAL_COPY.close} showTitle={false} testID="store-sheet" onClose={() => setSheet({ kind: 'none' })} title={sheet.kind === 'confirm' ? fillCopy(STORE_COPY.confirmTitle, { item: name }) : STORE_COPY.boughtTitle}>
+        {shown && sheet.kind !== 'none' && (
           <View style={{ alignItems: 'center', gap: tokens.spacing.sm }}>
             <Animated.View key={sheet.kind} entering={sheet.kind === 'bought' && !reduced ? ZoomIn.duration(tokens.durations.slow) : undefined} style={{ marginTop: tokens.spacing.sm }}>
-              {sel.furniture ? <PixelArt picture={furniturePicture(sel.furniture)} scale={2} decorative /> : <MegaSprite hex={preview.hex} sticker={preview.sticker} parts={preview} face={sheet.kind === 'bought' ? 'happy' : 'open'} scale={3} accessibilityLabel={megaName} />}
+              {shown.furniture ? <PixelArt picture={furniturePicture(shown.furniture)} scale={2} decorative /> : <MegaSprite hex={shownPreview.hex} sticker={shownPreview.sticker} parts={shownPreview} face={sheet.kind === 'bought' ? 'happy' : 'open'} scale={3} accessibilityLabel={megaName} />}
             </Animated.View>
             <Text variant="headline" accessibilityRole="header">
               {sheet.kind === 'confirm' ? fillCopy(STORE_COPY.confirmTitle, { item: name }) : STORE_COPY.boughtTitle}
@@ -193,8 +205,8 @@ export function StoreScreenView({ megaName, balance, items, look, initialTab = '
               {sheet.kind === 'confirm'
                 ? fillCopy(STORE_COPY.confirmBody, { price: sel.price, left: balance - sel.price })
                 : sheet.furniture
-                  ? fillCopy(STORE_COPY.boughtFurniture, { item: sel.label.toLowerCase() })
-                  : fillCopy(STORE_COPY.boughtLook, { mega: megaName, item: name.toLowerCase() })}
+                  ? fillCopy(STORE_COPY.boughtFurniture, { item: shown.label.toLowerCase() })
+                  : fillCopy(STORE_COPY.boughtLook, { mega: megaName, item: shownName.toLowerCase() })}
             </Text>
             <View style={{ alignSelf: 'stretch', gap: tokens.spacing.sm, marginTop: 10 }}>
               {sheet.kind === 'confirm' ? (
@@ -204,7 +216,10 @@ export function StoreScreenView({ megaName, balance, items, look, initialTab = '
                     loading={busy}
                     size={{ height: 56, fontSize: tokens.type.title.fontSize }}
                     onPress={async () => {
-                      if (await onBuy(sel)) setSheet({ kind: 'bought', furniture: sel.section === 'furniture' });
+                      if (await onBuy(sel)) {
+                        setBought({ tile: sel, name });
+                        setSheet({ kind: 'bought', furniture: sel.section === 'furniture' });
+                      }
                     }}
                   />
                   <Button label={STORE_COPY.notNow} variant="secondary" disabled={busy} size={{ height: 56, fontSize: tokens.type.title.fontSize }} onPress={() => setSheet({ kind: 'none' })} />

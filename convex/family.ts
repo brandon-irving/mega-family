@@ -1,5 +1,6 @@
 // CONTRACT §4 "Family" (+ `family.parentCode` from "Session and onboarding", same module).
 import { API } from '../shared/domain/api';
+import { canReadKidThread } from '../shared/domain/family';
 import { mutation, query } from './_generated/server';
 import { pick } from './model/define';
 import { fail } from './model/errors';
@@ -71,7 +72,7 @@ export const member = query({
             .withIndex('by_family_member', (q) => q.eq('familyId', viewer.member.familyId).eq('memberId', target._id))
             .unique()
         : null;
-    const canReadChat = target._id === viewer.member._id || (target.role === 'kid' && isParent && (kidControlsDoc?.parentsCanReadChat ?? false));
+    const canReadChat = target._id === viewer.member._id || canReadKidThread(isParent, kidControlsDoc?.parentsCanReadChat);
 
     return { member: target, mega: mega ?? null, relationshipToViewer, kidControls: kidControlsDoc ?? null, canReadChat };
   },

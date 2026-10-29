@@ -20,6 +20,7 @@ function props(over: Partial<ProfileContentProps> = {}): ProfileContentProps {
     onOpenLookPersonality: jest.fn(),
     onOpenNotifications: jest.fn(),
     onOpenTheme: jest.fn(),
+    onOpenSettings: jest.fn(),
     onOpenMemories: jest.fn(),
     ...over,
   };
@@ -53,5 +54,19 @@ describe('MEGA profile', () => {
     expect(screen.queryByLabelText('What Teal remembers')).toBeNull();
     expect(screen.getByLabelText('Look and personality')).toBeTruthy();
     expect(screen.getByLabelText('Theme')).toBeTruthy();
+  });
+
+  // G6 walkthrough fix (P2): sign out was three taps deep (MEGA profile -> "Theme" row, which actually
+  // opens all of Settings -> scroll to the bottom). A direct Settings row gets there in one tap, and
+  // Theme/Notifications must keep working exactly as they did.
+  test('has a direct Settings row in "You", alongside (not instead of) Theme and Notifications', async () => {
+    const p = props();
+    await renderWithTheme(<ProfileContent {...p} />);
+    await fireEvent.press(screen.getByLabelText('Settings'));
+    await fireEvent.press(screen.getByLabelText('Notifications and quiet hours'));
+    await fireEvent.press(screen.getByLabelText('Theme'));
+    expect(p.onOpenSettings).toHaveBeenCalled();
+    expect(p.onOpenNotifications).toHaveBeenCalled();
+    expect(p.onOpenTheme).toHaveBeenCalled();
   });
 });

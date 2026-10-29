@@ -39,12 +39,15 @@ export type ProfileContentProps = {
   onOpenActivity?: () => void;
   /** A kid's own Rules and limits, read-only (G5 UX review; board ProfileRulesKid). */
   onOpenRules?: () => void;
+  /** G6 walkthrough fix (P2): a direct row to Settings (sign out lives there) — one tap instead of the
+   * three it took via the "Theme" row, which keeps its own separate behavior. */
+  onOpenSettings: () => void;
 };
 
 const SHARE_LEVELS: ShareLevel[] = ['me', 'partner', 'family'];
 const SHARE_LABEL: Record<ShareLevel, string> = { me: 'Only me', partner: 'Partner', family: 'Family' };
 
-export function ProfileContent({ mega, role, statusLine, sharing, onRename, onOpenLookPersonality, onOpenNotifications, onOpenTheme, onChangeSharing, onOpenMemories, onOpenActivity, onOpenRules }: ProfileContentProps) {
+export function ProfileContent({ mega, role, statusLine, sharing, onRename, onOpenLookPersonality, onOpenNotifications, onOpenTheme, onOpenSettings, onChangeSharing, onOpenMemories, onOpenActivity, onOpenRules }: ProfileContentProps) {
   const tokens = useTokens();
   const access = ROLES_CONFIG[role].profile;
   const [editing, setEditing] = useState(false);
@@ -117,6 +120,7 @@ export function ProfileContent({ mega, role, statusLine, sharing, onRename, onOp
       <View style={{ gap: tokens.spacing.sm }}>
         <Row label={C.notifications} title={C.notifications} hint={C.notificationsHint} onPress={onOpenNotifications} />
         <Row label={C.theme} title={C.theme} hint={C.themeHint} onPress={onOpenTheme} />
+        <Row label={C.settings} title={C.settings} hint={C.settingsHint} onPress={onOpenSettings} />
         {access.memories && onOpenMemories ? <Row label={C.remembers(mega.name)} title={C.remembers(mega.name)} hint={C.remembersHint} onPress={onOpenMemories} /> : null}
         {onOpenRules ? <Row label={G5_UI_COPY.rulesRow} title={G5_UI_COPY.rulesRow} hint={G5_FIX_COPY.kidRulesHint} onPress={onOpenRules} /> : null}
         {onOpenActivity ? <Row label={G5_UI_COPY.activityRow} title={G5_UI_COPY.activityRow} hint={fillCopy(G5_UI_COPY.activityRowHint, { mega: mega.name })} onPress={onOpenActivity} /> : null}
