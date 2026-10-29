@@ -25,6 +25,15 @@ export const CHAT_COPY = {
 /** Words every modal shares (the ✕ button's label for screen readers). */
 export const MODAL_COPY = { close: 'Close' } as const;
 
+/** G6 walkthrough fix (P0): a route-level error boundary on the tabs layout (Expo Router's `ErrorBoundary`
+ * export convention) so one failed query — e.g. tapping a member card that throws FORBIDDEN — shows this
+ * instead of white-screening the whole app. */
+export const APP_ERROR_COPY = {
+  title: 'Something went wrong',
+  body: 'That screen hit a snag. Try again — if it keeps happening, leave this tab and come back.',
+  retry: 'Try again',
+} as const;
+
 /** The MEGA profile (Profile board; owner, Oct 28: tapping the MEGA opens customizing and profile concerns). */
 export const PROFILE_COPY = {
   title: 'MEGA profile',

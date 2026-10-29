@@ -3,9 +3,11 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import type { Id } from '@shared/domain/validators';
 import { G5_FIX_COPY } from '@shared/config/copy';
+import { canReadKidThread } from '@shared/domain/family';
 import { InvitePanel } from '@/features/family/InvitePanel';
 import { useKidThread, useMemberDetail, useSetKidControls } from '@/data/useFamily';
 import { useMegaDirectory } from '@/data/useMegaDirectory';
+import { useViewer } from '@/data/useViewer';
 import { LoadingScreen } from '@/ui/LoadingScreen';
 import { Sheet } from '@/ui/Sheet';
 import { Text } from '@/ui/Text';
@@ -17,9 +19,16 @@ export default function MemberDetailRoute() {
   const { memberId } = useLocalSearchParams<{ memberId: string }>();
   const id = memberId as Id<'members'>;
   const detail = useMemberDetail(id);
+  const viewer = useViewer();
   const setKidControls = useSetKidControls();
   const megaById = useMegaDirectory();
-  const kidThread = useKidThread(detail?.canReadChat ? id : null);
+  // G6 fix (P0): `detail.canReadChat` is also true for your *own* card (self-match, a different
+  // concern), which used to fire `kidThread` for yourself too — the backend's `isParentOf` check is
+  // never true of yourself, so it threw an uncaught FORBIDDEN instead of just not subscribing. Only
+  // ask when the viewer is actually this member's parent and that kid's "parents can read chats"
+  // control is on — the same rule `convex/family.ts`'s `kidThread` enforces (shared/domain/family.ts).
+  const canReadThisKidThread = !!viewer && canReadKidThread(viewer.isParentOf.includes(id), detail?.kidControls?.parentsCanReadChat);
+  const kidThread = useKidThread(canReadThisKidThread ? id : null);
   const tokens = useTokens();
 
   if (detail === undefined) return <LoadingScreen label="Loading member…" />;
@@ -43,7 +52,7 @@ export default function MemberDetailRoute() {
           <InvitePanel memberId={id} name={detail.member.name} />
         </>
       )}
-      {detail.canReadChat && detail.member.role === 'kid' && (
+      {canReadThisKidThread && (
         <>
           <Text variant="label" color="muted" style={{ marginTop: tokens.spacing.md }}>
             THEIR CHAT (READ-ONLY)

@@ -11,14 +11,38 @@
 // its docs (docs.expo.dev/router/advanced/custom-tabs, `TabSlotProps.detachInactiveScreens`, default
 // false), it keeps every visited tab's screen tree mounted — hidden, not unmounted — when switching
 // away, matching native tabs' own behavior.
+import type { ErrorBoundaryProps } from 'expo-router';
 import { Tabs, TabList, TabSlot, TabTrigger, type TabTriggerSlotProps } from 'expo-router/ui';
 import { Pressable, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { APP_ERROR_COPY } from '@shared/config/copy';
+import { Button } from '@/ui/Button';
 import { Text } from '@/ui/Text';
 import { useTheme, useTokens } from '@/ui/theme';
 import { tabsForRole } from '@/features/shell/tabs';
 
 const WIDE_BREAKPOINT = 768;
+
+/** G6 walkthrough fix (P0): Expo Router's per-route `ErrorBoundary` export convention
+ * (docs.expo.dev/router, "Error boundaries") — a route that throws while rendering (e.g. the Family tab's
+ * member detail firing `kidThread` for a member it can't read) looks for this on its own file first, then
+ * walks up to the nearest ancestor layout that exports one. Exporting it here, once, on the tabs layout
+ * means a single failed query inside *any* tab can never white-screen the whole app; `retry` re-renders
+ * the route that threw by clearing the error state. */
+export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
+  const tokens = useTokens();
+  return (
+    <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: tokens.spacing.lg, gap: tokens.spacing.md, backgroundColor: tokens.bg }}>
+      <Text variant="headline" accessibilityRole="header">
+        {APP_ERROR_COPY.title}
+      </Text>
+      <Text color="muted" style={{ textAlign: 'center' }}>
+        {__DEV__ ? error.message : APP_ERROR_COPY.body}
+      </Text>
+      <Button label={APP_ERROR_COPY.retry} onPress={() => void retry()} />
+    </View>
+  );
+}
 
 export default function TabLayout() {
   const { role } = useTheme();

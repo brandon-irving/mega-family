@@ -14,13 +14,17 @@
 // crashes the actual dev server with "expect is not defined" on every page, not just this test suite.
 import { Text } from 'react-native';
 import { Slot } from 'expo-router';
-import { renderRouter, screen, testRouter } from 'expo-router/testing-library';
+import { fireEvent, render, renderRouter, screen, testRouter } from 'expo-router/testing-library';
+import { APP_ERROR_COPY } from '@shared/config/copy';
 import { ThemeProvider } from '@/ui/theme';
 import { NavigationThemeBridge } from './NavigationThemeBridge';
 // Explicit .tsx extension: this directory also has `_layout.native.tsx`, and jest's default haste
 // platform ("ios") would otherwise resolve the bare specifier to that native file instead of the web one
 // actually implicated in the crash.
-import TabLayout from '@/app/(tabs)/_layout.tsx';
+// A namespace import (not just the default): expo-router/testing-library's in-memory context only keeps a
+// route's named exports (its own `ErrorBoundary`, below) when given the whole module object — a bare
+// function value is treated as `{ default: fn }`, dropping everything else.
+import * as TabLayoutModule from '@/app/(tabs)/_layout.tsx';
 import ChatLayout from '@/app/(tabs)/chat/_layout';
 
 function RootLayout() {
@@ -50,7 +54,7 @@ function FamilyIndexStub() {
 // so TabLayout's TabList renders a trigger for all three — each needs a route to exist in this synthetic tree.
 const ROUTES = {
   _layout: RootLayout,
-  '(tabs)/_layout': TabLayout,
+  '(tabs)/_layout': TabLayoutModule,
   '(tabs)/chat/_layout': ChatLayout,
   '(tabs)/chat/index': ChatIndexStub,
   '(tabs)/chat/[messageId]': ChatMessageStub,
@@ -73,5 +77,38 @@ describe('(tabs) web layout + chat Stack', () => {
 
     await testRouter.push('/family');
     expect(screen.getByText('FAMILY_INDEX')).toBeTruthy();
+  });
+});
+
+// G6 walkthrough fix (P0): tapping your own Family tab member card used to throw an uncaught
+// ConvexError FORBIDDEN mid-render, white-screening the whole app. `(tabs)/_layout.tsx` now exports
+// `ErrorBoundary` (Expo Router's per-route convention — docs.expo.dev/router "Error boundaries"), so a
+// screen that throws shows a friendly retry screen instead. This stub stands in for that crash: any tab
+// screen throwing while rendering is the same class of bug.
+function ThrowingFamilyIndexStub(): never {
+  throw new Error('simulated crash (e.g. an uncaught ConvexError FORBIDDEN)');
+}
+
+describe('(tabs) ErrorBoundary (G6 walkthrough #1, P0)', () => {
+  test('a tab screen that throws shows the retry screen instead of white-screening the app', async () => {
+    await renderRouter({ ...ROUTES, '(tabs)/family/index': ThrowingFamilyIndexStub }, { initialUrl: '/family' });
+    expect(screen.getByText(APP_ERROR_COPY.title)).toBeTruthy();
+    expect(screen.queryByText('FAMILY_INDEX')).toBeNull();
+  });
+
+  // Isolated from the router (rendering the exported `ErrorBoundary` directly with a mock `retry`):
+  // re-rendering the *same* throwing stub through the real router to prove retry's wiring hits React's
+  // own dev-mode error-replay behavior (it quietly re-invokes a failed render once more before
+  // committing, which can swallow a single-shot "throw once then recover" stub) and is pathologically
+  // slow under jest-expo's dev error logging either way.
+  test('"Try again" calls the boundary\'s retry', async () => {
+    const retry = jest.fn();
+    await render(
+      <ThemeProvider>
+        <TabLayoutModule.ErrorBoundary error={new Error('simulated crash')} retry={retry} />
+      </ThemeProvider>,
+    );
+    await fireEvent.press(screen.getByText(APP_ERROR_COPY.retry));
+    expect(retry).toHaveBeenCalled();
   });
 });
