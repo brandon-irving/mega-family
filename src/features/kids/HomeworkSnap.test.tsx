@@ -86,6 +86,23 @@ describe('HomeworkSnap (phone: live viewfinder)', () => {
     expect(onDone).toHaveBeenCalledTimes(1);
   });
 
+  test('a double tap during the capture takes ONE photo and submits once (G8 correctness review)', async () => {
+    let resolvePhoto: (v: { uri: string; width: number; height: number }) => void = () => {};
+    mockTakePicture.mockImplementationOnce(() => new Promise((r) => (resolvePhoto = r)));
+    await renderWithTheme(<HomeworkSnap megaName="Teal" onDone={jest.fn()} />);
+    await ready();
+    const shutter = screen.getByRole('button', { name: KIDS_COPY.takePhoto });
+    await act(async () => {
+      fireEvent.press(shutter);
+      fireEvent.press(shutter);
+    });
+    await act(async () => {
+      resolvePhoto({ uri: 'file:///cache/hw.jpg', width: 1000, height: 1400 });
+    });
+    expect(mockTakePicture).toHaveBeenCalledTimes(1);
+    expect(mockSubmit).toHaveBeenCalledTimes(1);
+  });
+
   test('"Choose a photo instead" stays under the shutter and opens the photo picker', async () => {
     await renderWithTheme(<HomeworkSnap megaName="Teal" onDone={jest.fn()} />);
     await ready();
