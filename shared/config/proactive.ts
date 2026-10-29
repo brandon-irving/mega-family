@@ -50,5 +50,10 @@ export const weatherAlertDedupeKey = (alertId: string, recipientId: string): str
 export const weatherEventDedupeKey = (eventId: string, recipientId: string, date: string): string => `weatherEvent:${eventId}:${recipientId}:${date}`;
 export const leaveByDedupeKey = (eventId: string, recipientId: string): string => `leaveBy:${eventId}:${recipientId}`;
 export const searchNoticeDedupeKey = (searchLogId: string, parentId: string): string => `searchNotice:${searchLogId}:${parentId}`;
+// G4b (v0.16): a UV / air-quality tip (one per event × tip × recipient × day; rain keeps weatherEventDedupeKey),
+// a price drop (one per watch × price × adult), and the holiday question (one per skip row × adult).
+export const weatherTipDedupeKey = (eventId: string, tip: string, recipientId: string, date: string): string => `weatherTip:${eventId}:${tip}:${recipientId}:${date}`;
+export const priceDropDedupeKey = (watchId: string, priceCents: number, recipientId: string): string => `priceDrop:${watchId}:${priceCents}:${recipientId}`;
+export const holidayDedupeKey = (skipId: string, recipientId: string): string => `holiday:${skipId}:${recipientId}`;
 /** A clash between two household events that both need the same person (order-independent). */
 export const clashDedupeKey = (eventIds: string[], memberId: string): string => `clash:${[...eventIds].sort().join('+')}:${memberId}`;

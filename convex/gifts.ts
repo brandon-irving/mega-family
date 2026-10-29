@@ -2,12 +2,15 @@
 // for the person they're about (convex/model/gifts.ts). `draft` is the internal Muse Spark step.
 import { v } from 'convex/values';
 import { GIFTS } from '../shared/config/calendar';
+import { SHOPPING, maxPriceCentsOf } from '../shared/config/shopping';
 import { GIFT_LIST_NAME } from '../shared/config/copy';
 import { LIMITS } from '../shared/config/limits';
 import { API } from '../shared/domain/api';
+import { productRef, type ProductRef } from '../shared/domain/integrationShapes';
 import { localDate } from '../shared/time';
 import { internal } from './_generated/api';
 import { internalAction, internalMutation, internalQuery, mutation, query } from './_generated/server';
+import { getProductCatalog } from './adapters/registry';
 import { pick } from './model/define';
 import { searchWeb } from './search';
 import { fail } from './model/errors';
@@ -94,6 +97,8 @@ export const addToList = mutation({
     const now = await clock.now(ctx, familyId);
     const itemId = await ctx.db.insert('listItems', { familyId, listId: list._id, text, checked: false, addedBy: viewer.member._id, at: now });
     if (!set.addedToList.includes(args.index)) await ctx.db.patch(set._id, { addedToList: [...set.addedToList, args.index] });
+    // G4b: watch the idea's products' prices (one live lookup for the baseline, then the price cron).
+    if (idea.productRefs?.length) await ctx.scheduler.runAfter(0, internal.shopping.startWatches, { giftIdeasId: set._id, index: args.index, createdBy: viewer.member._id });
     return itemId;
   },
 });
@@ -158,11 +163,18 @@ export const draft = internalAction({
       await ctx.runMutation(internal.gifts.markFailed, { giftIdeasId: args.giftIdeasId });
       return null;
     }
-    // G4: one product link per idea from web search. The query is the idea and the age only (built from
-    // household-shared facts) — no name, no location. A failed search just leaves the idea without a link.
-    const linked: (typeof ideas[number] & { url?: string })[] = [];
+    // G4b: up to GIFTS.productsPerIdea catalog products per idea (refs only — Shopify's terms forbid caching
+    // results). G4: when the catalog has nothing (not set up, failed, no match), one product link from web
+    // search instead. Either query is the idea (and, for the web, the age) only — built from household-shared
+    // facts, never a name, a location or a personal memory (invariant 1). A failure leaves the idea bare.
+    const linked: (typeof ideas[number] & { url?: string; productRefs?: ProductRef[] })[] = [];
     for (const idea of ideas.slice(0, GIFTS.ideasPerSet)) {
       let url: string | undefined;
+      const productRefs = idea.title.trim() ? await catalogRefsFor(idea.title.trim(), idea.price) : [];
+      if (productRefs.length) {
+        linked.push({ ...idea, productRefs });
+        continue;
+      }
       if (GIFTS.productSearch && idea.title.trim()) {
         try {
           const r = await searchWeb(ctx, data.familyId, { query: `${idea.title.trim()} gift${data.age ? ` for a ${data.age}-year-old` : ''}`, contextSize: 'low' });
@@ -178,8 +190,31 @@ export const draft = internalAction({
   },
 });
 
+/** Catalog products for one gift idea: the idea's title as the query, capped at its price plus
+ * GIFTS.priceSlackPct when it has one. Refs only (variant ids when present); [] on any failure. */
+async function catalogRefsFor(title: string, price: string | undefined): Promise<ProductRef[]> {
+  const max = maxPriceCentsOf(price);
+  const r = await getProductCatalog().search({
+    query: title,
+    country: SHOPPING.country,
+    ...(max !== undefined ? { maxPriceCents: Math.round((max * (100 + GIFTS.priceSlackPct)) / 100) } : {}),
+    limit: GIFTS.productsPerIdea,
+  });
+  if (!r.ok) return [];
+  return r.products.slice(0, GIFTS.productsPerIdea).map((p) => ({ productId: p.productId, ...(p.variantId ? { variantId: p.variantId } : {}) }));
+}
+
+const MAX_REF_LENGTH = 200;
+const cleanRefs = (refs: ProductRef[] | undefined): ProductRef[] | undefined => {
+  const ok = (refs ?? []).filter((r) => r.productId.trim() && r.productId.length <= MAX_REF_LENGTH && (r.variantId ?? '').length <= MAX_REF_LENGTH).slice(0, GIFTS.productsPerIdea);
+  return ok.length ? ok.map((r) => ({ productId: r.productId, ...(r.variantId ? { variantId: r.variantId } : {}) })) : undefined;
+};
+
 export const finish = internalMutation({
-  args: { giftIdeasId: v.id('giftIdeas'), ideas: v.array(v.object({ title: v.string(), why: v.string(), price: v.string(), basedOn: v.array(v.number()), url: v.optional(v.string()) })) },
+  args: {
+    giftIdeasId: v.id('giftIdeas'),
+    ideas: v.array(v.object({ title: v.string(), why: v.string(), price: v.string(), basedOn: v.array(v.number()), url: v.optional(v.string()), productRefs: v.optional(v.array(productRef)) })),
+  },
   returns: v.null(),
   handler: async (ctx, args) => {
     const set = await ctx.db.get(args.giftIdeasId);
@@ -189,7 +224,7 @@ export const finish = internalMutation({
     // Re-read the facts here (not trusting the action's copy) and keep only ideas that cite real ones.
     const facts = await sharedFactsFor(ctx, forMember);
     const ideas = args.ideas
-      .map((i) => ({ title: i.title.trim().slice(0, 60), why: i.why.trim().slice(0, 160), price: i.price.trim().slice(0, 20) || undefined, url: i.url && /^https:\/\//.test(i.url) ? i.url.slice(0, 500) : undefined, basedOn: [...new Set(i.basedOn.filter((n) => Number.isInteger(n) && n >= 0 && n < facts.length))] }))
+      .map((i) => ({ title: i.title.trim().slice(0, 60), why: i.why.trim().slice(0, 160), price: i.price.trim().slice(0, 20) || undefined, url: i.url && /^https:\/\//.test(i.url) ? i.url.slice(0, 500) : undefined, productRefs: cleanRefs(i.productRefs), basedOn: [...new Set(i.basedOn.filter((n) => Number.isInteger(n) && n >= 0 && n < facts.length))] }))
       .filter((i) => i.title && i.basedOn.length)
       .slice(0, GIFTS.ideasPerSet);
     const used = [...new Set(ideas.flatMap((i) => i.basedOn))].sort((a, b) => a - b);
@@ -211,6 +246,53 @@ export const markFailed = internalMutation({
   handler: async (ctx, args) => {
     const set = await ctx.db.get(args.giftIdeasId);
     if (set && set.status === 'queued') await ctx.db.patch(set._id, { status: 'failed' });
+    return null;
+  },
+});
+
+// ---------- G4b: live products for the seeded gift ideas (seed.resetDemo, real mode only) ----------
+
+export const sampleSets = internalQuery({
+  args: { familyId: v.id('families') },
+  returns: v.array(v.object({ giftIdeasId: v.id('giftIdeas'), ideas: v.array(v.object({ title: v.string(), price: v.optional(v.string()) })) })),
+  handler: async (ctx, { familyId }) => {
+    const rows = await ctx.db
+      .query('giftIdeas')
+      .withIndex('by_family_for', (q) => q.eq('familyId', familyId))
+      .collect();
+    return rows.filter((g) => g.status === 'ready').map((g) => ({ giftIdeasId: g._id, ideas: g.ideas.map((i) => ({ title: i.title, price: i.price })) }));
+  },
+});
+
+/** Replaces the seed's sample refs and watches with live catalog results, then re-watches the ideas already on
+ * the list (a live lookup for each baseline). An idea the catalog can't match keeps no refs: nothing invented. */
+export const replaceSampleProducts = internalMutation({
+  args: { giftIdeasId: v.id('giftIdeas'), refs: v.array(v.array(productRef)) },
+  returns: v.null(),
+  handler: async (ctx, { giftIdeasId, refs }) => {
+    const set = await ctx.db.get(giftIdeasId);
+    const family = set ? await ctx.db.get(set.familyId) : null;
+    if (!set || !family?.adminId) return null;
+    await ctx.db.patch(set._id, { ideas: set.ideas.map((idea, i) => ({ ...idea, productRefs: cleanRefs(refs[i]) })) });
+    const old = await ctx.db
+      .query('priceWatches')
+      .withIndex('by_family_ideas', (q) => q.eq('familyId', set.familyId).eq('giftIdeasId', set._id))
+      .collect();
+    for (const w of old) await ctx.db.delete(w._id);
+    for (const index of set.addedToList) if (refs[index]?.length) await ctx.scheduler.runAfter(0, internal.shopping.startWatches, { giftIdeasId: set._id, index, createdBy: family.adminId });
+    return null;
+  },
+});
+
+export const attachSampleProducts = internalAction({
+  args: { familyId: v.id('families') },
+  returns: v.null(),
+  handler: async (ctx, { familyId }) => {
+    for (const set of await ctx.runQuery(internal.gifts.sampleSets, { familyId })) {
+      const refs: ProductRef[][] = [];
+      for (const idea of set.ideas) refs.push(await catalogRefsFor(idea.title, idea.price));
+      await ctx.runMutation(internal.gifts.replaceSampleProducts, { giftIdeasId: set.giftIdeasId, refs });
+    }
     return null;
   },
 });

@@ -25,7 +25,8 @@ import { metaTranscriber } from './metaTranscriber';
 import { mapboxDirections, mapboxGeocoder } from './mapbox';
 import { metaWebSearch } from './metaWebSearch';
 import { openMeteoNwsWeather } from './openMeteoNwsWeather';
-import { unconfiguredHolidays, unconfiguredProductCatalog } from './unconfiguredIntegrations';
+import { nagerHolidays } from './nagerHolidays';
+import { shopifyCatalog } from './shopifyCatalog';
 import type { ChatModel } from '../ports/chatModel';
 import type { Directions } from '../ports/directions';
 import type { EmailSender } from '../ports/emailSender';
@@ -50,6 +51,11 @@ let holidaysOverride: Holidays | null = null;
 
 function wantsRealAdapters(): boolean {
   return process.env.MEGA_MODEL_ADAPTER === 'real';
+}
+
+/** Whether this deployment talks to the real outside world (seed.resetDemo swaps sample data for live data). */
+export function realAdaptersOn(): boolean {
+  return wantsRealAdapters();
 }
 
 export function getChatModel(): ChatModel {
@@ -137,16 +143,16 @@ export function __setGeocoderForTests(adapter: Geocoder | null): void {
 }
 
 // ---------- G4b (CONTRACT v0.16): shopping, holidays ----------
-// Same selection. Real mode uses fail-closed placeholders until the G4b backend's real adapters land.
+// Same selection. The real adapters fail closed on their own (no agent profile URL → `not_configured`).
 
 export function getProductCatalog(): ProductCatalog {
   if (productCatalogOverride) return productCatalogOverride;
-  return wantsRealAdapters() ? unconfiguredProductCatalog : defaultFakeProductCatalog;
+  return wantsRealAdapters() ? shopifyCatalog : defaultFakeProductCatalog;
 }
 
 export function getHolidays(): Holidays {
   if (holidaysOverride) return holidaysOverride;
-  return wantsRealAdapters() ? unconfiguredHolidays : defaultFakeHolidays;
+  return wantsRealAdapters() ? nagerHolidays : defaultFakeHolidays;
 }
 
 export function __setProductCatalogForTests(adapter: ProductCatalog | null): void {

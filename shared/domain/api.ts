@@ -624,7 +624,7 @@ export const API = {
     }),
   },
 
-  // ---------- G4b (CONTRACT v0.16): shopping, price watch, holidays. Stubs until the G4b backend. ----------
+  // ---------- G4b (CONTRACT v0.16): shopping, price watch, holidays. ----------
   // Product search has no public function: it's the adults' `shop_search` agent tool, and its result is a
   // `products` card in the asker's own thread. Gift ideas get `productRefs` per idea; `gifts.addToList` starts a
   // price watch for each of the added idea's products.
@@ -632,27 +632,27 @@ export const API = {
     // Adults (SHOPPING.viewers); kids → FORBIDDEN. Looks refs up live in the catalog (≤ SHOPPING.maxLookup; more →
     // VALIDATION) and stores nothing: Shopify's terms forbid caching results. Used by the products, gifts and
     // priceDrop cards.
-    products: fn({ kind: 'action', day1: 'stub', args: { refs: v.array(productRef) }, returns: productsResult }),
+    products: fn({ kind: 'action', day1: 'real', args: { refs: v.array(productRef) }, returns: productsResult }),
     // Adults who can see gift ideas, never the gift's recipient: the family's watches with status `watching`.
-    watches: fn({ kind: 'query', day1: 'stub', args: {}, returns: v.array(priceWatchDoc) }),
+    watches: fn({ kind: 'query', day1: 'real', args: {}, returns: v.array(priceWatchDoc) }),
     // Same audience (the recipient and kids → NOT_FOUND). Any status, so a card can say "Stopped watching".
-    watch: fn({ kind: 'query', day1: 'stub', args: { watchId: v.id('priceWatches') }, returns: priceWatchDoc }),
+    watch: fn({ kind: 'query', day1: 'real', args: { watchId: v.id('priceWatches') }, returns: priceWatchDoc }),
     // Same audience. Idempotent: stopping a stopped watch changes nothing. The price push's `stop_watching`
     // button takes the same path.
-    unwatch: fn({ kind: 'mutation', day1: 'stub', args: { watchId: v.id('priceWatches') }, returns: v.null() }),
+    unwatch: fn({ kind: 'mutation', day1: 'real', args: { watchId: v.id('priceWatches') }, returns: v.null() }),
   },
   holidays: {
     // Any member. Public holidays in the next `days` (HOLIDAYS.upcomingDays default, max HOLIDAYS.maxUpcomingDays)
     // for the family's country, from the cache, oldest first, with the family's pause decision.
-    upcoming: fn({ kind: 'query', day1: 'stub', args: { days: v.optional(v.number()) }, returns: v.array(upcomingHoliday) }),
+    upcoming: fn({ kind: 'query', day1: 'real', args: { days: v.optional(v.number()) }, returns: v.array(upcomingHoliday) }),
     // Adults. The question behind a `holiday` card (any status, so the card can show who decided).
-    question: fn({ kind: 'query', day1: 'stub', args: { skipId: v.id('routineSkips') }, returns: routineSkipDoc }),
+    question: fn({ kind: 'query', day1: 'real', args: { skipId: v.id('routineSkips') }, returns: routineSkipDoc }),
     // Adults. `pause` skips that day's morning routine and chores for the question's kids (and the bedtime prep
     // the night before says "No school routine tomorrow"); `keep` changes nothing. First answer wins; a later
     // answer returns the existing outcome's message. The push buttons (`holiday.default`) take the same path.
     answer: fn({
       kind: 'mutation',
-      day1: 'stub',
+      day1: 'real',
       args: { skipId: v.id('routineSkips'), action: v.union(v.literal('pause'), v.literal('keep')) },
       returns: v.object({ message: v.string(), status: T.routineSkipStatus }),
     }),

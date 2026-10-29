@@ -48,6 +48,8 @@ export const upsert = mutation({
         label,
         address,
         updatedAt: now,
+        // v0.16 (G4b): omitted keeps the current value.
+        ...(args.outdoor !== undefined ? { outdoor: args.outdoor } : {}),
         ...(addressChanged ? { lat: undefined, lng: undefined, geocode: { status: 'pending' as const } } : {}),
       });
       if (addressChanged) await ctx.scheduler.runAfter(0, internal.places.geocode, { placeId: place._id });
@@ -55,7 +57,7 @@ export const upsert = mutation({
     }
 
     if ((await familyPlaces(ctx, familyId)).length >= PLACES.maxPerFamily) fail('VALIDATION', `a family can save up to ${PLACES.maxPerFamily} places`);
-    const placeId = await ctx.db.insert('places', { familyId, kind: args.kind, label, address, geocode: { status: 'pending' }, createdBy: viewer.member._id, updatedAt: now });
+    const placeId = await ctx.db.insert('places', { familyId, kind: args.kind, label, address, geocode: { status: 'pending' }, createdBy: viewer.member._id, updatedAt: now, ...(args.outdoor !== undefined ? { outdoor: args.outdoor } : {}) });
     await ctx.scheduler.runAfter(0, internal.places.geocode, { placeId });
     return placeId;
   },

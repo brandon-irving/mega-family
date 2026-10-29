@@ -4,6 +4,8 @@
 // CONTRACT.md §4 "Demo", v0.4 pending approval) — a plain Convex route gave it no args/returns checking
 // and no privacy-grid coverage, unlike every other function in this backend.
 import { httpRouter } from 'convex/server';
+import { SHOPPING } from '../shared/config/shopping';
+import { agentProfile } from './model/ucpProfile';
 import { authComponent, createAuth, trustedOrigins } from './auth';
 import { internal } from './_generated/api';
 import type { Id } from './_generated/dataModel';
@@ -18,6 +20,15 @@ const http = httpRouter();
 // itself (convex/auth.ts) — one definition, so the CORS policy and Better Auth's own origin checks never
 // drift apart.
 authComponent.registerRoutesLazy(http, createAuth, { basePath: '/api/auth', cors: true, trustedOrigins: trustedOrigins() });
+
+/** G4b (v0.16): our UCP platform ("agent") profile. Shopify's Global Catalog fetches it from the URL every
+ * catalog request names (`meta["ucp-agent"].profile`) and negotiates against it: catalog search and lookup
+ * only — no cart, checkout or order capability (shopify.dev/docs/agents/profiles). Public, static, cacheable. */
+http.route({
+  path: SHOPPING.agentProfilePath,
+  method: 'GET',
+  handler: httpAction(async () => new Response(JSON.stringify(agentProfile()), { status: 200, headers: { 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=3600' } })),
+});
 
 /** One fixed response for every failure (malformed body, unknown notification, locked out, wrong/expired
  * token, unknown button) — CONTRACT §5 v0.11's "no oracle" requirement: nothing in the response should let

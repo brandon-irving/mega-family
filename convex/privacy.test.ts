@@ -445,6 +445,34 @@ describe('Milestone D: privacy grid', () => {
       for (const row of famA.docs.weatherCache ?? []) expect(strings.has(row._id)).toBe(false);
     });
 
+    // ---------- G4b (docs/gates/G4b.md invariants 2, 5, 9) ----------
+
+    test('G4b priceWatches: the gift’s recipient and their sibling can’t read the seeded watch; the adults can', async () => {
+      const watch = famA.docs.priceWatches![0] as unknown as { _id: Id<'priceWatches'>; forMemberId: string };
+      expect(watch.forMemberId, 'fixture sanity: the seeded watch is for Twin 1').toBe(famA.members.twin1);
+      for (const k of ['twin1', 'twin2'] as const) {
+        expect(codeOf(await A(k).query(api.shopping.watch, { watchId: watch._id }).catch((e) => e)), k).toBe('NOT_FOUND');
+        expect(codeOf(await A(k).query(api.shopping.watches, {}).catch((e) => e)), k).toBe('FORBIDDEN');
+      }
+      // (`watch`, any status: the grid above already probed `unwatch`, which may have stopped it.)
+      for (const k of ['admin', 'partner'] as const) expect((await A(k).query(api.shopping.watch, { watchId: watch._id }))._id, k).toBe(watch._id);
+    });
+
+    test('G4b routineSkips: kids can neither read nor answer a holiday question', async () => {
+      const skip = famA.docs.routineSkips![0] as unknown as { _id: Id<'routineSkips'> };
+      for (const k of ['twin1', 'twin2'] as const) {
+        expect(codeOf(await A(k).query(api.holidays.question, { skipId: skip._id }).catch((e) => e)), k).toBe('FORBIDDEN');
+        expect(codeOf(await A(k).mutation(api.holidays.answer, { skipId: skip._id, action: 'pause' }).catch((e) => e)), k).toBe('FORBIDDEN');
+      }
+      expect((await A('partner').query(api.holidays.question, { skipId: skip._id }))._id).toBe(skip._id);
+    });
+
+    test('G4b shopping.products: FORBIDDEN for kids', async () => {
+      for (const k of ['twin1', 'twin2'] as const) {
+        expect(codeOf(await A(k).action(api.shopping.products, { refs: [{ productId: 'gid://shopify/p/x' }] }).catch((e) => e)), k).toBe('FORBIDDEN');
+      }
+    });
+
     test('memories.list returns the admin -> partner shared memory to partner (the grantee)', async () => {
       const sharedMemory = (famA.docs.memories as unknown as { scope: string; text: string }[]).find((m) => m.scope === 'shared');
       expect(sharedMemory).toBeDefined();

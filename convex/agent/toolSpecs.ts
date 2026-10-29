@@ -230,7 +230,7 @@ export const AGENT_TOOLS: Record<AgentToolName, ToolDef> = {
   },
   shop_search: {
     configTool: 'shop_search',
-    implemented: false, // G4b backend: ProductCatalog port (Shopify Global Catalog), adults only, `products` card
+    implemented: true, // G4b: ProductCatalog port (Shopify Global Catalog), adults only, a `products` card (convex/agent/netTools.ts)
     spec: {
       name: 'shop_search',
       description:

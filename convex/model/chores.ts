@@ -4,10 +4,12 @@
 import { CHORES } from '../../shared/config/kids';
 import { GD_PUSH_COPY, fillCopy } from '../../shared/config/copy';
 import { choreApproveDedupeKey, choreRemindDedupeKey } from '../../shared/config/proactive';
+import { HOLIDAYS } from '../../shared/config/shopping';
 import { dayOfWeek, localDate, parseClockTime, zonedInstant } from '../../shared/time';
 import type { Doc, Id } from '../_generated/dataModel';
 import type { MutationCtx, QueryCtx } from '../_generated/server';
 import { fail } from './errors';
+import { isPaused } from './holidays';
 import { enqueueCardCandidate } from './proactive';
 
 type Ctx = QueryCtx | MutationCtx;
@@ -114,6 +116,8 @@ export async function scanChoreTriggers(ctx: MutationCtx, familyId: Id<'families
       if (minutes === null) continue;
       const dueAt = zonedInstant(today, minutes, tz) - CHORES.remindLeadMinutes * 60_000;
       if (now < dueAt) continue;
+      // G4b: a grown-up paused today's chores for a holiday.
+      if (HOLIDAYS.pauses.chores && (await isPaused(ctx, familyId, kid._id, today))) continue;
       let claim = await claimFor(ctx, chore, today);
       if (!claim) {
         const claimId = await ctx.db.insert('choreClaims', { familyId, choreId: chore._id, forMemberId: kid._id, date: today, status: 'due' });
