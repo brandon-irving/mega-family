@@ -12,9 +12,9 @@ jest.mock('expo-widgets', () => ({
   },
 }));
 
-test('MegaNext and MegaTalk are created with the signed-out props as their initial props', () => {
-  require('./MegaNext');
-  require('./MegaTalk');
+test('MegaNext and MegaTalk are created with the signed-out props as their initial props', async () => {
+  await import('./MegaNext');
+  await import('./MegaTalk');
   const next = created.find((c) => c.name === WIDGETS.next.name)!;
   const talk = created.find((c) => c.name === WIDGETS.talk.name)!;
   expect(next.initial).toMatchObject({ state: 'signedOut', copy: { signedOut: G8_COPY.widgetSignedOut } });
