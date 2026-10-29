@@ -16,6 +16,7 @@ import { Text } from '@/ui/Text';
 import { useTokens } from '@/ui/theme';
 import { LockGlyph } from '@/ui/ThreadCard';
 import { hiddenFromA11y } from '@/ui/a11y';
+import { Glyph } from '@/features/integrations/glyphs';
 
 export type EventDoc = Infer<typeof eventDoc>;
 export type CalendarMember = { _id: string; name: string; hex: string };
@@ -42,9 +43,25 @@ export type CalendarContentProps = {
    * morning routine and chores as struck-through PAUSED rows, but routines and chores aren't calendar events
    * (CONTRACT §2), so the banner carries that instead. */
   holidays?: UpcomingHoliday[];
+  /** G4b UX review: page to the previous / next week (no board draws a week control; it follows the day strip's
+   * style). Without them the strip shows only `weekStart`'s week, as before. */
+  onPrevWeek?: () => void;
+  onNextWeek?: () => void;
+  /** Back to the family's current week, for the Today button when the week shown isn't this one. */
+  onThisWeek?: () => void;
 };
 
-const DAY_MS = 24 * 60 * 60 * 1000;
+/** Local midnight `n` calendar days after `ms`. DST-safe: a day isn't always 24 hours (Nov 1, 2026 is 25). */
+export function addLocalDays(ms: number, n: number): number {
+  const d = new Date(ms);
+  d.setDate(d.getDate() + n);
+  d.setHours(0, 0, 0, 0);
+  return d.getTime();
+}
+/** The local Sunday midnight that starts the week holding `ms`. */
+export function startOfLocalWeek(ms: number): number {
+  return addLocalDays(ms, -new Date(ms).getDay());
+}
 /** "YYYY-MM-DD" for a day start in the device's local time (the week strip's own days). */
 const dateKey = (ms: number) => {
   const d = new Date(ms);
@@ -56,19 +73,20 @@ export function eventLayer(e: Pick<EventDoc, 'scope'>) {
   return LAYER_OF_SCOPE[e.scope];
 }
 
-export function CalendarContent({ weekStart, todayIndex = null, events, members, viewerId, hubName = FAMILY_MEGA_DEFAULTS.name, clash, onSeeClash, onOpenEvent, placeLabels, holidays = [] }: CalendarContentProps) {
+export function CalendarContent({ weekStart, todayIndex = null, events, members, viewerId, hubName = FAMILY_MEGA_DEFAULTS.name, clash, onSeeClash, onOpenEvent, placeLabels, holidays = [], onPrevWeek, onNextWeek, onThisWeek }: CalendarContentProps) {
   const tokens = useTokens();
-  const [selectedDay, setSelectedDay] = useState(todayIndex ?? 0);
+  // Today's day in this week; on another week, its first holiday (so paging to it shows the banner), else Sunday.
+  const [selectedDay, setSelectedDay] = useState(() => todayIndex ?? Math.max(0, Array.from({ length: 7 }, (_, i) => dateKey(addLocalDays(weekStart, i))).findIndex((k) => holidays.some((h) => h.date === k))));
   const [showHousehold, setShowHousehold] = useState(true);
   const [showMine, setShowMine] = useState(true);
-  const days = useMemo(() => Array.from({ length: 7 }, (_, i) => weekStart + i * DAY_MS), [weekStart]);
+  const days = useMemo(() => Array.from({ length: 7 }, (_, i) => addLocalDays(weekStart, i)), [weekStart]);
   const colorFor = (memberId: string | undefined) => members.find((m) => m._id === memberId)?.hex ?? tokens.muted;
   const nameFor = (memberId: string | undefined) => (memberId && memberId === viewerId ? CALENDAR_COPY.you : (members.find((m) => m._id === memberId)?.name ?? ''));
   // G2 contrast fix: the selected day's background is tokens.text here (the board's white pill).
   const onSelected = readableOn(tokens.text);
 
   const visible = events.filter((e) => (eventLayer(e) === 'private' ? showMine : showHousehold));
-  const onDay = (i: number) => visible.filter((e) => e.start >= days[i] && e.start < days[i] + DAY_MS).sort((a, b) => a.start - b.start);
+  const onDay = (i: number) => visible.filter((e) => e.start >= days[i] && e.start < addLocalDays(days[i], 1)).sort((a, b) => a.start - b.start);
   const dayEvents = onDay(selectedDay);
   const holidayOn = (i: number) => holidays.find((h) => h.date === dateKey(days[i]));
   const selectedHoliday = holidayOn(selectedDay);
@@ -77,12 +95,30 @@ export function CalendarContent({ weekStart, todayIndex = null, events, members,
 
   return (
     <>
-      {todayIndex !== null && (
-        <Pressable onPress={() => setSelectedDay(todayIndex)} accessibilityRole="button" style={{ alignSelf: 'flex-end', height: 36, paddingHorizontal: tokens.spacing.md, borderRadius: 18, borderWidth: 1, borderColor: tokens.line, justifyContent: 'center' }}>
-          <Text variant="caption" weight="600">
-            {CALENDAR_COPY.today}
-          </Text>
-        </Pressable>
+      {(onPrevWeek || onNextWeek || todayIndex !== null || onThisWeek) && (
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: tokens.spacing.sm }}>
+          {onPrevWeek ? <WeekStep dir="prev" onPress={onPrevWeek} /> : null}
+          {onPrevWeek || onNextWeek ? (
+            <Text variant="label" numberOfLines={1} style={{ flex: 1, textAlign: 'center' }}>
+              {weekRange(days[0], days[6])}
+            </Text>
+          ) : (
+            <View style={{ flex: 1 }} />
+          )}
+          {onNextWeek ? <WeekStep dir="next" onPress={onNextWeek} /> : null}
+          {todayIndex !== null || onThisWeek ? (
+            <Pressable
+              onPress={() => (todayIndex !== null ? setSelectedDay(todayIndex) : onThisWeek?.())}
+              accessibilityRole="button"
+              hitSlop={tokens.hitSlop}
+              style={{ height: 36, paddingHorizontal: tokens.spacing.md, borderRadius: 18, borderWidth: 1, borderColor: tokens.line, justifyContent: 'center', flexShrink: 0 }}
+            >
+              <Text variant="caption" weight="600">
+                {CALENDAR_COPY.today}
+              </Text>
+            </Pressable>
+          ) : null}
+        </View>
       )}
       <View style={{ flexDirection: 'row', gap: 4 }}>
         {days.map((d, i) => {
@@ -259,6 +295,32 @@ function HolidayBanner({ holiday }: { holiday: UpcomingHoliday }) {
         ) : null}
       </View>
     </View>
+  );
+}
+
+/** "Oct 25 – 31", or "Nov 29 – Dec 5" across two months. */
+function weekRange(first: number, last: number): string {
+  const a = new Date(first);
+  const b = new Date(last);
+  const month = (d: Date) => d.toLocaleDateString(undefined, { month: 'short' });
+  return a.getMonth() === b.getMonth() ? `${month(a)} ${a.getDate()} – ${b.getDate()}` : `${month(a)} ${a.getDate()} – ${month(b)} ${b.getDate()}`;
+}
+
+/** The week pager's round 36pt step (the Today pill's outline), its chevron pointing the way it goes. */
+function WeekStep({ dir, onPress }: { dir: 'prev' | 'next'; onPress: () => void }) {
+  const tokens = useTokens();
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={dir === 'prev' ? G4B_UI_COPY.weekPrev : G4B_UI_COPY.weekNext}
+      hitSlop={tokens.hitSlop}
+      style={{ width: 36, height: 36, borderRadius: 18, borderWidth: 1, borderColor: tokens.line, alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
+    >
+      <View style={dir === 'prev' ? { transform: [{ rotate: '180deg' }] } : undefined}>
+        <Glyph name="chevron" color={tokens.text} size={16} stroke={2.2} />
+      </View>
+    </Pressable>
   );
 }
 

@@ -22,7 +22,8 @@ import { openLink } from '@/services/openLink';
 import { Text } from '@/ui/Text';
 import { CardActions } from '@/ui/ThreadCard';
 import { useTokens } from '@/ui/theme';
-import { daysUntil, formatPrice } from './format';
+import { formatPriceCents } from '@shared/config/shopping';
+import { daysUntil } from './format';
 import { ProductRow } from './ProductRow';
 
 export type PriceDropViewProps = {
@@ -43,8 +44,8 @@ export type PriceDropViewProps = {
 export function PriceDropCardView({ watch, megaName, forName, daysLeft, live, busy, error, onOpen, onStop }: PriceDropViewProps) {
   const tokens = useTokens();
   const nowCents = watch.lastPriceCents ?? watch.baselinePriceCents;
-  const price = formatPrice(nowCents, watch.currency);
-  const was = formatPrice(watch.baselinePriceCents, watch.currency);
+  const price = formatPriceCents(nowCents, watch.currency);
+  const was = formatPriceCents(watch.baselinePriceCents, watch.currency);
   const title =
     forName && daysLeft !== undefined && daysLeft > 0
       ? fillCopy(G4B_COPY.priceDropBody, { title: watch.title, price, was, who: forName, days: daysLeft })

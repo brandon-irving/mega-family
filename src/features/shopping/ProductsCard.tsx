@@ -4,7 +4,7 @@
 // loading rows while it answers. Never a guessed price: a catalog that isn't set up or can't answer says so.
 // Contract over board: ShopEmpty's "Show up to $50" / "Watch for one under $40" and ShopNotSetUp's "Search the
 // web instead" have no function in v0.16 (the adult just asks MEGA again), so those buttons aren't drawn; the
-// card's title is the asker's own query (`productsFor`), since the card carries no separate headline.
+// card's title is its optional `title` or else the asker's own query (`productsFor`).
 import { View } from 'react-native';
 import type { Card as CardKind } from '@shared/domain/messages';
 import { G4B_COPY, G4B_UI_COPY, fillCopy } from '@shared/config/copy';
@@ -27,7 +27,8 @@ export function productsFailureText(failure: NonNullable<ProductsCardKind['failu
 export function ProductsCardView({ card, megaName, state, onOpen }: { card: ProductsCardKind; megaName: string; state: ProductsState; onOpen: (url: string) => void }) {
   const tokens = useTokens();
   const from = fillCopy(G4B_COPY.productsFrom, { mega: megaName });
-  const query = fillCopy(G4B_COPY.productsFor, { query: card.query });
+  // The server's own heading ("Kids’ rain jackets · under $40") when it gives one, else the asker's words.
+  const query = card.title ?? fillCopy(G4B_COPY.productsFor, { query: card.query });
   const failure = card.failure ?? (state.status === 'failure' ? state.failure : undefined);
   if (failure) {
     const f = productsFailureText(failure);

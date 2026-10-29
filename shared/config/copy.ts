@@ -521,6 +521,11 @@ export const G4B_COPY = {
 export const G4B_UI_COPY = {
   giftsFrom: '{mega} · Gift ideas',
   giftsNoCatalog: 'Store prices aren’t set up yet, so these are web links without prices. I won’t guess what things cost.',
+  /** Board GiftsProducts footer (store products shown); GiftsNoCatalog keeps CALENDAR_COPY.giftsFoot. */
+  giftsProductsFoot: 'Only shared info is used. I’ll tell you if a price drops on something you add. I never buy anything.',
+  /** The calendar's week pager (no board draws one; G4b UX review: the holiday marker was unreachable). */
+  weekPrev: 'Previous week',
+  weekNext: 'Next week',
   giftsLinkNoPrice: '{domain} · no price checked',
   giftsWatchingLabel: 'Watching the price of {title}',
   productOpen: 'Open',

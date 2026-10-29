@@ -66,8 +66,10 @@ export function GiftsCardView({
   const noCatalog = products.status === 'failure' && products.failure === 'not_configured';
   // Board GiftsNoCatalog: links without prices, said plainly, when the store catalog isn't set up.
   const body = noCatalog || (!anyRefs && gifts.ideas.some((i) => !!i.url)) ? G4B_UI_COPY.giftsNoCatalog : undefined;
+  // Store products on the card: the GiftsProducts footer (price alerts, never buys); otherwise the privacy footer.
+  const withProducts = anyRefs && products.status !== 'failure';
   return (
-    <ThreadCard from={fillCopy(G4B_UI_COPY.giftsFrom, { mega: megaName })} title={title} body={body} foot={CALENDAR_COPY.giftsFoot} status={error ? { text: error, tone: 'warn' } : undefined}>
+    <ThreadCard from={fillCopy(G4B_UI_COPY.giftsFrom, { mega: megaName })} title={title} body={body} foot={withProducts ? G4B_UI_COPY.giftsProductsFoot : CALENDAR_COPY.giftsFoot} status={error ? { text: error, tone: 'warn' } : undefined}>
       <TagList label={CALENDAR_COPY.giftsBasedOn} tags={gifts.basedOn.map((b) => b.label)} />
       <View style={{ gap: tokens.spacing.sm }}>
         {gifts.ideas.map((idea, i) => (
@@ -83,10 +85,12 @@ function IdeaBlock({ idea, done, watching, loading, products, onAdd, onOpen }: {
   const refs = (idea.productRefs ?? []).slice(0, GIFTS.productsPerIdea);
   const found = products.status === 'ok' ? refs.map((r) => products.products.find((p) => productMatches(r, p))).filter((p) => p !== undefined) : [];
   // Fall back to the idea's web link when the catalog has nothing for it (never a made-up price).
+  // With store products (or their rows loading) the rows carry real prices, so the idea drops its "· $35" estimate.
+  const storePriced = refs.length > 0 && products.status !== 'failure';
   const showLink = !!idea.url && (refs.length === 0 || products.status === 'failure' || (products.status === 'ok' && found.length === 0));
   return (
     <View style={{ borderRadius: tokens.radii.lg, backgroundColor: tokens.bg, borderWidth: 1, borderColor: tokens.line, padding: 10, gap: tokens.spacing.sm }}>
-      <IdeaRow bare title={idea.title} why={[idea.why, idea.price].filter(Boolean).join(' · ')} actionLabel={done ? CALENDAR_COPY.giftsAdded : CALENDAR_COPY.giftsAdd} done={done} loading={loading} onPress={onAdd} />
+      <IdeaRow bare title={idea.title} why={storePriced ? idea.why : [idea.why, idea.price].filter(Boolean).join(' · ')} actionLabel={done ? CALENDAR_COPY.giftsAdded : CALENDAR_COPY.giftsAdd} done={done} loading={loading} onPress={onAdd} />
       {watching ? <WatchingChip title={idea.title} /> : null}
       {refs.length > 0 && products.status === 'loading' ? refs.map((r) => <ProductRowSkeleton key={`${r.productId}:${r.variantId ?? ''}`} inset />) : null}
       {found.length > 0 ? (
