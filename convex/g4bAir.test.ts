@@ -128,3 +128,31 @@ describe('invariant 8: air and UV tips are outdoor-only and deduped', () => {
     expect((await s.t.run((ctx) => ctx.db.get(placeId)))!.outdoor).toBe(false);
   });
 });
+
+describe('the weather chat tool shows air quality and UV (G4b review fix)', () => {
+  async function ask(s: Awaited<ReturnType<typeof seeded>>) {
+    const mega = (await s.t.run((ctx) => ctx.db.query('megas').withIndex('by_family_owner', (q) => q.eq('familyId', s.familyId).eq('ownerId', s.m.admin)).unique()))!;
+    return s.t.action(internal.agent.netTools.run, { familyId: s.familyId, memberId: s.m.admin, role: 'admin', megaId: mega._id, name: 'weather', argumentsJson: '{}' });
+  }
+  const chatCard = async (s: Awaited<ReturnType<typeof seeded>>) => (await s.weatherCards('admin')).filter((c) => !c.tip).at(-1)!;
+
+  test('asking about the weather posts a card with AQI and peak UV, and gives the model the numbers with their level words', async () => {
+    const s = await seeded();
+    await poll(s, { uv: 8.2, aqi: 132 });
+    const r = await ask(s);
+    expect(r.ok).toBe(true);
+    expect(r.resultText).toContain('US AQI 132 (Unhealthy for sensitive groups)');
+    expect(r.resultText).toContain('UV 8 (Very high)');
+    const card = await chatCard(s);
+    expect(card.air).toEqual({ usAqi: 132, uvIndexMax: 8.2 });
+    expect(card.summary).toContain('US AQI 132');
+  });
+
+  test('no air data → no air on the card and no air words (never guessed)', async () => {
+    const s = await seeded();
+    await poll(s, null);
+    const r = await ask(s);
+    expect(r.resultText).not.toMatch(/AQI|UV/);
+    expect((await chatCard(s)).air).toBeUndefined();
+  });
+});

@@ -18,6 +18,9 @@ export const SHOPPING = {
   ucpVersion: '2026-08-25',
   /** `filters.ships_to.country` on search, `context.address_country` on lookup. Families outside it get no results. */
   country: 'US',
+  /** ISO 4217 (v0.16b): `context.currency` on search and lookup; a product priced in any other currency is dropped
+   * (never converted), since a Canadian store can ship to the US but quote CA$. */
+  currency: 'USD',
   /** Products per `shop_search` call (`pagination.limit`, Shopify max 50). */
   searchLimit: 5,
   /** At most this many refs per `shopping.products` call (Shopify's lookup takes up to 50). */
@@ -29,6 +32,8 @@ export const SHOPPING = {
    * the rest of the turn is read-only. */
   maxSearchesPerMemberPerDay: 20,
   maxSearchesPerReply: 1,
+  /** v0.16b: the longest heading the model may give a `products` card (`shop_search`'s optional `title`). */
+  titleMax: 60,
   /** Price watch: how often the cron re-looks-up every active watch, and what counts as a drop worth a quiet
    * update (either threshold). */
   priceCheckHours: 6,

@@ -6,7 +6,7 @@
 // Invariant 8 (alerts don't spam): one candidate per (NWS alert id × recipient); Extreme/Severe push
 // (time-sensitive), Moderate is a quiet statement, Minor/Unknown are dropped; kids never get alert pushes
 // (`update` isn't a kid kind), the adults do.
-import { WEATHER, WEATHER_CODES, WEATHER_SUMMARY_FALLBACK } from '../../shared/config/integrations';
+import { AQI_LEVELS, UV_LEVELS, WEATHER, WEATHER_CODES, WEATHER_SUMMARY_FALLBACK, levelOf } from '../../shared/config/integrations';
 import { NOTIFICATION_KINDS_CONFIG } from '../../shared/config/notifications';
 import { G4B_COPY, fillCopy } from '../../shared/config/copy';
 import { weatherAlertDedupeKey, weatherEventDedupeKey, weatherTipDedupeKey } from '../../shared/config/proactive';
@@ -101,6 +101,9 @@ export function weatherSentence(view: WeatherView): string {
   if (!view.now) return '';
   const parts = [`${view.placeLabel}: ${view.now.summary}, ${view.now.tempF}°F`];
   if (view.today) parts.push(`high ${view.today.highF}°, low ${view.today.lowF}°, ${view.today.precipPct}% chance of rain today`);
+  const air = view.air;
+  if (air?.usAqi !== undefined) parts.push(fillCopy(G4B_COPY.sentenceAqi, { aqi: String(Math.round(air.usAqi)), level: G4B_COPY.aqiLevels[levelOf(AQI_LEVELS, air.usAqi)] }));
+  if (air?.uvIndexMax !== undefined) parts.push(fillCopy(G4B_COPY.sentenceUv, { uv: String(Math.round(air.uvIndexMax)), level: G4B_COPY.uvLevels[levelOf(UV_LEVELS, air.uvIndexMax)] }));
   const alert = view.alerts[0];
   if (alert) parts.push(`${alert.event} in effect`);
   return parts.join('; ') + '.';

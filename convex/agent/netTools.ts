@@ -67,6 +67,8 @@ export const postWeatherCard = internalMutation({
   handler: async (ctx, { familyId, memberId, megaId, view, summary }) => {
     const now = await clock.now(ctx, familyId);
     const a = view.alerts?.[0];
+    // v0.16b: the air row too (today's AQI and peak UV); `uvAt` is only for an event tip's start time.
+    const air = view.air ? { ...(view.air.usAqi !== undefined ? { usAqi: view.air.usAqi } : {}), ...(view.air.uvIndexMax !== undefined ? { uvIndexMax: view.air.uvIndexMax } : {}) } : {};
     await postCard(ctx, {
       familyId,
       recipientId: memberId,
@@ -81,6 +83,7 @@ export const postWeatherCard = internalMutation({
         ...(view.now ? { nowF: view.now.tempF } : {}),
         ...(view.today ? { highF: view.today.highF, lowF: view.today.lowF } : {}),
         ...(a ? { alert: { event: a.event, headline: a.headline, severity: a.severity, ends: a.ends } } : {}),
+        ...(Object.keys(air).length ? { air } : {}),
       },
     });
     return null;
@@ -226,12 +229,12 @@ export const shopperState = internalQuery({
 });
 
 export const postProductsCard = internalMutation({
-  args: { familyId: v.id('families'), memberId: v.id('members'), megaId: v.optional(v.id('megas')), query: v.string(), refs: v.array(productRef), failure: v.optional(integrationFailure) },
+  args: { familyId: v.id('families'), memberId: v.id('members'), megaId: v.optional(v.id('megas')), query: v.string(), title: v.optional(v.string()), refs: v.array(productRef), failure: v.optional(integrationFailure) },
   returns: v.null(),
   handler: async (ctx, a) => {
     const now = await clock.now(ctx, a.familyId);
     // Refs only (Shopify's terms): the app reads current price and stock with `shopping.products`.
-    await postCard(ctx, { familyId: a.familyId, recipientId: a.memberId, megaId: a.megaId, now, card: { kind: 'products', query: a.query, refs: a.refs, ...(a.failure ? { failure: a.failure } : {}) } });
+    await postCard(ctx, { familyId: a.familyId, recipientId: a.memberId, megaId: a.megaId, now, card: { kind: 'products', query: a.query, ...(a.title ? { title: a.title } : {}), refs: a.refs, ...(a.failure ? { failure: a.failure } : {}) } });
     return null;
   },
 });
@@ -248,10 +251,11 @@ async function shopTool(ctx: ActionCtx, a: { familyId: Id<'families'>; memberId:
   if (!query) return { ok: false, resultText: 'shop_search needs "query": what to look for' };
   if (state.searchedToday >= SHOPPING.maxSearchesPerMemberPerDay) return { ok: false, resultText: `that's ${SHOPPING.maxSearchesPerMemberPerDay} product searches today; try again tomorrow` };
   const maxPrice = typeof raw.maxPrice === 'number' && Number.isFinite(raw.maxPrice) && raw.maxPrice > 0 ? Math.round(raw.maxPrice * 100) : undefined;
+  const title = typeof raw.title === 'string' ? raw.title.replace(/\s+/g, ' ').trim().slice(0, SHOPPING.titleMax) : '';
 
-  const r = await getProductCatalog().search({ query, country: SHOPPING.country, limit: SHOPPING.searchLimit, ...(maxPrice !== undefined ? { maxPriceCents: maxPrice } : {}) });
+  const r = await getProductCatalog().search({ query, country: SHOPPING.country, currency: SHOPPING.currency, limit: SHOPPING.searchLimit, ...(maxPrice !== undefined ? { maxPriceCents: maxPrice } : {}) });
   const refs = r.ok ? r.products.map((p) => ({ productId: p.productId, ...(p.variantId ? { variantId: p.variantId } : {}) })) : [];
-  await ctx.runMutation(internal.agent.netTools.postProductsCard, { ...a, query, refs, ...(r.ok ? {} : { failure: r.failure }) });
+  await ctx.runMutation(internal.agent.netTools.postProductsCard, { ...a, query, ...(title ? { title } : {}), refs,...(r.ok ? {} : { failure: r.failure }) });
   if (!r.ok) return { ok: true, resultText: `A products card is already in the chat. ${G4B_COPY.productsUnavailable}` };
   if (!r.products.length) return { ok: true, resultText: `A products card is already in the chat. ${G4B_COPY.productsNone}` };
   return {

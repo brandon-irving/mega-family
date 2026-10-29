@@ -134,13 +134,13 @@ export function searchArguments(request: ProductSearchRequest): Record<string, u
       available: true,
       ...(request.maxPriceCents !== undefined ? { price: { max: Math.max(0, Math.round(request.maxPriceCents)) } } : {}),
     },
-    context: { address_country: request.country },
+    context: { address_country: request.country, currency: request.currency },
     pagination: { limit: Math.min(50, Math.max(1, request.limit)) },
   };
 }
 
 export function lookupArguments(request: ProductLookupRequest): Record<string, unknown> {
-  return { ids: [...new Set(request.refs.map((r) => r.variantId ?? r.productId))].slice(0, 50), context: { address_country: request.country } };
+  return { ids: [...new Set(request.refs.map((r) => r.variantId ?? r.productId))].slice(0, 50), context: { address_country: request.country, currency: request.currency } };
 }
 
 export const shopifyCatalog: ProductCatalog = {
@@ -148,12 +148,20 @@ export const shopifyCatalog: ProductCatalog = {
     const res = await call('search_catalog', searchArguments(request));
     if (!res.ok) return res;
     const parsed = parseSearch(res.json);
-    return parsed.ok ? { ...parsed, products: parsed.products.slice(0, request.limit) } : parsed;
+    // `context.currency` is a relevance signal, not a filter: drop what's still priced in another currency.
+    return parsed.ok ? { ...parsed, products: parsed.products.filter((p) => p.currency === request.currency).slice(0, request.limit) } : parsed;
   },
   async lookup(request) {
     if (!request.refs.length) return { ok: true, products: [], notFound: [] };
     const res = await call('lookup_catalog', lookupArguments(request));
     if (!res.ok) return res;
-    return parseLookup(res.json, request.refs);
+    const parsed = parseLookup(res.json, request.refs);
+    if (!parsed.ok) return parsed;
+    // parseLookup keeps refs order; pair each ref with its product to move other-currency ones to notFound.
+    const products: typeof parsed.products = [];
+    const notFound = [...parsed.notFound];
+    const resolved = request.refs.filter((r) => !parsed.notFound.includes(r));
+    parsed.products.forEach((p, i) => (p.currency === request.currency ? products.push(p) : notFound.push(resolved[i])));
+    return { ok: true, products, notFound };
   },
 };
