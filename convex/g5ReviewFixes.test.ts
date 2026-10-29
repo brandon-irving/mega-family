@@ -102,3 +102,90 @@ describe('U1: a schedule link that can’t be added says why', () => {
     expect(fetcher.urls).toHaveLength(0);
   });
 });
+
+describe('C4: one sync per integration at a time', () => {
+  test('while a sync holds the lease, another sync of the same integration does nothing (no provider calls, no writes)', async () => {
+    const s = await seeded();
+    const mail = makeFakeMailSource();
+    __setMailSourceForTests(mail);
+    await s.connectGoogle('partner', ['gmail']);
+    await s.settle();
+    const gmail = (await s.integ('partner', 'gmail'))!;
+    const before = mail.requests.length;
+    const configBefore = JSON.stringify(gmail.config);
+    await s.t.run((ctx) => ctx.db.patch(gmail._id, { syncingUntil: Date.now() + 60_000 }));
+    await s.t.action(internal.integrations.syncGmail, { integrationId: gmail._id });
+    expect(mail.requests.length).toBe(before);
+    expect(JSON.stringify((await s.integ('partner', 'gmail'))!.config)).toBe(configBefore);
+  });
+
+  test('a finished sync releases its lease; an expired lease does not block', async () => {
+    const s = await seeded();
+    const mail = makeFakeMailSource();
+    __setMailSourceForTests(mail);
+    await s.connectGoogle('partner', ['gmail']);
+    await s.settle();
+    const gmail = (await s.integ('partner', 'gmail'))!;
+    expect(gmail.syncingUntil).toBeUndefined();
+    await s.t.run((ctx) => ctx.db.patch(gmail._id, { syncingUntil: Date.now() - 1 }));
+    const before = mail.requests.length;
+    await s.t.action(internal.integrations.syncGmail, { integrationId: gmail._id });
+    expect(mail.requests.length).toBeGreaterThan(before);
+    expect((await s.integ('partner', 'gmail'))!.syncingUntil).toBeUndefined();
+  });
+
+  test('a sync position write merges into the stored config instead of replacing it', async () => {
+    const s = await seeded();
+    const { integrationId } = await s.as('partner').action(api.integrations.addIcs, { url: 'https://cal.example.org/team.ics' });
+    await s.t.run(async (ctx) => {
+      const row = (await ctx.db.get(integrationId!))!;
+      await ctx.db.patch(integrationId!, { config: { ...row.config, keepMe: 'yes' } });
+    });
+    await s.t.action(internal.integrations.syncIcs, { integrationId: integrationId! });
+    expect((await s.t.run((ctx) => ctx.db.get(integrationId!)))!.config).toMatchObject({ keepMe: 'yes', url: 'https://cal.example.org/team.ics' });
+  });
+});
+
+describe('C5: Google Calendar never loses its sync token', () => {
+  const ev = (i: number) => ({ externalId: `e${i}`, title: `Event ${i}`, start: Date.UTC(2026, 9, 27, 14) + i * 60_000, cancelled: false });
+  const pages = (perPage: number, count: number) => Array.from({ length: count }, (_, p) => Array.from({ length: perPage }, (_, i) => ev(p * perPage + i)));
+
+  test('the event cap is reached before the last page: it keeps paging to the page with nextSyncToken and stores it', async () => {
+    const s = await seeded();
+    const book = pages(300, 3);
+    const requests: (string | undefined)[] = [];
+    __setCalendarSourceForTests({
+      async listEvents({ pageToken }) {
+        requests.push(pageToken);
+        const i = pageToken ? Number(pageToken) : 0;
+        return { ok: true, expired: false, events: book[i], ...(i < 2 ? { nextPageToken: String(i + 1) } : { nextSyncToken: 'sync-final' }) };
+      },
+    });
+    await s.connectGoogle('partner', ['googleCalendar']);
+    await s.settle();
+    const row = (await s.integ('partner', 'googleCalendar'))!;
+    expect(requests).toEqual([undefined, '1', '2']);
+    expect(row.config).toMatchObject({ syncToken: 'sync-final' });
+    const all = await s.t.run((ctx) => ctx.db.query('events').collect());
+    expect(all.filter((e) => e.integrationId === row._id).length).toBeLessThanOrEqual(500);
+  });
+
+  test('an incremental pass that comes back without a new token keeps the old one', async () => {
+    const s = await seeded();
+    let calls = 0;
+    __setCalendarSourceForTests({
+      async listEvents({ syncToken }) {
+        calls++;
+        if (!syncToken) return { ok: true, expired: false, events: [ev(1)], nextSyncToken: 'T0' };
+        return { ok: true, expired: false, events: [ev(2)] };
+      },
+    });
+    await s.connectGoogle('partner', ['googleCalendar']);
+    await s.settle();
+    const row = (await s.integ('partner', 'googleCalendar'))!;
+    expect(row.config).toMatchObject({ syncToken: 'T0' });
+    await s.t.action(internal.integrations.syncGoogleCalendar, { integrationId: row._id });
+    expect(calls).toBe(2);
+    expect((await s.integ('partner', 'googleCalendar'))!.config).toMatchObject({ syncToken: 'T0' });
+  });
+});

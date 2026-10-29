@@ -466,6 +466,31 @@ export const loadForSync = internalQuery({
   },
 });
 
+/** v0.17b (C4): takes the integration's sync lease (real time: it guards a process, not a family moment). False
+ * while another sync holds it; the holder's result write (`recordSync`) or `releaseSync` frees it. */
+export const claimSync = internalMutation({
+  args: { integrationId: v.id('integrations') },
+  returns: v.boolean(),
+  handler: async (ctx, { integrationId }) => {
+    const row = await ctx.db.get(integrationId);
+    if (!row) return true; // the sync itself reports it gone
+    const now = clock.realNow();
+    if (row.syncingUntil !== undefined && row.syncingUntil > now) return false;
+    await ctx.db.patch(integrationId, { syncingUntil: now + INTEGRATION_SYNC.leaseSeconds * 1000 });
+    return true;
+  },
+});
+
+export const releaseSync = internalMutation({
+  args: { integrationId: v.id('integrations') },
+  returns: v.null(),
+  handler: async (ctx, { integrationId }) => {
+    const row = await ctx.db.get(integrationId);
+    if (row?.syncingUntil !== undefined) await ctx.db.patch(integrationId, { syncingUntil: undefined });
+    return null;
+  },
+});
+
 export const recordSyncFailure = internalMutation({
   args: { integrationId: v.id('integrations'), failure: T.integrationFailure, firstLook: v.optional(v.boolean()) },
   returns: v.null(),

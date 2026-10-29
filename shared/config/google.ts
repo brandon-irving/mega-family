@@ -85,6 +85,8 @@ export const INTEGRATION_SYNC = {
   syncNowMinSeconds: 60,
   /** Expired/used OAuth `state` rows are deleted by a cron this often. */
   stateCleanupMinutes: 60,
+  /** v0.17b (C4): one sync per integration at a time; a sync that dies without releasing frees it after this. */
+  leaseSeconds: 180,
 } as const;
 
 export const GOOGLE_CALENDAR = {
@@ -97,5 +99,8 @@ export const GOOGLE_CALENDAR = {
    * token and full-sync again. */
   pastDays: 7,
   futureDays: 60,
+  /** At most this many events are applied per sync; v0.17b (C5): paging still runs to the page that carries
+   * `nextSyncToken` (the extra events are dropped), at most `maxPages` pages. */
   maxEvents: 500,
+  maxPages: 20,
 } as const;

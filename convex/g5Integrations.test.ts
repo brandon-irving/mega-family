@@ -322,7 +322,7 @@ describe('Google Calendar, schedule links, this phone', () => {
   test('schedule links: http refused; a broken link saves nothing; a good one lands private, and its URL is never returned', async () => {
     const s = await seeded();
     expect(codeOf(await s.as('partner').action(api.integrations.addIcs, { url: 'http://cal.example.org/a.ics' }).catch((e) => e))).toBe('VALIDATION');
-    expect(await s.as('partner').action(api.integrations.addIcs, { url: 'https://broken.example.org/a.ics' })).toEqual({ events: 0, failure: 'error' });
+    expect(await s.as('partner').action(api.integrations.addIcs, { url: 'https://broken.example.org/a.ics' })).toEqual({ events: 0, failure: 'error', reason: 'unreachable' });
     expect(await s.integ('partner', 'ics')).toBeNull();
     const r = await s.as('partner').action(api.integrations.addIcs, { url: 'webcal://cal.example-league.test/fall.ics?token=SECRET123' });
     expect(r).toMatchObject({ label: 'Soccer · Fall season' });
