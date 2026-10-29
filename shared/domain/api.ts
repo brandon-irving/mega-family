@@ -116,7 +116,8 @@ const megaPatchFields = {
 };
 
 /** v0.17b: `kidControls.mine` — the kid's own rules, read-only, plus their notification cap. */
-const kidRulesView = v.object({ ...T.kidControlsFields, dailyCap: v.number() });
+// v0.17b reconcile: `parents` — the kid's parents' names, for "Set by Admin and Partner".
+const kidRulesView = v.object({ ...T.kidControlsFields, dailyCap: v.number(), parents: v.array(v.string()) });
 
 const kidControlsPatch = v.object({
   homeworkMode: v.optional(v.boolean()),
@@ -277,6 +278,8 @@ export const integrationView = v.object({
   countThisMonth: v.number(),
 });
 export type IntegrationView = Infer<typeof integrationView>;
+export type KidRulesView = Infer<typeof kidRulesView>;
+export type InviteStatus = Infer<typeof inviteStatus>;
 
 /** `integrations.offer`: the live state behind a `connect` card. `offered` until answered; `connected` once any
  * matching integration is connected (`integrations` lists them); `skipped` = Not now; `failed` = the connect
@@ -465,6 +468,9 @@ export const API = {
     // v0.17b: a parent sets a kid's buzzes-a-day (settings.notify.dailyCap; kids can't change their own notify),
     // within LIMITS.push.kidDailyCapRange.
     setDailyCap: fn({ kind: 'mutation', day1: 'real', args: { memberId: v.id('members'), dailyCap: v.number() }, returns: v.null() }),
+    // v0.17b reconcile: a parent reads a kid's current buzzes-a-day for the Rules stepper (the range is
+    // LIMITS.push.kidDailyCapRange in shared config). Anyone but that kid's parents: FORBIDDEN.
+    dailyCap: fn({ kind: 'query', day1: 'real', args: { memberId: v.id('members') }, returns: v.object({ dailyCap: v.number() }) }),
   },
   calendar: {
     range: fn({ kind: 'query', day1: 'real', args: { from: v.number(), to: v.number() }, returns: v.array(eventDoc) }),

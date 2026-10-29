@@ -4,15 +4,27 @@
 // reach the link; the server may still finish, and then the live integrations list shows it. Each failure has
 // its own line: a mistyped link, one that couldn't be reached, one with no calendar in it.
 import { useCallback, useState } from 'react';
+import { ConvexError } from 'convex/values';
 import { APP_TIMEOUTS } from '@shared/config/appTimeouts';
 import { G5_COPY, G5_FIX_COPY } from '@shared/config/copy';
 import { looksLikeFeedUrl } from './feedUrl';
 
-export type IcsAddResult = { integrationId?: string; label?: string; events: number; failure?: string };
+export type IcsAddResult = { integrationId?: string; label?: string; events: number; failure?: string; reason?: string };
 type AddIcs = (args: { url: string }) => Promise<IcsAddResult>;
 
-/** The line under the field for a failure the server reported (or the app's own timeout). */
-export function icsFailureCopy(failure: string): string {
+/** The line under the field for a failure the server reported (or the app's own timeout). The server's
+ * `reason` (CONTRACT v0.17b: unreachable / not_a_calendar / too_large / refused) wins over its `failure`. */
+export function icsFailureCopy(failure: string, reason?: string): string {
+  switch (reason) {
+    case 'unreachable':
+      return G5_FIX_COPY.icsUnreachable;
+    case 'not_a_calendar':
+      return G5_FIX_COPY.icsNotCalendar;
+    case 'too_large':
+      return G5_FIX_COPY.icsTooLarge;
+    case 'refused':
+      return G5_FIX_COPY.icsRefused;
+  }
   switch (failure) {
     case 'invalid':
       return G5_COPY.icsBad;
@@ -59,13 +71,15 @@ export function useAddIcsLink(addIcs: AddIcs) {
         return null;
       }
       if (r.failure || !r.integrationId) {
-        setError(icsFailureCopy(r.failure ?? 'unknown'));
+        setError(icsFailureCopy(r.failure ?? 'unknown', r.reason));
         return null;
       }
       setTextState('');
       return r as IcsAddResult & { integrationId: string };
-    } catch {
-      setError(G5_FIX_COPY.icsCouldntAdd);
+    } catch (e) {
+      // A malformed or private-address link is the server's VALIDATION (G5_COPY.icsBad); anything else is general.
+      const code = e instanceof ConvexError ? (e.data as { code?: string } | undefined)?.code : undefined;
+      setError(code === 'VALIDATION' ? G5_COPY.icsBad : G5_FIX_COPY.icsCouldntAdd);
       return null;
     } finally {
       if (timer) clearTimeout(timer);

@@ -1,9 +1,10 @@
 // A kid's own Rules and limits, read-only (canvas Screen 16, board ProfileRulesKid; G5 UX review): every row
 // locked "Set by a parent", in the MEGA profile's stack. Kids only — an adult changes a kid's rules from that
-// kid's Family page (/rules/[memberId]). The data is `kidControls.mine` (CONTRACT v0.17b, pending): until the
-// backend has it, the page says the rules aren't ready instead of guessing.
+// kid's Family page (/rules/[memberId]). The data is `kidControls.mine` (CONTRACT v0.17b): the kid's control
+// fields, buzzes a day and their parents' names; until it answers, the page says the rules aren't ready.
 import { Redirect, router } from 'expo-router';
 import { KIDS_COPY, G5_UI_COPY as U } from '@shared/config/copy';
+import { LIMITS } from '@shared/config/limits';
 import type { StickerId } from '@shared/config/looks';
 import { useMyRules } from '@/data/useFamily';
 import { useViewer } from '@/data/useViewer';
@@ -27,13 +28,13 @@ export default function KidRulesRoute() {
       {mine ? (
         <>
           <RulesContent
-            controls={mine.controls}
+            controls={mine}
             kidName={viewer.member.name}
             mega={viewer.mega ? { name: viewer.mega.name, hex: viewer.mega.look.hex, sticker: viewer.mega.look.sticker as StickerId } : null}
             parents={parents}
             editable={false}
             onPatch={() => undefined}
-            buzzCap={mine.notifyDailyCap !== undefined ? { value: mine.notifyDailyCap, min: mine.notifyDailyCap, max: mine.notifyDailyCap } : undefined}
+            buzzCap={{ value: mine.dailyCap, ...LIMITS.push.kidDailyCapRange }}
           />
         </>
       ) : (

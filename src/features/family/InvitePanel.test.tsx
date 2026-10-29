@@ -32,6 +32,18 @@ describe('qrMatrix', () => {
 });
 
 describe('InvitePanelView', () => {
+  test('v0.17b reconcile: an open invite says who sent it and until when', async () => {
+    await renderWithTheme(
+      <InvitePanelView name="Twin 1" invite={null} status={{ status: 'pending', expiresAt: INVITE.expiresAt, invitedByName: 'Partner' }} timeZone={TZ} onCreate={jest.fn()} onRegenerate={jest.fn()} />,
+    );
+    expect(screen.getByText(fillCopy(G5_FIX_COPY.inviteWaiting, { when: 'Sun Nov 1, 5:00 PM', who: 'Partner' }))).toBeTruthy();
+  });
+
+  test('v0.17b reconcile: a lapsed invite says it ran out', async () => {
+    await renderWithTheme(<InvitePanelView name="Twin 1" invite={null} status={{ status: 'expired', expiresAt: INVITE.expiresAt }} timeZone={TZ} onCreate={jest.fn()} onRegenerate={jest.fn()} />);
+    expect(screen.getByText(fillCopy(G5_FIX_COPY.inviteExpired, { when: 'Sun Nov 1, 5:00 PM' }))).toBeTruthy();
+  });
+
   test('before a code exists: one button makes it (no "QR code" placeholder box)', async () => {
     const onCreate = jest.fn();
     await renderWithTheme(<InvitePanelView name="Twin 1" invite={null} timeZone={TZ} onCreate={onCreate} onRegenerate={jest.fn()} />);

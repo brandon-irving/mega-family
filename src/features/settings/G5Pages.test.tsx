@@ -113,10 +113,6 @@ describe('Settings sheets', () => {
 });
 
 const CONTROLS = {
-  _id: 'kc' as never,
-  _creationTime: 0,
-  familyId: 'f' as never,
-  memberId: 'm_twin1' as never,
   homeworkMode: true,
   quietHours: { start: '20:30', end: '07:00' },
   dailyMinutes: 60,

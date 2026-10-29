@@ -8,6 +8,7 @@ import { useState } from 'react';
 import { Share, View } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import type { Id } from '@shared/domain/validators';
+import type { InviteStatus } from '@shared/domain/api';
 import { G5_FIX_COPY as C, fillCopy } from '@shared/config/copy';
 import { formatLocalDateTime } from '@shared/time';
 import { errorCopyFor } from '@/data/errorCopy';
@@ -27,7 +28,7 @@ const QR_SIZE = 200;
 export function InvitePanelView({
   name,
   invite,
-  waitingUntil,
+  status,
   error,
   busy,
   timeZone,
@@ -36,8 +37,8 @@ export function InvitePanelView({
 }: {
   name: string;
   invite: InviteCode | null;
-  /** An invite the server says is already out (its link can't be shown again). */
-  waitingUntil?: number | null;
+  /** What the server says about the member's last invite (`invites.forMember`); its link can't be shown again. */
+  status?: InviteStatus | null;
   error?: string | null;
   busy?: boolean;
   timeZone: string;
@@ -63,7 +64,11 @@ export function InvitePanelView({
   if (!invite) {
     return (
       <View style={{ gap: tokens.spacing.sm }}>
-        {waitingUntil ? <Text color="muted">{fillCopy(C.inviteWaiting, { when: formatLocalDateTime(waitingUntil, timeZone, { weekday: 'short' }) })}</Text> : null}
+        {status?.status === 'pending' ? (
+          <Text color="muted">{fillCopy(C.inviteWaiting, { when: formatLocalDateTime(status.expiresAt, timeZone, { weekday: 'short' }), who: status.invitedByName })}</Text>
+        ) : status?.status === 'expired' ? (
+          <Text color="muted">{fillCopy(C.inviteExpired, { when: formatLocalDateTime(status.expiresAt, timeZone, { weekday: 'short' }) })}</Text>
+        ) : null}
         {error ? <Text color="muted">{error}</Text> : null}
         <Button label={C.inviteShow} onPress={onCreate} loading={busy} disabled={busy} style={{ alignSelf: 'stretch' }} />
       </View>
@@ -134,7 +139,7 @@ export function InvitePanel({ memberId, name }: { memberId: Id<'members'>; name?
     <InvitePanelView
       name={who}
       invite={invite}
-      waitingUntil={waiting?.expiresAt ?? null}
+      status={waiting}
       error={error}
       busy={busy}
       timeZone={viewer?.family.timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone}

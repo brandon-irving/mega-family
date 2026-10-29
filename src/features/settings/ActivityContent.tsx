@@ -16,8 +16,9 @@ import type { GlyphName } from '@/features/integrations/glyphs';
 import { IconTile } from '@/features/accounts/parts';
 import { ChipLine, LinkRow, SettingsSection } from './rows';
 
-/** A row; `decidedBy` (`rule:<id>` | `model:<id>` | `member:<id>`) and `why` arrive with CONTRACT v0.17b. */
-export type ActivityItem = Infer<typeof activityItem> & { decidedBy?: string; why?: string };
+/** A row; `decidedBy` is CONTRACT v0.17b (`rule:<id>` | `model:<id>` | `member`). `why` (a short reason) isn't
+ * in the contract yet; the chip shows it when present. */
+export type ActivityItem = Infer<typeof activityItem> & { why?: string };
 
 type Decided = 'rule' | 'ai' | 'you';
 function decidedKind(decidedBy: string | undefined): Decided | null {

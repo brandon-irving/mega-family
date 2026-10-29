@@ -3,7 +3,7 @@
 import { useMutation, usePaginatedQuery } from 'convex/react';
 import type { Id } from '@shared/domain/validators';
 import { api } from './api';
-import { kidControlsMine, kidNotifyCap, setKidNotifyCap, type MyRules } from './pendingContract';
+import type { KidRulesView } from '@shared/domain/api';
 import { useQuery, useQueryState } from './useQuery';
 import { useStablePaginatedQuery } from './useStableQuery';
 
@@ -31,20 +31,21 @@ export function useSetKidControls() {
   return useMutation(api.kidControls.set);
 }
 
-/** A kid's own rules, read-only (`kidControls.mine`, CONTRACT v0.17b pending): undefined while loading or when
- * the backend can't answer yet (the rows that need it stay hidden), null for a kid with no controls row. */
-export function useMyRules(enabled: boolean): MyRules | null | undefined {
-  const state = useQueryState(kidControlsMine, enabled ? {} : 'skip');
+/** A kid's own rules, read-only (`kidControls.mine`): their control fields, buzzes a day and their parents'
+ * names. undefined while loading or if the server can't answer (the rows that need it stay hidden), null for an
+ * adult or a kid with no controls row. */
+export function useMyRules(enabled: boolean): KidRulesView | null | undefined {
+  const state = useQueryState(api.kidControls.mine, enabled ? {} : 'skip');
   return state.status === 'ok' ? state.data : undefined;
 }
 
-/** A kid's daily buzz cap for their parent (`kidControls.notifyCap`, CONTRACT v0.17b pending): undefined until
- * the backend can answer, so the Rules page shows no stepper it can't save. */
-export function useKidNotifyCap(memberId: Id<'members'>) {
-  const state = useQueryState(kidNotifyCap, { memberId });
-  return state.status === 'ok' && state.data ? state.data : undefined;
+/** A kid's buzzes a day, for their parent's Rules stepper (`kidControls.dailyCap`); undefined until it answers,
+ * so the page never shows a stepper it can't save. The range is LIMITS.push.kidDailyCapRange. */
+export function useKidDailyCap(memberId: Id<'members'>) {
+  const state = useQueryState(api.kidControls.dailyCap, { memberId });
+  return state.status === 'ok' ? state.data.dailyCap : undefined;
 }
 
-export function useSetKidNotifyCap() {
-  return useMutation(setKidNotifyCap);
+export function useSetKidDailyCap() {
+  return useMutation(api.kidControls.setDailyCap);
 }

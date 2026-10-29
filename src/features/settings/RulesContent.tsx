@@ -17,7 +17,8 @@ import { Text } from '@/ui/Text';
 import { useTokens } from '@/ui/theme';
 import { ChipLine, LockedRow, SegmentRow, SettingsSection, StepperRow, SwitchRow, ValueRow, clockLabel, shiftClock } from './rows';
 
-export type KidControls = Infer<typeof kidControlsDoc>;
+/** The control fields (a parent reads the whole row; a kid's `kidControls.mine` returns just these). */
+export type KidControls = Omit<Infer<typeof kidControlsDoc>, '_id' | '_creationTime' | 'familyId' | 'memberId'>;
 export type KidControlsPatch = Partial<Pick<KidControls, 'homeworkMode' | 'quietHours' | 'dailyMinutes' | 'tellsParents' | 'parentsCanReadChat' | 'webSearch'>>;
 
 export function minutesText(n: number | undefined): string {

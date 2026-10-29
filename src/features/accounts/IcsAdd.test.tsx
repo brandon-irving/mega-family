@@ -45,6 +45,13 @@ describe('icsFailureCopy', () => {
     expect(icsFailureCopy('error')).toBe(G5_FIX_COPY.icsUnreachable);
     expect(icsFailureCopy('something_new')).toBe(G5_FIX_COPY.icsCouldntAdd);
   });
+
+  test('v0.17b reconcile: every server `reason` has its own line', () => {
+    expect(icsFailureCopy('error', 'unreachable')).toBe(G5_FIX_COPY.icsUnreachable);
+    expect(icsFailureCopy('no_result', 'not_a_calendar')).toBe(G5_FIX_COPY.icsNotCalendar);
+    expect(icsFailureCopy('error', 'too_large')).toBe(G5_FIX_COPY.icsTooLarge);
+    expect(icsFailureCopy('error', 'refused')).toBe(G5_FIX_COPY.icsRefused);
+  });
 });
 
 describe('useAddIcsLink', () => {
@@ -76,6 +83,19 @@ describe('useAddIcsLink', () => {
       await result.current.submit();
     });
     expect(addIcs).not.toHaveBeenCalled();
+    expect(result.current.error).toBe(G5_COPY.icsBad);
+  });
+
+  test('v0.17b reconcile: the server refusing a link as malformed (VALIDATION) says the link didn’t work', async () => {
+    const { ConvexError } = jest.requireActual('convex/values');
+    const addIcs = jest.fn(async () => {
+      throw new ConvexError({ code: 'VALIDATION', message: 'bad' });
+    });
+    const { result } = await renderHook(() => useAddIcsLink(addIcs));
+    await act(async () => result.current.setText('https://x.example/a.ics'));
+    await act(async () => {
+      await result.current.submit();
+    });
     expect(result.current.error).toBe(G5_COPY.icsBad);
   });
 

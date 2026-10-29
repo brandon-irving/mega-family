@@ -539,6 +539,9 @@ describe('Milestone D: privacy grid', () => {
       const row = (famA.docs.kidControls as unknown as { memberId: string; blockedTopics: string[] }[]).find((r) => r.memberId === famA.members.twin1);
       expect(mine?.blockedTopics).toEqual(row?.blockedTopics);
       expect(await as('partner').query(api.kidControls.mine, {})).toBeNull();
+      // v0.17b reconcile: a kid's buzz cap is readable only by that kid's parents.
+      expect(codeOf(await as('twin1').query(api.kidControls.dailyCap, { memberId: famA.members.twin2 }).catch((e) => e))).toBe('FORBIDDEN');
+      expect(await as('admin').query(api.kidControls.dailyCap, { memberId: famA.members.twin2 })).toMatchObject({ dailyCap: expect.any(Number) });
     });
   });
 });

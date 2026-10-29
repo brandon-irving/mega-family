@@ -29,7 +29,7 @@ import {
 } from '@/test/g5Fixtures';
 import { ConnectCardView, looksLikeFeedUrl, type ConnectHandlers, type ConnectLocal } from './ConnectCard';
 import { MailFoundCardView, foundTitle } from './MailFoundCard';
-import { ReconnectCardView } from './ReconnectCard';
+import { ReconnectCardView, coveredByCard } from './ReconnectCard';
 import { PhoneCalendarSheet, addLabel } from './PhoneCalendarSheet';
 import { agoText, checkedLine, mailRow, reconnectWhat, statusPill, whenText } from './accountFormat';
 
@@ -252,6 +252,15 @@ describe('reconnect (board Reconnect)', () => {
     await renderWithTheme(<ReconnectCardView {...props} later google={[GMAIL_NEEDS_RECONNECT]} />);
     expect(screen.getByText(G5_UI_COPY.reconnectLater)).toBeTruthy();
     expect(screen.queryByText(G5_COPY.accountReconnect)).toBeNull();
+  });
+  test('v0.17b reconcile: the card covers exactly the integrations it names, never another Google account', () => {
+    const otherAccount = { ...GMAIL_CONNECTED, integrationId: 'in_other' as never, label: 'someone.else@example.com' };
+    const cal = { ...GOOGLE_CAL_CONNECTED, status: 'needs_reconnect' as const };
+    const google = [GMAIL_NEEDS_RECONNECT, cal, otherAccount];
+    expect(coveredByCard(google, GMAIL_NEEDS_RECONNECT.integrationId, [GMAIL_NEEDS_RECONNECT.integrationId, cal.integrationId])).toEqual([GMAIL_NEEDS_RECONNECT, cal]);
+    // An older card (v0.17, no list) covers just its one integration.
+    expect(coveredByCard(google, GMAIL_NEEDS_RECONNECT.integrationId, undefined)).toEqual([GMAIL_NEEDS_RECONNECT]);
+    expect(coveredByCard(google, 'in_gone' as never, undefined)).toEqual([]);
   });
   test('once connected again the card says so', async () => {
     await renderWithTheme(<ReconnectCardView {...props} google={[GMAIL_CONNECTED]} />);

@@ -3,7 +3,6 @@
 import { useMutation } from 'convex/react';
 import type { Id } from '@shared/domain/validators';
 import { api } from './api';
-import { invitesForMember } from './pendingContract';
 import { useQuery, useQueryState } from './useQuery';
 
 export function useInvitePreview(token: string | undefined) {
@@ -15,8 +14,9 @@ export function useCreateInvite() {
   return useMutation(api.invites.create);
 }
 
-/** When the member's newest open invite expires, if the server can say (CONTRACT v0.17b, pending); else null. */
+/** The member's invite state (`invites.forMember`: none / joined / pending / expired); null until it answers.
+ * The link itself can't be read back (only its hash is stored), so "Show invite" makes a fresh one. */
 export function useMemberInvite(memberId: Id<'members'>) {
-  const state = useQueryState(invitesForMember, { memberId });
+  const state = useQueryState(api.invites.forMember, { memberId });
   return state.status === 'ok' ? state.data : null;
 }

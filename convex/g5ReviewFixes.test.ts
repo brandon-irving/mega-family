@@ -369,6 +369,21 @@ describe('frontend asks: activity decidedBy, a kid’s own rules, a kid’s noti
     expect(codeOf(await s.as('admin').mutation(api.kidControls.setDailyCap, { memberId: s.m.twin1, dailyCap: 999 }).catch((e) => e))).toBe('VALIDATION');
     expect(codeOf(await s.as('admin').mutation(api.kidControls.setDailyCap, { memberId: s.m.partner, dailyCap: 3 }).catch((e) => e))).toBe('FORBIDDEN');
   });
+
+  test('v0.17b reconcile: kidControls.mine names the kid’s parents ("Set by Admin and Partner")', async () => {
+    const s = await seeded();
+    const mine = await s.as('twin1').query(api.kidControls.mine, {});
+    expect([...mine!.parents].sort()).toEqual(['Admin', 'Partner']);
+  });
+
+  test('v0.17b reconcile: kidControls.dailyCap — a parent reads the kid’s current buzzes-a-day; the kid, a sibling and a non-kid are FORBIDDEN', async () => {
+    const s = await seeded();
+    await s.as('admin').mutation(api.kidControls.setDailyCap, { memberId: s.m.twin1, dailyCap: 3 });
+    expect(await s.as('partner').query(api.kidControls.dailyCap, { memberId: s.m.twin1 })).toEqual({ dailyCap: 3 });
+    expect(codeOf(await s.as('twin1').query(api.kidControls.dailyCap, { memberId: s.m.twin1 }).catch((e) => e))).toBe('FORBIDDEN');
+    expect(codeOf(await s.as('twin2').query(api.kidControls.dailyCap, { memberId: s.m.twin1 }).catch((e) => e))).toBe('FORBIDDEN');
+    expect(codeOf(await s.as('admin').query(api.kidControls.dailyCap, { memberId: s.m.partner }).catch((e) => e))).toBe('FORBIDDEN');
+  });
 });
 
 describe('C4: one sync per integration at a time', () => {

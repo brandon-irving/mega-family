@@ -96,9 +96,15 @@ describe('kid MEGA profile', () => {
 describe('/mega-profile/rules (board ProfileRulesKid)', () => {
   test('a kid sees their rules, each locked "Set by a parent"', async () => {
     mockRole.current = 'kid';
-    mockMine.current = { controls: CONTROLS, parents: ['Admin', 'Partner'], parentsCanReadChat: true };
+    const { _id, _creationTime, familyId, memberId, ...fields } = CONTROLS;
+    void [_id, _creationTime, familyId, memberId];
+    mockMine.current = { ...fields, dailyCap: 3, parents: ['Admin', 'Partner'] };
     await renderWithTheme(<KidRulesRoute />);
     expect(screen.getAllByText(U.setByParent).length).toBeGreaterThan(0);
+    // v0.17b reconcile: the server's shape (`kidControls.mine`: the control fields + dailyCap + parents) —
+    // the intro names the parents and the locked buzz row shows the cap.
+    expect(screen.getByText(/Admin and Partner/)).toBeTruthy();
+    expect(screen.getByText(G5_FIX_COPY.buzzesTitle)).toBeTruthy();
     expect(screen.queryByRole('switch')).toBeNull();
   });
 

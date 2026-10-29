@@ -61,7 +61,14 @@ export function ReconnectCardView({
   );
 }
 
-export function ReconnectCard({ integrationId, megaName }: { integrationId: Id<'integrations'>; megaName: string }) {
+/** The integrations a reconnect card is about: the ones it names (CONTRACT v0.17b `integrationIds`, one card per
+ * lapsed grant), else just its own `integrationId` (a v0.17 card). Never another Google account's. */
+export function coveredByCard(google: IntegrationView[], integrationId: Id<'integrations'>, integrationIds: Id<'integrations'>[] | undefined): IntegrationView[] {
+  const ids = new Set<string>(integrationIds?.length ? integrationIds : [integrationId]);
+  return google.filter((i) => ids.has(i.integrationId));
+}
+
+export function ReconnectCard({ integrationId, integrationIds, megaName }: { integrationId: Id<'integrations'>; integrationIds?: Id<'integrations'>[]; megaName: string }) {
   const state = useIntegrations();
   const actions = useAccountActions();
   const { busy, run } = useRunAction();
@@ -69,8 +76,7 @@ export function ReconnectCard({ integrationId, megaName }: { integrationId: Id<'
   const [failed, setFailed] = useState(false);
   if (state.status !== 'ok') return <CardFallback state={state} from={fillCopy(U.fromAccounts, { mega: megaName })} />;
   const google = state.data.filter((i) => i.kind === 'gmail' || i.kind === 'googleCalendar');
-  const lapsed = google.find((i) => i.integrationId === integrationId);
-  const covered = lapsed ? google : [];
+  const covered = coveredByCard(google, integrationId, integrationIds);
   return (
     <ReconnectCardView
       google={covered}

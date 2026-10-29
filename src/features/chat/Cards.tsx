@@ -127,7 +127,7 @@ export function ResultCard({ card, onRespondRequest, onAnswerNotification, notif
     case 'mailFound':
       return <MailFoundCard itemIds={card.itemIds} megaName={megaName ?? GD_FALLBACK_FROM} />;
     case 'reconnect':
-      return <ReconnectCard integrationId={card.integrationId} megaName={megaName ?? GD_FALLBACK_FROM} />;
+      return <ReconnectCard integrationId={card.integrationId} integrationIds={card.integrationIds} megaName={megaName ?? GD_FALLBACK_FROM} />;
     default:
       return null;
   }

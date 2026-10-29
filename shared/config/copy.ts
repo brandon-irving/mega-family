@@ -921,6 +921,8 @@ export const G5_FIX_COPY = {
   icsUnreachable: 'Couldn’t reach that link. Check it opens in a browser, then try again — or skip it for now.',
   icsNotCalendar: 'That link opened, but there’s no calendar in it. School and team sites usually call it “Subscribe” or “iCal”.',
   icsCouldntAdd: 'Couldn’t add that link right now. Try again in a bit, or skip it for now.',
+  icsTooLarge: 'That calendar is too big to add. Try a link for just one team or class.',
+  icsRefused: 'That link points somewhere MEGA can’t open. Use the link from the school or team’s public calendar page.',
   // Invites (UX review finding 3; board OnboardInvite)
   inviteTitle: 'Invite',
   inviteHint: 'Scan this on {name}’s device, or send the link if {name} isn’t nearby.',
@@ -932,7 +934,8 @@ export const G5_FIX_COPY = {
   inviteNew: 'New code',
   inviteExpires: 'Works until {when}',
   inviteShareMessage: '{name}, here’s your MEGA invite: {url}',
-  inviteWaiting: 'An invite is waiting · works until {when}',
+  inviteWaiting: 'An invite from {who} is waiting · works until {when}',
+  inviteExpired: 'The last invite ran out {when}. Make a new code below.',
   inviteFoot: 'A new code doesn’t cancel the old one; each works until it expires or someone joins with it.',
   // A kid's own rules (UX review finding 4; boards SettingsKid / ProfileRulesKid)
   kidReadChats: 'Your parents can read your chats',
