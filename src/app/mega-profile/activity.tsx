@@ -1,10 +1,11 @@
 // Profile → Activity (canvas Screen 16, board ProfileActivity), in the MEGA profile's stack. Admin only (the
 // profile shows the row only to the admin; `megas.activity` refuses anyone else). Times and "Today" follow the
 // family clock and timezone, never the phone's.
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { router } from 'expo-router';
 import { G5_UI_COPY as U } from '@shared/config/copy';
 import { useViewer } from '@/data/useViewer';
+import { useFamilyMembers } from '@/data/useFamily';
 import { useForgetMemory, useMegaActivity, useMemories } from '@/data/useMega';
 import { useFamilyNow } from '@/data/useShopping';
 import { ActivityContent, type ActivityFilter, type MemoryDoc } from '@/features/settings/ActivityContent';
@@ -31,6 +32,12 @@ function ActivityScreen() {
   const memories = useMemories(undefined);
   const forget = useForgetMemory();
   const now = useFamilyNow();
+  const members = useFamilyMembers();
+  // "You" for the viewer, a name for anyone else in the family (the Activity person chip).
+  const who = useMemo(
+    () => ({ viewerId: viewer?.member._id ?? '', names: Object.fromEntries((members ?? []).map((c) => [c.member._id, c.member.name])) }),
+    [viewer?.member._id, members],
+  );
   const [filter, setFilter] = useState<ActivityFilter>('all');
   // A forgotten memory leaves the live list at once; keep it here so its row can say "Forgotten…".
   const [forgotten, setForgotten] = useState<MemoryDoc[]>([]);
@@ -40,6 +47,7 @@ function ActivityScreen() {
   return (
     <Sheet title={U.activityTitle} onClose={() => router.back()}>
       <ActivityContent
+        who={who}
         items={activity.results}
         memories={[...memories.results.slice(0, LEARNED_SHOWN), ...forgotten.filter((f) => !memories.results.some((m) => m._id === f._id))]}
         forgotten={forgotten.map((f) => f._id)}

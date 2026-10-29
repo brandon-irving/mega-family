@@ -153,7 +153,7 @@ describe('Activity (board ProfileActivity)', () => {
     { at: T0 - 5_000, type: 'clock.tick', summary: 'tick' },
   ];
   const memory = { _id: 'mem1', text: 'Twin 1 is into dinosaurs' } as never;
-  const props = { items, memories: [memory], forgotten: [], megaName: 'Teal', now: T0, timeZone: 'America/New_York', canLoadMore: false, onLoadMore: () => {}, onOpenMemories: jest.fn() };
+  const props = { who: { viewerId: 'm_admin', names: {} }, items, memories: [memory], forgotten: [], megaName: 'Teal', now: T0, timeZone: 'America/New_York', canLoadMore: false, onLoadMore: () => {}, onOpenMemories: jest.fn() };
 
   test('grouped by day with times, bookkeeping hidden, filters narrow it, Forget on what it learned', async () => {
     const onFilter = jest.fn();

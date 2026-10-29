@@ -16,6 +16,7 @@
 import { type Infer, v } from 'convex/values';
 import { LIMITS } from '../shared/config';
 import { API, LINKS, type InvitePreview } from '../shared/domain/api';
+import { inviteTokenFrom } from '../shared/inviteToken';
 import * as T from '../shared/domain/tables';
 import { internal } from './_generated/api';
 import type { Doc, Id } from './_generated/dataModel';
@@ -51,7 +52,9 @@ export const create = mutation({
     const now = await clock.now(ctx, viewer.member.familyId);
     const expiresAt = now + LIMITS.invite.ttlHours * 60 * 60_000;
     await ctx.db.insert('invites', { familyId: viewer.member.familyId, memberId: member._id, tokenHash: hash, expiresAt, invitedBy: viewer.member._id, mega });
-    return { url: LINKS.join(token), qrPayload: token, expiresAt };
+    // v0.17b: the QR carries the full join link, so the phone's own camera opens MEGA (preview/redeem take either).
+    const url = LINKS.join(token);
+    return { url, qrPayload: url, expiresAt };
   },
 });
 
@@ -77,8 +80,9 @@ export const forMember = query({
   },
 });
 
+/** `token` may be the bare code or the full join link (a scanned QR or a pasted link). */
 async function inviteByToken(ctx: QueryCtx, token: string): Promise<Doc<'invites'> | null> {
-  const hash = await sha256Hex(token);
+  const hash = await sha256Hex(inviteTokenFrom(token));
   return ctx.db
     .query('invites')
     .withIndex('by_tokenHash', (q) => q.eq('tokenHash', hash))

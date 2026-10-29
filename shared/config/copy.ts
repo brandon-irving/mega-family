@@ -948,6 +948,7 @@ export const G5_FIX_COPY = {
   decidedRule: 'Rule',
   decidedAi: 'MEGA (AI)',
   decidedYou: 'You',
+  decidedSomeone: 'A family member',
   // Rules: a kid's daily buzz cap (board ProfileRules "Buzzes a day")
   buzzesTitle: 'Buzzes a day',
   buzzesHint: 'The most times {mega} can buzz {kid} in a day',

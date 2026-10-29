@@ -8,6 +8,7 @@
 import { View } from 'react-native';
 import type { Infer } from 'convex/values';
 import type { activityItem, memoryDoc } from '@shared/domain/api';
+import { ACTIVITY } from '@shared/config/activity';
 import { G5_FIX_COPY, G5_UI_COPY as U, fillCopy } from '@shared/config/copy';
 import { Button } from '@/ui/Button';
 import { Text } from '@/ui/Text';
@@ -16,22 +17,34 @@ import type { GlyphName } from '@/features/integrations/glyphs';
 import { IconTile } from '@/features/accounts/parts';
 import { ChipLine, LinkRow, SettingsSection } from './rows';
 
-/** A row; `decidedBy` is CONTRACT v0.17b (`rule:<id>` | `model:<id>` | `member`). `why` (a short reason) isn't
- * in the contract yet; the chip shows it when present. */
+/** A row; `decidedBy` is CONTRACT v0.17b (`rule:<id>` | `model:<id>` | `member:<id>` | a bare `member`). `why`
+ * (a short reason) isn't in the contract yet; the chip shows it when present. */
 export type ActivityItem = Infer<typeof activityItem> & { why?: string };
 
-type Decided = 'rule' | 'ai' | 'you';
+/** Who is looking and the family's names, so `member:<id>` reads "You" or that person's name. */
+export type ActivityWho = { viewerId: string; names: Readonly<Record<string, string>> };
+
+type Decided = 'rule' | 'ai' | 'person';
 function decidedKind(decidedBy: string | undefined): Decided | null {
   if (!decidedBy) return null;
   if (decidedBy.startsWith('rule:')) return 'rule';
   if (decidedBy.startsWith('model:')) return 'ai';
-  return 'you';
+  if (decidedBy === ACTIVITY.member || decidedBy.startsWith(`${ACTIVITY.member}:`)) return 'person';
+  return null;
 }
 
-/** The chip's word for who decided, or null when the item doesn't say. */
-export function decidedLabel(decidedBy: string | undefined): string | null {
+/** The chip's word for who decided, or null when the item doesn't say. A person is "You" only when it's the
+ * viewer's own id, their name when it's someone in the family, and "A family member" when the server couldn't
+ * say who (a bare `member`) or the id isn't in the family — never a guess. */
+export function decidedLabel(decidedBy: string | undefined, who: ActivityWho): string | null {
   const k = decidedKind(decidedBy);
-  return k === 'rule' ? G5_FIX_COPY.decidedRule : k === 'ai' ? G5_FIX_COPY.decidedAi : k === 'you' ? G5_FIX_COPY.decidedYou : null;
+  if (k === 'rule') return G5_FIX_COPY.decidedRule;
+  if (k === 'ai') return G5_FIX_COPY.decidedAi;
+  if (k !== 'person') return null;
+  const id = decidedBy!.slice(ACTIVITY.member.length + 1);
+  if (!id) return G5_FIX_COPY.decidedSomeone;
+  if (id === who.viewerId) return G5_FIX_COPY.decidedYou;
+  return who.names[id] ?? G5_FIX_COPY.decidedSomeone;
 }
 export type MemoryDoc = Infer<typeof memoryDoc>;
 export type ActivityFilter = 'all' | 'calendar' | 'reminders' | 'learned' | 'accounts';
@@ -68,7 +81,10 @@ export function ActivityContent({
   onLoadMore,
   onForget,
   onOpenMemories,
+  who,
 }: {
+  /** Who is looking and the family's names (for the person chip). */
+  who: ActivityWho;
   items: ActivityItem[];
   memories: MemoryDoc[];
   forgotten: string[];
@@ -116,7 +132,7 @@ export function ActivityContent({
                 <IconTile icon={GLYPH[f]} tone={f === 'calendar' ? 'household' : f === 'accounts' ? 'accent' : 'muted'} size={36} />
                 <View style={{ flex: 1, gap: tokens.spacing.xs }}>
                   <Text>{r.summary}</Text>
-                  <DecidedChip decidedBy={r.decidedBy} why={r.why} />
+                  <DecidedChip decidedBy={r.decidedBy} why={r.why} who={who} />
                 </View>
                 <Text variant="caption" color="muted">
                   {time(r.at)}
@@ -159,8 +175,8 @@ export function ActivityContent({
   );
 }
 
-/** "Rule" (grey) · "MEGA (AI)" (accent) · "You" (gold), then the reason, on one line (board ProfileActivity). */
-function DecidedChip({ decidedBy, why }: { decidedBy?: string; why?: string }) {
+/** "Rule" (grey) · "MEGA (AI)" (accent) · a person — "You", a name or "A family member" — (gold), then the reason, on one line (board ProfileActivity). */
+function DecidedChip({ decidedBy, why, who }: { decidedBy?: string; why?: string; who: ActivityWho }) {
   const tokens = useTokens();
   const kind = decidedKind(decidedBy);
   if (!kind) return null;
@@ -169,7 +185,7 @@ function DecidedChip({ decidedBy, why }: { decidedBy?: string; why?: string }) {
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: tokens.spacing.sm }}>
       <View style={{ flexShrink: 0, paddingHorizontal: tokens.spacing.sm, paddingVertical: 2, borderRadius: tokens.radii.sm, borderWidth: 1, borderColor: tone.line, backgroundColor: tone.bg }}>
         <Text variant="caption" style={{ color: tone.ink, fontWeight: '700' }}>
-          {decidedLabel(decidedBy)}
+          {decidedLabel(decidedBy, who)}
         </Text>
       </View>
       {why ? (

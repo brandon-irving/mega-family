@@ -67,7 +67,7 @@ export async function applyLearningDecision(
         familyId: params.familyId,
         at: params.now,
         type: 'said',
-        payload: { queuedLearning: op },
+        payload: { queuedLearning: op, actorId: params.memberId }, // Activity names who said it (member:<id>)
         processed: { memory: true, profiler: false, triggers: false },
       });
       return { summary: 'noted for the profiler to review later' };

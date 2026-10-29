@@ -107,9 +107,15 @@ function summarize(event: { type: string; payload: unknown }): string {
 }
 
 /** v0.17b: who decided — the event's own `payload.decidedBy` (a string), else ACTIVITY.decidedByDefault[type]. */
-function decidedByOf(event: { type: string; payload: unknown }): { decidedBy?: string } {
-  const own = (event.payload as { decidedBy?: unknown } | null)?.decidedBy;
-  const decidedBy = typeof own === 'string' ? own.slice(0, 80) : ACTIVITY.decidedByDefault[event.type];
+/// A person's event names them as `member:<id>` only when its payload's `actorId` is a member of this family;
+/// otherwise it stays a bare `member` ("a family member"), never a guess.
+function decidedByOf(event: { type: string; payload: unknown }, familyMemberIds: ReadonlySet<string>): { decidedBy?: string } {
+  const payload = event.payload as { decidedBy?: unknown; actorId?: unknown } | null;
+  const own = payload?.decidedBy;
+  let decidedBy = typeof own === 'string' ? own.slice(0, 80) : ACTIVITY.decidedByDefault[event.type];
+  if (decidedBy === ACTIVITY.member && typeof payload?.actorId === 'string' && familyMemberIds.has(payload.actorId)) {
+    decidedBy = `${ACTIVITY.member}:${payload.actorId}`;
+  }
   return decidedBy ? { decidedBy } : {};
 }
 
@@ -123,6 +129,11 @@ export const activity = query({
       .withIndex('by_family_at', (q) => q.eq('familyId', viewer.member.familyId))
       .order('desc')
       .paginate(args.paginationOpts);
-    return { ...page, page: page.page.map((e) => ({ at: e.at, type: e.type, summary: summarize(e), ...decidedByOf(e) })) };
+    const familyMembers = await ctx.db
+      .query('members')
+      .withIndex('by_family', (q) => q.eq('familyId', viewer.member.familyId))
+      .collect();
+    const ids = new Set<string>(familyMembers.map((m) => m._id));
+    return { ...page, page: page.page.map((e) => ({ at: e.at, type: e.type, summary: summarize(e), ...decidedByOf(e, ids) })) };
   },
 });
