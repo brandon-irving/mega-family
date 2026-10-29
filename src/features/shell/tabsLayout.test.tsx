@@ -14,7 +14,11 @@
 // crashes the actual dev server with "expect is not defined" on every page, not just this test suite.
 import { Text } from 'react-native';
 import { Slot } from 'expo-router';
-import { fireEvent, render, renderRouter, screen, testRouter } from 'expo-router/testing-library';
+// `render` comes from here, not 'expo-router/testing-library' — that package's own .d.ts re-exports
+// `@testing-library/react-native` as `export type *`, so `render` type-checks as a type only there even
+// though it IS a real value at runtime (tsc rejects using it, jest doesn't care).
+import { render } from '@testing-library/react-native';
+import { fireEvent, renderRouter, screen, testRouter } from 'expo-router/testing-library';
 import { APP_ERROR_COPY } from '@shared/config/copy';
 import { ThemeProvider } from '@/ui/theme';
 import { NavigationThemeBridge } from './NavigationThemeBridge';
