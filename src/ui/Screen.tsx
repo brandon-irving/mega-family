@@ -44,16 +44,24 @@ export type ScreenProps = { children: ReactNode; scroll?: boolean; padded?: bool
 export function Screen({ children, scroll = false, padded = true, presentation = 'full', testID }: ScreenProps) {
   const tokens = useTokens();
   const Container = scroll ? ScrollView : View;
+  // G6 polish fix: desktop web ran content edge-to-edge past tokens.layout.contentMaxWidth (chat, HQ —
+  // the Invite/QR sheet has the same fix in Sheet.tsx). Capping and centering it here, once, fixes every
+  // Screen at once instead of a per-screen hack. `width: '100%'` is what makes a phone a no-op (it never
+  // shrinks below a parent narrower than the cap); `maxWidth` is what caps a wider one.
+  const capped = { width: '100%' as const, maxWidth: tokens.layout.contentMaxWidth };
   return (
     <SafeFrame presentation={presentation} testID={testID}>
-      <Container
-        style={scroll ? styles.fill : [styles.fill, padded && { padding: tokens.spacing.lg }]}
-        contentContainerStyle={scroll ? (padded ? { padding: tokens.spacing.lg } : undefined) : undefined}
-      >
-        {children}
-      </Container>
+      <View style={styles.center}>
+        <Container
+          testID={testID ? `${testID}-content` : undefined}
+          style={scroll ? [styles.fill, capped] : [styles.fill, capped, padded && { padding: tokens.spacing.lg }]}
+          contentContainerStyle={scroll ? (padded ? { padding: tokens.spacing.lg } : undefined) : undefined}
+        >
+          {children}
+        </Container>
+      </View>
     </SafeFrame>
   );
 }
 
-const styles = StyleSheet.create({ fill: { flex: 1 } });
+const styles = StyleSheet.create({ fill: { flex: 1 }, center: { flex: 1, alignItems: 'center' } });
