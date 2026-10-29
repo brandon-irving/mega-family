@@ -118,7 +118,7 @@ export const card = v.union(
   // CONTRACT v0.16 (G4b, additive). `products` keeps only product refs (Shopify's catalog terms forbid caching
   // results): the app reads current details with `shopping.products`. Written only into the asking adult's own
   // thread (the `shop_search` tool). `failure` instead of refs when the catalog couldn't answer.
-  v.object({ kind: v.literal('products'), query: v.string(), refs: v.array(productRef), failure: v.optional(literals(INTEGRATION_FAILURES)) }),
+  v.object({ kind: v.literal('products'), query: v.string(), title: v.optional(v.string()), refs: v.array(productRef), failure: v.optional(literals(INTEGRATION_FAILURES)) }),
   v.object({ kind: v.literal('priceDrop'), watchId: v.id('priceWatches') }), // adults who can see the gift ideas, never the recipient
   v.object({ kind: v.literal('holiday'), skipId: v.id('routineSkips') }), // adults: "Pause the morning routine and chores?"
 );

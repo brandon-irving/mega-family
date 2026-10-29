@@ -1,7 +1,7 @@
 // Board GiftsProducts / ShopResults product row: a 52pt picture tile (the store's own image, or a pixel gift box
 // labelled "No picture from the store"), the title on one line, the price in bold tabular digits with the store
 // in grey, and a 40pt "Open" pill (a11y "Open {title} at {store}"). Gaps the boards don't draw, following the
-// same row: a sale shows "was $35.00" struck through after the price (`listPriceCents`), and an out-of-stock
+// same row: a sale shows "was $35" struck through after the price (`listPriceCents`), and an out-of-stock
 // product says "Out of stock" in place of the store and dims its picture. The image is read straight from the
 // store's CDN and only kept in memory (`cachePolicy: 'memory'`): Shopify's catalog terms don't allow caching
 // product images (CONTRACT v0.16).
@@ -14,7 +14,7 @@ import { Text } from '@/ui/Text';
 import { useTokens } from '@/ui/theme';
 import { hiddenFromA11y } from '@/ui/a11y';
 import { Glyph } from '@/features/integrations/glyphs';
-import { formatPrice } from './format';
+import { formatPriceCents } from '@shared/config/shopping';
 
 const TILE = 52;
 const OPEN_HEIGHT = 40;
@@ -55,8 +55,8 @@ export function ProductThumb({ product }: { product: Product }) {
 
 export function ProductRow({ product, onOpen, inset }: { product: Product; onOpen: (url: string) => void; inset?: boolean }) {
   const tokens = useTokens();
-  const price = formatPrice(product.priceCents, product.currency);
-  const was = product.listPriceCents !== undefined && product.listPriceCents > product.priceCents ? formatPrice(product.listPriceCents, product.currency) : null;
+  const price = formatPriceCents(product.priceCents, product.currency);
+  const was = product.listPriceCents !== undefined && product.listPriceCents > product.priceCents ? formatPriceCents(product.listPriceCents, product.currency) : null;
   return (
     <View
       testID="product-row"
@@ -79,11 +79,12 @@ export function ProductRow({ product, onOpen, inset }: { product: Product; onOpe
           {product.title}
         </Text>
         <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 6, overflow: 'hidden' }}>
-          <Text weight="700" numberOfLines={1} style={{ fontVariant: ['tabular-nums'], color: product.available ? tokens.text : tokens.muted }}>
+          {/* The price never shrinks or truncates (G4b UX review: "$25.00" showed as "$2…"); only the store name gives way. */}
+          <Text weight="700" style={{ flexShrink: 0, fontVariant: ['tabular-nums'], color: product.available ? tokens.text : tokens.muted }}>
             {fillCopy(G4B_COPY.productPrice, { price })}
           </Text>
           {was ? (
-            <Text variant="caption" color="muted" numberOfLines={1} style={{ textDecorationLine: 'line-through', fontVariant: ['tabular-nums'] }}>
+            <Text variant="caption" color="muted" style={{ flexShrink: 0, textDecorationLine: 'line-through', fontVariant: ['tabular-nums'] }}>
               {fillCopy(G4B_COPY.productWas, { price: was })}
             </Text>
           ) : null}

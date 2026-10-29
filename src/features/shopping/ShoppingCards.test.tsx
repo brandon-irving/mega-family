@@ -3,7 +3,8 @@
 // HolidayAsk / HolidayPaused (holiday question), HolidayCalendar (calendar marker) and the place sheet's Outdoor
 // switch. Pure views fed by the contract-shaped fixtures (src/test/g4bFixtures.ts).
 import { fireEvent, screen } from '@testing-library/react-native';
-import type { ReactElement } from 'react';
+import { useState, type ReactElement } from 'react';
+import { formatPriceCents } from '@shared/config/shopping';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { THEMES } from '@shared/config/theme';
 import { renderWithTheme } from '@/test/renderWithTheme';
@@ -33,7 +34,7 @@ import { HolidayCardView, joinNames, weekdayOf } from '@/features/holidays/Holid
 import { aqiLevel, uvLevel } from '@/features/integrations/airLevels';
 import { WeatherCardView } from '@/features/integrations/IntegrationCards';
 import { PlaceSheet } from '@/features/integrations/PlacesContent';
-import { daysUntil, formatPrice } from './format';
+import { daysUntil } from './format';
 import { PriceDropCardView } from './PriceDropCard';
 import { ProductsCardView } from './ProductsCard';
 
@@ -47,10 +48,10 @@ const nameOf = (id: string) => NAMES[id] ?? '';
 const ok = (products = [PRODUCT_KIT, PRODUCT_POSTER, PRODUCT_SOLD_OUT]) => ({ status: 'ok' as const, products });
 
 describe('format', () => {
-  test('prices: cents in the store’s currency, always two decimals; an unknown code is never given a symbol', () => {
-    expect(formatPrice(2800, 'USD')).toBe('$28.00');
-    expect(formatPrice(3499, 'USD')).toBe('$34.99');
-    expect(formatPrice(1000, 'ZZZ')).toMatch(/10\.00/);
+  test('prices: the one shared formatter (same text as the push): whole dollars short, cents when there are some, non-USD with its code', () => {
+    expect(formatPriceCents(2800, 'USD')).toBe('$28');
+    expect(formatPriceCents(3499, 'USD')).toBe('$34.99');
+    expect(formatPriceCents(1000, 'CAD')).toBe('10 CAD');
   });
   test('days until a date, from the family’s local today, never negative', () => {
     expect(daysUntil('2026-11-08', '2026-10-30')).toBe(9);
@@ -72,7 +73,7 @@ describe('Products card (boards ShopResults / ShopEmpty / ShopNotSetUp)', () => 
     expect(screen.getByText('Teal · Shopping')).toBeTruthy();
     expect(screen.getByText('For “dinosaur building kit under $40”')).toBeTruthy();
     expect(screen.getAllByTestId('product-row')).toHaveLength(3);
-    expect(screen.getByText('$28.00')).toBeTruthy();
+    expect(screen.getByText('$28')).toBeTruthy();
     expect(screen.getByText('Example Toy Shop')).toBeTruthy();
     await fireEvent.press(screen.getByLabelText('Open Dinosaur skeleton building kit at Example Toy Shop'));
     expect(onOpen).toHaveBeenCalledWith('https://example.com/products/dino-kit');
@@ -81,7 +82,7 @@ describe('Products card (boards ShopResults / ShopEmpty / ShopNotSetUp)', () => 
 
   test('a sale shows the struck-through "was" price; a sold-out product says so instead of its store', async () => {
     await renderWithTheme(<ProductsCardView card={PRODUCTS_CARD} megaName="Teal" state={ok()} onOpen={noop} />);
-    const was = screen.getByText('was $35.00');
+    const was = screen.getByText('was $35');
     expect(was.props.style).toEqual(expect.arrayContaining([expect.objectContaining({ textDecorationLine: 'line-through' })]));
     expect(screen.getByText('Out of stock')).toBeTruthy();
     expect(screen.getByLabelText('Personalized soccer ball, out of stock')).toBeTruthy();
@@ -96,7 +97,7 @@ describe('Products card (boards ShopResults / ShopEmpty / ShopNotSetUp)', () => 
     await renderWithTheme(<ProductsCardView card={PRODUCTS_CARD} megaName="Teal" state={{ status: 'loading' }} onOpen={noop} />);
     expect(screen.getByText('Checking prices…')).toBeTruthy();
     expect(screen.getAllByTestId('product-row-skeleton', { includeHiddenElements: true })).toHaveLength(3);
-    expect(screen.queryByText('$28.00')).toBeNull();
+    expect(screen.queryByText('$28')).toBeNull();
   });
 
   test('empty: says it found nothing (no rows, never a made-up product)', async () => {
@@ -182,9 +183,9 @@ describe('Price drop (board PriceDrop)', () => {
   test('the drop, Was (struck through) beside Now, the countdown, and the recipient-never-sees-it note', async () => {
     await renderWithTheme(view());
     expect(screen.getByText('Teal · Price drop')).toBeTruthy();
-    expect(screen.getByText('Dinosaur skeleton building kit dropped to $28.00 (was $35.00). Twin 1’s birthday is in 9 days.')).toBeTruthy();
-    expect(screen.getByLabelText('Was $35.00')).toBeTruthy();
-    expect(screen.getByLabelText('Now $28.00')).toBeTruthy();
+    expect(screen.getByText('Dinosaur skeleton building kit dropped to $28 (was $35). Twin 1’s birthday is in 9 days.')).toBeTruthy();
+    expect(screen.getByLabelText('Was $35')).toBeTruthy();
+    expect(screen.getByLabelText('Now $28')).toBeTruthy();
     expect(screen.getByText('Only grown-ups get price alerts. Twin 1 never sees them, so the gift stays a surprise.')).toBeTruthy();
   });
 
@@ -212,7 +213,7 @@ describe('Price drop (board PriceDrop)', () => {
 
   test('without the birthday (gift ideas unreadable), the plain drop line', async () => {
     await renderWithTheme(view({ daysLeft: undefined }));
-    expect(screen.getByText('Dinosaur skeleton building kit dropped to $28.00 (was $35.00).')).toBeTruthy();
+    expect(screen.getByText('Dinosaur skeleton building kit dropped to $28 (was $35).')).toBeTruthy();
   });
 });
 
@@ -316,5 +317,86 @@ describe('Place sheet Outdoor switch', () => {
   test('an outdoor place opens with the switch on', async () => {
     await renderScreen(<PlaceSheet open place={{ ...PLACES_FIXTURE[3], outdoor: true }} hasHome onSave={noop} onRemove={noop} onClose={noop} />);
     expect(screen.getByRole('switch', { name: 'Outdoors' }).props.accessibilityState).toMatchObject({ checked: true });
+  });
+});
+
+// G4b review fixes (failing-first regression tests).
+describe('G4b review fixes', () => {
+  const flat = (style: unknown): Record<string, unknown> => Object.assign({}, ...[style].flat(Infinity).filter(Boolean));
+
+  test('fix 1: a product row never shrinks its price or "was" price; only the store name gives way', async () => {
+    await renderWithTheme(<ProductsCardView card={PRODUCTS_CARD} megaName="Teal" state={ok([PRODUCT_KIT])} onOpen={noop} />);
+    const price = screen.getByText(formatPriceCents(PRODUCT_KIT.priceCents));
+    const was = screen.getByText(`was ${formatPriceCents(PRODUCT_KIT.listPriceCents!)}`);
+    expect(flat(price.props.style).flexShrink).toBe(0);
+    expect(flat(was.props.style).flexShrink).toBe(0);
+    expect(price.props.numberOfLines).toBeUndefined();
+    expect(flat(screen.getByText(PRODUCT_KIT.store).props.style).flexShrink).toBe(1);
+  });
+
+  test('fix 2: the price-drop card shows prices exactly as the push does (one shared formatter)', async () => {
+    await renderWithTheme(<PriceDropCardView watch={PRICE_WATCH} megaName="Teal" forName="Twin 1" daysLeft={9} onOpen={noop} onStop={noop} />);
+    expect(screen.getByLabelText(`Now ${formatPriceCents(2800)}`)).toBeTruthy();
+    expect(screen.getByLabelText(`Was ${formatPriceCents(3500)}`)).toBeTruthy();
+    expect(screen.getByText(`Dinosaur skeleton building kit dropped to ${formatPriceCents(2800)} (was ${formatPriceCents(3500)}). Twin 1’s birthday is in 9 days.`)).toBeTruthy();
+  });
+
+  test('fix 3: the calendar pages by week, and the week holding a holiday shows its diamond and banner', async () => {
+    const OCT_25 = new Date(2026, 9, 25).getTime();
+    const WEEK = 7 * 86_400_000;
+    function Harness() {
+      const [week, setWeek] = useState(OCT_25);
+      return (
+        <CalendarContent
+          key={week}
+          weekStart={week}
+          todayIndex={week === OCT_25 ? 4 : null}
+          events={[]}
+          members={CAL_MEMBERS}
+          viewerId={IDS.admin}
+          holidays={UPCOMING_HOLIDAYS}
+          onPrevWeek={() => setWeek((w) => w - WEEK)}
+          onNextWeek={() => setWeek((w) => w + WEEK)}
+        />
+      );
+    }
+    await renderWithTheme(<Harness />);
+    expect(screen.queryAllByTestId('holiday-diamond', { includeHiddenElements: true })).toHaveLength(0);
+    await fireEvent.press(screen.getByLabelText('Next week'));
+    await fireEvent.press(screen.getByLabelText('Next week'));
+    expect(screen.getAllByTestId('holiday-diamond', { includeHiddenElements: true })).toHaveLength(1);
+    expect(screen.getByText('Veterans Day · public holiday')).toBeTruthy();
+    await fireEvent.press(screen.getByLabelText('Previous week'));
+    expect(screen.queryAllByTestId('holiday-diamond', { includeHiddenElements: true })).toHaveLength(0);
+  });
+
+  test('fix 4: with store products the footer promises price alerts and never buying', async () => {
+    await renderWithTheme(<GiftsCardView megaName="Teal" forName="Twin 1" gifts={GIFTS_WITH_REFS} onAdd={noop} products={ok([PRODUCT_KIT, PRODUCT_POSTER])} />);
+    expect(screen.getByText('Only shared info is used. I’ll tell you if a price drops on something you add. I never buy anything.')).toBeTruthy();
+    expect(screen.queryByText('Only shared info is used. Private notes stay private.')).toBeNull();
+  });
+
+  test('fix 4: the no-catalog card keeps the privacy footer', async () => {
+    await renderWithTheme(<GiftsCardView megaName="Teal" forName="Twin 1" gifts={GIFTS_WITH_REFS} onAdd={noop} products={{ status: 'failure', failure: 'not_configured' }} />);
+    expect(screen.getByText('Only shared info is used. Private notes stay private.')).toBeTruthy();
+  });
+
+  test('fix 5: the products card uses its own heading when the server gives one', async () => {
+    await renderWithTheme(<ProductsCardView card={{ ...PRODUCTS_CARD, title: 'Kids’ rain jackets · under $40' }} megaName="Teal" state={ok()} onOpen={noop} />);
+    expect(screen.getByText('Kids’ rain jackets · under $40')).toBeTruthy();
+    expect(screen.queryByText('For “dinosaur building kit under $40”')).toBeNull();
+  });
+
+  test('fix 6: an idea with store products drops the "· $price" guess (the rows show real prices)', async () => {
+    const idea = GIFTS_WITH_REFS.ideas[0];
+    await renderWithTheme(<GiftsCardView megaName="Teal" forName="Twin 1" gifts={GIFTS_WITH_REFS} onAdd={noop} products={ok([PRODUCT_KIT, PRODUCT_POSTER])} />);
+    expect(screen.getByText(idea.why)).toBeTruthy();
+    expect(screen.queryByText(`${idea.why} · ${idea.price}`)).toBeNull();
+  });
+
+  test('fix 6: without a catalog the idea keeps its "· $price" estimate', async () => {
+    const idea = GIFTS_WITH_REFS.ideas[0];
+    await renderWithTheme(<GiftsCardView megaName="Teal" forName="Twin 1" gifts={GIFTS_WITH_REFS} onAdd={noop} products={{ status: 'failure', failure: 'not_configured' }} />);
+    expect(screen.getByText(`${idea.why} · ${idea.price}`)).toBeTruthy();
   });
 });
