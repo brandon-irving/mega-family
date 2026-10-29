@@ -31,13 +31,17 @@ const WIDE_BREAKPOINT = 768;
  * the route that threw by clearing the error state. */
 export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
   const tokens = useTokens();
+  // G6 review fix: the raw error.message used to show on screen under __DEV__, which could leak an
+  // internal detail (a ConvexError's message, a stack-bearing string) into a dev build. Always show the
+  // fixed copy; log the real error to the console (dev only) for the developer instead.
+  if (__DEV__) console.error(error.message, error);
   return (
     <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: tokens.spacing.lg, gap: tokens.spacing.md, backgroundColor: tokens.bg }}>
       <Text variant="headline" accessibilityRole="header">
         {APP_ERROR_COPY.title}
       </Text>
       <Text color="muted" style={{ textAlign: 'center' }}>
-        {__DEV__ ? error.message : APP_ERROR_COPY.body}
+        {APP_ERROR_COPY.body}
       </Text>
       <Button label={APP_ERROR_COPY.retry} onPress={() => void retry()} />
     </View>

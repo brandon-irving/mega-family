@@ -115,4 +115,27 @@ describe('(tabs) ErrorBoundary (G6 walkthrough #1, P0)', () => {
     await fireEvent.press(screen.getByText(APP_ERROR_COPY.retry));
     expect(retry).toHaveBeenCalled();
   });
+
+  // G6 review fix: the boundary showed the raw `error.message` under `__DEV__`, which could leak internals
+  // (a ConvexError's message, a stack-bearing string) onto the screen in a dev build. It must always show
+  // the fixed copy; the real message still goes to console.error for the developer to see in the terminal.
+  test('never renders the raw error message, even with __DEV__ true — the fixed copy shows instead', async () => {
+    const devBefore = (global as { __DEV__?: boolean }).__DEV__;
+    (global as { __DEV__?: boolean }).__DEV__ = true;
+    const secretMessage = 'simulated crash: internal detail that must never reach the screen';
+    const consoleError = jest.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      await render(
+        <ThemeProvider>
+          <TabLayoutModule.ErrorBoundary error={new Error(secretMessage)} retry={jest.fn()} />
+        </ThemeProvider>,
+      );
+      expect(screen.queryByText(secretMessage)).toBeNull();
+      expect(screen.getByText(APP_ERROR_COPY.body)).toBeTruthy();
+      expect(consoleError).toHaveBeenCalledWith(expect.stringContaining('simulated crash'), expect.anything());
+    } finally {
+      consoleError.mockRestore();
+      (global as { __DEV__?: boolean }).__DEV__ = devBefore;
+    }
+  });
 });
