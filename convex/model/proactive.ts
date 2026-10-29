@@ -18,7 +18,7 @@ import type { MutationCtx, QueryCtx } from '../_generated/server';
 import { clock } from '../ports/clock';
 import type { PushMessage } from '../ports/pushSender';
 import { gdTick } from './gdTick';
-import { alertLoudness, alertStillActive } from './weather';
+import { alertLoudness, alertStillActive, weatherTipCard } from './weather';
 import { getOrCreateOwnThread } from './threads';
 
 type Ctx = QueryCtx | MutationCtx;
@@ -736,7 +736,8 @@ export async function deliverCandidateLogic(ctx: MutationCtx, candidateId: Id<'c
 
   // GD: a card-backed source always lands its card in the thread (the durable surface); only the push
   // itself is subject to the cap. Its message is authored by Hub for a proposal, else the recipient's MEGA.
-  const card = cardForSource(candidate.source);
+  // G4b: a UV / air tip carries its own `weather` card (built from the cache now), like a card source.
+  const card = cardForSource(candidate.source) ?? (await weatherTipCard(ctx, candidate));
   const author = card ? await authorMegaFor(ctx, candidate, mega) : mega;
 
   if (delivery === 'statement') {
@@ -1021,4 +1022,8 @@ export async function tickFamilyLogic(ctx: MutationCtx, familyId: Id<'families'>
   await scanFamilyEventTriggers(ctx, familyId);
   await scanCheckInTriggers(ctx, familyId, now);
   await gdTick(ctx, familyId, now);
+  // G4b live check: card candidates the scans above just queued "for now" (a holiday question, a chore reminder)
+  // were scheduled at the family clock's now, which the real scheduler sees as the future during a demo jump;
+  // fire them in this same tick instead of on the next sweep (PROACTIVE.sweepIntervalMinutes later).
+  await fireDueScheduledCandidates(ctx, familyId, now);
 }

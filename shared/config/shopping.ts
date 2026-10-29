@@ -62,5 +62,20 @@ export const HOLIDAYS = {
   /** What "Pause for the day" skips for those kids: these routines that day (and the bedtime prep the night
    * before, which then says "No school routine tomorrow"), and that day's chores. */
   pauses: { routines: ['morning'] as readonly RoutineKind[], chores: true },
+  /** The step a paused holiday adds at the top of the kid's bedtime run the night before (label from
+   * G4B_COPY.bedtimeNoRoutine), so the app can show it as the "No school tomorrow" note. */
+  bedtimeNoteStepId: 'holiday',
   timeoutMs: 10_000,
 } as const;
+
+/** "$28" or "$28.50" (minor units → a short price for cards and notifications). Non-USD shows the ISO code. */
+export function formatPriceCents(cents: number, currency = 'USD'): string {
+  const n = (cents / 100).toFixed(cents % 100 === 0 ? 0 : 2);
+  return currency === 'USD' ? `$${n}` : `${n} ${currency}`;
+}
+
+/** The highest dollar amount in a model-written price like "$25", "about $20-30" or "$15–$40", in cents. */
+export function maxPriceCentsOf(price: string | undefined): number | undefined {
+  const nums = (price ?? '').match(/\d+(?:\.\d+)?/g)?.map(Number).filter((n) => Number.isFinite(n) && n > 0) ?? [];
+  return nums.length ? Math.round(Math.max(...nums) * 100) : undefined;
+}

@@ -4,11 +4,13 @@
 import { GD_PUSH_COPY } from '../../shared/config/copy';
 import { ROUTINES } from '../../shared/config/kids';
 import { routineDedupeKey } from '../../shared/config/proactive';
+import { HOLIDAYS } from '../../shared/config/shopping';
 import { addDays, dayOfWeek, localDate, parseClockTime, zonedInstant } from '../../shared/time';
 import { internal } from '../_generated/api';
 import type { Doc, Id } from '../_generated/dataModel';
 import type { MutationCtx, QueryCtx } from '../_generated/server';
 import { fail } from './errors';
+import { addBedtimeNote, isPaused } from './holidays';
 import { enqueueCardCandidate } from './proactive';
 import { canSeeEvent, layerOf } from './visibility';
 
@@ -87,9 +89,13 @@ export async function scanRoutineTriggers(ctx: MutationCtx, familyId: Id<'famili
       const minutes = parseClockTime(routine.time) ?? parseClockTime(ROUTINES.defaultTime[kind]);
       if (minutes === null || now < zonedInstant(today, minutes, tz)) continue;
       if (await runFor(ctx, familyId, kid._id, kind, today)) continue;
+      // G4b: a grown-up paused today's morning routine for a holiday (HOLIDAYS.pauses.routines).
+      if ((HOLIDAYS.pauses.routines as readonly string[]).includes(kind) && (await isPaused(ctx, familyId, kid._id, today))) continue;
       // The routine's own fixed steps; a bedtime run's calendar-derived items go in front (prepBedtime).
       const steps = routine.steps.map((s) => ({ id: s.id, label: s.label, detail: s.detail, done: false }));
       const runId = await ctx.db.insert('routineRuns', { familyId, routineId: routine._id, memberId: kid._id, kind, date: today, steps, createdAt: now });
+      // G4b: tomorrow paused for a holiday → the bedtime list opens with "No school routine tomorrow".
+      if (kind === 'bedtime') await addBedtimeNote(ctx, (await ctx.db.get(runId))!);
       const run = (await ctx.db.get(runId))!;
       if (kind === 'bedtime' && (await tomorrowsHouseholdEventsFor(ctx, kid, tz, today)).length) {
         await ctx.scheduler.runAfter(0, internal.routines.prepBedtime, { runId });

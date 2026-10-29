@@ -19,11 +19,12 @@ import { internalAction, type ActionCtx } from '../_generated/server';
 import { ChatModelError, type ChatMessage } from '../ports/chatModel';
 import { getChatModel } from '../adapters/registry';
 import { WEB_SEARCH } from '../../shared/config/integrations';
-import { NET_TOOL_NAMES } from './netTools';
+import { SHOPPING } from '../../shared/config/shopping';
+import { NET_TOOL_NAMES, UNTRUSTED_RESULT_TOOLS } from './netTools';
 import { toolsForRole } from './toolSpecs';
 
 /** Tools that only read (or only show something) — the ones still allowed after a search result entered the turn. */
-const READ_ONLY_AFTER_SEARCH = new Set(['recall', 'web_search', 'weather', 'travel_time', 'show_ui']);
+const READ_ONLY_AFTER_SEARCH = new Set(['recall', 'web_search', 'weather', 'travel_time', 'shop_search', 'show_ui']);
 
 type ContextData = {
   now: string;
@@ -107,6 +108,8 @@ export const runTurn = internalAction({
     // G4 invariant 1: once a search result is in this turn's context it's untrusted data — from then on only
     // read-only tools run, so a result can never cause a change by itself; the member confirms in a new turn.
     let searchedThisTurn = 0;
+    let shopSearchesThisTurn = 0;
+    let webSearchesThisTurn = 0;
     const messages: ChatMessage[] = [{ role: 'system', content: buildSystemPrompt(data) }, ...data.recentThread, { role: 'user', content: args.userText }];
     let maxTokens: number = LIMITS.agent.maxTokensReply;
     let retriedForLength = false;
@@ -172,10 +175,15 @@ export const runTurn = internalAction({
         let toolResult: { ok: boolean; resultText: string };
         if (searchedThisTurn > 0 && !READ_ONLY_AFTER_SEARCH.has(call.name)) {
           toolResult = { ok: false, resultText: AGENT_COPY.actAfterSearchRefusal };
-        } else if (call.name === 'web_search' && searchedThisTurn >= WEB_SEARCH.maxPerReply) {
+        } else if (call.name === 'web_search' && webSearchesThisTurn >= WEB_SEARCH.maxPerReply) {
           toolResult = { ok: false, resultText: `at most ${WEB_SEARCH.maxPerReply} searches per reply; answer with what you found` };
+        } else if (call.name === 'shop_search' && shopSearchesThisTurn >= SHOPPING.maxSearchesPerReply) {
+          toolResult = { ok: false, resultText: `at most ${SHOPPING.maxSearchesPerReply} product search per reply; answer with what you found` };
         } else if (NET_TOOL_NAMES.has(call.name)) {
-          if (call.name === 'web_search') searchedThisTurn++;
+          // G4b: catalog results are untrusted too — same read-only rest of turn as a web search.
+          if (UNTRUSTED_RESULT_TOOLS.has(call.name)) searchedThisTurn++;
+          if (call.name === 'shop_search') shopSearchesThisTurn++;
+          if (call.name === 'web_search') webSearchesThisTurn++;
           toolResult = await ctx.runAction(internal.agent.netTools.run, {
             familyId: args.familyId,
             memberId: args.memberId,

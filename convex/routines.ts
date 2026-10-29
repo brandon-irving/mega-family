@@ -3,6 +3,7 @@
 import { v } from 'convex/values';
 import { ROUTINES } from '../shared/config/kids';
 import { LIMITS } from '../shared/config/limits';
+import { HOLIDAYS } from '../shared/config/shopping';
 import { API } from '../shared/domain/api';
 import { formatLocalDateTime, localDate } from '../shared/time';
 import { internal } from './_generated/api';
@@ -160,7 +161,9 @@ export const finishBedtime = internalMutation({
       derived.push({ id: `prep-${n}`, label, detail: item.detail.trim().slice(0, 60) || undefined, done: false, source: { eventId: event._id, title: event.title, start: event.start } });
       if (derived.length >= ROUTINES.bedtimeMaxItems) break;
     }
-    await ctx.db.patch(run._id, { steps: [...derived, ...run.steps.filter((s) => !s.source)] });
+    // G4b: a paused holiday's note (HOLIDAYS.bedtimeNoteStepId) stays first, above the derived items.
+    const note = run.steps.filter((s) => s.id === HOLIDAYS.bedtimeNoteStepId);
+    await ctx.db.patch(run._id, { steps: [...note, ...derived, ...run.steps.filter((s) => !s.source && s.id !== HOLIDAYS.bedtimeNoteStepId)] });
     const now = await clock.now(ctx, run.familyId);
     await deliverRoutineCard(ctx, (await ctx.db.get(run._id))!, now);
     return null;

@@ -55,5 +55,11 @@ Boards: **none exist yet.** A design agent draws them first on the canvas row **
 6. **Calendar holiday marker:** `holidays.upcoming` → a marker on the day (name; "Paused" when paused).
 7. **Places sheet:** an Outdoor toggle on the place add/edit sheet (`places.upsert` `outdoor`).
 
+## Demo path (backend, checked live Oct 28)
+1. `npx convex run seed:resetDemo '{}'` (real mode): the seeded gift ideas get live catalog products, and the idea already on the gift list is watched at its live price.
+2. Holiday: as Admin, `clock.jump` to **Tue Nov 10 2026, 6:00 PM** (New York) → Admin and Partner get "Wednesday is Veterans Day. Pause the morning routine and chores for Twin 1 and Twin 2?" at once. Pause → jump to 8 PM → each twin's bedtime list opens with "No school routine tomorrow. Enjoy Veterans Day!"; Nov 11 has no morning routine or chores.
+3. Price drop: real prices rarely drop on cue, so `npx convex run seed:demoStagePriceDrop '{"percent":25}'` stages one (baselines set 25% above the live price) and runs the check → Admin and Partner get "DinoBuilders dropped to $36 (was $45)…". The "was" price is staged; `seed.resetDemo` restores real baselines.
+4. Shopping: ask an adult's MEGA "Find a kids rain jacket under $40" → a products card (refs; the app reads live prices).
+
 ## Exit checks
 `npx tsc --noEmit`, `npx vitest run` (incl. `tests/contract.test.ts` and the privacy grid with zero skips), `npx jest`, `npx eslint src shared --max-warnings=0`, `node --test scripts/secrets.test.mjs`, `npx expo export --platform web`; no `day1: 'stub'` left for v0.16 functions; `convex/model/g4bStub.ts` and `unconfiguredIntegrations.ts` deleted; `expo-doctor` still 20/20 and no new native package; live check report with spend under $0.10.

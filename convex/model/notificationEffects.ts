@@ -4,6 +4,9 @@
 import type { Doc } from '../_generated/dataModel';
 import type { MutationCtx } from '../_generated/server';
 import { markChoreDone, snoozeChoreReminder } from './chores';
+import { canSeeGiftsFor } from './gifts';
+import { answerHoliday } from './holidays';
+import { stopWatch } from './shopping';
 import { respondToRequest } from './requestEffects';
 import { answerTravel } from './travel';
 
@@ -27,6 +30,22 @@ async function findRequestForNotification(ctx: MutationCtx, notification: Doc<'n
 
 export async function applyNotificationAnswer(ctx: MutationCtx, params: { notification: Doc<'notifications'>; buttonId: string; now: number }): Promise<string> {
   const { notification, buttonId, now } = params;
+
+  // G4b (v0.16): the holiday question's Pause / Keep and a price drop's Stop watching take the same path as
+  // their cards (`holidays.answer`, `shopping.unwatch`), re-checking the recipient's role like those do.
+  const source = notification.candidateId ? (await ctx.db.get(notification.candidateId))?.source : undefined;
+  if (source?.kind === 'holiday' && (buttonId === 'pause' || buttonId === 'keep')) {
+    const adult = await ctx.db.get(notification.recipientId);
+    const skip = await ctx.db.get(source.skipId);
+    if (!adult || adult.role === 'kid' || !skip || skip.familyId !== adult.familyId) return 'Got it.';
+    return (await answerHoliday(ctx, { skip, adult, action: buttonId, now })).message;
+  }
+  if (source?.kind === 'priceDrop' && buttonId === 'stop_watching') {
+    const adult = await ctx.db.get(notification.recipientId);
+    const w = await ctx.db.get(source.watchId);
+    if (!adult || !w || w.familyId !== adult.familyId || !canSeeGiftsFor(adult, w.forMemberId)) return 'Got it.';
+    return stopWatch(ctx, w, adult._id, now);
+  }
 
   switch (notification.kind) {
     case 'request': {

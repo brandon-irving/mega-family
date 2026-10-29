@@ -1,11 +1,13 @@
 /// <reference types="vite/client" />
 // G4 backend task 7: gift ideas get a real product link from web search, and the search query carries only the
-// idea (built from household-shared facts) — never the birthday person's name or anything private.
+// idea (built from household-shared facts) — never the birthday person's name or anything private. Since G4b the
+// catalog (Shopify) is tried first and web search is the fallback, so these tests pin the catalog as not set up.
 import { convexTest } from 'convex-test';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { jsonReply, makeFakeChatModel } from './adapters/fakeChatModel';
 import { makeFakeWebSearch } from './adapters/fakeWebSearch';
-import { __setChatModelForTests, __setWebSearchForTests } from './adapters/registry';
+import { makeFakeProductCatalog } from './adapters/fakeProductCatalog';
+import { __setChatModelForTests, __setProductCatalogForTests, __setWebSearchForTests } from './adapters/registry';
 import { api, internal } from './_generated/api';
 import type { Id } from './_generated/dataModel';
 import schema from './schema';
@@ -13,14 +15,18 @@ import schema from './schema';
 const modules = import.meta.glob('./**/*.ts');
 type Key = 'admin' | 'partner' | 'twin1' | 'twin2' | 'toddler';
 
-beforeEach(() => vi.useFakeTimers());
+beforeEach(() => {
+  vi.useFakeTimers();
+  __setProductCatalogForTests(makeFakeProductCatalog({ search: () => ({ ok: false, failure: 'not_configured' }) }));
+});
 afterEach(() => {
   vi.useRealTimers();
+  __setProductCatalogForTests(null);
   __setChatModelForTests(null);
   __setWebSearchForTests(null);
 });
 
-test('each generated idea gets a product link from WebSearch; queries name the idea, not the person', async () => {
+test('with no catalog, each generated idea gets a product link from WebSearch; queries name the idea, not the person', async () => {
   const t = convexTest(schema, modules);
   const { members } = await t.mutation(internal.seed.sampleFamily, { weekOf: '2026-10-25' });
   const m = members as unknown as Record<Key, Id<'members'>>;

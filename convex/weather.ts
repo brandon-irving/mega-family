@@ -95,7 +95,7 @@ export const store = internalMutation({
     const now = await clock.now(ctx, place.familyId);
     if (args.forecast) {
       await writeCache(ctx, { familyId: place.familyId, placeId: place._id, kind: 'forecast', now, result: args.forecast });
-      if (args.forecast.ok) await eventWeatherTriggers(ctx, { familyId: place.familyId, place, tz: family.timezone, hours: (args.forecast.data as ForecastData).hours, now });
+      if (args.forecast.ok) await eventWeatherTriggers(ctx, { familyId: place.familyId, place, tz: family.timezone, hours: (args.forecast.data as ForecastData).hours, air: (args.forecast.data as ForecastData).air, now });
     }
     if (args.alerts) {
       await writeCache(ctx, { familyId: place.familyId, placeId: place._id, kind: 'alerts', now, result: args.alerts });
@@ -119,7 +119,7 @@ async function fetchTargets(ctx: ActionCtx, tz: string, targets: { placeId: Id<'
     ]);
     await ctx.runMutation(internal.weather.store, {
       placeId: t.placeId,
-      forecast: forecast ? (forecast.ok ? { ok: true as const, data: { current: forecast.current, hours: forecast.hours, days: forecast.days } } : { ok: false as const, failure: forecast.failure }) : undefined,
+      forecast: forecast ? (forecast.ok ? { ok: true as const, data: { current: forecast.current, hours: forecast.hours, days: forecast.days, ...(forecast.air ? { air: forecast.air } : {}) } } : { ok: false as const, failure: forecast.failure }) : undefined,
       alerts: alerts ? (alerts.ok ? { ok: true as const, data: { alerts: alerts.alerts } } : { ok: false as const, failure: alerts.failure }) : undefined,
     });
   }

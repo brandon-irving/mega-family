@@ -22,6 +22,7 @@ import { sanitizeDraftText } from './model/proactive';
 import { seedGd } from './model/seedGd';
 import { seedG4 } from './model/seedG4';
 import { seedG4b } from './model/seedG4b';
+import { realAdaptersOn } from './adapters/registry';
 import { FRACTIONS_SHEET } from '../shared/fixtures/homework/fractionsSheet';
 import { scopeKey } from './model/scopes';
 import { randomToken } from './model/random';
@@ -82,6 +83,10 @@ const FAMILY_OWNED_TABLES: readonly [TableNames, string][] = [
   ['weatherCache', 'by_family_place_kind'],
   ['travelChecks', 'by_family_event_checked'],
   ['searchLog', 'by_family_member_at'],
+  // G4b (CONTRACT v0.16)
+  ['priceWatches', 'by_family_status'],
+  ['routineSkips', 'by_family_date'],
+  ['holidays', 'by_family_country_year'],
 ];
 
 async function deleteFamilyCompletely(ctx: MutationCtx, familyId: Id<'families'>): Promise<void> {
@@ -426,6 +431,29 @@ export const resetSampleFamily = internalMutation({
   },
 });
 
+/** Demo / live check only (G4b): real prices rarely drop on cue, so this STAGES one — every active price watch's
+ * baseline is set `percent` above its last checked live price and its last alert cleared — then runs the normal
+ * price check, which finds the "drop" and sends the usual cards. The "was" price it shows is staged, not a real
+ * past price: never use it outside a demo, and `seed.resetDemo` puts real baselines back. DEMO_MODE-gated.
+ * `npx convex run seed:demoStagePriceDrop '{"percent":25}'`. */
+export const demoStagePriceDrop = internalMutation({
+  args: { percent: v.optional(v.number()) },
+  returns: v.number(),
+  handler: async (ctx, { percent }) => {
+    if (process.env[DEMO.envVar] !== 'true') throw new Error(`demoStagePriceDrop refuses to run unless ${DEMO.envVar}=true on this deployment`);
+    const family = (await ctx.db.query('families').take(1000)).find((f) => f.name === S.name);
+    if (!family) throw new Error('no sample family — run seed:resetDemo first');
+    const watches = await ctx.db
+      .query('priceWatches')
+      .withIndex('by_family_status', (q) => q.eq('familyId', family._id).eq('status', 'watching'))
+      .collect();
+    const pct = Math.min(90, Math.max(15, percent ?? 25));
+    for (const w of watches) await ctx.db.patch(w._id, { baselinePriceCents: Math.round(((w.lastPriceCents ?? w.baselinePriceCents) * (100 + pct)) / 100), alertedPriceCents: undefined });
+    if (watches.length) await ctx.scheduler.runAfter(0, internal.shopping.checkFamily, { familyId: family._id });
+    return watches.length;
+  },
+});
+
 /** Demo only (Screen 9 redesign): the sample family has no one left to invite, so this adds an unjoined
  * adult ("Grandparent") and kid ("Cousin", Admin's) — reusing them on a rerun — and returns a fresh invite
  * link for each, so the adult and kid join screens can be shown live. `npx convex run seed:sampleInvites`.
@@ -475,6 +503,12 @@ export const resetDemo = internalAction({
     const family = await ctx.runMutation(internal.seed.resetSampleFamily, { weekOf: args.weekOf, homeworkStorageId });
     // G4: the seed has no made-up forecast (invariant 7); fetch the real one through the Weather port instead.
     await ctx.scheduler.runAfter(0, internal.weather.pollFamily, { familyId: family.familyId, force: true });
+    // G4b: in real mode the sample product ref and watch give way to live catalog results (never invented
+    // prices); the holiday cache is refreshed from Nager.Date.
+    if (realAdaptersOn()) {
+      await ctx.scheduler.runAfter(0, internal.gifts.attachSampleProducts, { familyId: family.familyId });
+      await ctx.scheduler.runAfter(0, internal.holidays.refreshFamily, { familyId: family.familyId });
+    }
     return family;
   },
 });

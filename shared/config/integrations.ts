@@ -98,6 +98,9 @@ export const WEATHER = {
    * `eventLookaheadHours`: UV at the start hour ≥ `uvTipMin`, or US AQI at the start hour ≥ `aqiTipMin`. */
   uvTipMin: 6,
   aqiTipMin: 101,
+  /** How a UV / air tip is delivered (both kind `tip`, passive): an air tip at or above this US AQI ("Unhealthy")
+   * is a push; below it, and every UV tip, is a quiet statement (card in the thread + Today), Screen 15 boards. */
+  airTipPushMinAqi: 151,
 } as const;
 
 /** G4b: US EPA AQI categories and WHO UV index bands, lower bound inclusive. Labels in G4B_COPY; colors are theme

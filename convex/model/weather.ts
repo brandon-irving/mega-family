@@ -8,13 +8,14 @@
 // (`update` isn't a kid kind), the adults do.
 import { WEATHER, WEATHER_CODES, WEATHER_SUMMARY_FALLBACK } from '../../shared/config/integrations';
 import { NOTIFICATION_KINDS_CONFIG } from '../../shared/config/notifications';
-import { weatherAlertDedupeKey, weatherEventDedupeKey } from '../../shared/config/proactive';
+import { G4B_COPY, fillCopy } from '../../shared/config/copy';
+import { weatherAlertDedupeKey, weatherEventDedupeKey, weatherTipDedupeKey } from '../../shared/config/proactive';
 import type { WeatherView } from '../../shared/domain/api';
 import { formatLocalTime, localDate } from '../../shared/time';
 import { internal } from '../_generated/api';
 import type { Doc, Id } from '../_generated/dataModel';
 import type { MutationCtx, QueryCtx } from '../_generated/server';
-import type { AlertSeverity, WeatherAlert, WeatherDay, WeatherHour } from '../ports/weather';
+import type { AlertSeverity, WeatherAir, WeatherAlert, WeatherDay, WeatherHour } from '../ports/weather';
 import { finalizeCandidateLogic, insertCandidateIfNew } from './proactive';
 import { eventOwnerId, layerOf } from './visibility';
 
@@ -22,7 +23,7 @@ type Ctx = QueryCtx | MutationCtx;
 const MINUTE = 60_000;
 const HOUR = 60 * MINUTE;
 
-export type ForecastData = { current?: { at?: number; tempF: number; code: number }; hours: WeatherHour[]; days: WeatherDay[] };
+export type ForecastData = { current?: { at?: number; tempF: number; code: number }; hours: WeatherHour[]; days: WeatherDay[]; air?: WeatherAir };
 export type AlertsData = { alerts: WeatherAlert[] };
 
 export function summaryFor(code: number): string {
@@ -72,7 +73,27 @@ export async function buildWeatherView(ctx: Ctx, place: Doc<'places'>, tz: strin
     hours: hours.map((h) => ({ at: h.at, tempF: Math.round(h.tempF), precipPct: Math.round(h.precipPct), code: h.code })),
     today: today ? { highF: Math.round(today.highF), lowF: Math.round(today.lowF), precipPct: Math.round(today.precipPct), code: today.code } : null,
     alerts: activeAlerts(alerts && !alerts.failure ? (alerts.data as AlertsData) : null, now).map((a) => ({ id: a.id, event: a.event, headline: a.headline, severity: a.severity, ends: a.ends })),
+    ...airView(data?.air, at, tz),
   };
+}
+
+/** G4b: the air row for a view read at `at` — that hour's AQI and UV when the hourly data covers it (else
+ * Open-Meteo's current block), and the day's peak UV. Only numbers the provider gave; nothing → no row. */
+export function airView(air: WeatherAir | undefined, at: number, tz: string): { air?: { usAqi?: number; uvIndex?: number; uvIndexMax?: number } } {
+  if (!air) return {};
+  const hour = airAt(air, at);
+  const usAqi = hour?.usAqi ?? air.usAqi;
+  const uvIndex = hour?.uv ?? air.uvIndex;
+  const day = localDate(at, tz);
+  const uvs = (air.hourly ?? []).filter((x) => x.uv !== undefined && localDate(x.at, tz) === day).map((x) => x.uv!);
+  const uvIndexMax = uvs.length ? Math.max(...uvs) : air.uvIndexMax;
+  const out = { ...(usAqi !== undefined ? { usAqi } : {}), ...(uvIndex !== undefined ? { uvIndex } : {}), ...(uvIndexMax !== undefined ? { uvIndexMax } : {}) };
+  return Object.keys(out).length ? { air: out } : {};
+}
+
+/** The hourly air point covering `at`, if any. */
+export function airAt(air: WeatherAir | undefined, at: number): { usAqi?: number; uv?: number } | null {
+  return air?.hourly?.find((h) => h.at <= at && at < h.at + HOUR) ?? null;
 }
 
 /** One sentence for the agent's reply / a card summary. Never includes a number the view doesn't have. */
@@ -170,29 +191,91 @@ async function weatherRecipients(ctx: MutationCtx, event: Doc<'events'>): Promis
   return [...new Set(rels.filter((r) => r.kind === 'parent' && kids.has(r.to) && isAdult(r.from)).map((r) => r.from))];
 }
 
-/** Rain at an upcoming event at this place → a `tip` candidate per recipient, drafted by the normal judge. */
-export async function eventWeatherTriggers(ctx: MutationCtx, p: { familyId: Id<'families'>; place: Doc<'places'>; tz: string; hours: WeatherHour[]; now: number }): Promise<void> {
+/** Rain at an upcoming event at this place → a `tip` candidate per recipient, drafted by the normal judge.
+ * G4b: at an `outdoor` place, high UV or poor air at the event's start → a deterministic `uv` / `air` tip (one
+ * per event × tip × recipient × day; household events go to the adults, a private one only to its owner). */
+export async function eventWeatherTriggers(ctx: MutationCtx, p: { familyId: Id<'families'>; place: Doc<'places'>; tz: string; hours: WeatherHour[]; air?: WeatherAir; now: number }): Promise<void> {
   const events = await ctx.db
     .query('events')
     .withIndex('by_family_start', (q) => q.eq('familyId', p.familyId).gte('start', p.now).lte('start', p.now + WEATHER.eventLookaheadHours * HOUR))
     .collect();
   for (const event of events) {
     if (event.cancelled || event.placeId !== p.place._id || event.allDay) continue;
+    const recipients = await weatherRecipients(ctx, event);
+    const date = localDate(event.start, p.tz);
     const hour = p.hours.find((h) => h.at <= event.start && event.start < h.at + HOUR);
-    if (!hour || hour.precipPct < WEATHER.eventRainThresholdPct) continue;
-    for (const recipientId of await weatherRecipients(ctx, event)) {
+    if (hour && hour.precipPct >= WEATHER.eventRainThresholdPct) {
+      for (const recipientId of recipients) {
+        const candidateId = await insertCandidateIfNew(ctx, {
+          familyId: p.familyId,
+          recipientId,
+          kind: 'tip',
+          dedupeKey: weatherEventDedupeKey(event._id, recipientId, date),
+          draftText: `${Math.round(hour.precipPct)}% chance of ${summaryFor(hour.code).toLowerCase()} around ${formatLocalTime(event.start, p.tz)} for "${event.title}" at ${p.place.label}.`,
+          window: { from: p.now, to: event.start },
+          source: { kind: 'weatherEvent', eventId: event._id },
+        });
+        if (candidateId) await ctx.scheduler.runAfter(0, internal.proactive.processCandidate, { candidateId });
+      }
+    }
+    if (p.place.outdoor) await airTips(ctx, { familyId: p.familyId, air: p.air, now: p.now, event, recipients, date });
+  }
+}
+
+/** G4b invariant 8: the UV / air tips for one outdoor event. The words are config (G4B_COPY), the numbers the
+ * provider's, so there's no model call: a quiet statement, except an air tip at WEATHER.airTipPushMinAqi or
+ * worse, which pushes (passive, `tip`). */
+async function airTips(
+  ctx: MutationCtx,
+  p: { familyId: Id<'families'>; air?: WeatherAir; now: number; event: Doc<'events'>; recipients: Id<'members'>[]; date: string },
+): Promise<void> {
+  const point = airAt(p.air, p.event.start);
+  const tips: { tip: 'uv' | 'air'; text: string; push: boolean; reason: string }[] = [];
+  if (point?.uv !== undefined && point.uv >= WEATHER.uvTipMin) tips.push({ tip: 'uv', text: fillCopy(G4B_COPY.tipUv, { event: p.event.title }), push: false, reason: `UV ${point.uv} at the start` });
+  if (point?.usAqi !== undefined && point.usAqi >= WEATHER.aqiTipMin) {
+    tips.push({ tip: 'air', text: fillCopy(G4B_COPY.tipAir, { event: p.event.title }), push: point.usAqi >= WEATHER.airTipPushMinAqi, reason: `US AQI ${point.usAqi} at the start` });
+  }
+  for (const t of tips) {
+    for (const recipientId of p.recipients) {
       const candidateId = await insertCandidateIfNew(ctx, {
         familyId: p.familyId,
         recipientId,
         kind: 'tip',
-        dedupeKey: weatherEventDedupeKey(event._id, recipientId, localDate(event.start, p.tz)),
-        draftText: `${Math.round(hour.precipPct)}% chance of ${summaryFor(hour.code).toLowerCase()} around ${formatLocalTime(event.start, p.tz)} for "${event.title}" at ${p.place.label}.`,
-        window: { from: p.now, to: event.start },
-        source: { kind: 'weatherEvent', eventId: event._id },
+        dedupeKey: weatherTipDedupeKey(p.event._id, t.tip, recipientId, p.date),
+        draftText: t.text,
+        window: { from: p.now, to: p.event.start },
+        source: { kind: 'weatherEvent', eventId: p.event._id, tip: t.tip },
       });
-      if (candidateId) await ctx.scheduler.runAfter(0, internal.proactive.processCandidate, { candidateId });
+      if (!candidateId) continue;
+      await finalizeCandidateLogic(ctx, { candidateId, kind: 'tip', title: p.event.title, text: t.text, score: 1, reason: t.reason, forcedDelivery: t.push ? 'push' : 'statement' });
     }
   }
+}
+
+type ThreadCard = Extract<Doc<'messages'>['body'], { type: 'card' }>['card'];
+
+/** G4b: the `weather` card a UV / air tip posts in the recipient's thread (CONTRACT §3 v0.16 `tip`, `air`),
+ * built from the place's cached forecast at delivery time. Null for rain tips (G4's notification card). */
+export async function weatherTipCard(ctx: Ctx, candidate: Doc<'candidates'>): Promise<ThreadCard | null> {
+  const source = candidate.source;
+  if (source?.kind !== 'weatherEvent' || (source.tip !== 'uv' && source.tip !== 'air')) return null;
+  const event = await ctx.db.get(source.eventId);
+  const place = event?.placeId ? await ctx.db.get(event.placeId) : null;
+  const family = await ctx.db.get(candidate.familyId);
+  if (!event || !place || !family) return null;
+  const forecast = await cacheRow(ctx, place.familyId, place._id, 'forecast');
+  const data = forecast && !forecast.failure ? (forecast.data as ForecastData) : null;
+  const point = airAt(data?.air, event.start);
+  const peak = airView(data?.air, event.start, family.timezone).air?.uvIndexMax;
+  return {
+    kind: 'weather',
+    summary: candidate.draft.text,
+    at: event.start,
+    placeLabel: place.label,
+    eventId: event._id,
+    tip: source.tip,
+    air: { ...(point?.usAqi !== undefined ? { usAqi: point.usAqi } : {}), ...(peak !== undefined ? { uvIndexMax: peak } : {}), ...(point?.uv !== undefined ? { uvAt: point.uv } : {}) },
+  };
 }
 
 /** Delivery-time re-check for an alert candidate: still in the place's latest alerts and not ended. */

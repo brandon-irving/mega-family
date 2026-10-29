@@ -6,7 +6,7 @@
 import { WEATHER } from '../../shared/config/integrations';
 import { ALERT_SEVERITIES } from '../../shared/config/ids';
 import { localDate } from '../../shared/time';
-import type { AlertSeverity, Weather, WeatherAlert, WeatherAlerts, WeatherForecast } from '../ports/weather';
+import type { AlertSeverity, Weather, WeatherAir, WeatherAlert, WeatherAlerts, WeatherForecast } from '../ports/weather';
 import { fetchJson } from './httpFetch';
 
 const OPEN_METEO = 'https://api.open-meteo.com/v1/forecast';
@@ -58,6 +58,47 @@ export function parseOpenMeteo(json: unknown, timezone: string): WeatherForecast
   return { ok: true, ...(curTemp !== null && curCode !== null ? { current: { ...(curAt !== null ? { at: curAt * 1000 } : {}), tempF: curTemp, code: curCode } } : {}), hours, days };
 }
 
+/** G4b (v0.16): Open-Meteo's air-quality API (open-meteo.com/en/docs/air-quality-api, read Oct 28; free, no key):
+ * same latitude/longitude/timezone, `us_aqi` and `uv_index` current + hourly. Pollen is Europe-only there, so none. */
+export function airQualityUrl(p: { lat: number; lng: number; timezone: string }): string {
+  const q = new URLSearchParams({
+    latitude: String(p.lat),
+    longitude: String(p.lng),
+    current: WEATHER.air.current.join(','),
+    hourly: WEATHER.air.hourly.join(','),
+    timezone: p.timezone,
+    forecast_days: String(WEATHER.air.forecastDays),
+    timeformat: 'unixtime',
+  });
+  return `${WEATHER.air.url}?${q.toString()}`;
+}
+
+/** Air-quality JSON → `WeatherAir`. A missing number is left out (never guessed); `uvIndexMax` is the max of the
+ * first local day's hourly UV (the endpoint has no daily UV). Null when there's nothing usable. */
+export function parseAirQuality(json: unknown, timezone: string): WeatherAir | null {
+  const h = (json as { hourly?: Record<string, unknown[]> })?.hourly;
+  const c = (json as { current?: Record<string, unknown> })?.current;
+  const hourly = (h?.time ?? []).flatMap((t, i) => {
+    const at = num(t);
+    if (at === null) return [];
+    const usAqi = num(h?.us_aqi?.[i]);
+    const uv = num(h?.uv_index?.[i]);
+    if (usAqi === null && uv === null) return [];
+    return [{ at: at * 1000, ...(usAqi !== null ? { usAqi: Math.round(usAqi) } : {}), ...(uv !== null ? { uv: Math.round(uv * 10) / 10 } : {}) }];
+  });
+  const firstDay = hourly.length ? localDate(hourly[0].at, timezone) : null;
+  const uvs = hourly.filter((x) => x.uv !== undefined && localDate(x.at, timezone) === firstDay).map((x) => x.uv!);
+  const usAqi = num(c?.us_aqi);
+  const uvIndex = num(c?.uv_index);
+  const air: WeatherAir = {
+    ...(usAqi !== null ? { usAqi: Math.round(usAqi) } : {}),
+    ...(uvIndex !== null ? { uvIndex: Math.round(uvIndex * 10) / 10 } : {}),
+    ...(uvs.length ? { uvIndexMax: Math.max(...uvs) } : {}),
+    ...(hourly.length ? { hourly } : {}),
+  };
+  return Object.keys(air).length ? air : null;
+}
+
 const toMs = (v: unknown): number | undefined => {
   if (typeof v !== 'string') return undefined;
   const ms = Date.parse(v);
@@ -78,9 +119,12 @@ export function parseNwsAlerts(json: unknown): WeatherAlerts {
 
 export const openMeteoNwsWeather: Weather = {
   async forecast(request) {
-    const res = await fetchJson(openMeteoUrl(request), { method: 'GET' }, TIMEOUT_MS);
+    // The air call runs alongside and can only add to the forecast: its failure leaves `air` out (v0.16).
+    const [res, airRes] = await Promise.all([fetchJson(openMeteoUrl(request), { method: 'GET' }, TIMEOUT_MS), fetchJson(airQualityUrl(request), { method: 'GET' }, TIMEOUT_MS)]);
     if (!res.ok) return { ok: false, failure: res.failure, detail: res.detail };
-    return parseOpenMeteo(res.json, request.timezone);
+    const forecast = parseOpenMeteo(res.json, request.timezone);
+    const air = airRes.ok ? parseAirQuality(airRes.json, request.timezone) : null;
+    return forecast.ok && air ? { ...forecast, air } : forecast;
   },
   async alerts(request) {
     const point = `${request.lat.toFixed(4)},${request.lng.toFixed(4)}`;
