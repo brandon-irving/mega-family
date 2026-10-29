@@ -195,4 +195,14 @@ export const SAMPLE_FAMILY = {
       { date: '2026-12-25', name: 'Christmas Day', localName: 'Christmas Day', global: true, types: ['Public', 'Bank'] },
     ],
   },
+  /** G5 (CONTRACT v0.17). Admin finished onboarding and connected a (synthetic) Gmail and a team schedule link, so
+   * `integrations.*` and `mail.*` have rows to probe. Display-only rows: no Google grant is seeded
+   * (`integrationSecrets` stays empty), so the pollers skip them and nothing real is ever read. The found item is
+   * the board's "Picture day" (OnboardGmailFound), a private event on Admin's layer. */
+  g5: {
+    onboardedBy: 'admin' as SampleKey,
+    gmail: { owner: 'admin' as SampleKey, label: 'mega.demo.family@example.com' },
+    ics: { owner: 'admin' as SampleKey, label: 'Soccer · Fall season', host: 'calendar.example-league.test', url: 'https://calendar.example-league.test/fall.ics' },
+    found: { title: 'Picture day', sourceLabel: 'From the school office', date: '2026-11-06', gmailMessageId: 'sample-m1' },
+  },
 };

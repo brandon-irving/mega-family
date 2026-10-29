@@ -12,10 +12,10 @@ import { Screen } from '@/ui/Screen';
 import { Text } from '@/ui/Text';
 import { useTokens } from '@/ui/theme';
 import { IDENTITY } from '@shared/config/identity';
-import { COLORS } from '@shared/config/looks';
+import { ONBOARDING } from '@shared/config/onboarding';
 
 /** The admin's first MEGA until they make their own in the onboarding chat (G5). */
-const FIRST_MEGA = { name: 'Teal', look: { hex: COLORS.teal, sticker: 'star' as const }, personality: 'calm' as const };
+const FIRST_MEGA = ONBOARDING.firstMega; // G5: the onboarding chat (onboarding.begin) replaces this screen
 
 export default function OnboardingRoute() {
   const tokens = useTokens();

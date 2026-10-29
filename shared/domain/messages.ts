@@ -1,7 +1,7 @@
 // CONTRACT §3. Chat message bodies, thread UI blocks, block answers, cards and save chips.
 import { type Infer, v } from 'convex/values';
 import { personality, scope } from './enums';
-import { ALERT_SEVERITIES, INTEGRATION_FAILURES, SEARCH_OUTCOMES, WEATHER_TIPS } from '../config/ids';
+import { ALERT_SEVERITIES, CONNECT_OFFERS, INTEGRATION_FAILURES, SEARCH_OUTCOMES, WEATHER_TIPS } from '../config/ids';
 import { productRef } from './integrationShapes';
 import { literals } from './validators';
 
@@ -122,6 +122,15 @@ export const card = v.union(
   v.object({ kind: v.literal('products'), query: v.string(), title: v.optional(v.string()), refs: v.array(productRef), failure: v.optional(literals(INTEGRATION_FAILURES)) }),
   v.object({ kind: v.literal('priceDrop'), watchId: v.id('priceWatches') }), // adults who can see the gift ideas, never the recipient
   v.object({ kind: v.literal('holiday'), skipId: v.id('routineSkips') }), // adults: "Pause the morning routine and chores?"
+  // CONTRACT v0.17 (G5, additive). Owner-only cards in the member's own thread.
+  // `connect`: an integration offer (onboarding steps 3/5/6 and later asks): Gmail, a calendar (Google or this
+  // phone's), schedule links. The card's live state (offered / connected / skipped / failed) comes from
+  // `integrations.offer`, so the same card shows "Gmail connected · checking the last 30 days" after consent.
+  v.object({ kind: v.literal('connect'), offer: literals(CONNECT_OFFERS) }),
+  // `mailFound`: what MEGA found in Gmail (board OnboardGmailFound); rows read live via `mail.items`.
+  v.object({ kind: v.literal('mailFound'), integrationId: v.id('integrations'), itemIds: v.array(v.id('mailItems')) }),
+  // `reconnect`: a Google grant lapsed or was revoked (Testing mode: every 7 days). Tapping reconnects.
+  v.object({ kind: v.literal('reconnect'), integrationId: v.id('integrations') }),
 );
 export type Card = Infer<typeof card>;
 

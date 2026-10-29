@@ -1,8 +1,9 @@
 // CONTRACT §4 "Family" (+ `family.parentCode` from "Session and onboarding", same module).
 import { API } from '../shared/domain/api';
-import { query } from './_generated/server';
+import { mutation, query } from './_generated/server';
 import { pick } from './model/define';
 import { fail } from './model/errors';
+import { notBuiltYet } from './model/g5Stub';
 import { upcomingEvents } from './model/home';
 import { megaStatusFor } from './model/megaStatus';
 import { requireAdmin, requireViewer, sameFamilyMember } from './model/viewer';
@@ -103,4 +104,14 @@ export const kidThread = query({
 export const comingUp = query({
   ...pick(API.family.comingUp),
   handler: async (ctx) => upcomingEvents(ctx, await requireViewer(ctx)),
+});
+
+// G5 (CONTRACT v0.17): the onboarding family step's "add a person". Stub until the G5 backend.
+export const add = mutation({
+  ...pick(API.family.add),
+  handler: async (ctx) => {
+    const viewer = await requireViewer(ctx);
+    requireAdmin(viewer.member.role);
+    return notBuiltYet('family.add');
+  },
 });

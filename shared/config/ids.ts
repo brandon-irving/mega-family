@@ -20,8 +20,29 @@ export const PLACE_KINDS = ['home', 'school', 'work', 'other'] as const;
 export const ALERT_SEVERITIES = ['Extreme', 'Severe', 'Moderate', 'Minor', 'Unknown'] as const;
 /** G4: what a web search did with a query (./kidSafety.ts KID_SAFETY.search for kids). */
 export const SEARCH_OUTCOMES = ['answered', 'rephrased', 'blocked', 'failed'] as const;
-/** G4: why an integration couldn't answer. `not_configured` = its secret (e.g. MAPBOX_TOKEN) isn't set. */
-export const INTEGRATION_FAILURES = ['not_configured', 'no_result', 'rate_limited', 'error'] as const;
+/** G4: why an integration couldn't answer. `not_configured` = its secret (e.g. MAPBOX_TOKEN) isn't set.
+ * G5 (v0.17): `unauthorized` = the account's grant was revoked or lapsed (Google `invalid_grant`, HTTP 401 after
+ * a refresh); the integration flips to `needs_reconnect` and MEGA asks the owner to connect again. */
+export const INTEGRATION_FAILURES = ['not_configured', 'no_result', 'rate_limited', 'error', 'unauthorized'] as const;
+/** G5 (CONTRACT v0.17): what an `integrations` row connects. `gmail` and `googleCalendar` share one Google grant
+ * per member (`integrationSecrets`); `deviceCalendar` is this phone's calendars (expo-calendar, synced up by the
+ * app); `ics` is a schedule link (a school or team calendar). `weather` is the G1 placeholder kind, unused. */
+export const INTEGRATION_KINDS = ['gmail', 'googleCalendar', 'deviceCalendar', 'ics', 'weather'] as const;
+/** G5: an integration's health. `needs_reconnect` = the grant lapsed (Testing mode: 7 days) or was revoked. */
+export const INTEGRATION_STATUSES = ['connecting', 'connected', 'needs_reconnect', 'error', 'disconnected'] as const;
+/** G5: the onboarding chat's steps, in order (owner, Oct 28; Screen 13). Each integration step can be skipped. */
+export const ONBOARDING_STEPS = ['name', 'gmail', 'calendar', 'ics', 'family', 'done'] as const;
+/** G5: an onboarding step's outcome. */
+export const ONBOARDING_OUTCOMES = ['connected', 'skipped'] as const;
+/** G5: what MEGA found in an email (Screen 13 OnboardGmailFound: school, appointments, bills, deliveries). */
+export const MAIL_ITEM_KINDS = ['event', 'reminder', 'bill', 'delivery'] as const;
+/** G5: a found item's state. `added` = it's on the owner's private calendar/reminders; `dismissed` = removed. */
+export const MAIL_ITEM_STATUSES = ['added', 'dismissed'] as const;
+/** G5: the connect offers MEGA makes in chat and Settings (a `connect` card). `calendar` offers both Google
+ * Calendar and this phone's calendar on one card (board OnboardCalendar). */
+export const CONNECT_OFFERS = ['gmail', 'calendar', 'ics'] as const;
+/** G5: which Google products a grant covers (one consent can ask for both). */
+export const GOOGLE_PRODUCTS = ['gmail', 'googleCalendar'] as const;
 /** G4b (CONTRACT v0.16): which weather tip an event got ("Rain at pickup", "UV is high during soccer", "Air
  * quality is poor during soccer"). Part of the tip's dedupe key: one per event × tip × day. */
 export const WEATHER_TIPS = ['rain', 'uv', 'air'] as const;

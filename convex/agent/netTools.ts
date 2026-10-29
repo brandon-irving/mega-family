@@ -151,7 +151,7 @@ export const postTravelCard = internalMutation({
     minutes: v.number(),
     typicalMinutes: v.optional(v.number()),
     leaveBy: v.number(),
-    failure: v.optional(v.union(v.literal('not_configured'), v.literal('no_result'), v.literal('rate_limited'), v.literal('error'))),
+    failure: v.optional(integrationFailure),
     eventTitle: v.optional(v.string()),
     eventStart: v.optional(v.number()),
   },

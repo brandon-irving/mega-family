@@ -4,10 +4,12 @@
 import { v } from 'convex/values';
 import { DEFAULT_THEME, FAMILY_MEGA_DEFAULTS, LIMITS, ROOM_DEFAULTS } from '../shared/config';
 import { API } from '../shared/domain/api';
-import { mutation } from './_generated/server';
+import { mutation, query } from './_generated/server';
 import { fail } from './model/errors';
 import { pick } from './model/define';
+import { notBuiltYet } from './model/g5Stub';
 import { randomDigits } from './model/random';
+import { requireIdentity, requireViewer, tryViewer } from './model/viewer';
 import { clock } from './ports/clock';
 
 const emptyProactive = { sent: 0, answered: 0, ignored: 0, up: 0, down: 0 };
@@ -101,5 +103,39 @@ export const start = mutation({
     await ctx.db.insert('rooms', { familyId, ownerId: memberId, ...ROOM_DEFAULTS.member, furniture: [] });
 
     return { familyId, threadId };
+  },
+});
+
+// ---------- G5 (CONTRACT v0.17): the onboarding chat (Screen 13). Stubs until the G5 backend. ----------
+
+export const begin = mutation({
+  ...pick(API.onboarding.begin),
+  handler: async (ctx) => {
+    await requireIdentity(ctx);
+    return notBuiltYet('onboarding.begin');
+  },
+});
+
+export const state = query({
+  ...pick(API.onboarding.state),
+  handler: async (ctx) => {
+    await tryViewer(ctx);
+    return null; // stub
+  },
+});
+
+export const setName = mutation({
+  ...pick(API.onboarding.setName),
+  handler: async (ctx) => {
+    await requireViewer(ctx);
+    return notBuiltYet('onboarding.setName');
+  },
+});
+
+export const skip = mutation({
+  ...pick(API.onboarding.skip),
+  handler: async (ctx) => {
+    await requireViewer(ctx);
+    return notBuiltYet('onboarding.skip');
   },
 });

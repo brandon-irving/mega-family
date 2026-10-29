@@ -12,7 +12,9 @@
 import { defaultFakeChatModel } from './fakeChatModel';
 import { defaultFakeDirections } from './fakeDirections';
 import { defaultFakeGeocoder } from './fakeGeocoder';
+import { defaultFakeCalendarSource, defaultFakeGoogleOAuth, defaultFakeMailSource } from './fakeGoogle';
 import { defaultFakeHolidays } from './fakeHolidays';
+import { defaultFakeIcsFetcher } from './fakeIcsFetcher';
 import { defaultFakeProductCatalog } from './fakeProductCatalog';
 import { defaultFakePushSender } from './fakePushSender';
 import { defaultFakeTranscriber } from './fakeTranscriber';
@@ -26,12 +28,17 @@ import { mapboxDirections, mapboxGeocoder } from './mapbox';
 import { metaWebSearch } from './metaWebSearch';
 import { openMeteoNwsWeather } from './openMeteoNwsWeather';
 import { nagerHolidays } from './nagerHolidays';
+import { unconfiguredCalendarSource, unconfiguredGoogleOAuth, unconfiguredIcsFetcher, unconfiguredMailSource } from './unconfiguredIntegrations';
 import { shopifyCatalog } from './shopifyCatalog';
 import type { ChatModel } from '../ports/chatModel';
 import type { Directions } from '../ports/directions';
 import type { EmailSender } from '../ports/emailSender';
 import type { Geocoder } from '../ports/geocoder';
+import type { CalendarSource } from '../ports/calendarSource';
+import type { GoogleOAuth } from '../ports/googleOAuth';
 import type { Holidays } from '../ports/holidays';
+import type { IcsFetcher } from '../ports/icsFetcher';
+import type { MailSource } from '../ports/mailSource';
 import type { ProductCatalog } from '../ports/productCatalog';
 import type { PushSender } from '../ports/pushSender';
 import type { Transcriber } from '../ports/transcriber';
@@ -160,4 +167,42 @@ export function __setProductCatalogForTests(adapter: ProductCatalog | null): voi
 }
 export function __setHolidaysForTests(adapter: Holidays | null): void {
   holidaysOverride = adapter;
+}
+
+// ---------- G5 (CONTRACT v0.17): Google (OAuth, Gmail, Calendar), schedule links ----------
+// Same selection. Until the G5 backend lands, real mode gets the fail-closed placeholders.
+
+let googleOAuthOverride: GoogleOAuth | null = null;
+let mailSourceOverride: MailSource | null = null;
+let calendarSourceOverride: CalendarSource | null = null;
+let icsFetcherOverride: IcsFetcher | null = null;
+
+export function getGoogleOAuth(): GoogleOAuth {
+  if (googleOAuthOverride) return googleOAuthOverride;
+  return wantsRealAdapters() ? unconfiguredGoogleOAuth : defaultFakeGoogleOAuth;
+}
+export function getMailSource(): MailSource {
+  if (mailSourceOverride) return mailSourceOverride;
+  return wantsRealAdapters() ? unconfiguredMailSource : defaultFakeMailSource;
+}
+export function getCalendarSource(): CalendarSource {
+  if (calendarSourceOverride) return calendarSourceOverride;
+  return wantsRealAdapters() ? unconfiguredCalendarSource : defaultFakeCalendarSource;
+}
+export function getIcsFetcher(): IcsFetcher {
+  if (icsFetcherOverride) return icsFetcherOverride;
+  return wantsRealAdapters() ? unconfiguredIcsFetcher : defaultFakeIcsFetcher;
+}
+
+export function __setGoogleOAuthForTests(adapter: GoogleOAuth | null): void {
+  googleOAuthOverride = adapter;
+}
+export function __setMailSourceForTests(adapter: MailSource | null): void {
+  mailSourceOverride = adapter;
+}
+export function __setCalendarSourceForTests(adapter: CalendarSource | null): void {
+  calendarSourceOverride = adapter;
+}
+export function __setIcsFetcherForTests(adapter: IcsFetcher | null): void {
+  icsFetcherOverride = adapter;
 }

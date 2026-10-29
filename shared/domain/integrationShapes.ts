@@ -38,3 +38,33 @@ export const holiday = v.object({
   types: v.array(v.string()),
 });
 export type Holiday = Infer<typeof holiday>;
+
+// ---------- G5 (CONTRACT v0.17) ----------
+
+/** One event from an outside calendar (Google Calendar, a schedule link, this phone), normalized. `externalId` is
+ * the provider's id (+ the occurrence start for a recurring one), unique within its integration. Timed events
+ * have `start`/`end` (epoch ms); all-day ones have `allDay` ("YYYY-MM-DD", the family's local date) and `start`
+ * = local midnight. `cancelled` = the provider says it's gone (Google incremental sync), so we remove our copy. */
+export const externalEvent = v.object({
+  externalId: v.string(),
+  title: v.string(),
+  start: v.number(),
+  end: v.optional(v.number()),
+  allDay: v.optional(v.string()),
+  location: v.optional(v.string()),
+  cancelled: v.boolean(),
+});
+export type ExternalEvent = Infer<typeof externalEvent>;
+
+/** One email as the extraction step sees it: never stored. `fromName` is the display name only ("Maple Elementary
+ * Office"); `text` is the plain-text body cut to GMAIL.maxBodyChars. Untrusted data: it can inform what MEGA adds,
+ * never cause a tool call or a share. */
+export type MailMessage = {
+  id: string;
+  threadId: string;
+  internalDate: number;
+  fromName: string;
+  fromAddress: string;
+  subject: string;
+  text: string;
+};

@@ -31,7 +31,7 @@ export default defineSchema({
     .searchIndex('search_text', { searchField: 'text', filterFields: ['familyId', 'scopeKey'] }),
   profiles: defineTable(T.profiles).index('by_family_member', ['familyId', 'memberId']),
 
-  events: defineTable(T.events).index('by_family_start', ['familyId', 'start']),
+  events: defineTable(T.events).index('by_family_start', ['familyId', 'start']).index('by_integration_external', ['integrationId', 'externalId']),
   reminders: defineTable(T.reminders).index('by_family_member_due', ['familyId', 'forMemberId', 'dueAt']),
   lists: defineTable(T.lists).index('by_family', ['familyId']),
   listItems: defineTable(T.listItems).index('by_family_list', ['familyId', 'listId']),
@@ -45,7 +45,7 @@ export default defineSchema({
 
   rooms: defineTable(T.rooms).index('by_family_owner', ['familyId', 'ownerId']),
   images: defineTable(T.images).index('by_family', ['familyId']),
-  integrations: defineTable(T.integrations).index('by_family', ['familyId']),
+  integrations: defineTable(T.integrations).index('by_family', ['familyId']).index('by_family_member_kind', ['familyId', 'memberId', 'kind']).index('by_kind_status', ['kind', 'status']),
   usage: defineTable(T.usage).index('by_family_day', ['familyId', 'day']),
   clocks: defineTable(T.clocks).index('by_family', ['familyId']),
 
@@ -75,4 +75,10 @@ export default defineSchema({
   priceWatches: defineTable(T.priceWatches).index('by_family_status', ['familyId', 'status']).index('by_family_ideas', ['familyId', 'giftIdeasId']),
   routineSkips: defineTable(T.routineSkips).index('by_family_date', ['familyId', 'date']),
   holidays: defineTable(T.holidays).index('by_family_country_year', ['familyId', 'country', 'year']),
+  // G5 (CONTRACT v0.17)
+  integrationSecrets: defineTable(T.integrationSecrets).index('by_family_member_provider', ['familyId', 'memberId', 'provider']),
+  oauthStates: defineTable(T.oauthStates).index('by_nonceHash', ['nonceHash']).index('by_family_member', ['familyId', 'memberId']),
+  mailItems: defineTable(T.mailItems).index('by_family_member_found', ['familyId', 'memberId', 'foundAt']).index('by_integration_message', ['integrationId', 'gmailMessageId']),
+  onboarding: defineTable(T.onboarding).index('by_family_member', ['familyId', 'memberId']),
+  profilerRuns: defineTable(T.profilerRuns).index('by_family_member_day', ['familyId', 'memberId', 'day']),
 });

@@ -563,3 +563,89 @@ export const G4B_UI_COPY = {
   placeOutdoor: 'Outdoors',
   placeOutdoorHint: 'Events here get sunscreen and air-quality tips.',
 } as const;
+
+/** G5 (CONTRACT v0.17): the onboarding chat (canvas Screen 13, OnboardChat … OnboardNext), Settings → Connected
+ * accounts, schedule links, the reconnect ask and the profiler's check questions. The server writes MEGA's
+ * onboarding lines from here (deterministic, no model call); the app reads the rest. `{x}` slots via fillCopy. */
+export const G5_COPY = {
+  // Step 1 · name (OnboardChat)
+  hello: 'Hi! I’m {mega}, your MEGA. I help you keep the family’s week on track, and I’ll get better the more I know.',
+  askName: 'First things first: what should I call you?',
+  namePlaceholder: 'What should I call you?',
+  privateFoot: 'Everything I find stays private to you until you share it.',
+  // Step 2 · named (OnboardChatNamed)
+  niceToMeet: 'Nice to meet you, {name}! A couple of quick things and I can start helping right away.',
+  // Step 3 · Gmail (OnboardGmail / OnboardGmailConnected)
+  gmailTitle: 'Want me to watch your Gmail?',
+  gmailBody: 'I’ll look for the things families miss: school emails, appointments, bills and deliveries. I only read; I never send, delete or reply.',
+  gmailLooksFor: 'What I’d look for',
+  gmailLooksForItems: ['School and teachers', 'Appointments', 'Bills and due dates', 'Deliveries'],
+  gmailConnect: 'Connect Gmail',
+  notNow: 'Not now',
+  gmailConnected: 'Gmail connected · checking the last {days} days',
+  gmailConnectedAs: 'Connected as {email}',
+  gmailSkipped: 'Skipped. You can connect Gmail any time in Settings.',
+  gmailTestingNote: 'Google will say this app isn’t verified yet. That’s expected while MEGA is in testing.',
+  // Step 4 · found (OnboardGmailFound)
+  foundIntro: 'I found {count} things worth keeping in your email.',
+  foundIntroOne: 'I found one thing worth keeping in your email.',
+  foundNone: 'Nothing needs you in the last {days} days. I’ll keep watching for new ones.',
+  foundFrom: 'From your Gmail',
+  foundFoot: 'Added items go on your private calendar. Only you see them.',
+  foundRemove: 'Remove {title}',
+  foundRemoved: 'Removed.',
+  // share suggestion wording reuses the shareSuggestion card; these are its onboarding lines
+  shareAsk: 'Share {title} with the household?',
+  shareBody: '{who} would see “{title}”. Right now it’s only yours.',
+  shareFoot: 'MEGA never shares anything unless you tap Share.',
+  // Step 5 · calendar (OnboardCalendar)
+  calendarTitle: 'Bring in your calendar?',
+  calendarBody: 'I’ll add your events to your private calendar so I can plan around them. You choose what the household sees.',
+  calendarGoogle: 'Google Calendar',
+  calendarPhone: 'This phone’s calendar',
+  calendarGoogleConnected: 'Google Calendar connected · {count} events this month',
+  calendarPhoneConnected: 'Phone calendar added · {count} events this month',
+  calendarSkipped: 'Skipped. You can add a calendar any time in Settings.',
+  calendarPhoneWebOnly: 'Open MEGA on your phone to add its calendar.',
+  calendarPhoneDenied: 'MEGA can’t see this phone’s calendar. You can allow it in the phone’s Settings.',
+  // Step 6 · schedule links (OnboardIcs)
+  icsTitle: 'Any schedule links?',
+  icsBody: 'Schools and sports teams often share a calendar link (it ends in .ics). Paste one and I’ll keep it up to date.',
+  icsPaste: 'Paste a link',
+  icsPlaceholder: 'https://… .ics',
+  icsAdded: 'Added “{title}” · updates every few hours',
+  icsBad: 'That link didn’t work. It should start with https:// or webcal:// and end in .ics.',
+  icsDone: 'I’ll keep watching for new ones.',
+  icsSkipped: 'Skipped. You can add schedule links any time in Settings.',
+  // Step 7 · family (OnboardNext → Screen 5 boards)
+  familyIntro: 'All set. Now the fun part: who’s in your family?',
+  familyAsk: 'Who should I add first?',
+  familyBody: 'I’ll make each person their own MEGA. Grown-ups can change theirs; kids get the one you pick.',
+  familyKid: 'A kid',
+  familyOther: 'Someone else',
+  familyJustMe: 'Just me for now',
+  familyLater: 'You can add people any time from Family.',
+  personName: 'What’s their name?',
+  personRelationship: 'Who is {name} to you?',
+  personGetsMega: 'Should {name} get a MEGA?',
+  personDone: 'Add someone else',
+  personAllDone: 'That’s everyone',
+  // Settings → Connected accounts (board needed: SettingsAccounts)
+  accountsTitle: 'Connected accounts',
+  accountsFoot: 'MEGA only reads. Everything it finds is private to you until you share it.',
+  accountConnected: 'Connected',
+  accountNeedsReconnect: 'Needs you to sign in again',
+  accountError: 'Couldn’t check lately',
+  accountLastChecked: 'Checked {ago}',
+  accountDisconnect: 'Disconnect',
+  accountDisconnected: 'Disconnected. I stopped reading {what} and removed what I found.',
+  accountReconnect: 'Reconnect',
+  accountAddIcs: 'Add a schedule link',
+  // Reconnect ask in chat (board needed: Reconnect)
+  reconnectTitle: 'Google needs you to sign in again',
+  reconnectBody: 'While MEGA is in testing, Google asks again every 7 days. Until then I can’t check {what}.',
+  // Profiler check questions (choice block)
+  checkYes: 'Yes',
+  checkNo: 'Not anymore',
+  checkSkip: 'Skip',
+} as const;

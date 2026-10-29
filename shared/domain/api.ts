@@ -4,7 +4,7 @@
 import { paginationOptsValidator, paginationResultValidator } from 'convex/server';
 import { type Infer, v } from 'convex/values';
 import { IDENTITY } from '../config/identity';
-import { notificationKind, personality, platform, reaction, scope, shareLevel, station, themeName, via } from './enums';
+import { notificationKind, personality, platform, reaction, relationship, scope, shareLevel, station, themeName, via } from './enums';
 import { holiday, product, productRef } from './integrationShapes';
 import { blockAnswer, spokenMention } from './messages';
 import * as T from './tables';
@@ -236,6 +236,75 @@ export const upcomingHoliday = v.object({
 });
 export type UpcomingHoliday = Infer<typeof upcomingHoliday>;
 
+// ---------- G5 (CONTRACT v0.17) view models ----------
+
+/** `onboarding.state`: where the caller's onboarding chat is (null when they never had one, e.g. a joined member). */
+export const onboardingView = v.object({
+  step: T.onboardingStep,
+  outcomes: T.onboarding.outcomes,
+  personId: v.optional(v.id('members')),
+  /** The name they gave ("What should I call you?"); absent until step `name` is answered. */
+  callMe: v.optional(v.string()),
+});
+export type OnboardingView = Infer<typeof onboardingView>;
+
+/** One connected source as Settings and the connect cards show it. Never the ICS URL, never a token, never the
+ * raw `config`. Owner only. */
+export const integrationView = v.object({
+  integrationId: v.id('integrations'),
+  kind: T.integrationKind,
+  status: T.integrationStatus,
+  label: v.optional(v.string()),
+  host: v.optional(v.string()),
+  connectedAt: v.optional(v.number()),
+  lastSyncAt: v.optional(v.number()),
+  lastFailure: v.optional(T.integrationFailure),
+  /** Events or found items it brought in this month (board: "24 events this month"). */
+  countThisMonth: v.number(),
+});
+export type IntegrationView = Infer<typeof integrationView>;
+
+/** `integrations.offer`: the live state behind a `connect` card. `offered` until answered; `connected` once any
+ * matching integration is connected (`integrations` lists them); `skipped` = Not now; `failed` = the connect
+ * attempt failed (`failure`), the card offers it again. `available` = what this deployment can do now (false
+ * for Google until GOOGLE env is set → the card says it isn't set up, never a broken button). */
+export const offerView = v.object({
+  offer: T.connectOffer,
+  state: v.union(v.literal('offered'), v.literal('connected'), v.literal('skipped'), v.literal('failed')),
+  integrations: v.array(integrationView),
+  available: v.object({ google: v.boolean() }),
+  failure: v.optional(T.integrationFailure),
+});
+export type OfferView = Infer<typeof offerView>;
+
+/** A found email item (owner only). No sender address, no body. */
+export const mailItemView = v.object({
+  itemId: v.id('mailItems'),
+  kind: T.mailItemKind,
+  title: v.string(),
+  sourceLabel: v.string(),
+  when: v.optional(v.string()),
+  amountCents: v.optional(v.number()),
+  status: T.mailItemStatus,
+  eventId: v.optional(v.id('events')),
+  reminderId: v.optional(v.id('reminders')),
+});
+export type MailItemView = Infer<typeof mailItemView>;
+
+/** One event the app read from this phone's calendar (expo-calendar `listEvents`), as it syncs it up. `externalId`
+ * is the phone's event id (+ occurrence start for recurring ones), unique per integration. Local "YYYY-MM-DD"
+ * `allDay` for all-day events; otherwise `start`/`end` are epoch ms. */
+export const deviceEventInput = v.object({
+  externalId: v.string(),
+  calendarId: v.string(),
+  title: v.string(),
+  start: v.number(),
+  end: v.optional(v.number()),
+  allDay: v.optional(v.string()),
+  location: v.optional(v.string()),
+});
+export type DeviceEventInput = Infer<typeof deviceEventInput>;
+
 // ---------- the API ----------
 
 type Kind = 'query' | 'mutation' | 'action';
@@ -254,6 +323,19 @@ export const API = {
       args: { familyName: v.string(), timezone: v.string(), myName: v.string(), look: T.megaLook, personality, megaName: v.string() },
       returns: v.object({ familyId: v.id('families'), threadId: v.id('threads') }),
     }),
+    // Signed in, not a member yet (else VALIDATION "already a member"). Creates the family, the admin, their
+    // MEGA (ONBOARDING.firstMega), the family MEGA, settings/sharing/profile, the thread, the onboarding row
+    // (step `name`) and posts the greeting + "What should I call you?". Replaces the interim one-question screen.
+    begin: fn({ kind: 'mutation', day1: 'stub', args: { timezone: v.string() }, returns: v.object({ familyId: v.id('families'), threadId: v.id('threads') }) }),
+    // The caller's onboarding progress; null if they have none.
+    state: fn({ kind: 'query', day1: 'stub', args: {}, returns: v.union(onboardingView, v.null()) }),
+    // Step `name` only (else VALIDATION). Trims, strips ONBOARDING.namePrefixes, 1–ONBOARDING.nameMaxLength chars
+    // (else VALIDATION); sets members.name, profiles.callMe and the family name (ONBOARDING.familyNameTemplate),
+    // posts "Nice to meet you, {name}!" and the Gmail `connect` card; step → `gmail`.
+    setName: fn({ kind: 'mutation', day1: 'stub', args: { name: v.string() }, returns: v.null() }),
+    // Not now on a connect card during onboarding: records `skipped`, posts the skipped line, moves to the next
+    // step. A skip outside onboarding just marks the offer skipped. Idempotent.
+    skip: fn({ kind: 'mutation', day1: 'stub', args: { offer: T.connectOffer }, returns: v.null() }),
   },
   invites: {
     // v0.14 (additive): `mega` — the MEGA the admin sets for the person (omitted: their existing MEGA, or a
@@ -276,6 +358,16 @@ export const API = {
     member: fn({ kind: 'query', day1: 'real', args: { memberId: v.id('members') }, returns: memberDetail }),
     kidThread: fn({ kind: 'query', day1: 'real', args: { memberId: v.id('members'), paginationOpts: paginationOptsValidator }, returns: paginationResultValidator(messageDoc) }),
     comingUp: fn({ kind: 'query', day1: 'real', args: {}, returns: v.array(eventDoc) }),
+    // v0.17 (G5): admin only (onboarding family step; later Family → Add a family member). Creates the member (no
+    // auth yet), the relationship from the admin, settings/sharing/profile (kid defaults for kids), and a MEGA
+    // when `mega` is given (kids: the admin's pick, fixed; adults: a default they can change on join).
+    add: fn({
+      kind: 'mutation',
+      day1: 'stub',
+      adminOnly: true,
+      args: { name: v.string(), role: v.union(v.literal('adult'), v.literal('kid')), relationship, mega: v.optional(T.inviteMega), birthday: v.optional(v.string()) },
+      returns: v.object({ memberId: v.id('members') }),
+    }),
   },
   chat: {
     thread: fn({ kind: 'query', day1: 'real', args: { paginationOpts: paginationOptsValidator }, returns: paginationResultValidator(messageDoc) }),
@@ -656,6 +748,45 @@ export const API = {
       args: { skipId: v.id('routineSkips'), action: v.union(v.literal('pause'), v.literal('keep')) },
       returns: v.object({ message: v.string(), status: T.routineSkipStatus }),
     }),
+  },
+  // ---------- G5 (CONTRACT v0.17): onboarding chat, connected accounts, found mail, family steps. ----------
+  // The onboarding chat (Screen 13) is server-driven: MEGA's lines are G5_COPY (no model call). While `step` is
+  // `name`, `chat.send`'s text is the name (same path as `onboarding.setName`). Family steps are blocks in the
+  // thread answered with `chat.answerBlock`; their effects go through `family.add` and `invites.create`.
+  integrations: {
+    // The caller's own integrations (owner only; another member's are never listed, not even to the admin).
+    list: fn({ kind: 'query', day1: 'stub', args: {}, returns: v.array(integrationView) }),
+    // The live state behind a `connect` card in the caller's thread.
+    offer: fn({ kind: 'query', day1: 'stub', args: { offer: T.connectOffer }, returns: offerView }),
+    // Web: starts Google's consent for `want` (read-only scopes, access_type=offline, prompt=consent,
+    // include_granted_scopes=true, login_hint optional). Stores a single-use state; returns Google's URL for the
+    // app to open. The callback (`GET {CONVEX_SITE_URL}/google/oauth/callback`, an HTTP route) exchanges the
+    // code, stores the grant, connects the integrations, posts the connected line, and redirects to
+    // SITE_URL + GOOGLE.returnPath. `not_configured` (VALIDATION) when GOOGLE env isn't set.
+    googleStart: fn({ kind: 'mutation', day1: 'stub', args: { want: v.array(T.googleProduct), loginHint: v.optional(v.string()) }, returns: v.object({ authUrl: v.string() }) }),
+    // iOS: the `serverAuthCode` from @react-native-google-signin (offlineAccess, the read-only scopes) is
+    // exchanged on the server (web client id + secret). Same effects as the callback.
+    googleConnectCode: fn({ kind: 'action', day1: 'stub', args: { serverAuthCode: v.string(), want: v.array(T.googleProduct) }, returns: v.object({ status: T.integrationStatus, failure: v.optional(T.integrationFailure) }) }),
+    // This phone's calendar: the app asked permission and lists the calendars the owner picked.
+    connectDevice: fn({ kind: 'mutation', day1: 'stub', args: { label: v.string(), calendarIds: v.array(v.string()) }, returns: v.id('integrations') }),
+    // The app syncs up the phone's events in the DEVICE_CALENDAR window (≤ maxEventsPerSync, else VALIDATION).
+    // Upserts by externalId, removes events no longer present in the window. All land private (owner's layer).
+    syncDevice: fn({ kind: 'mutation', day1: 'stub', args: { integrationId: v.id('integrations'), windowStart: v.number(), windowEnd: v.number(), events: v.array(deviceEventInput) }, returns: v.object({ added: v.number(), updated: v.number(), removed: v.number() }) }),
+    // A schedule link: https:// or webcal:// (else VALIDATION); fetched and parsed now (fails → `failure`, nothing
+    // saved). ≤ ICS.maxFeedsPerMember. Returns the feed's title and how many events it brought in.
+    addIcs: fn({ kind: 'action', day1: 'stub', args: { url: v.string() }, returns: v.object({ integrationId: v.optional(v.id('integrations')), label: v.optional(v.string()), events: v.number(), failure: v.optional(T.integrationFailure) }) }),
+    // Owner only. Google: revokes the grant when it was the last Google integration, deletes the secret. Every
+    // kind: removes the events/items it brought in (the owner's private copies; anything already shared stays
+    // shared, as a household event the owner made). Idempotent.
+    disconnect: fn({ kind: 'action', day1: 'stub', args: { integrationId: v.id('integrations') }, returns: v.null() }),
+    // Owner only. Syncs one integration now (rate-limited to once a minute).
+    syncNow: fn({ kind: 'action', day1: 'stub', args: { integrationId: v.id('integrations') }, returns: v.object({ status: T.integrationStatus, failure: v.optional(T.integrationFailure) }) }),
+  },
+  mail: {
+    // Owner only (anyone else → NOT_FOUND, per item). The rows behind a `mailFound` card.
+    items: fn({ kind: 'query', day1: 'stub', args: { itemIds: v.array(v.id('mailItems')) }, returns: v.array(mailItemView) }),
+    // Owner only. Removes the item and the private event/reminder it made. Idempotent.
+    dismiss: fn({ kind: 'mutation', day1: 'stub', args: { itemId: v.id('mailItems') }, returns: v.null() }),
   },
 } as const;
 

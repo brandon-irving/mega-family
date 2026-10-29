@@ -22,6 +22,7 @@ import { sanitizeDraftText } from './model/proactive';
 import { seedGd } from './model/seedGd';
 import { seedG4 } from './model/seedG4';
 import { seedG4b } from './model/seedG4b';
+import { seedG5 } from './model/seedG5';
 import { realAdaptersOn } from './adapters/registry';
 import { FRACTIONS_SHEET } from '../shared/fixtures/homework/fractionsSheet';
 import { scopeKey } from './model/scopes';
@@ -87,6 +88,12 @@ const FAMILY_OWNED_TABLES: readonly [TableNames, string][] = [
   ['priceWatches', 'by_family_status'],
   ['routineSkips', 'by_family_date'],
   ['holidays', 'by_family_country_year'],
+  // G5 (CONTRACT v0.17)
+  ['integrationSecrets', 'by_family_member_provider'],
+  ['oauthStates', 'by_family_member'],
+  ['mailItems', 'by_family_member_found'],
+  ['onboarding', 'by_family_member'],
+  ['profilerRuns', 'by_family_member_day'],
 ];
 
 async function deleteFamilyCompletely(ctx: MutationCtx, familyId: Id<'families'>): Promise<void> {
@@ -377,6 +384,7 @@ async function createSampleFamily(ctx: MutationCtx, weekOf: string | undefined, 
     // G4: events linked to saved places, past kid searches, Thursday's pickup travel check (docs/gates/G4.md).
     await seedG4(ctx, { familyId, m, now: demoNow });
     await seedG4b(ctx, { familyId, m, now: demoNow });
+    await seedG5(ctx, { familyId, m, now: demoNow, timezone: tz });
 
     return { familyId, members: m };
 }

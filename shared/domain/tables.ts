@@ -28,7 +28,15 @@ import {
   EYE_COLOR_IDS,
   EYE_STYLE_IDS,
   GEOCODE_STATUSES,
+  GOOGLE_PRODUCTS,
+  CONNECT_OFFERS,
   INTEGRATION_FAILURES,
+  INTEGRATION_KINDS,
+  INTEGRATION_STATUSES,
+  MAIL_ITEM_KINDS,
+  MAIL_ITEM_STATUSES,
+  ONBOARDING_OUTCOMES,
+  ONBOARDING_STEPS,
   PLACE_KINDS,
   PRICE_WATCH_STATUSES,
   ROUTINE_KINDS,
@@ -244,8 +252,12 @@ export const events = {
   allDay: v.optional(dateOnly),
   who: v.array(memberId),
   place: v.optional(v.string()),
-  source: v.union(v.literal('mega'), v.literal('ics'), v.literal('device')),
+  // v0.17 (G5, additive): `gmail` (found in an email) and `google` (Google Calendar). Every event that comes in
+  // from an integration is a private-layer event of the integration's owner (`scope: 'personal'`, `ownerId`),
+  // with `integrationId` + `externalId` (the provider's id, for dedupe and removal on disconnect).
+  source: v.union(v.literal('mega'), v.literal('ics'), v.literal('device'), v.literal('gmail'), v.literal('google')),
   externalId: v.optional(v.string()),
+  integrationId: v.optional(v.id('integrations')),
   createdBy: v.optional(memberId),
   scope,
   cancelled: v.boolean(),
@@ -668,12 +680,123 @@ export const images = {
   cost: v.optional(v.number()),
 };
 
+export const integrationKind = literals(INTEGRATION_KINDS);
+export const integrationStatus = literals(INTEGRATION_STATUSES);
+
+/** A connected source of events for one member (G5, CONTRACT v0.17; the G1 shape plus optional fields, so old
+ * rows stay valid). Everything an integration finds lands in `memberId`'s PRIVATE layer; nothing here is ever
+ * household data until the owner shares it. Server-side `config` per kind (never returned to the app as is):
+ * `gmail` `{ historyId?: string }` · `googleCalendar` `{ calendarId: string, syncToken?: string }` ·
+ * `deviceCalendar` `{ calendarIds: string[] }` · `ics` `{ url: string, etag?: string, lastModified?: string }`
+ * (the URL can carry a private token, so the app sees only `label` and `host`). Tokens never live here: see
+ * `integrationSecrets`. */
 export const integrations = {
   familyId,
-  memberId: v.optional(memberId),
-  kind: v.union(v.literal('ics'), v.literal('deviceCalendar'), v.literal('weather')),
+  memberId: v.optional(memberId), // G5: required for every kind but the legacy `weather`
+  kind: integrationKind,
   config: v.any(),
   lastSyncAt: v.optional(v.number()),
+  status: v.optional(integrationStatus), // v0.17; absent on legacy rows = connected
+  /** What Settings shows: the Google account's address, the feed's title, "iPhone calendars". */
+  label: v.optional(v.string()),
+  /** `ics` only: the feed's host ("calendar.example-school.org"), shown instead of the URL. */
+  host: v.optional(v.string()),
+  lastFailure: v.optional(literals(INTEGRATION_FAILURES)), // integrationFailure (below) isn't defined yet here
+  lastFailureAt: v.optional(v.number()),
+  connectedAt: v.optional(v.number()),
+  disconnectedAt: v.optional(v.number()),
+};
+
+// ---------- G5 (CONTRACT v0.17): onboarding chat, Google, schedule links, profiler ----------
+
+export const googleProduct = literals(GOOGLE_PRODUCTS);
+export const connectOffer = literals(CONNECT_OFFERS);
+export const onboardingStep = literals(ONBOARDING_STEPS);
+export const onboardingOutcome = literals(ONBOARDING_OUTCOMES);
+export const mailItemKind = literals(MAIL_ITEM_KINDS);
+export const mailItemStatus = literals(MAIL_ITEM_STATUSES);
+
+/** One member's Google grant (Gmail and/or Google Calendar). SERVER-ONLY: no query or view model ever returns a
+ * field of this table, and nothing logs one. `refreshToken`/`accessToken` are AES-GCM ciphertext (base64,
+ * `iv.ciphertext`) under `INTEGRATION_TOKEN_KEY`. `scopes` = what Google actually granted (the consent screen
+ * lets people untick a box). `expectedLapseAt` = Testing mode's 7-day expiry, for the reconnect nudge. */
+export const integrationSecrets = {
+  familyId,
+  memberId,
+  provider: v.literal('google'),
+  accountEmail: v.optional(v.string()),
+  refreshToken: v.string(),
+  accessToken: v.optional(v.string()),
+  accessTokenExpiresAt: v.optional(v.number()),
+  scopes: v.array(v.string()),
+  grantedAt: v.number(),
+  expectedLapseAt: v.optional(v.number()),
+};
+
+/** A pending Google consent (web redirect flow): the `state` we send is a random nonce; we store only its hash,
+ * bound to the member and what they asked for. Single use; expires after GOOGLE.stateTtlMinutes. */
+export const oauthStates = {
+  familyId,
+  memberId,
+  nonceHash: v.string(),
+  want: v.array(googleProduct),
+  createdAt: v.number(),
+  expiresAt: v.number(),
+  usedAt: v.optional(v.number()),
+};
+
+/** Something MEGA found in an email (Screen 13 OnboardGmailFound). Owner-only, like the private event or reminder
+ * it made. We keep the sender's display name ("the school office"), never the address or the body; one row per
+ * Gmail message × item (dedupe). `decidedBy` = the extraction call (`model:…`) or a rule that dropped it. */
+export const mailItems = {
+  familyId,
+  memberId,
+  integrationId: v.id('integrations'),
+  gmailMessageId: v.string(),
+  itemIndex: v.number(),
+  kind: mailItemKind,
+  title: v.string(),
+  sourceLabel: v.string(),
+  /** Local "YYYY-MM-DDTHH:MM" or "YYYY-MM-DD"; for a bill, its due date. */
+  when: v.optional(v.string()),
+  amountCents: v.optional(v.number()),
+  eventId: v.optional(v.id('events')),
+  reminderId: v.optional(v.id('reminders')),
+  status: mailItemStatus,
+  foundAt: v.number(),
+  decidedBy,
+};
+
+/** The onboarding chat's progress for one member (the admin who started the family; G5). `step` is where the
+ * conversation is; `outcomes` records each integration offer's answer. `done` once the family step finishes or
+ * they pick "Just me for now". Skipping never blocks: every step moves on. */
+export const onboarding = {
+  familyId,
+  memberId,
+  step: onboardingStep,
+  outcomes: v.object({
+    gmail: v.optional(onboardingOutcome),
+    calendar: v.optional(onboardingOutcome),
+    ics: v.optional(onboardingOutcome),
+  }),
+  /** The family step's person in progress (added by `family.add`, before their look/invite blocks). */
+  personId: v.optional(memberId),
+  startedAt: v.number(),
+  finishedAt: v.optional(v.number()),
+};
+
+/** One nightly profiler run per member per day (idempotency + audit). */
+export const profilerRuns = {
+  familyId,
+  memberId,
+  day: dateOnly,
+  memoriesRead: v.number(),
+  applied: v.number(),
+  asked: v.number(),
+  dropped: v.number(),
+  decidedBy,
+  ranAt: v.number(),
+  failure: v.optional(literals(INTEGRATION_FAILURES)),
 };
 
 export const usage = {
@@ -875,5 +998,10 @@ export const TABLES = {
   priceWatches,
   routineSkips,
   holidays,
+  integrationSecrets,
+  oauthStates,
+  mailItems,
+  onboarding,
+  profilerRuns,
 } as const;
 export type TableName = keyof typeof TABLES;

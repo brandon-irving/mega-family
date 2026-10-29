@@ -10,6 +10,7 @@
 // (callers keep refs only); image URLs are passed through for the app to render, never fetched.
 import { SHOPPING } from '../../shared/config/shopping';
 import type { Product, ProductRef } from '../../shared/domain/integrationShapes';
+import type { IntegrationFailure } from '../ports/integrationResult';
 import type { ProductCatalog, ProductLookupRequest, ProductResults, ProductSearchRequest } from '../ports/productCatalog';
 import { fetchJson } from './httpFetch';
 
@@ -110,7 +111,7 @@ export function parseLookup(json: unknown, refs: ProductRef[]): ProductResults {
   return { ok: true, products, notFound };
 }
 
-async function call(name: 'search_catalog' | 'lookup_catalog', catalog: Record<string, unknown>): Promise<{ ok: true; json: unknown } | { ok: false; failure: 'not_configured' | 'rate_limited' | 'error' | 'no_result'; detail: string }> {
+async function call(name: 'search_catalog' | 'lookup_catalog', catalog: Record<string, unknown>): Promise<{ ok: true; json: unknown } | { ok: false; failure: IntegrationFailure; detail?: string }> {
   const profile = agentProfileUrl();
   if (!profile) return { ok: false, failure: 'not_configured', detail: 'CONVEX_SITE_URL is not set (no agent profile URL)' };
   const res = await fetchJson(
