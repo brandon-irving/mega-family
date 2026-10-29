@@ -996,3 +996,27 @@ export const G8_COPY = {
   viewfinderStarting: 'Starting the camera…',
   viewfinderFailed: 'The camera didn’t start. Choose a photo instead?',
 } as const;
+
+/** G8 frontend copy the boards add beyond G8_COPY (Screen 17, canvas v41). Kept apart from G8_COPY so the
+ * backend agent's edits there can't collide with these. */
+export const G8_UI_COPY = {
+  // Widgets (boards WidgetsStale, WidgetsSignedOut, WidgetsLockSignedOut)
+  widgetLastChecked: 'Last checked {n} hours ago',
+  widgetLastCheckedOne: 'Last checked 1 hour ago',
+  widgetSignedOutFoot: 'Nothing personal shows until you sign in',
+  // The in-app sheet behind mega://widgets (the widgets themselves live on the home and lock screens)
+  widgetsSheetTitle: 'Widgets',
+  widgetsSheetBody:
+    'Add MEGA to your home screen: touch and hold an empty spot, tap +, then pick MEGA. On the lock screen, customize it and add Coming up or Talk to your MEGA.',
+  widgetsSheetWeb: 'Widgets live on your iPhone’s home and lock screens. Open MEGA on your iPhone to add them.',
+  // QR scan (boards LoginInvite, LoginScan, ScanDenied)
+  scanClose: 'Close the camera',
+  scanNotNow: 'Not now',
+  orScan: 'or scan instead',
+  // Paste (boards PasteNothing, PasteNotInvite)
+  pasteLabel: 'Paste the invite link',
+  pasteLinkLabel: 'Paste the schedule link',
+  // Homework camera (boards SnapStarting, SnapDenied, SnapFailed)
+  snapOpenSettings: 'Open Settings',
+  snapTryAgain: 'Try the camera again',
+} as const;

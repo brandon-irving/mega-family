@@ -87,10 +87,11 @@ const ADULT: InvitePreview = { status: 'ok', kind: 'adult', inviterName: 'Admin'
 const KID: InvitePreview = { status: 'ok', kind: 'kid', inviterName: 'Admin', memberName: 'Twin 1', mega: { name: 'Zap', look: { hex: '#8E6CE0', sticker: 'bolt' }, personality: 'funny' }, family: FAMILY };
 
 describe('invite screen', () => {
-  test('the field, an example and Continue sit right under the instructions; the "No link yet?" card fills the middle', async () => {
+  // G8: on the phone the middle card is "Scan QR code"; the web keeps "No link yet?" (InviteScreenG8.test.tsx).
+  test('the field, an example and Continue sit right under the instructions; the Scan card fills the middle', async () => {
     await renderScreen(<InviteRoute />);
     expect(screen.getByText('Looks like mega.family/join/7QK2-M4XD, or just 7QK2-M4XD')).toBeTruthy();
-    expect(screen.getByText('No link yet?')).toBeTruthy();
+    expect(screen.getByText('Scan QR code')).toBeTruthy();
   });
 });
 

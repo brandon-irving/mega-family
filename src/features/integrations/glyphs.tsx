@@ -42,6 +42,9 @@ export const GLYPHS = {
   share: 'M16 6l-4-4-4 4 M12 2v13 M5 12v8h14v-8',
   brain: 'M9 4a3 3 0 0 0-3 3 3 3 0 0 0-2 5 3 3 0 0 0 2 5 3 3 0 0 0 6 1V5a3 3 0 0 0-3-1z M15 4a3 3 0 0 1 3 3 3 3 0 0 1 2 5 3 3 0 0 1-2 5 3 3 0 0 1-6 1',
   check: 'M5 12l5 5 9-10',
+  // G8 (Screen 17 boards: scan, homework camera).
+  qr: 'M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3 M8 8h3v3H8z M13 8h3v3h-3z M8 13h3v3H8z M13 13h3v3',
+  cameraOff: 'M3 3l18 18 M9.5 5h5l1.5 2h3a1 1 0 0 1 1 1v9 M17 19H5a1 1 0 0 1-1-1V8a1 1 0 0 1 1-1h2 M10.2 10.3a3 3 0 0 0 3.5 3.5',
 } as const;
 export type GlyphName = keyof typeof GLYPHS;
 export type PlaceKind = (typeof PLACE_KINDS)[number];

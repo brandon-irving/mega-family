@@ -8,6 +8,7 @@
 //   invite:  field (the paste row), cont (Continue), help (the "No link yet?" card)
 //   adult invite: card    kid invite: kidCard    expired: expiredCard    locked: lock
 //   family:  start, join
+//   scan:    reticle (the viewfinder's bottom edge), settings (Open Settings when the camera is denied)
 // The loader's scene lives with the loader (src/features/walkers/MegaLoader.tsx).
 import { at, freeze, FOREVER, HIDE, hop, ON_TOP, type Scene, script, SHOW, wait, walk } from '@/features/walkers';
 import { SIGNIN_COPY } from '@shared/config/copy';
@@ -19,7 +20,7 @@ export const bx = (x: number) => (x - BOARD.margin) / BOARD.width;
 const OUT_L = bx(-30);
 const OUT_R = bx(420);
 
-export type SignInScreen = 'welcome' | 'welcomeSheet' | 'invite' | 'inviteLinked' | 'adultInvite' | 'kidInvite' | 'expired' | 'locked' | 'family';
+export type SignInScreen = 'welcome' | 'welcomeSheet' | 'invite' | 'inviteLinked' | 'adultInvite' | 'kidInvite' | 'expired' | 'locked' | 'family' | 'scan' | 'scanDenied' | 'scanFound';
 
 export const SIGNIN_SCENES: Record<SignInScreen, Scene> = {
   welcome: {
@@ -88,5 +89,22 @@ export const SIGNIN_SCENES: Record<SignInScreen, Scene> = {
     teal: script([at('start', bx(296)), SHOW, wait(2000, { happy: true }), walk(bx(236)), wait(1600, { emote: '!' }), walk(bx(296))], 2),
     coral: script([at('join', bx(96)), SHOW, wait(1600), walk(bx(160)), wait(2200, { emote: '♪' }), walk(bx(96))], 2),
     violet: script([HIDE]),
+  },
+  // G8 (boards LoginScan, ScanDenied, ScanFound): Teal paces the viewfinder's bottom edge watching the code;
+  // with the camera denied there's no viewfinder, so Teal waits on Open Settings' top edge, never over text.
+  scan: {
+    teal: script([at('reticle', bx(195), 'back'), SHOW, wait(1400, { face: 'back', emote: '…' }), walk(bx(120)), wait(1400, { face: 'back' }), walk(bx(270)), wait(1600, { face: 'back', emote: '?' }), walk(bx(195))], 2),
+    violet: script([HIDE]),
+    coral: script([HIDE]),
+  },
+  scanDenied: {
+    teal: script([at('settings', bx(300), 'left'), SHOW, wait(2200, { emote: '?' }), walk(bx(240)), wait(FOREVER, { face: 'front' })]),
+    violet: script([HIDE]),
+    coral: script([HIDE]),
+  },
+  scanFound: {
+    teal: script([at('reticle', bx(195)), SHOW, wait(FOREVER, { happy: true, emote: '!' })]),
+    violet: script([HIDE]),
+    coral: script([HIDE]),
   },
 };

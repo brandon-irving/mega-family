@@ -47,6 +47,8 @@ export function AuthGate() {
           member yet (an adult who hasn't redeemed an invite) — same screens either way. */}
       <Stack.Protected guard={signedOut || needsFamily}>
         <Stack.Screen name="invite" options={{ presentation: 'modal' }} />
+        {/* G8: the invite QR scanner (native only; the route sends the web back to the invite screen). */}
+        <Stack.Screen name="scan" options={{ presentation: 'fullScreenModal', animation: 'slide_from_bottom' }} />
         <Stack.Screen name="join/[token]" options={{ presentation: 'modal' }} />
       </Stack.Protected>
 

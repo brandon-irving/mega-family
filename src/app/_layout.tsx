@@ -7,6 +7,7 @@ import { DataProvider } from '@/data/client';
 import { AppThemeProvider } from '@/features/shell/AppThemeProvider';
 import { AuthGate } from '@/features/shell/AuthGate';
 import { NavigationThemeBridge } from '@/features/shell/NavigationThemeBridge';
+import { WidgetSync } from '@/features/widgets/WidgetSync';
 
 // While any route is still loading, show the walking-MEGA loader instead of an empty frame (owner, Oct 28).
 export { RouteLoading as SuspenseFallback } from '@/features/shell/RouteLoading';
@@ -21,6 +22,8 @@ export default function RootLayout() {
     <KeyboardProvider>
       <DataProvider>
         <AppThemeProvider>
+          {/* G8: keeps the home/lock-screen widgets in step with widgets.next (renders nothing; iOS only). */}
+          <WidgetSync />
           <NavigationThemeBridge>
             <AuthGate />
           </NavigationThemeBridge>
