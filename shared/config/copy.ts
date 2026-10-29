@@ -910,3 +910,12 @@ export const G5_UI_COPY = {
     door: 'MEGAs head out here for errands.',
   },
 } as const;
+
+/** G5 review fixes (Oct 29): the app's lines for the fixes, kept apart from G5_COPY / G5_UI_COPY. */
+export const G5_FIX_COPY = {
+  // Schedule links (UX review finding 1)
+  icsAdding: 'Adding…',
+  icsUnreachable: 'Couldn’t reach that link. Check it opens in a browser, then try again — or skip it for now.',
+  icsNotCalendar: 'That link opened, but there’s no calendar in it. School and team sites usually call it “Subscribe” or “iCal”.',
+  icsCouldntAdd: 'Couldn’t add that link right now. Try again in a bit, or skip it for now.',
+} as const;

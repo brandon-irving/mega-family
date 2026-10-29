@@ -7,7 +7,7 @@ import { useState } from 'react';
 import { router } from 'expo-router';
 import { View } from 'react-native';
 import type { IntegrationView } from '@shared/domain/api';
-import { G5_COPY, G5_UI_COPY as U, fillCopy } from '@shared/config/copy';
+import { G5_COPY, G5_FIX_COPY, G5_UI_COPY as U, fillCopy } from '@shared/config/copy';
 import { useAccountActions, useIntegrations, useOffer, type GoogleProduct } from '@/data/useAccounts';
 import { useFamilyNow } from '@/data/useShopping';
 import { errorCopyFor } from '@/data/errorCopy';
@@ -16,7 +16,7 @@ import { AccountsContent } from '@/features/accounts/AccountsContent';
 import { googleProductsOf, kindName } from '@/features/accounts/accountFormat';
 import { LinkField } from '@/features/accounts/parts';
 import { PhoneCalendarSheet } from '@/features/accounts/PhoneCalendarSheet';
-import { looksLikeFeedUrl } from '@/features/accounts/ConnectCard';
+import { useAddIcsLink } from '@/features/accounts/useAddIcsLink';
 import { syncPhone, usePhoneCalendarFlow } from '@/features/accounts/usePhoneCalendarFlow';
 import { CardFallback } from '@/features/kids/CardFallback';
 import { AdultOnly } from '@/features/shell/RoleGate';
@@ -45,8 +45,7 @@ function AccountsScreen() {
   const [notes, setNotes] = useState<Record<string, string>>({});
   const [confirm, setConfirm] = useState<IntegrationView | null>(null);
   const [icsOpen, setIcsOpen] = useState(false);
-  const [icsText, setIcsText] = useState('');
-  const [icsError, setIcsError] = useState<string | null>(null);
+  const ics = useAddIcsLink(actions.addIcs);
   const note = (key: string, text: string) => setNotes((n) => ({ ...n, [key]: text }));
   const phone = usePhoneCalendarFlow(actions, now, () => note('deviceCalendar', ''));
 
@@ -84,24 +83,12 @@ function AccountsScreen() {
       note(i.kind === 'ics' ? 'ics' : i.kind, fillCopy(G5_COPY.accountDisconnected, { what: kindName(i) }));
     }, i.integrationId);
 
-  const addIcs = () => {
-    const url = icsText.trim();
-    if (!looksLikeFeedUrl(url)) {
-      setIcsError(G5_COPY.icsBad);
-      return;
-    }
-    void run('ics', async () => {
-      const r = await actions.addIcs({ url });
-      if (r.failure || !r.integrationId) {
-        setIcsError(G5_COPY.icsBad);
-        return;
-      }
-      setIcsText('');
-      setIcsError(null);
+  const addIcs = () =>
+    void ics.submit().then((r) => {
+      if (!r) return;
       setIcsOpen(false);
       note(r.integrationId, fillCopy(G5_COPY.icsAdded, { title: r.label ?? U.sectionLinks }));
     });
-  };
 
   return (
     <Sheet title={G5_COPY.accountsTitle} onClose={() => router.back()}>
@@ -139,18 +126,8 @@ function AccountsScreen() {
       <ModalSheet open={icsOpen} title={U.icsSheetTitle} closeLabel={U.close} onClose={() => setIcsOpen(false)} testID="ics-sheet">
         <View style={{ gap: tokens.spacing.md }}>
           <Text color="muted">{G5_COPY.icsBody}</Text>
-          <LinkField
-            label={U.icsFieldLabel}
-            value={icsText}
-            placeholder={G5_COPY.icsPlaceholder}
-            error={icsError}
-            onChange={(t) => {
-              setIcsText(t);
-              setIcsError(null);
-            }}
-            onSubmit={addIcs}
-          />
-          <Button label={busy === 'ics' ? U.icsAdding : U.icsAdd} onPress={addIcs} loading={busy === 'ics'} style={{ alignSelf: 'stretch' }} />
+          <LinkField label={U.icsFieldLabel} value={ics.text} placeholder={G5_COPY.icsPlaceholder} error={ics.error} onChange={ics.setText} onSubmit={addIcs} />
+          <Button label={ics.busy ? G5_FIX_COPY.icsAdding : U.icsAdd} onPress={addIcs} loading={ics.busy} disabled={ics.busy} style={{ alignSelf: 'stretch' }} />
         </View>
       </ModalSheet>
 
