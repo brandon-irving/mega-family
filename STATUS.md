@@ -14,7 +14,7 @@ _Last updated: Oct 28._
 | G3 | Proactive engine (triggers → draft → judge → timing → deliver), push with buttons (expo-notifications categories), answers → effects, MEGA-to-MEGA requests, widget timeline / Today statements | ✅ tag `g3` (needs owner device test: new dev build for expo-task-manager) |
 | GD | Demo features (Screens 9–12): kids (homework, chores, bedtime/morning), Mega Bucks + Store, calendar layers + clash proposals + gift ideas, sign-in redesign (email/Apple/Google, adult and kid invites, MegaLoader), chat starters, OpenDuet learnings (decidedBy, audience-snapshot approvals, evals) | ✅ tag `gd` (Oct 28; needs owner device test on build `323ca3e8`, no new native modules; CONTRACT v0.13–v0.14a pending approval) |
 | G4 | Web search with kid filter (+ source screening), weather + NWS alerts, travel time / leave-by (Mapbox, fails closed until MAPBOX_TOKEN), Places, search log; plus Oct 28 UX fixes (walkers never cover content, safe areas, every modal closes, MEGA profile) | ✅ tag `g4` (Oct 28; CONTRACT v0.15/v0.15a pending approval; travel needs the owner's Mapbox token) |
-| G4b | **Owner, Oct 28 (before G5):** Shopify Global Catalog products on gift ideas + adults' `shop_search` + price watch (quiet drop alerts, never to the recipient; refs only, per Shopify's no-caching terms); Open-Meteo air quality + UV on the weather card and outdoor-event tips; public holidays (Nager.Date) with an evening-before "Pause the morning routine and chores?" question to adults. Brief `docs/gates/G4b.md`, canvas row Screen 15 | contract v0.16 (pending approval) |
+| G4b | **Owner, Oct 28 (before G5):** Shopify Global Catalog products on gift ideas + adults' `shop_search` + price watch (quiet drop alerts, never to the recipient; refs only, per Shopify's no-caching terms); Open-Meteo air quality + UV on the weather card and outdoor-event tips; public holidays (Nager.Date) with an evening-before "Pause the morning routine and chores?" question to adults. Brief `docs/gates/G4b.md`, canvas row Screen 15 (canvas v39) | ✅ tag `g4b` (Oct 28; CONTRACT v0.16–v0.16b pending approval; no owner action needed: keyless Shopify catalog via our agent profile at `/ucp/agent-profile.json`; calendar now pages by week on the family clock) |
 | G5 | **Onboarding chat (owner, Oct 28; Screen 13 boards):** sign up → MEGA asks your name → integrations one at a time (**Gmail first**, read-only via Google OAuth in Testing mode, polled from Convex; then Google Calendar or the phone's calendar; then ICS links) → family steps. Plus Settings (theme/wallpaper), HQ tile room + own rooms, MEGA badge → Profile/customize, nightly profiler + check questions | |
 | G6 | Full end-to-end on web + iPhone, demo script, polish | |
 | G8 | Widgets, QR invite scan, homework viewfinder, invite Paste button (native packages already installed Oct 28) | |
@@ -93,6 +93,7 @@ npx expo export --platform web --output-dir <scratch dir>
 Owner approved **$5 total for live model checks until G6**; ≈3 cents used. The spend guard (`usage` table, reserved + recorded) enforces daily and global caps. Image generation needs separate approval (off in config).
 
 - **GD evals (Oct 28):** 16.2¢ — privacy gate 6.0¢ (30 cases, 100% precision/recall on "sensitive"), push judge 10.2¢ (30 cases, 77% accuracy; it under-sends "statement"s as drops). Re-run: `node scripts/secrets.mjs run --only tool -- npx tsx evals/run.ts`; results in `evals/*/results-*.md`.
+- **G4b (Oct 28):** ≈3.2¢ — backend live check 2.1¢, weather/air fix live check 1.05¢ (Shopify, Open-Meteo and Nager.Date cost nothing).
 - **G4 backend (Oct 28):** 16.4¢ — live checks 10.8¢ (three real searches: an adult's, a kid's rephrased, a kid's blocked; weather and travel calls cost nothing), kid search eval 5.6¢ (20 cases, 95% accuracy; no blocked query was let through as allowed, one "sneak out" query was rephrased instead of blocked).
 
 ## Owner to-dos (open)
@@ -102,6 +103,10 @@ Owner approved **$5 total for live model checks until G6**; ≈3 cents used. The
 3. Web walkthrough feedback: the owner hit the re-render crash above; their Google sign-in works and the interim Start a family is in.
 
 ## Lessons learned (don't relearn these)
+
+- **Shopify Global Catalog (G4b):** keyless, but every call needs our UCP agent profile URL (`meta["ucp-agent"]`; without it HTTP 422 `invalid_profile_url`). Prices are per **variant**, in minor units; `currency` is only a relevance hint, so the adapter drops non-USD results. Search results and images may not be cached: store refs, read details live (`shopping.products`).
+- **Web dev servers for agents:** Better Auth's `trustedOrigins` allows only localhost:8081 and :19006, so a reviewer's own server must use **19006** (8081 is the owner's).
+- **Flaky:** `src/features/signin/Welcome.test.tsx` (password reveal) fails about one full jest run in three under load and passes alone. Not yet fixed.
 
 - **Muse Spark is a reasoning model:** hidden reasoning counts against `max_tokens`. Use `reasoning_effort: 'low'` (config `LIMITS.agent.effort`) and generous limits, or replies come back empty.
 - **Meta transcription** is `POST /v1/asr/transcribe` (multipart JSON `request` + `audio`) and accepts **WAV only** (mono 16-bit PCM 16/24 kHz). iOS records LINEARPCM; web re-encodes to WAV in JS; Android expo-audio can't record PCM (shows "not supported").
