@@ -26,7 +26,7 @@ export default function MegaProfileRoute() {
         role={viewer.member.role}
         statusLine={status ? (status.busy ? status.label : 'Available') : ''}
         isAdmin={isAdmin}
-        // Notifications, quiet hours and the theme all live in Settings (G5 fills its sections in).
+        // Notifications, quiet hours and the theme all live in Settings (G5).
         onOpenNotifications={() => router.push('/settings' as never)}
         onOpenTheme={() => router.push('/settings' as never)}
         sharing={sharing ?? undefined}
@@ -34,6 +34,7 @@ export default function MegaProfileRoute() {
         onOpenLookPersonality={() => router.push('/mega-profile/look' as never)}
         onChangeSharing={(patch) => setSharing(patch)}
         onOpenMemories={() => router.push('/mega-profile/memories' as never)}
+        onOpenActivity={isAdmin ? () => router.push('/mega-profile/activity' as never) : undefined}
       />
     </Sheet>
   );

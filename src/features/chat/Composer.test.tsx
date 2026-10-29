@@ -2,7 +2,7 @@
 // mode ran off the screen ("Back to T…" cut off). Kids get one bar on every screen (canvas v33,
 // design/build/thread.html "Kid composer"): a 72pt Talk pill + a 72pt round keyboard toggle with a drawn
 // 28px icon; typing swaps in a full-width 72pt field (20px text) + a round mic to go back.
-import { fireEvent, screen } from '@testing-library/react-native';
+import { act, fireEvent, screen } from '@testing-library/react-native';
 import { COMPOSER_SIZES } from '@shared/config/theme';
 import { renderWithTheme } from '@/test/renderWithTheme';
 import { Composer } from './Composer';
@@ -65,5 +65,21 @@ describe('Composer (adult bar)', () => {
     const field = screen.getByLabelText('Message Pebble');
     expect(field.props.placeholder).toBe('Message Pebble…');
     expect(field.props.numberOfLines ?? 1).toBe(1);
+  });
+});
+
+describe('Composer (G5 onboarding, board OnboardChat)', () => {
+  test('while the onboarding step is `name`, the field asks "What should I call you?" and sends the answer', async () => {
+    const onSend = jest.fn();
+    await renderWithTheme(<Composer megaName="Teal" onSend={onSend} onOpenTalk={noop} placeholder="What should I call you?" />);
+    const field = screen.getByLabelText('Message Teal');
+    expect(field.props.placeholder).toBe('What should I call you?');
+    await act(async () => {
+      fireEvent.changeText(field, 'call me Admin');
+    });
+    await act(async () => {
+      fireEvent(screen.getByLabelText('Message Teal'), 'submitEditing');
+    });
+    expect(onSend).toHaveBeenCalledWith('call me Admin');
   });
 });

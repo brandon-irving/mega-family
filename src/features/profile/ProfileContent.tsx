@@ -3,13 +3,14 @@
 // look including Store parts, its name with a rename control, its status), the Look & personality row (color,
 // sticker, antenna, eyes, personality), What it shares (adults), and You: notifications and quiet hours,
 // theme, and what it remembers (with forget; not for kids). What each role may do is ROLES_CONFIG.profile.
-// Not built yet from the board: the Admin section's "Rules and limits" and "Activity" rows (G5 Settings).
+// G5 (Screen 16): the admin's Activity row (board ProfileActivity). A kid's Rules and limits open from that kid's
+// Family page (board ProfileRules), where their parents edit them.
 import { useState } from 'react';
 import { Pressable, TextInput, View } from 'react-native';
 import type { Infer } from 'convex/values';
 import type { megaDoc } from '@shared/domain/api';
 import type { Role, ShareLevel } from '@shared/domain/enums';
-import { PROFILE_COPY as C } from '@shared/config/copy';
+import { G5_UI_COPY, PROFILE_COPY as C, fillCopy } from '@shared/config/copy';
 import { ROLES_CONFIG } from '@shared/config/roles';
 import { Button } from '@/ui/Button';
 import { Card } from '@/ui/Card';
@@ -34,12 +35,14 @@ export type ProfileContentProps = {
   onOpenTheme: () => void;
   onChangeSharing?: (patch: Partial<Sharing>) => void;
   onOpenMemories?: () => void;
+  /** G5 (admin): what the family's MEGAs did, and why (board ProfileActivity). */
+  onOpenActivity?: () => void;
 };
 
 const SHARE_LEVELS: ShareLevel[] = ['me', 'partner', 'family'];
 const SHARE_LABEL: Record<ShareLevel, string> = { me: 'Only me', partner: 'Partner', family: 'Family' };
 
-export function ProfileContent({ mega, role, statusLine, sharing, onRename, onOpenLookPersonality, onOpenNotifications, onOpenTheme, onChangeSharing, onOpenMemories }: ProfileContentProps) {
+export function ProfileContent({ mega, role, statusLine, sharing, onRename, onOpenLookPersonality, onOpenNotifications, onOpenTheme, onChangeSharing, onOpenMemories, onOpenActivity }: ProfileContentProps) {
   const tokens = useTokens();
   const access = ROLES_CONFIG[role].profile;
   const [editing, setEditing] = useState(false);
@@ -113,6 +116,7 @@ export function ProfileContent({ mega, role, statusLine, sharing, onRename, onOp
         <Row label={C.notifications} title={C.notifications} hint={C.notificationsHint} onPress={onOpenNotifications} />
         <Row label={C.theme} title={C.theme} hint={C.themeHint} onPress={onOpenTheme} />
         {access.memories && onOpenMemories ? <Row label={C.remembers(mega.name)} title={C.remembers(mega.name)} hint={C.remembersHint} onPress={onOpenMemories} /> : null}
+        {onOpenActivity ? <Row label={G5_UI_COPY.activityRow} title={G5_UI_COPY.activityRow} hint={fillCopy(G5_UI_COPY.activityRowHint, { mega: mega.name })} onPress={onOpenActivity} /> : null}
       </View>
     </>
   );

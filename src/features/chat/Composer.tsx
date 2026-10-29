@@ -24,9 +24,11 @@ export type ComposerProps = {
   /** GD (board KidsSnap): adults get a camera button for "Snap homework" (opens mega://homework). */
   onCamera?: () => void;
   cameraLabel?: string;
+  /** G5: the onboarding chat's "What should I call you?" while the step is `name` (replaces the usual one). */
+  placeholder?: string;
 };
 
-export function Composer({ megaName, bigTalkButton = false, onSend, onOpenTalk, onAttach, onCamera, cameraLabel = 'Take a photo' }: ComposerProps) {
+export function Composer({ megaName, bigTalkButton = false, onSend, onOpenTalk, onAttach, onCamera, cameraLabel = 'Take a photo', placeholder }: ComposerProps) {
   const [text, setText] = useState('');
   const [showKeyboard, setShowKeyboard] = useState(!bigTalkButton);
   const tokens = useTokens();
@@ -78,7 +80,7 @@ export function Composer({ megaName, bigTalkButton = false, onSend, onOpenTalk, 
         <TextInput
           value={text}
           onChangeText={setText}
-          placeholder={copy(COMPOSER_COPY.kidPlaceholder)}
+          placeholder={placeholder ?? copy(COMPOSER_COPY.kidPlaceholder)}
           placeholderTextColor={tokens.muted}
           style={{ flex: 1, minWidth: 0, height: K.height, fontSize: K.fontSize, color: tokens.text, paddingHorizontal: tokens.spacing.lg, borderRadius: K.height / 2, borderWidth: K.fieldBorder, borderColor: tokens.accent, backgroundColor: tokens.surface }}
           accessibilityLabel={copy(COMPOSER_COPY.fieldLabel)}
@@ -125,7 +127,7 @@ export function Composer({ megaName, bigTalkButton = false, onSend, onOpenTalk, 
       <TextInput
         value={text}
         onChangeText={setText}
-        placeholder={copy(COMPOSER_COPY.adultPlaceholder)}
+        placeholder={placeholder ?? copy(COMPOSER_COPY.adultPlaceholder)}
         placeholderTextColor={tokens.muted}
         style={{ flex: 1, minWidth: 0, color: tokens.text, minHeight: tokens.touchTarget, paddingHorizontal: tokens.spacing.md, borderRadius: tokens.radii.pill, borderWidth: 1, borderColor: tokens.line }}
         accessibilityLabel={copy(COMPOSER_COPY.fieldLabel)}

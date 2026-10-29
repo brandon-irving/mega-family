@@ -8,9 +8,10 @@ import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import Animated, { FadeIn, FadeOut, LinearTransition, useAnimatedStyle, useReducedMotion, useSharedValue, withRepeat, withSequence, withTiming } from 'react-native-reanimated';
 import type { Id } from '@shared/domain/validators';
 import { ROLES_CONFIG } from '@shared/config/roles';
-import { CHAT_COPY, CHAT_STATUS_PLACEHOLDER, KIDS_COPY } from '@shared/config/copy';
+import { CHAT_COPY, CHAT_STATUS_PLACEHOLDER, G5_COPY, KIDS_COPY } from '@shared/config/copy';
 import { LINKS } from '@shared/domain/api';
 import { useViewer } from '@/data/useViewer';
+import { useOnboardingState } from '@/data/useOnboarding';
 import { useAnswerBlock, useChatThread, useReactToMessage, useSendMessage, useStartChat, useStreamBody } from '@/data/useChat';
 import { pendingMegaStreamId } from '@/features/chat/pendingStream';
 import { useToday, useAnswerNotification } from '@/data/useToday';
@@ -18,6 +19,7 @@ import { useNotificationsFor } from '@/data/useNotifications';
 import { useChangeMemoryScope, useForgetMemory } from '@/data/useMega';
 import { useMegaDirectory } from '@/data/useMegaDirectory';
 import { usePushNotifications } from '@/data/usePush';
+import { usePhoneAutoSync } from '@/features/accounts/usePhoneCalendarFlow';
 import { setChatFocused } from '@/services/chatFocus';
 import { errorCopyFor, streamStatusCopy } from '@/data/errorCopy';
 import { Screen } from '@/ui/Screen';
@@ -39,6 +41,7 @@ export default function ChatRoute() {
   const thread = useChatThread();
   const today = useToday();
   const megaById = useMegaDirectory();
+  const onboarding = useOnboardingState();
   const sendMessage = useSendMessage();
   const answerBlock = useAnswerBlock();
   const react = useReactToMessage();
@@ -59,6 +62,8 @@ export default function ChatRoute() {
   // lands in their own chat (never from welcome/invite/onboarding), plus the response listener/cold-start
   // deep-link handling (CONTRACT §5/§6). See src/data/usePush.ts.
   usePushNotifications();
+  // G5: this phone's calendar re-syncs on open when it's due (DEVICE_CALENDAR.syncEveryMinutes).
+  usePhoneAutoSync();
 
   // G3 scope: "a push arriving while that chat is open should not double-show" — chatFocus.ts's module
   // flag is what push.ts's foreground notification handler reads (it can't read React context).
@@ -172,6 +177,8 @@ export default function ChatRoute() {
           // GD (board KidsSnap): grown-ups can snap a worksheet for homework practice.
           onCamera={isAdultRole(viewer.member.role) ? () => router.push('/homework') : undefined}
           cameraLabel={KIDS_COPY.cameraButton}
+          // G5 onboarding (board OnboardChat): the name goes in the composer; the server reads it as the name.
+          placeholder={onboarding?.step === 'name' ? G5_COPY.namePlaceholder : undefined}
         />
       </Screen>
     </KeyboardAvoidingView>

@@ -4,7 +4,8 @@
 // shareSuggestion, proposal, gifts) carry only an id, so each renders its own connected card from
 // src/features/{kids,calendar}, which loads the item through the query that re-checks who's asking. G4b
 // (CONTRACT v0.16): `products` (refs only, details read live), `priceDrop` and `holiday` do the same from
-// src/features/{shopping,holidays}. A kind
+// src/features/{shopping,holidays}. G5 (CONTRACT v0.17): the owner's `connect`, `mailFound` and `reconnect`
+// cards read live from src/features/accounts. A kind
 // this build doesn't know yet renders nothing rather than crashing the thread.
 import type { Card as CardKind } from '@shared/domain/messages';
 import { BUTTON_SETS } from '@shared/config/notifications';
@@ -28,6 +29,9 @@ import { SearchResultCard, TravelResultCard, WeatherResultCard } from '@/feature
 import { ProductsCard } from '@/features/shopping/ProductsCard';
 import { PriceDropCard } from '@/features/shopping/PriceDropCard';
 import { HolidayCard } from '@/features/holidays/HolidayCard';
+import { ConnectCard } from '@/features/accounts/ConnectCard';
+import { MailFoundCard } from '@/features/accounts/MailFoundCard';
+import { ReconnectCard } from '@/features/accounts/ReconnectCard';
 
 export type CardProps = {
   card: CardKind;
@@ -118,6 +122,12 @@ export function ResultCard({ card, onRespondRequest, onAnswerNotification, notif
       return <PriceDropCard watchId={card.watchId} megaName={megaName ?? GD_FALLBACK_FROM} />;
     case 'holiday':
       return <HolidayCard skipId={card.skipId} megaName={megaName ?? GD_FALLBACK_FROM} />;
+    case 'connect':
+      return <ConnectCard offer={card.offer} megaName={megaName ?? GD_FALLBACK_FROM} />;
+    case 'mailFound':
+      return <MailFoundCard itemIds={card.itemIds} megaName={megaName ?? GD_FALLBACK_FROM} />;
+    case 'reconnect':
+      return <ReconnectCard integrationId={card.integrationId} megaName={megaName ?? GD_FALLBACK_FROM} />;
     default:
       return null;
   }
