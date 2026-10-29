@@ -20,6 +20,9 @@ export type WidgetCopy = {
   inMinutes: string;
   /** `in {n}h` */
   inHours: string;
+  /** The small widget's tag: `{n} min` / `{n}h` (no "in "). */
+  tagMinutes: string;
+  tagHours: string;
   private: string;
   empty: string;
   stale: string;
@@ -46,6 +49,10 @@ export type MegaNextProps = {
   soon: WidgetSoonRow[];
   statement: string;
   statementShort: string;
+  /** Mark the statement `privacySensitive` (WIDGET_TIMELINE.redactStatements). */
+  redactStatement: boolean;
+  /** The small widget's title size in points (WIDGET_TIMELINE.smallTitlePt, kid or adult). */
+  smallTitlePt: number;
   link: string;
   colors: WidgetColors;
   copy: WidgetCopy;

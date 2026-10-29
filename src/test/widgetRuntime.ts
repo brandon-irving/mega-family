@@ -65,10 +65,12 @@ export function modifiersOf(node: WidgetNode): ModifierCall[] {
   return ((node.props.modifiers as ModifierCall[] | undefined) ?? []).filter(Boolean);
 }
 
-/** The Text nodes marked `privacySensitive()` (redacted by iOS while the phone is locked). */
+/** The Text nodes iOS redacts while the phone is locked: `privacySensitive()` or `privacySensitive(true)`.
+ * `privacySensitive(false)` is NOT redaction (G8 security review: counting mere presence made the lock-screen
+ * privacy tests pass no matter what). */
 export function privacySensitiveTexts(root: unknown): string[] {
   return allNodes(root)
-    .filter((n) => n.type === 'Text' && modifiersOf(n).some((m) => m.modifier === 'privacySensitive'))
+    .filter((n) => n.type === 'Text' && modifiersOf(n).some((m) => m.modifier === 'privacySensitive' && m.args[0] !== false))
     .map(textOf);
 }
 

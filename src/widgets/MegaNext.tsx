@@ -15,6 +15,7 @@ import { Circle, HStack, Image, Rectangle, Spacer, Text, VStack } from '@expo/ui
 import { containerBackground, font, foregroundStyle, frame, lineLimit, opacity, padding, privacySensitive, widgetURL } from '@expo/ui/swift-ui/modifiers';
 import { createWidget, type WidgetEnvironment } from 'expo-widgets';
 import { WIDGETS } from '@shared/config/widgets';
+import { initialNextProps } from '@/services/widgetSync';
 import type { MegaNextProps, WidgetSoonRow } from './types';
 
 export const MegaNextLayout = (props: MegaNextProps, environment: WidgetEnvironment) => {
@@ -24,8 +25,6 @@ export const MegaNextLayout = (props: MegaNextProps, environment: WidgetEnvironm
   const family = environment.widgetFamily || 'systemSmall';
   const lock = family.indexOf('accessory') === 0 || environment.widgetRenderingMode === 'vibrant';
   const now = environment.date ? environment.date.getTime() : props.at;
-  const scale = props.kid ? 1.25 : 1;
-  const size = (n: number) => Math.round(n * scale);
   const fill = (template: string, n: number) => template.replace('{n}', String(n));
 
   const relative = (startsAt: number) => {
@@ -33,6 +32,13 @@ export const MegaNextLayout = (props: MegaNextProps, environment: WidgetEnvironm
     if (minutes <= 0) return copy.now;
     if (minutes < 60) return fill(copy.inMinutes, minutes);
     return fill(copy.inHours, Math.floor(minutes / 60));
+  };
+  // The small widget's tag has no "in " (board Widgets: "40 min", "1h").
+  const tag = (startsAt: number) => {
+    const minutes = Math.round((startsAt - now) / 60000);
+    if (minutes <= 0) return copy.now;
+    if (minutes < 60) return fill(copy.tagMinutes, minutes);
+    return fill(copy.tagHours, Math.floor(minutes / 60));
   };
   const kicker = (row: WidgetSoonRow) => row.timeLabel + ' · ' + relative(row.startsAt);
   const titleOf = (row: WidgetSoonRow) => (lock && row.private ? copy.private : row.title);
@@ -42,7 +48,7 @@ export const MegaNextLayout = (props: MegaNextProps, environment: WidgetEnvironm
   };
 
   const label = (text: string, pt: number, color: string, weight: 'regular' | 'semibold' | 'bold', lines: number, sensitive: boolean) => (
-    <Text modifiers={[font({ size: size(pt), weight }), foregroundStyle(color), lineLimit(lines), privacySensitive(sensitive)]}>{text}</Text>
+    <Text modifiers={[font({ size: pt, weight }), foregroundStyle(color), lineLimit(lines), privacySensitive(sensitive)]}>{text}</Text>
   );
   const head = (px: number) => (
     <VStack spacing={0}>
@@ -56,7 +62,7 @@ export const MegaNextLayout = (props: MegaNextProps, environment: WidgetEnvironm
     </VStack>
   );
   const shell = (content: React.JSX.Element) => (
-    <VStack alignment="leading" spacing={size(4)} modifiers={[padding({ all: lock ? 0 : 2 }), containerBackground(c.bg, 'widget'), widgetURL(props.link)]}>
+    <VStack alignment="leading" spacing={4} modifiers={[padding({ all: lock ? 0 : 2 }), containerBackground(c.bg, 'widget'), widgetURL(props.link)]}>
       {content}
     </VStack>
   );
@@ -76,7 +82,7 @@ export const MegaNextLayout = (props: MegaNextProps, environment: WidgetEnvironm
       return shell(
         <VStack alignment="leading" spacing={1}>
           {label(copy.says, 12, c.muted, 'semibold', 1, false)}
-          {label(props.statementShort, 15, c.text, 'bold', 2, false)}
+          {label(props.statementShort, 15, c.text, 'bold', 2, props.redactStatement)}
         </VStack>,
       );
     }
@@ -87,7 +93,7 @@ export const MegaNextLayout = (props: MegaNextProps, environment: WidgetEnvironm
   // Home screen, signed out: a sleeping grey MEGA and the sign-in line (board WidgetsSignedOut).
   if (props.state === 'signedOut') {
     return shell(
-      <VStack alignment="leading" spacing={size(6)}>
+      <VStack alignment="leading" spacing={6}>
         {head(2)}
         {label(copy.signedOut, 15, c.text, 'bold', 2, false)}
         {family === 'systemMedium' ? label(copy.signedOutFoot, 12, c.muted, 'regular', 2, false) : null}
@@ -98,10 +104,10 @@ export const MegaNextLayout = (props: MegaNextProps, environment: WidgetEnvironm
   // Home screen, nothing soon / gone stale: a calm line, never blank, no Tip tag (WidgetsEmpty / WidgetsStale).
   if (props.state === 'empty' || props.state === 'stale') {
     return shell(
-      <VStack alignment="leading" spacing={size(6)}>
+      <VStack alignment="leading" spacing={6}>
         <HStack spacing={6}>
           {head(2)}
-          {family === 'systemMedium' ? label(props.state === 'empty' ? copy.soonTitle : props.megaName, 13, c.muted, 'semibold', 1, false) : null}
+          {family === 'systemMedium' ? label(props.megaName, 13, c.muted, 'semibold', 1, false) : null}
         </HStack>
         <Spacer />
         {label(props.state === 'empty' ? copy.empty : copy.stale, 15, c.text, 'bold', 3, false)}
@@ -114,22 +120,22 @@ export const MegaNextLayout = (props: MegaNextProps, environment: WidgetEnvironm
   if (props.state === 'statement') {
     if (family === 'systemMedium') {
       return shell(
-        <VStack alignment="leading" spacing={size(6)}>
+        <VStack alignment="leading" spacing={6}>
           <HStack spacing={6}>
             {head(2)}
             {label(copy.says, 13, c.muted, 'semibold', 1, false)}
           </HStack>
-          {label(props.statement, 15, c.text, 'bold', 3, false)}
+          {label(props.statement, 15, c.text, 'bold', 3, props.redactStatement)}
           <Spacer />
           {label(copy.tapToReply, 12, c.accent, 'semibold', 1, false)}
         </VStack>,
       );
     }
     return shell(
-      <VStack alignment="leading" spacing={size(6)}>
+      <VStack alignment="leading" spacing={6}>
         {head(2)}
         {label(copy.tip, 12, c.accent, 'bold', 1, false)}
-        {label(props.statementShort, 15, c.text, 'bold', 3, false)}
+        {label(props.statementShort, 15, c.text, 'bold', 3, props.redactStatement)}
       </VStack>,
     );
   }
@@ -137,7 +143,7 @@ export const MegaNextLayout = (props: MegaNextProps, environment: WidgetEnvironm
   // Coming up. Small: the first event's time tag and title. Medium: up to three rows (WidgetsThree).
   if (family === 'systemMedium') {
     return shell(
-      <VStack alignment="leading" spacing={size(6)}>
+      <VStack alignment="leading" spacing={6}>
         <HStack spacing={6}>
           {head(2)}
           {label(copy.soonTitle, 13, c.muted, 'semibold', 1, false)}
@@ -158,13 +164,13 @@ export const MegaNextLayout = (props: MegaNextProps, environment: WidgetEnvironm
   }
   const first = props.soon[0];
   return shell(
-    <VStack alignment="leading" spacing={size(6)}>
+    <VStack alignment="leading" spacing={6}>
       {head(2)}
-      {first ? label(relative(first.startsAt), 12, c.accent, 'bold', 1, false) : null}
-      {first ? label(titleOf(first), 16, c.text, 'bold', 3, first.private) : label(copy.empty, 15, c.text, 'bold', 3, false)}
+      {first ? label(tag(first.startsAt), 12, c.accent, 'bold', 1, false) : null}
+      {first ? label(titleOf(first), props.smallTitlePt, c.text, 'bold', 3, first.private) : label(copy.empty, 15, c.text, 'bold', 3, false)}
       {first ? label(first.timeLabel, 12, c.muted, 'regular', 1, false) : null}
     </VStack>,
   );
 };
 
-export const MegaNext = createWidget<MegaNextProps>(WIDGETS.next.name, MegaNextLayout);
+export const MegaNext = createWidget<MegaNextProps>(WIDGETS.next.name, MegaNextLayout, initialNextProps());

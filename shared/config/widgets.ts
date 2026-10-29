@@ -53,6 +53,11 @@ export const WIDGET_TIMELINE = {
   /** Lock screen: a private event's title is replaced with `G8_COPY.widgetPrivate` and marked
    * `privacySensitive` (iOS redacts it while the phone is locked). Rules only tighten: never turn this off for kids. */
   lockRedactPrivate: true,
+  /** A MEGA statement is marked `privacySensitive` on every family, so iOS hides it while the phone is locked
+   * (G8 security review: a statement can carry something meant for this member only). Rules only tighten. */
+  redactStatements: true,
+  /** Kid widgets: only the small widget's title is bigger (board WidgetsKidSafe: 19pt vs 17pt). */
+  smallTitlePt: { adult: 17, kid: 19 },
   /** The app refreshes the widget at most this often from a changing subscription (and always on foreground). */
   minRefreshSeconds: 60,
 } as const;
