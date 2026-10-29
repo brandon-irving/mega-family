@@ -196,6 +196,9 @@ export const messages = {
   chips: v.array(saveChip),
   reaction: v.optional(reaction),
   fromNotificationId: v.optional(v.id('notifications')),
+  /** v0.17b (G5 review C3): a block answered by rule, never by an agent turn (the onboarding family step, a
+   * profiler check question). A repeat or stale answer to one is a no-op. */
+  ruleBlock: v.optional(v.union(v.literal('onboarding'), v.literal('profiler'))),
 };
 
 // ---------- memory and learning ----------
@@ -707,6 +710,9 @@ export const integrations = {
   lastFailureAt: v.optional(v.number()),
   connectedAt: v.optional(v.number()),
   disconnectedAt: v.optional(v.number()),
+  /** v0.17b (G5 review C4): a sync in progress holds this lease (real time, INTEGRATION_SYNC.leaseSeconds) so a
+   * "Sync now" and a cron poll never run the same integration at once. Server-only bookkeeping. */
+  syncingUntil: v.optional(v.number()),
 };
 
 // ---------- G5 (CONTRACT v0.17): onboarding chat, Google, schedule links, profiler ----------
@@ -819,6 +825,8 @@ export const profilerRuns = {
   decidedBy,
   ranAt: v.number(),
   failure: v.optional(literals(INTEGRATION_FAILURES)),
+  /** v0.17b (G5 review C13): the sweep's claim before the run is scheduled; absent once the run has recorded. */
+  status: v.optional(v.literal('running')),
 };
 
 export const usage = {

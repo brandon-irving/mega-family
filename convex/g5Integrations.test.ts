@@ -256,9 +256,10 @@ describe('lapse → reconnect, disconnect', () => {
     expect((await s.integ('partner', 'gmail'))!.status).toBe('needs_reconnect');
     expect((await s.integ('partner', 'googleCalendar'))!.status).toBe('needs_reconnect');
     const reconnects = (await s.thread('partner')).filter((x) => x.body.type === 'card' && x.body.card.kind === 'reconnect');
-    expect(reconnects).toHaveLength(2); // one per integration, never repeated
+    // v0.17b (C10): one lapse (one Google grant) → ONE card naming both products, never repeated.
+    expect(reconnects).toHaveLength(1);
     await s.t.action(internal.integrations.syncGmail, { integrationId: gmail._id });
-    expect((await s.thread('partner')).filter((x) => x.body.type === 'card' && x.body.card.kind === 'reconnect')).toHaveLength(2);
+    expect((await s.thread('partner')).filter((x) => x.body.type === 'card' && x.body.card.kind === 'reconnect')).toHaveLength(1);
     // The poll skips it.
     await s.t.mutation(internal.integrations.pollKind, { kind: 'gmail' });
     const scheduled = await s.t.run((ctx) => ctx.db.system.query('_scheduled_functions').collect());
@@ -322,7 +323,7 @@ describe('Google Calendar, schedule links, this phone', () => {
   test('schedule links: http refused; a broken link saves nothing; a good one lands private, and its URL is never returned', async () => {
     const s = await seeded();
     expect(codeOf(await s.as('partner').action(api.integrations.addIcs, { url: 'http://cal.example.org/a.ics' }).catch((e) => e))).toBe('VALIDATION');
-    expect(await s.as('partner').action(api.integrations.addIcs, { url: 'https://broken.example.org/a.ics' })).toEqual({ events: 0, failure: 'error' });
+    expect(await s.as('partner').action(api.integrations.addIcs, { url: 'https://broken.example.org/a.ics' })).toEqual({ events: 0, failure: 'error', reason: 'unreachable' });
     expect(await s.integ('partner', 'ics')).toBeNull();
     const r = await s.as('partner').action(api.integrations.addIcs, { url: 'webcal://cal.example-league.test/fall.ics?token=SECRET123' });
     expect(r).toMatchObject({ label: 'Soccer · Fall season' });

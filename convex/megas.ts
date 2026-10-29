@@ -1,5 +1,6 @@
 // CONTRACT §4 "MEGA profile, memory and learnings": `megas.status` / `.mine` / `.update` / `.activity`.
 import { v } from 'convex/values';
+import { ACTIVITY } from '../shared/config/activity';
 import { API } from '../shared/domain/api';
 import { internalQuery, mutation, query } from './_generated/server';
 import { pick } from './model/define';
@@ -105,6 +106,13 @@ function summarize(event: { type: string; payload: unknown }): string {
   }
 }
 
+/** v0.17b: who decided — the event's own `payload.decidedBy` (a string), else ACTIVITY.decidedByDefault[type]. */
+function decidedByOf(event: { type: string; payload: unknown }): { decidedBy?: string } {
+  const own = (event.payload as { decidedBy?: unknown } | null)?.decidedBy;
+  const decidedBy = typeof own === 'string' ? own.slice(0, 80) : ACTIVITY.decidedByDefault[event.type];
+  return decidedBy ? { decidedBy } : {};
+}
+
 export const activity = query({
   ...pick(API.megas.activity),
   handler: async (ctx, args) => {
@@ -115,6 +123,6 @@ export const activity = query({
       .withIndex('by_family_at', (q) => q.eq('familyId', viewer.member.familyId))
       .order('desc')
       .paginate(args.paginationOpts);
-    return { ...page, page: page.page.map((e) => ({ at: e.at, type: e.type, summary: summarize(e) })) };
+    return { ...page, page: page.page.map((e) => ({ at: e.at, type: e.type, summary: summarize(e), ...decidedByOf(e) })) };
   },
 });

@@ -54,7 +54,11 @@ export const GMAIL = {
   firstSyncDays: 30,
   /** Only the inbox; history.list `labelId` + `historyTypes: messageAdded`. */
   labelId: 'INBOX',
+  /** history.list page size (`maxResults`). */
   historyMaxResults: 100,
+  /** v0.17b (C1): a history pass reads at most this many pages; past that (or past the queue's room) it is a full
+   * resync instead of a half-read cursor. */
+  historyMaxPages: 10,
   /** Cap per poll so one busy inbox can't run up model spend; the rest waits for the next poll. */
   maxMessagesPerPoll: 20,
   /** messages.get `format: full`; we keep only From (display name), Subject, Date and the plain-text body, cut
@@ -81,6 +85,8 @@ export const INTEGRATION_SYNC = {
   syncNowMinSeconds: 60,
   /** Expired/used OAuth `state` rows are deleted by a cron this often. */
   stateCleanupMinutes: 60,
+  /** v0.17b (C4): one sync per integration at a time; a sync that dies without releasing frees it after this. */
+  leaseSeconds: 180,
 } as const;
 
 export const GOOGLE_CALENDAR = {
@@ -93,5 +99,8 @@ export const GOOGLE_CALENDAR = {
    * token and full-sync again. */
   pastDays: 7,
   futureDays: 60,
+  /** At most this many events are applied per sync; v0.17b (C5): paging still runs to the page that carries
+   * `nextSyncToken` (the extra events are dropped), at most `maxPages` pages. */
   maxEvents: 500,
+  maxPages: 20,
 } as const;

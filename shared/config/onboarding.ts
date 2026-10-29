@@ -31,10 +31,25 @@ export const ICS = {
   pastDays: 7,
   futureDays: 120,
   maxOccurrencesPerRule: 200,
+  /** v0.17b: the whole fetch (every redirect hop and the body) must finish inside this. */
   timeoutMs: 10_000,
   /** `webcal://` is rewritten to `https://`; plain http is refused. */
   allowedSchemes: ['https:', 'webcal:'],
+  /** v0.17b (G5 review S1): redirects are followed by hand, every hop re-checked, at most this many. */
+  maxRedirects: 3,
+  /** v0.17b (S1): a schedule link (or any hop) may not name these hosts or IP ranges (the server fetches it). Host
+   * names can't be resolved to IPs from a Convex action, so names that point inside a network are matched here
+   * and IP literals by range (the URL parser normalizes decimal/hex/octal IPv4 forms first). */
+  blockedHostnames: ['localhost'],
+  blockedHostSuffixes: ['.localhost', '.local', '.internal', '.home.arpa', '.lan', '.intranet', '.corp'],
+  blockedIpv4: ['0.0.0.0/8', '10.0.0.0/8', '100.64.0.0/10', '127.0.0.0/8', '169.254.0.0/16', '172.16.0.0/12', '192.0.0.0/24', '192.168.0.0/16', '198.18.0.0/15', '224.0.0.0/4', '240.0.0.0/4'],
+  /** IPv6 prefixes (hex groups); IPv4-mapped/-compatible addresses are checked against `blockedIpv4`. */
+  blockedIpv6: ['::/128', '::1/128', 'fc00::/7', 'fe80::/10', 'ff00::/8', '64:ff9b::/96'],
 } as const;
+
+/** v0.17b (G5 review U1): why a schedule link couldn't be added, so the app can say which (`integrations.addIcs`
+ * `reason`). `invalid` never reaches here (a bad link is a VALIDATION error with G5_COPY.icsBad). */
+export const ICS_FAILURE_REASONS = ['unreachable', 'not_a_calendar', 'too_large', 'refused'] as const;
 
 /** This phone's calendar (expo-calendar, installed; native packages are frozen). The app reads events and syncs
  * them up; the server never sees the phone's calendar otherwise. */

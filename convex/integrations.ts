@@ -5,7 +5,7 @@
 // the owner's private layer (invariant 3). The OAuth callback is an HTTP route (convex/http.ts).
 import { v } from 'convex/values';
 import { G5_COPY, fillCopy } from '../shared/config/copy';
-import { DEVICE_CALENDAR, ICS, ONBOARDING } from '../shared/config/onboarding';
+import { DEVICE_CALENDAR, ICS, ICS_FAILURE_REASONS, ONBOARDING } from '../shared/config/onboarding';
 import { GMAIL, GOOGLE, INTEGRATION_SYNC } from '../shared/config/google';
 import { API } from '../shared/domain/api';
 import { externalEvent } from '../shared/domain/integrationShapes';
@@ -37,6 +37,8 @@ import {
 } from './model/integrations';
 import { readIcs, syncGmail as syncGmailCore, syncGoogleCalendar as syncGoogleCalendarCore, syncIcs as syncIcsCore, type SyncOutcome } from './model/integrationSync';
 import { eventPreview, suggestShare } from './model/layers';
+
+type IcsFailureReason = (typeof ICS_FAILURE_REASONS)[number];
 import { completeOffer, gmailFirstLookDone } from './model/onboarding';
 import { postCard } from './model/proactive';
 import { randomToken } from './model/random';
@@ -55,8 +57,9 @@ export function googleRedirectUri(): string | null {
   return site ? `${site.replace(/\/$/, '')}${GOOGLE.callbackPath}` : null;
 }
 
-function offerForProducts(want: readonly string[]): 'gmail' | 'calendar' {
-  return want.includes('gmail') ? 'gmail' : 'calendar';
+/** v0.17b (C9): every offer a Google consent covered (Gmail and/or Calendar), so a failure lands on each. */
+function offersForProducts(want: readonly string[]): ('gmail' | 'calendar')[] {
+  return [...(want.includes('gmail') ? (['gmail'] as const) : []), ...(want.includes('googleCalendar') ? (['calendar'] as const) : [])];
 }
 
 async function sayAsOwnMega(ctx: MutationCtx, familyId: Id<'families'>, memberId: Id<'members'>, text: string, now: number): Promise<void> {
@@ -126,11 +129,10 @@ export async function exchangeAndStore(
   ctx: { runMutation: import('./_generated/server').ActionCtx['runMutation'] },
   p: { familyId: Id<'families'>; memberId: Id<'members'>; want: ('gmail' | 'googleCalendar')[]; code: string; redirectUri: string },
 ): Promise<SyncOutcome> {
-  const offer = offerForProducts(p.want);
   const r = await getGoogleOAuth().exchangeCode({ code: p.code, redirectUri: p.redirectUri });
   if (!r.ok || !r.tokens.refreshToken) {
     const failure = r.ok ? 'error' : r.failure;
-    await ctx.runMutation(internal.integrations.setFailure, { familyId: p.familyId, memberId: p.memberId, offer, failure });
+    await ctx.runMutation(internal.integrations.setFailures, { familyId: p.familyId, memberId: p.memberId, want: p.want, failure });
     return { status: 'error', failure };
   }
   const now = clock.realNow();
@@ -213,15 +215,17 @@ export const syncDevice = mutation({
 
 export const addIcs = action({
   ...pick(API.integrations.addIcs),
-  handler: async (ctx, { url }): Promise<{ integrationId?: Id<'integrations'>; label?: string; events: number; failure?: Doc<'integrations'>['lastFailure'] }> => {
+  handler: async (ctx, { url }): Promise<{ integrationId?: Id<'integrations'>; label?: string; events: number; failure?: Doc<'integrations'>['lastFailure']; reason?: IcsFailureReason }> => {
     const caller = await ctx.runQuery(internal.integrations.callerCheck, { connector: true });
     const fetchUrl = icsFetchUrl(url);
     if (!fetchUrl || url.length > 2000) fail('VALIDATION', G5_COPY.icsBad);
     const r = await readIcs(url.trim(), {}, caller.timezone, caller.now);
     if (!r.ok || r.notModified) {
       const failure = r.ok ? 'error' : r.failure;
+      // v0.17b (U1): say why, so "couldn't reach it" isn't shown as "that link didn't work".
+      const reason: IcsFailureReason = !r.ok && (ICS_FAILURE_REASONS as readonly string[]).includes(r.detail ?? '') ? (r.detail as IcsFailureReason) : 'unreachable';
       await ctx.runMutation(internal.integrations.setFailure, { familyId: caller.familyId, memberId: caller.memberId, offer: 'ics', failure });
-      return { events: 0, failure };
+      return { events: 0, failure, reason };
     }
     const host = new URL(fetchUrl).host;
     const label = (r.label ?? host).slice(0, 80);
@@ -351,6 +355,17 @@ export const setFailure = internalMutation({
   },
 });
 
+/** v0.17b (C9): a Google connect attempt failed — record it on every offer the consent covered. */
+export const setFailures = internalMutation({
+  args: { familyId: v.id('families'), memberId: v.id('members'), want: googleProducts, failure: T.integrationFailure },
+  returns: v.null(),
+  handler: async (ctx, p) => {
+    const now = await clock.now(ctx, p.familyId);
+    for (const offer of offersForProducts(p.want)) await setOfferFailure(ctx, p.familyId, p.memberId, offer, p.failure, now);
+    return null;
+  },
+});
+
 /** Stores (or replaces) a member's Google grant and connects what was granted; schedules the first syncs. */
 export const storeGrant = internalMutation({
   args: {
@@ -387,7 +402,7 @@ export const storeGrant = internalMutation({
 
     const connected = await connectGoogleProducts(ctx, { familyId: p.familyId, memberId: p.memberId, want: p.want, grantedScopes: p.scopes, email: p.email, now });
     if (!connected.length) {
-      await setOfferFailure(ctx, p.familyId, p.memberId, offerForProducts(p.want), 'unauthorized', now);
+      for (const offer of offersForProducts(p.want)) await setOfferFailure(ctx, p.familyId, p.memberId, offer, 'unauthorized', now);
       return { connected: [] };
     }
     // Also revive any of this member's Google integrations that were waiting for a reconnect.
@@ -459,6 +474,31 @@ export const loadForSync = internalQuery({
     const family = await ctx.db.get(row.familyId);
     if (!family) return null;
     return { integration: row, status: statusOf(row), timezone: family.timezone, now: await clock.now(ctx, row.familyId) };
+  },
+});
+
+/** v0.17b (C4): takes the integration's sync lease (real time: it guards a process, not a family moment). False
+ * while another sync holds it; the holder's result write (`recordSync`) or `releaseSync` frees it. */
+export const claimSync = internalMutation({
+  args: { integrationId: v.id('integrations') },
+  returns: v.boolean(),
+  handler: async (ctx, { integrationId }) => {
+    const row = await ctx.db.get(integrationId);
+    if (!row) return true; // the sync itself reports it gone
+    const now = clock.realNow();
+    if (row.syncingUntil !== undefined && row.syncingUntil > now) return false;
+    await ctx.db.patch(integrationId, { syncingUntil: now + INTEGRATION_SYNC.leaseSeconds * 1000 });
+    return true;
+  },
+});
+
+export const releaseSync = internalMutation({
+  args: { integrationId: v.id('integrations') },
+  returns: v.null(),
+  handler: async (ctx, { integrationId }) => {
+    const row = await ctx.db.get(integrationId);
+    if (row?.syncingUntil !== undefined) await ctx.db.patch(integrationId, { syncingUntil: undefined });
+    return null;
   },
 });
 

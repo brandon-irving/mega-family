@@ -262,18 +262,35 @@ export async function removeIntegrationData(ctx: MutationCtx, integration: Integ
 /** A Google grant lapsed (Testing mode: 7 days) or was revoked: every Google integration of the member flips
  * to `needs_reconnect` (polling stops) and one `reconnect` card goes to their thread per integration that was
  * connected until now (never a second card for the same lapse). */
+/** One Google grant lapsed: every Google integration on it needs a reconnect. v0.17b (C10): ONE card per lapse,
+ * listing them all (`integrationIds`; `integrationId` is the first, for older apps). */
 export async function markNeedsReconnect(ctx: MutationCtx, familyId: Id<'families'>, memberId: Id<'members'>, now: number): Promise<void> {
+  const lapsed: Id<'integrations'>[] = [];
   for (const row of await memberIntegrations(ctx, familyId, memberId)) {
     if (!isGoogleKind(row.kind) || statusOf(row) !== 'connected') continue;
     await ctx.db.patch(row._id, { status: 'needs_reconnect', lastFailure: 'unauthorized', lastFailureAt: now });
-    await postCard(ctx, { familyId, recipientId: memberId, card: { kind: 'reconnect', integrationId: row._id }, now });
+    lapsed.push(row._id);
   }
+  if (lapsed.length) await postCard(ctx, { familyId, recipientId: memberId, card: { kind: 'reconnect', integrationId: lapsed[0], integrationIds: lapsed }, now });
 }
 
-/** A sync attempt's outcome on the row: last sync time, or the failure (kept `connected` for transient errors). */
+/** v0.17b (C4): a sync's config write MERGES into what's stored (a concurrent writer's keys survive); a key set to
+ * `null` is removed (e.g. an expired Calendar sync token). */
+export function mergeConfig(stored: unknown, update: Record<string, unknown>): Record<string, unknown> {
+  const out: Record<string, unknown> = { ...((stored ?? {}) as Record<string, unknown>) };
+  for (const [k, val] of Object.entries(update)) {
+    if (val === null || val === undefined) delete out[k];
+    else out[k] = val;
+  }
+  return out;
+}
+
+/** A sync attempt's outcome on the row: last sync time, or the failure (kept `connected` for transient errors).
+ * Releases the sync lease (C4). */
 export async function recordSync(ctx: MutationCtx, integrationId: Id<'integrations'>, p: { now: number; failure?: IntegrationFailure; config?: Record<string, unknown> }): Promise<void> {
   const row = await ctx.db.get(integrationId);
   if (!row) return;
-  if (p.failure) await ctx.db.patch(row._id, { lastFailure: p.failure, lastFailureAt: p.now, ...(p.config ? { config: p.config } : {}) });
-  else await ctx.db.patch(row._id, { lastSyncAt: p.now, lastFailure: undefined, lastFailureAt: undefined, ...(p.config ? { config: p.config } : {}) });
+  const config = p.config ? { config: mergeConfig(row.config, p.config) } : {};
+  if (p.failure) await ctx.db.patch(row._id, { lastFailure: p.failure, lastFailureAt: p.now, syncingUntil: undefined, ...config });
+  else await ctx.db.patch(row._id, { lastSyncAt: p.now, lastFailure: undefined, lastFailureAt: undefined, syncingUntil: undefined, ...config });
 }

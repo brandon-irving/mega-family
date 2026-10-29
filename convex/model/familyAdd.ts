@@ -64,6 +64,15 @@ export async function giveMega(ctx: MutationCtx, member: Doc<'members'>, mega: N
   return ctx.db.insert('megas', { familyId: member.familyId, kind: 'member', ownerId: member._id, ...checked, job: { station: 'charger', label: 'Resting', busy: false, since: now } });
 }
 
+/** True at ONBOARDING.maxFamilyMembers (a sanity cap; the onboarding family step offers "Done for now", C12). */
+export async function familyIsFull(ctx: QueryCtx | MutationCtx, familyId: Id<'families'>): Promise<boolean> {
+  const members = await ctx.db
+    .query('members')
+    .withIndex('by_family', (q) => q.eq('familyId', familyId))
+    .take(ONBOARDING.maxFamilyMembers);
+  return members.length >= ONBOARDING.maxFamilyMembers;
+}
+
 export async function addFamilyMember(
   ctx: MutationCtx,
   admin: Doc<'members'>,
@@ -75,11 +84,7 @@ export async function addFamilyMember(
   if (!name || name.length > ONBOARDING.nameMaxLength) fail('VALIDATION', 'name');
   if (args.birthday !== undefined && !/^\d{4}-\d{2}-\d{2}$/.test(args.birthday)) fail('VALIDATION', 'birthday');
   const familyId = admin.familyId;
-  const members = await ctx.db
-    .query('members')
-    .withIndex('by_family', (q) => q.eq('familyId', familyId))
-    .collect();
-  if (members.length >= ONBOARDING.maxFamilyMembers) fail('VALIDATION', 'family is full');
+  if (await familyIsFull(ctx, familyId)) fail('VALIDATION', 'family is full');
 
   const memberId = await ctx.db.insert('members', { familyId, name, role: args.role, birthday: args.birthday, activities: [], hasMega: false });
   await ctx.db.insert('relationships', { familyId, from: memberId, to: admin._id, kind: args.relationship });

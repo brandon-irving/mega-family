@@ -9,6 +9,8 @@ export const LIMITS = {
   push: {
     dailyCapAdult: 8,
     dailyCapKid: 4,
+    /** v0.17b: what a parent may set a kid's buzzes-a-day to (`kidControls.setDailyCap`). */
+    kidDailyCapRange: { min: 1, max: 8 },
     /** How long a push payload's `answerToken` (CONTRACT §5 v0.11) stays valid — the HMAC-signed,
      * notification-scoped token that lets the background notification-response task (no signed-in
      * session) call `POST /push/answer` after the app has been killed. Matches the notification's own
