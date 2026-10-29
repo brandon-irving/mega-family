@@ -3,7 +3,7 @@
 // A member's own room (`/hq/[memberId]`) still lists its MEGAs (HqRoomList) until the Room board's tile render.
 // GD (Screen 11, boards StoreRoom / StoreTray): a kid's own room also shows the Store button with their
 // balance, Decorate and Open the Store, and the Decorate tray (src/features/store/KidRoomPanel.tsx).
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Pressable, View, useWindowDimensions } from 'react-native';
 import { fillCopy, G5_UI_COPY, STORE_COPY } from '@shared/config/copy';
@@ -118,13 +118,19 @@ function SharedHq({ room }: { room: HqRoomData }) {
   const width = Math.min(ROOM_MAX, screen - tokens.spacing.lg * 2);
   const owners = new Map((members ?? []).filter((m) => m.mega).map((m) => [m.mega!._id as string, m]));
 
-  const megas: RoomMega[] = room.megas.flatMap((m) => {
+  const built: RoomMega[] = room.megas.flatMap((m) => {
     const owner = owners.get(m.megaId);
     const look = owner?.mega ? { name: owner.mega.name, hex: owner.mega.look.hex, sticker: owner.mega.look.sticker as StickerId } : hub && hub.megaId === m.megaId ? { name: hub.name, hex: hub.hex, sticker: hub.sticker as StickerId } : null;
     if (!look) return [];
     return [{ megaId: m.megaId, ...look, station: m.station as Station, label: m.label, busy: m.busy, mine: m.megaId === viewer?.mega?._id, ownerId: owner?.member._id }];
   });
-  const doors = (members ?? []).slice(0, 3).map((m) => ({ memberId: m.member._id as string, name: m.member.name, mine: m.member._id === viewer?.member._id }));
+  // Same content → same array (G5 review): this screen re-renders on every clock tick, and HqRoom's walkers
+  // shouldn't see a "new" family each time.
+  const megasKey = JSON.stringify(built);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- keyed on content, not identity
+  const megas = useMemo(() => built, [megasKey]);
+  // Every member gets a room: the first ones on the art's doors, all of them in HqRoom's Rooms row.
+  const doors = (members ?? []).map((m) => ({ memberId: m.member._id as string, name: m.member.name, mine: m.member._id === viewer?.member._id }));
   const busy = room.megas.filter((m) => m.busy).length;
   const time = now !== undefined && viewer ? new Date(now).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: viewer.family.timezone }) : '';
   const sub = busy === 0 ? fillCopy(G5_UI_COPY.hqSubIdle, { time }) : busy === 1 ? fillCopy(G5_UI_COPY.hqSubOne, { time }) : fillCopy(G5_UI_COPY.hqSub, { n: busy, time });

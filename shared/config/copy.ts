@@ -935,4 +935,8 @@ export const G5_FIX_COPY = {
   kidReadChats: 'Your parents can read your chats',
   kidRulesHint: 'What your parents set',
   kidRulesIntro: '{parents} set these. Ask them if something should change.',
+  // HQ (UX review findings 6–7; board HQ)
+  hubTalk: 'Talk to {name}',
+  hubAbout: '{name} is your family’s MEGA. It keeps the shared calendar and lists, and passes messages between everyone’s MEGAs.',
+  rooms: 'Rooms',
 } as const;

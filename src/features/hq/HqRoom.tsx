@@ -7,10 +7,10 @@
 // walk frames as the sign-in walkers (`MegaSprite` stand / stepL / stepR), and stand still at their stations
 // under reduced motion. Presentational: the route passes the room, the MEGAs' looks and the door owners.
 import { useEffect, useMemo, useState } from 'react';
-import { Image, Pressable, View, type ImageStyle } from 'react-native';
+import { Image, Pressable, ScrollView, View, type ImageStyle } from 'react-native';
 import { useReducedMotion } from 'react-native-reanimated';
 import type { Station } from '@shared/domain/enums';
-import { G5_UI_COPY as U, fillCopy } from '@shared/config/copy';
+import { G5_FIX_COPY, G5_UI_COPY as U, fillCopy } from '@shared/config/copy';
 import type { StickerId } from '@shared/config/looks';
 import type { FrameName } from '@shared/sprite';
 import { Button } from '@/ui/Button';
@@ -28,15 +28,20 @@ export type RoomMega = { megaId: string; name: string; hex: string; sticker: Sti
 export type RoomDoor = { memberId: string; name: string; mine: boolean };
 type Box = { kind: 'narrate' } | { kind: 'mega'; id: string } | { kind: 'place'; id: Station };
 
-/** Each MEGA's target tile: its station, or the nearest free walkable tile beside it when another MEGA is there. */
+/** Each MEGA's target tile: its station, or the nearest free walkable tile around it when another MEGA is there
+ * (G5 review: a family resting at the charger used to stack on the same few tiles). Nearest first, and along the
+ * station's own row before the rows above and below, so sprites taller than a tile don't stand on each other. */
 export function targetTiles(megas: Pick<RoomMega, 'megaId' | 'station'>[]): Record<string, Tile> {
   const taken = new Set<string>();
   const out: Record<string, Tile> = {};
+  const id = (t: Tile) => `${t[0]},${t[1]}`;
   for (const m of megas) {
     const base = HQ_LAYOUT.stations[m.station].tile;
-    const options: Tile[] = [base, [base[0] + 1, base[1]], [base[0] - 1, base[1]], [base[0], base[1] + 1], [base[0] + 1, base[1] + 1], [base[0] - 1, base[1] + 1]];
-    const pick = options.find((t) => isWalkable(t) && !taken.has(`${t[0]},${t[1]}`)) ?? base;
-    taken.add(`${pick[0]},${pick[1]}`);
+    const options: Tile[] = [];
+    for (let dy = -HQ_LAYOUT.rows; dy <= HQ_LAYOUT.rows; dy++) for (let dx = -HQ_LAYOUT.cols; dx <= HQ_LAYOUT.cols; dx++) options.push([base[0] + dx, base[1] + dy]);
+    options.sort((a, b) => Math.abs(a[1] - base[1]) - Math.abs(b[1] - base[1]) || Math.abs(a[0] - base[0]) - Math.abs(b[0] - base[0]));
+    const pick = options.find((t) => isWalkable(t) && !taken.has(id(t))) ?? base;
+    taken.add(id(pick));
     out[m.megaId] = pick;
   }
   return out;
@@ -46,10 +51,11 @@ type Walker = { path: Tile[]; at: number; face: Face; frame: FrameName };
 
 /** Walks every MEGA along its route, one tile per STEP_MS; `still` puts them straight at their targets. */
 function useWalkers(megas: RoomMega[], still: boolean): Record<string, { tile: Tile; face: Face; frame: FrameName; walking: boolean }> {
-  const targets = useMemo(() => targetTiles(megas), [megas]);
+  const key = `${megas.map((m) => `${m.megaId}:${m.station}`).join('|')}#${still}`;
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- keyed on who stands where, not the array's identity
+  const targets = useMemo(() => targetTiles(megas), [key]);
   // Re-plan only when who stands where changes (React's "adjust state when a prop changes" pattern: a guarded
   // setState during render, no effect round trip). Each MEGA sets off from where it stands now.
-  const key = `${megas.map((m) => `${m.megaId}:${m.station}`).join('|')}#${still}`;
   const [plan, setPlan] = useState<{ key: string; walkers: Record<string, Walker> }>({ key: '', walkers: {} });
   if (plan.key !== key) {
     const next: Record<string, Walker> = {};
@@ -63,6 +69,10 @@ function useWalkers(megas: RoomMega[], still: boolean): Record<string, { tile: T
     setPlan({ key, walkers: next });
   }
   const walkers = plan.walkers;
+  // The step timer restarts only when who stands where changes (the key), not on every re-render that hands over
+  // an equal list (G5 review: the clock query ticking tore it down). Stations by MEGA, rebuilt with the key.
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- keyed on who stands where, not the array's identity
+  const stationOf = useMemo(() => new Map(megas.map((m) => [m.megaId, m.station])), [key]);
 
   useEffect(() => {
     if (still) return;
@@ -78,7 +88,7 @@ function useWalkers(megas: RoomMega[], still: boolean): Record<string, { tile: T
           moved = true;
           const at = w.at + 1;
           const done = at >= w.path.length - 1;
-          const station = megas.find((m) => m.megaId === id)?.station;
+          const station = stationOf.get(id);
           out[id] = {
             path: w.path,
             at,
@@ -90,7 +100,7 @@ function useWalkers(megas: RoomMega[], still: boolean): Record<string, { tile: T
       });
     }, STEP_MS);
     return () => clearInterval(timer);
-  }, [still, megas]);
+  }, [still, stationOf]);
 
   const out: Record<string, { tile: Tile; face: Face; frame: FrameName; walking: boolean }> = {};
   for (const m of megas) {
@@ -195,6 +205,7 @@ export function HqRoom({
               <View style={{ flex: 1 }}>
                 <Text variant="title">{selected.name}</Text>
                 <Text color="muted">{statusOf(selected)}</Text>
+                {!selected.mine && !selected.ownerId ? <Text color="muted">{fillCopy(G5_FIX_COPY.hubAbout, { name: selected.name })}</Text> : null}
               </View>
               <Button label={U.close} variant="ghost" onPress={() => setBox({ kind: 'narrate' })} />
             </View>
@@ -206,7 +217,9 @@ export function HqRoom({
                 </>
               ) : selected.ownerId ? (
                 <Button label={U.visitRoom} variant="secondary" onPress={() => onVisitRoom(selected.ownerId!)} style={{ flex: 1 }} />
-              ) : null}
+              ) : (
+                <Button label={fillCopy(G5_FIX_COPY.hubTalk, { name: selected.name })} onPress={onTalk} style={{ flex: 1 }} />
+              )}
             </View>
           </>
         ) : place ? (
@@ -224,6 +237,20 @@ export function HqRoom({
           <Text>{narration}</Text>
         )}
       </View>
+
+      {doors.length > 0 ? (
+        <View style={{ gap: tokens.spacing.sm }}>
+          <Text variant="label" color="muted">
+            {G5_FIX_COPY.rooms}
+          </Text>
+          {/* Every member's room, one tap away: the art has only HQ_LAYOUT.doors.length doors (one line, scrolls). */}
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: tokens.spacing.sm }}>
+            {doors.map((d) => (
+              <Button key={d.memberId} label={d.mine ? U.yourRoom : fillCopy(U.memberRoom, { name: d.name })} variant="secondary" pill onPress={() => onVisitRoom(d.memberId)} style={{ minHeight: 44 }} />
+            ))}
+          </ScrollView>
+        </View>
+      ) : null}
     </View>
   );
 }
