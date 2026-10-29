@@ -18,9 +18,12 @@ import { clock } from './ports/clock';
 import { requireViewer } from './model/viewer';
 import { summarizeAnswer } from '../shared/domain/answerLabel';
 import { LIMITS } from '../shared/config';
-import { AGENT_COPY, fillCopy } from '../shared/config/copy';
+import { AGENT_COPY, fillCopy, G5_COPY } from '../shared/config/copy';
 import { ADULT_STARTER, KID_INTRO } from '../shared/config/starters';
 import { getOrCreateOwnThread } from './model/threads';
+import { onboardingRow } from './model/integrations';
+import { afterName as afterOnboardingName, answerFamilyBlock, postStep as postOnboardingStep, setName as setOnboardingName, stepIsShowing as onboardingStepIsShowing } from './model/onboarding';
+import { answerCheckQuestion } from './model/profiler';
 
 const streaming = new PersistentTextStreaming(components.persistentTextStreaming);
 
@@ -77,6 +80,20 @@ export const send = mutation({
       body: { type: 'text', text: args.text, mentions: mentionIds.size ? [...mentionIds] : undefined },
       chips: [],
     });
+
+    // G5 (v0.17): while onboarding asks "What should I call you?", the text IS the name. No agent turn: MEGA's
+    // reply is the fixed "Nice to meet you" line, then the first connect card (convex/model/onboarding.ts).
+    const onboarding = await onboardingRow(ctx, familyId, viewer.member._id);
+    if (onboarding?.step === 'name' && viewer.mega) {
+      const name = await setOnboardingName(ctx, viewer.member, args.text, now);
+      const streamId = await streaming.createStream(ctx);
+      const text = fillCopy(G5_COPY.niceToMeet, { name });
+      const replyMessageId = await ctx.db.insert('messages', { familyId, threadId: thread._id, at: now + 1, author: { kind: 'mega', id: viewer.mega._id }, via: 'text', body: { type: 'text', text }, streamId, chips: [] });
+      await ctx.db.patch(thread._id, { lastAt: now + 1 });
+      await ctx.scheduler.runAfter(0, internal.chat.streamFixedText, { streamId, text });
+      await afterOnboardingName(ctx, viewer.member, now);
+      return { messageId, replyMessageId, streamId };
+    }
     for (const storageId of args.attachments ?? []) {
       await ctx.db.insert('messages', { familyId, threadId: thread._id, at: now, author: { kind: 'member', id: viewer.member._id }, via: args.via, body: { type: 'image', storageId }, chips: [] });
     }
@@ -146,6 +163,11 @@ export const answerBlock = mutation({
       chips: [],
     });
     await ctx.db.patch(message._id, { body: { ...message.body, answeredWith: args.answer } });
+
+    // G5 (v0.17): the onboarding family step's blocks and the profiler's check questions are answered by rule,
+    // not by an agent turn.
+    if (await answerFamilyBlock(ctx, viewer.member, message, args.answer, now)) return { answerMessageId };
+    if (await answerCheckQuestion(ctx, viewer.member, message, args.answer, now)) return { answerMessageId };
 
     // Feed the answer back into the agent loop (task brief: "chat.answerBlock should feed the answer back
     // into the loop"), as an ordinary turn from the same MEGA that asked — the member sees a real reply,
@@ -217,6 +239,15 @@ export const start = mutation({
     const familyId = viewer.member.familyId;
     const now = await clock.now(ctx, familyId);
     const thread = await getOrCreateOwnThread(ctx, familyId, viewer.member._id, mega._id, now);
+    // G5 (v0.17): mid-onboarding, re-show the current step (the name question, a connect card, the family ask)
+    // if it isn't in the thread, instead of the generic greeting; never twice.
+    const onboarding = await onboardingRow(ctx, familyId, viewer.member._id);
+    if (onboarding && onboarding.step !== 'done') {
+      if (await onboardingStepIsShowing(ctx, onboarding, thread._id)) return { started: false };
+      await postOnboardingStep(ctx, onboarding, now);
+      if (thread.startedAt === undefined) await ctx.db.patch(thread._id, { startedAt: now });
+      return { started: true };
+    }
     if (thread.startedAt !== undefined) return { started: false };
 
     const recent = await ctx.db
@@ -357,6 +388,17 @@ export const generateReply = internalAction({
       userText: args.userText,
       replyText: text,
     });
+    return null;
+  },
+});
+
+/** G5: streams a fixed line (no model) into an already-written reply message, so the app animates it like any
+ * reply (onboarding's "Nice to meet you"). The message already holds the final text. */
+export const streamFixedText = internalAction({
+  args: { streamId: v.string(), text: v.string() },
+  returns: v.null(),
+  handler: async (ctx, { streamId, text }) => {
+    await ctx.runMutation(components.persistentTextStreaming.lib.addChunk, { streamId: streamId as StreamId, text, final: true });
     return null;
   },
 });

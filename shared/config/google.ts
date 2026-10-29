@@ -64,6 +64,23 @@ export const GMAIL = {
   /** Senders whose mail is never read past the headers (security codes, banks' one-time passwords). Matched
    * case-insensitively against the From address. Config, so tuning it is an edit here. */
   skipSenderPatterns: ['no-reply@accounts.google.com', 'verify', 'security', 'otp'],
+  /** G5 backend: a found bill/delivery/reminder with a date but no time becomes a private reminder at this
+   * local time on that date. */
+  reminderAt: '09:00',
+  /** Found dates outside [today, today + maxAheadDays] are dropped (already past, or a misread year). */
+  maxAheadDays: 366,
+  /** How many processed message ids to remember (so a full resync after a stale history id doesn't re-read
+   * the same mail through the model). Ids past the per-poll cap wait in a queue for the next poll. */
+  seenMemory: 500,
+  pendingMax: 200,
+} as const;
+
+/** G5 backend: sync bookkeeping shared by every integration kind. */
+export const INTEGRATION_SYNC = {
+  /** `integrations.syncNow` at most this often per integration. */
+  syncNowMinSeconds: 60,
+  /** Expired/used OAuth `state` rows are deleted by a cron this often. */
+  stateCleanupMinutes: 60,
 } as const;
 
 export const GOOGLE_CALENDAR = {

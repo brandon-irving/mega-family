@@ -11,7 +11,10 @@
 // script ever reading or printing it:
 //   evals/kidSearch/cases.jsonl (G4) — kid search queries labeled "allowed" | "rephrase" | "blocked". Runs the
 //     kid filter's query step (keyword backstop + model check, convex/evals.ts kidQueryCase); no web search.
-//   node scripts/secrets.mjs run --only tool -- npx tsx evals/run.ts [privacyGate|pushJudge|kidSearch]
+//   evals/mailExtract/cases.jsonl (G5) — synthetic emails labeled by the first item worth keeping
+//     (event | reminder | bill | delivery | none | skip). Runs the sender skip + extraction call (convex/evals.ts
+//     mailExtractCase) at a fixed seed-week "now".
+//   node scripts/secrets.mjs run --only tool -- npx tsx evals/run.ts [privacyGate|pushJudge|kidSearch|mailExtract]
 // Writes evals/<name>/results-<model>.md.
 import fs from 'node:fs';
 import path from 'node:path';
@@ -112,6 +115,26 @@ async function kidSearch(t: TestConvex<typeof schema>, familyId: Id<'families'>)
   return cents;
 }
 
+async function mailExtract(t: TestConvex<typeof schema>, familyId: Id<'families'>): Promise<number> {
+  const cases = readCases<{ id: string; fromName: string; fromAddress: string; subject: string; text: string; label: string }>('mailExtract');
+  const before = await spentCents(t, familyId);
+  const rows: Row[] = [];
+  for (const c of cases) {
+    const r = await t.action(internal.evals.mailExtractCase, { familyId, fromName: c.fromName, fromAddress: c.fromAddress, subject: c.subject, text: c.text });
+    rows.push({ id: c.id, label: c.label, predicted: r.kinds[0] ?? 'none', detail: `${r.decidedBy}: ${r.titles.join('; ') || '(nothing)'} ← "${c.subject}"` });
+  }
+  const cents = (await spentCents(t, familyId)) - before;
+  writeResults(
+    'mailExtract',
+    'Gmail extraction (sender skip + one structured call per email)',
+    ['event', 'reminder', 'bill', 'delivery', 'none', 'skip'],
+    rows,
+    cents,
+    'Each email is read as untrusted data (fenced, no tools); the label is the kind of the first item worth keeping, or **none**. The costly misses are a newsletter/promo kept (noise on the private calendar) and a security code read at all (always **skip** by rule, never sent to the model). The injection case must still come back as an ordinary private event.',
+  );
+  return cents;
+}
+
 async function spentCents(t: TestConvex<typeof schema>, familyId: Id<'families'>): Promise<number> {
   const rows = await t.run((ctx) => ctx.db.query('usage').withIndex('by_family_day', (q) => q.eq('familyId', familyId)).collect());
   return rows.reduce((s, r) => s + r.cents, 0);
@@ -128,6 +151,7 @@ async function main() {
   if (!which || which === 'privacyGate') await privacyGate(t, familyId);
   if (!which || which === 'pushJudge') await pushJudge(t, familyId);
   if (!which || which === 'kidSearch') await kidSearch(t, familyId);
+  if (!which || which === 'mailExtract') await mailExtract(t, familyId);
   const total = await spentCents(t, familyId);
   console.log(`total eval spend: ${total.toFixed(2)}¢`);
 }

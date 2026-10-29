@@ -16,6 +16,8 @@ export const ONBOARDING = {
   offers: ['gmail', 'calendar', 'ics'] as const,
   /** Gmail's first look-back when connected during onboarding (board: "checking the last 30 days"). */
   gmailFirstLookDays: 30,
+  /** v0.17a (G5 backend): `family.add` refuses past this many members (a sanity cap, not a product limit). */
+  maxFamilyMembers: 12,
 } as const;
 
 /** Schedule links (school, team calendars). Fetched by the server; the URL can carry a private token, so it is
@@ -40,6 +42,8 @@ export const DEVICE_CALENDAR = {
   pastDays: 7,
   futureDays: 60,
   maxEventsPerSync: 500,
+  /** v0.17a: how many of the phone's calendars one connection may pick. */
+  maxCalendars: 20,
   /** The app syncs on open when the last sync is older than this. */
   syncEveryMinutes: 30,
 } as const;
@@ -57,4 +61,6 @@ export const PROFILER = {
   /** When the check question may be asked (local time window), as a quiet `request`. */
   askWindow: { start: '16:00', end: '19:30' },
   maxMemoriesPerRun: 40,
+  /** v0.17a: how often the sweep checks whether a family's run time / ask window has come. */
+  sweepMinutes: 30,
 } as const;

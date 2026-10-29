@@ -19,3 +19,25 @@ export async function getOrCreateOwnThread(
   const threadId = await ctx.db.insert('threads', { familyId, ownerId, megaIds: defaultMegaId ? [defaultMegaId] : [], lastAt: now });
   return (await ctx.db.get(threadId))!;
 }
+
+/** G5: posts one message from the member's own MEGA in their own thread (onboarding lines and blocks, "found
+ * nothing", "disconnected"). `at` is nudged past the thread's last message so several posts in one mutation keep
+ * their order. Null when the member has no MEGA. */
+export async function postOwnMegaMessage(
+  ctx: MutationCtx,
+  familyId: Id<'families'>,
+  memberId: Id<'members'>,
+  body: Doc<'messages'>['body'],
+  now: number,
+): Promise<Id<'messages'> | null> {
+  const mega = await ctx.db
+    .query('megas')
+    .withIndex('by_family_owner', (q) => q.eq('familyId', familyId).eq('ownerId', memberId))
+    .unique();
+  if (!mega) return null;
+  const thread = await getOrCreateOwnThread(ctx, familyId, memberId, mega._id, now);
+  const at = Math.max(now, thread.lastAt + 1);
+  const id = await ctx.db.insert('messages', { familyId, threadId: thread._id, at, author: { kind: 'mega', id: mega._id }, via: 'text', body, chips: [] });
+  await ctx.db.patch(thread._id, { lastAt: at });
+  return id;
+}

@@ -4,6 +4,7 @@
 // CONTRACT.md §4 "Demo", v0.4 pending approval) — a plain Convex route gave it no args/returns checking
 // and no privacy-grid coverage, unlike every other function in this backend.
 import { httpRouter } from 'convex/server';
+import { GOOGLE } from '../shared/config/google';
 import { SHOPPING } from '../shared/config/shopping';
 import { agentProfile } from './model/ucpProfile';
 import { authComponent, createAuth, trustedOrigins } from './auth';
@@ -11,6 +12,8 @@ import { internal } from './_generated/api';
 import type { Id } from './_generated/dataModel';
 import { httpAction } from './_generated/server';
 import { verifyAnswerToken } from './model/pushAnswerToken';
+import { sha256Hex } from './model/random';
+import { exchangeAndStore, googleRedirectUri } from './integrations';
 
 const http = httpRouter();
 
@@ -28,6 +31,38 @@ http.route({
   path: SHOPPING.agentProfilePath,
   method: 'GET',
   handler: httpAction(async () => new Response(JSON.stringify(agentProfile()), { status: 200, headers: { 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=3600' } })),
+});
+
+/** G5 (v0.17): Google's OAuth redirect for Gmail / Google Calendar (web). The `state` is a single-use nonce we
+ * minted in `integrations.googleStart` (only its hash is stored, bound to the member and what they asked for);
+ * unknown, expired, reused or a denied consent → `google=failed` with no detail. Otherwise: exchange the code,
+ * store the grant encrypted, connect what Google actually granted, kick off the first sync, and send the
+ * browser back to the app's chat. Never echoes the code, a token or the state. */
+http.route({
+  path: GOOGLE.callbackPath,
+  method: 'GET',
+  handler: httpAction(async (ctx, request) => {
+    const site = (process.env.SITE_URL ?? '').replace(/\/$/, '');
+    const back = (result: 'connected' | 'failed', what?: string[]) =>
+      new Response(null, { status: 302, headers: { Location: `${site}${GOOGLE.returnPath}?google=${result}${what?.length ? `&what=${what.join(',')}` : ''}`, 'Cache-Control': 'no-store' } });
+    const url = new URL(request.url);
+    const state = url.searchParams.get('state');
+    const code = url.searchParams.get('code');
+    const redirectUri = googleRedirectUri();
+    if (!state || state.length > 200 || !redirectUri) return back('failed');
+    const claim = await ctx.runMutation(internal.integrations.consumeState, { nonceHash: await sha256Hex(state) });
+    if (!claim) return back('failed');
+    if (!code || url.searchParams.get('error')) {
+      await ctx.runMutation(internal.integrations.setFailure, { familyId: claim.familyId, memberId: claim.memberId, offer: claim.want.includes('gmail') ? 'gmail' : 'calendar', failure: 'unauthorized' });
+      return back('failed');
+    }
+    try {
+      const outcome = await exchangeAndStore(ctx, { ...claim, code, redirectUri });
+      return outcome.status === 'connected' ? back('connected', claim.want) : back('failed');
+    } catch {
+      return back('failed');
+    }
+  }),
 });
 
 /** One fixed response for every failure (malformed body, unknown notification, locked out, wrong/expired

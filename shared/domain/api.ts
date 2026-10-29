@@ -326,16 +326,16 @@ export const API = {
     // Signed in, not a member yet (else VALIDATION "already a member"). Creates the family, the admin, their
     // MEGA (ONBOARDING.firstMega), the family MEGA, settings/sharing/profile, the thread, the onboarding row
     // (step `name`) and posts the greeting + "What should I call you?". Replaces the interim one-question screen.
-    begin: fn({ kind: 'mutation', day1: 'stub', args: { timezone: v.string() }, returns: v.object({ familyId: v.id('families'), threadId: v.id('threads') }) }),
+    begin: fn({ kind: 'mutation', day1: 'real', args: { timezone: v.string() }, returns: v.object({ familyId: v.id('families'), threadId: v.id('threads') }) }),
     // The caller's onboarding progress; null if they have none.
-    state: fn({ kind: 'query', day1: 'stub', args: {}, returns: v.union(onboardingView, v.null()) }),
+    state: fn({ kind: 'query', day1: 'real', args: {}, returns: v.union(onboardingView, v.null()) }),
     // Step `name` only (else VALIDATION). Trims, strips ONBOARDING.namePrefixes, 1–ONBOARDING.nameMaxLength chars
     // (else VALIDATION); sets members.name, profiles.callMe and the family name (ONBOARDING.familyNameTemplate),
     // posts "Nice to meet you, {name}!" and the Gmail `connect` card; step → `gmail`.
-    setName: fn({ kind: 'mutation', day1: 'stub', args: { name: v.string() }, returns: v.null() }),
+    setName: fn({ kind: 'mutation', day1: 'real', args: { name: v.string() }, returns: v.null() }),
     // Not now on a connect card during onboarding: records `skipped`, posts the skipped line, moves to the next
     // step. A skip outside onboarding just marks the offer skipped. Idempotent.
-    skip: fn({ kind: 'mutation', day1: 'stub', args: { offer: T.connectOffer }, returns: v.null() }),
+    skip: fn({ kind: 'mutation', day1: 'real', args: { offer: T.connectOffer }, returns: v.null() }),
   },
   invites: {
     // v0.14 (additive): `mega` — the MEGA the admin sets for the person (omitted: their existing MEGA, or a
@@ -363,7 +363,7 @@ export const API = {
     // when `mega` is given (kids: the admin's pick, fixed; adults: a default they can change on join).
     add: fn({
       kind: 'mutation',
-      day1: 'stub',
+      day1: 'real',
       adminOnly: true,
       args: { name: v.string(), role: v.union(v.literal('adult'), v.literal('kid')), relationship, mega: v.optional(T.inviteMega), birthday: v.optional(v.string()) },
       returns: v.object({ memberId: v.id('members') }),
@@ -755,38 +755,38 @@ export const API = {
   // thread answered with `chat.answerBlock`; their effects go through `family.add` and `invites.create`.
   integrations: {
     // The caller's own integrations (owner only; another member's are never listed, not even to the admin).
-    list: fn({ kind: 'query', day1: 'stub', args: {}, returns: v.array(integrationView) }),
+    list: fn({ kind: 'query', day1: 'real', args: {}, returns: v.array(integrationView) }),
     // The live state behind a `connect` card in the caller's thread.
-    offer: fn({ kind: 'query', day1: 'stub', args: { offer: T.connectOffer }, returns: offerView }),
+    offer: fn({ kind: 'query', day1: 'real', args: { offer: T.connectOffer }, returns: offerView }),
     // Web: starts Google's consent for `want` (read-only scopes, access_type=offline, prompt=consent,
     // include_granted_scopes=true, login_hint optional). Stores a single-use state; returns Google's URL for the
     // app to open. The callback (`GET {CONVEX_SITE_URL}/google/oauth/callback`, an HTTP route) exchanges the
     // code, stores the grant, connects the integrations, posts the connected line, and redirects to
     // SITE_URL + GOOGLE.returnPath. `not_configured` (VALIDATION) when GOOGLE env isn't set.
-    googleStart: fn({ kind: 'mutation', day1: 'stub', args: { want: v.array(T.googleProduct), loginHint: v.optional(v.string()) }, returns: v.object({ authUrl: v.string() }) }),
+    googleStart: fn({ kind: 'mutation', day1: 'real', args: { want: v.array(T.googleProduct), loginHint: v.optional(v.string()) }, returns: v.object({ authUrl: v.string() }) }),
     // iOS: the `serverAuthCode` from @react-native-google-signin (offlineAccess, the read-only scopes) is
     // exchanged on the server (web client id + secret). Same effects as the callback.
-    googleConnectCode: fn({ kind: 'action', day1: 'stub', args: { serverAuthCode: v.string(), want: v.array(T.googleProduct) }, returns: v.object({ status: T.integrationStatus, failure: v.optional(T.integrationFailure) }) }),
+    googleConnectCode: fn({ kind: 'action', day1: 'real', args: { serverAuthCode: v.string(), want: v.array(T.googleProduct) }, returns: v.object({ status: T.integrationStatus, failure: v.optional(T.integrationFailure) }) }),
     // This phone's calendar: the app asked permission and lists the calendars the owner picked.
-    connectDevice: fn({ kind: 'mutation', day1: 'stub', args: { label: v.string(), calendarIds: v.array(v.string()) }, returns: v.id('integrations') }),
+    connectDevice: fn({ kind: 'mutation', day1: 'real', args: { label: v.string(), calendarIds: v.array(v.string()) }, returns: v.id('integrations') }),
     // The app syncs up the phone's events in the DEVICE_CALENDAR window (≤ maxEventsPerSync, else VALIDATION).
     // Upserts by externalId, removes events no longer present in the window. All land private (owner's layer).
-    syncDevice: fn({ kind: 'mutation', day1: 'stub', args: { integrationId: v.id('integrations'), windowStart: v.number(), windowEnd: v.number(), events: v.array(deviceEventInput) }, returns: v.object({ added: v.number(), updated: v.number(), removed: v.number() }) }),
+    syncDevice: fn({ kind: 'mutation', day1: 'real', args: { integrationId: v.id('integrations'), windowStart: v.number(), windowEnd: v.number(), events: v.array(deviceEventInput) }, returns: v.object({ added: v.number(), updated: v.number(), removed: v.number() }) }),
     // A schedule link: https:// or webcal:// (else VALIDATION); fetched and parsed now (fails → `failure`, nothing
     // saved). ≤ ICS.maxFeedsPerMember. Returns the feed's title and how many events it brought in.
-    addIcs: fn({ kind: 'action', day1: 'stub', args: { url: v.string() }, returns: v.object({ integrationId: v.optional(v.id('integrations')), label: v.optional(v.string()), events: v.number(), failure: v.optional(T.integrationFailure) }) }),
+    addIcs: fn({ kind: 'action', day1: 'real', args: { url: v.string() }, returns: v.object({ integrationId: v.optional(v.id('integrations')), label: v.optional(v.string()), events: v.number(), failure: v.optional(T.integrationFailure) }) }),
     // Owner only. Google: revokes the grant when it was the last Google integration, deletes the secret. Every
     // kind: removes the events/items it brought in (the owner's private copies; anything already shared stays
     // shared, as a household event the owner made). Idempotent.
-    disconnect: fn({ kind: 'action', day1: 'stub', args: { integrationId: v.id('integrations') }, returns: v.null() }),
+    disconnect: fn({ kind: 'action', day1: 'real', args: { integrationId: v.id('integrations') }, returns: v.null() }),
     // Owner only. Syncs one integration now (rate-limited to once a minute).
-    syncNow: fn({ kind: 'action', day1: 'stub', args: { integrationId: v.id('integrations') }, returns: v.object({ status: T.integrationStatus, failure: v.optional(T.integrationFailure) }) }),
+    syncNow: fn({ kind: 'action', day1: 'real', args: { integrationId: v.id('integrations') }, returns: v.object({ status: T.integrationStatus, failure: v.optional(T.integrationFailure) }) }),
   },
   mail: {
     // Owner only (anyone else → NOT_FOUND, per item). The rows behind a `mailFound` card.
-    items: fn({ kind: 'query', day1: 'stub', args: { itemIds: v.array(v.id('mailItems')) }, returns: v.array(mailItemView) }),
+    items: fn({ kind: 'query', day1: 'real', args: { itemIds: v.array(v.id('mailItems')) }, returns: v.array(mailItemView) }),
     // Owner only. Removes the item and the private event/reminder it made. Idempotent.
-    dismiss: fn({ kind: 'mutation', day1: 'stub', args: { itemId: v.id('mailItems') }, returns: v.null() }),
+    dismiss: fn({ kind: 'mutation', day1: 'real', args: { itemId: v.id('mailItems') }, returns: v.null() }),
   },
 } as const;
 
