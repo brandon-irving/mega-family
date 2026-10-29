@@ -15,9 +15,10 @@ function token(): string | null {
   return t && t.trim() ? t.trim() : null;
 }
 
-/** Mapbox `depart_at`: "YYYY-MM-DDThh:mmZ" (UTC, minute precision). */
+/** Mapbox `depart_at` in UTC: "YYYY-MM-DDThh:mm:ssZ". Mapbox accepts "hh:mm" only without a zone (local to
+ * the start), so "hh:mmZ" is rejected with a 422 (found live, Oct 29). Seconds are zeroed. */
 export function departAtParam(ms: number): string {
-  return `${new Date(ms).toISOString().slice(0, 16)}Z`;
+  return `${new Date(ms).toISOString().slice(0, 16)}:00Z`;
 }
 
 export function directionsUrl(p: { from: { lat: number; lng: number }; to: { lat: number; lng: number }; departAt: number | 'now' }, accessToken: string): string {

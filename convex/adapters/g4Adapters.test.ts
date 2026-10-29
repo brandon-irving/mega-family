@@ -111,7 +111,8 @@ describe('mapbox', () => {
     const r = await mapboxDirections.travelTime({ from: { lat: 40.674, lng: -73.97 }, to: { lat: 40.6497, lng: -73.9682 }, departAt: Date.UTC(2026, 9, 29, 20, 30) });
     const url = String(fetchMock.mock.calls[0][0]);
     expect(url).toContain('/directions/v5/mapbox/driving-traffic/-73.97,40.674;-73.9682,40.6497');
-    expect(url).toContain('depart_at=2026-10-29T20%3A30Z');
+    // Mapbox accepts YYYY-MM-DDThh:mm (local), hh:mm:ssZ or hh:mm:ss±hh:mm; "hh:mmZ" is a 422 (live, Oct 29).
+    expect(url).toContain('depart_at=2026-10-29T20%3A30%3A00Z');
     expect(r).toEqual({ ok: true, minutes: 18, typicalMinutes: 14, distanceMeters: 5400 });
     expect(parseDirections({ routes: [] })).toMatchObject({ ok: false, failure: 'no_result' });
   });
