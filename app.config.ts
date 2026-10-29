@@ -74,7 +74,7 @@ const config: ExpoConfig = {
     // Owner, Oct 28: every native package the plan needs is installed up front, so later gates add none;
     // additions or removals found during execution wait until all gates are done (STATUS.md).
     'expo-dev-client',
-    ['expo-notifications', { color: THEMES.midnight.accent, enableRemoteNotifications: true }],
+    ['expo-notifications', { color: THEMES.midnight.accent, enableRemoteNotifications: true, enableBackgroundRemoteNotifications: true }],
     ['expo-audio', { microphonePermission: `${IDENTITY.name} listens only while you hold the Talk button.`, enableBackgroundRecording: false }],
     ['expo-calendar', { calendarPermission: `${IDENTITY.name} can add your calendars' events to the family calendar.` }],
     // QR invite scanning and the live homework viewfinder. Video isn't recorded, so no Android audio permission.

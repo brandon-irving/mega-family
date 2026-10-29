@@ -107,6 +107,20 @@ export async function handleBackgroundNotificationResponse(data: unknown): Promi
   await enqueuePendingAnswer(push.notificationId, buttonId, Date.now());
 }
 
+/** Registers the task; never rejects. iOS rejects it when the build has no `remote-notification`
+ * background mode (dev build cd4140e3: the plugin's `enableBackgroundRemoteNotifications` lands in the
+ * post-freeze rebuild). Push still works through the mounted listener and the module-scope cold-start
+ * check, so this is a dev warning, not an error. */
+export async function registerBackgroundNotificationTask(): Promise<boolean> {
+  try {
+    await Notifications.registerTaskAsync(BACKGROUND_NOTIFICATION_TASK);
+    return true;
+  } catch (e) {
+    console.warn(`Background notification task not registered: ${e instanceof Error ? e.message : String(e)}`);
+    return false;
+  }
+}
+
 // Web has no expo-task-manager/expo-notifications background task support at all (both are no-ops
 // there); Expo Go can't register one either (TaskManager.defineTask requires the dev-client/standalone
 // native module) — both are wrapped defensively so a missing native module never crashes app startup.
@@ -116,7 +130,7 @@ if (Platform.OS !== 'web') {
       if (error || !data) return;
       await handleBackgroundNotificationResponse(data);
     });
-    void Notifications.registerTaskAsync(BACKGROUND_NOTIFICATION_TASK);
+    void registerBackgroundNotificationTask();
   } catch {
     // Expo Go, or a platform/build without the native module yet — push still works for foreground/
     // background (not killed) via the normal response listener in src/data/usePush.ts.

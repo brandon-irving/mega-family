@@ -4,14 +4,16 @@ import { NativeTabs } from 'expo-router/native-tabs';
 import { useTheme } from '@/ui/theme';
 import { tabsForRole } from '@/features/shell/tabs';
 
+export { TabErrorBoundary as ErrorBoundary } from '@/features/shell/TabErrorBoundary';
+
 export default function TabLayout() {
   const { role } = useTheme();
   const tabs = tabsForRole(role);
 
   return (
     <NativeTabs>
-      {tabs.map(({ tab, route, label, sfSymbol }) => (
-        <NativeTabs.Trigger key={tab} name={route}>
+      {tabs.map(({ tab, route, label, sfSymbol, manualInsets }) => (
+        <NativeTabs.Trigger key={tab} name={route} disableAutomaticContentInsets={manualInsets}>
           <NativeTabs.Trigger.Label>{label}</NativeTabs.Trigger.Label>
           <NativeTabs.Trigger.Icon sf={sfSymbol as never} />
         </NativeTabs.Trigger>
