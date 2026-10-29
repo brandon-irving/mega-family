@@ -351,3 +351,51 @@ canvas['notes']['screen16defaults'] = {'x': len(ACCOUNT_BOARDS) * GAP, 'y': ROW1
     '• Activity: each action shows who decided (Rule, MEGA (AI) or You) and why; What it learned has Forget. The Gmail address, school and team links are made-up stand-ins.'}
 json.dump(canvas, open(cpath, 'w'), ensure_ascii=False)
 print('built accounts')
+
+# Screen 17 (G8, CONTRACT v0.18, Oct 29): the states the G8 native build needs beyond the happy paths: the QR
+# scanner (camera denied, not a MEGA invite, found), the homework viewfinder (starting, denied, failed), Paste
+# feedback under the invite field, and the widget states (three items, lock-screen redaction, a kid's kid-safe
+# view, empty, stale, signed out). No new templates: wrappers over Login, Kids and Widgets with new props.
+SCAN_BOARDS = [
+    ('ScanDenied', '1 · Scan: camera off → Open Settings / Paste a link / Not now', {'step': 'scan', 'camera': 'denied'}),
+    ('ScanNotInvite', '1b · Scan: “That QR code isn’t a MEGA invite” (keeps scanning)', {'step': 'scan', 'camera': 'notInvite'}),
+    ('ScanFound', '1c · Scan: found it → opening the invite', {'step': 'scan', 'camera': 'found'}),
+    ('PasteNothing', '2 · Paste: nothing to paste yet', {'step': 'invite', 'pasted': 'nothing'}),
+    ('PasteNotInvite', '2b · Paste: not a MEGA invite link', {'step': 'invite', 'pasted': 'notInvite'}),
+]
+SNAP_BOARDS = [
+    ('SnapStarting', '3 · Homework camera starting (shutter waits)', {'step': 'snap', 'cam': 'starting'}),
+    ('SnapDenied', '3b · Homework camera off → choose a photo / Open Settings', {'step': 'snap', 'cam': 'denied'}),
+    ('SnapFailed', '3c · Camera didn’t start → choose a photo / try again', {'step': 'snap', 'cam': 'failed'}),
+]
+WIDGET_STATE_BOARDS = [
+    ('WidgetsThree', '4 · Medium: three things in the next 2 hours (in 30 min · in 1h · in 2h)', {'who': 'admin', 'view': 'home', 'state': 'three'}),
+    ('WidgetsLockPrivate', '4b · Lock screen: a private event never shows its title', {'who': 'admin', 'view': 'lock', 'state': 'private'}),
+    ('WidgetsKidSafe', '4c · Kid (Zap): only kid-safe, household items', {'who': 'kid', 'view': 'home', 'state': 'kidSafe'}),
+    ('WidgetsEmpty', '4d · Nothing coming up and nothing to say: a calm line', {'who': 'admin', 'view': 'home', 'state': 'empty'}),
+    ('WidgetsStale', '4e · Stale (app not opened for 8 hours)', {'who': 'admin', 'view': 'home', 'state': 'stale'}),
+    ('WidgetsSignedOut', '4f · Signed out: nothing personal', {'who': 'admin', 'view': 'home', 'state': 'signedOut'}),
+    ('WidgetsLockSignedOut', '4g · Lock screen, signed out', {'who': 'admin', 'view': 'lock', 'state': 'signedOut'}),
+]
+write_wrappers('Login', SCAN_BOARDS)
+write_wrappers('Kids', SNAP_BOARDS)
+write_wrappers('Widgets', WIDGET_STATE_BOARDS)
+ROW17 = 20224
+STATE_BOARDS = SCAN_BOARDS + SNAP_BOARDS + WIDGET_STATE_BOARDS
+for i, (stem, title, _) in enumerate(STATE_BOARDS):
+    f = stem + '.dc.html'
+    canvas['boards'][f] = {'x': i * GAP, 'y': ROW17, 'w': 390, 'h': 844, 'title': title, 'is_interactive': True}
+    if f not in canvas['order']:
+        canvas['order'].append(f)
+canvas['notes']['screen17'] = {'x': 0, 'y': ROW17 - 260, 'text': 'Screen 17 · Widgets, scan, snap and paste states', 'kind': 'title1', 'maxW': len(STATE_BOARDS) * GAP - 80}
+canvas['notes']['screen17defaults'] = {'x': len(STATE_BOARDS) * GAP, 'y': ROW17, 'w': 420, 'fill': 'orange', 'size': 's', 'text':
+    'Defaults to confirm\n'
+    '• Scanner: only a MEGA invite (mega://join/… or its bare code) opens anything; any other QR code says so and the camera keeps scanning. Camera off → Open Settings, Paste a link instead, Not now, stacked full width.\n'
+    '• Paste: on iOS the system Paste button pastes without a prompt; elsewhere our Paste button may show the system prompt. Nothing to paste or not an invite shows a gold line under the field; the field keeps what you typed.\n'
+    '• Homework camera: the shutter waits until the camera is ready; camera off or failed always offers Choose a photo instead. Photos are taken without location data.\n'
+    '• Widgets: relative times ("in 30 min", "in 1h") are worked out by the widget from each event\'s start, so they stay right for hours without the app. Up to 3 things in the next 2 hours on the medium widget.\n'
+    '• Lock screen: a private event shows only "Private event" (and is hidden while the phone is locked). A kid\'s widget shows only household items that involve them.\n'
+    '• Empty, stale and signed out are calm lines, never blank. Signed out shows a sleeping grey MEGA and nothing personal.\n'
+    '• No inline lock-screen line in this build (the line above the clock is the date); it can come with a later native build.'}
+json.dump(canvas, open(cpath, 'w'), ensure_ascii=False)
+print('built g8 states')

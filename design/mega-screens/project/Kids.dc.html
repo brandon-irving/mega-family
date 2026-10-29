@@ -14,6 +14,8 @@ body{margin:0;background:#0C0E11}
 button{font-family:inherit;cursor:pointer}
 a{color:#EDEFF2;text-decoration:none}
 @keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
+@keyframes spin{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion: reduce){[style*="animation: spin"]{animation:none!important}}
 .bob{animation:bob .9s ease-in-out infinite}
 @keyframes pop{0%{transform:scale(.4);opacity:0}60%{transform:scale(1.12);opacity:1}100%{transform:scale(1)}}
 .pop{animation:pop 520ms cubic-bezier(.2,.9,.3,1.2) both}
@@ -266,8 +268,9 @@ a{color:#EDEFF2;text-decoration:none}
         </button>
         <div style="flex: 1; text-align: center; font-size: 17px; font-weight: 700; margin-right: 44px">Homework photo</div>
       </div>
-      <div style="position: relative; margin: 28px 24px 0; height: 470px; border-radius: 24px; background: #2A2E35; overflow: hidden; display: flex; align-items: center; justify-content: center">
-        <div aria-label="A fractions worksheet in the camera" role="img" style="width: 250px; height: 330px; transform: rotate(-4deg); background: #F6F3EA; border-radius: 4px; padding: 20px; box-sizing: border-box; color: #2B2B33; display: flex; flex-direction: column; gap: 14px; box-shadow: 0 12px 30px rgba(0,0,0,0.4)">
+      <div style="position: relative; margin: 28px 24px 0; height: 470px; border-radius: 24px; background: {{cam.boxBg}}; overflow: hidden; display: flex; align-items: center; justify-content: center">
+        <sc-if value="{{cam.live}}" hint-placeholder-val="{{ true }}">
+        <div aria-label="Camera viewfinder. Line the worksheet up inside the frame." role="img" style="width: 250px; height: 330px; transform: rotate(-4deg); background: #F6F3EA; border-radius: 4px; padding: 20px; box-sizing: border-box; color: #2B2B33; display: flex; flex-direction: column; gap: 14px; box-shadow: 0 12px 30px rgba(0,0,0,0.4)">
           <div style="display: flex; justify-content: space-between; font-size: 12px"><b style="font-size: 15px">Fractions · Sheet 4</b><span>Name <span style="display: inline-block; width: 56px; border-bottom: 1px solid #8A8F99"></span></span></div>
           <sc-for list="{{sheet}}" as="q" hint-placeholder-count="6">
             <div style="font-size: 15px; display: flex; gap: 8px"><span>{{q.n}}.</span><span style="flex: 1">{{q.text}}</span><span style="width: 44px; border-bottom: 1px solid #8A8F99"></span></div>
@@ -277,13 +280,46 @@ a{color:#EDEFF2;text-decoration:none}
         <span style="position: absolute; right: 18px; top: 18px; width: 36px; height: 36px; border-top: 4px solid #EDEFF2; border-right: 4px solid #EDEFF2; border-top-right-radius: 14px"></span>
         <span style="position: absolute; left: 18px; bottom: 18px; width: 36px; height: 36px; border-bottom: 4px solid #EDEFF2; border-left: 4px solid #EDEFF2; border-bottom-left-radius: 14px"></span>
         <span style="position: absolute; right: 18px; bottom: 18px; width: 36px; height: 36px; border-bottom: 4px solid #EDEFF2; border-right: 4px solid #EDEFF2; border-bottom-right-radius: 14px"></span>
+        </sc-if>
+        <sc-if value="{{cam.starting}}" hint-placeholder-val="{{ false }}">
+          <div role="status" style="display: flex; flex-direction: column; align-items: center; gap: 16px; color: #B4BAC3; font-size: 16px">
+            <span aria-hidden="true" style="width: 44px; height: 44px; border-radius: 22px; border: 4px solid #2E343D; border-top-color: #EDEFF2; box-sizing: border-box; animation: spin 900ms linear infinite"></span>
+            Starting the camera…
+          </div>
+          <span aria-hidden="true" style="position: absolute; left: 18px; top: 18px; width: 36px; height: 36px; border-top: 4px solid #4A515C; border-left: 4px solid #4A515C; border-top-left-radius: 14px"></span>
+          <span aria-hidden="true" style="position: absolute; right: 18px; top: 18px; width: 36px; height: 36px; border-top: 4px solid #4A515C; border-right: 4px solid #4A515C; border-top-right-radius: 14px"></span>
+          <span aria-hidden="true" style="position: absolute; left: 18px; bottom: 18px; width: 36px; height: 36px; border-bottom: 4px solid #4A515C; border-left: 4px solid #4A515C; border-bottom-left-radius: 14px"></span>
+          <span aria-hidden="true" style="position: absolute; right: 18px; bottom: 18px; width: 36px; height: 36px; border-bottom: 4px solid #4A515C; border-right: 4px solid #4A515C; border-bottom-right-radius: 14px"></span>
+        </sc-if>
+        <sc-if value="{{cam.problem}}" hint-placeholder-val="{{ false }}">
+          <div style="display: flex; flex-direction: column; align-items: center; gap: 14px; padding: 0 28px; text-align: center">
+            <span aria-hidden="true" style="width: 88px; height: 88px; border-radius: 26px; background: #16191E; border: 1px solid #2E343D; display: flex; align-items: center; justify-content: center; color: #9AA1AB">
+              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3l18 18"></path><path d="M9.5 5h5l1.5 2h3a1 1 0 0 1 1 1v9M17 19H5a1 1 0 0 1-1-1V8a1 1 0 0 1 1-1h2"></path><path d="M10.2 10.3a3 3 0 0 0 3.5 3.5"></path></svg>
+            </span>
+            <p role="alert" style="margin: 0; font-size: 17px; line-height: 24px; color: #EDEFF2">{{cam.text}}</p>
+          </div>
+        </sc-if>
       </div>
+      <sc-if value="{{cam.shutter}}" hint-placeholder-val="{{ true }}">
       <p style="margin: 18px 32px 0; font-size: 15px; line-height: 22px; color: #B4BAC3; text-align: center">Fit the whole page in the frame. Teal reads it and makes practice for the twins.</p>
-      <div style="flex: 1; display: flex; align-items: center; justify-content: center">
-        <button type="button" aria-label="Take the photo" onClick="{{shoot}}" style="width: 76px; height: 76px; border-radius: 38px; border: 4px solid #EDEFF2; background: transparent; padding: 4px">
+      <div style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px">
+        <button type="button" aria-label="Take the photo" disabled="{{cam.shutterOff}}" onClick="{{shoot}}" style="width: 76px; height: 76px; border-radius: 38px; border: 4px solid #EDEFF2; background: transparent; padding: 4px; opacity: {{cam.shutterOpacity}}">
           <span style="display: block; width: 100%; height: 100%; border-radius: 30px; background: #EDEFF2"></span>
         </button>
+        <button type="button" onClick="{{shoot}}" style="height: 44px; padding: 0 12px; border: none; background: transparent; color: #B4BAC3; font-size: 15px; font-weight: 600">Choose a photo instead</button>
       </div>
+      </sc-if>
+      <sc-if value="{{cam.problem}}" hint-placeholder-val="{{ false }}">
+      <div style="flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 12px; padding: 0 24px">
+        <button type="button" onClick="{{shoot}}" style="height: 56px; border-radius: 28px; border: none; background: #EDEFF2; color: #0C0E11; font-size: 17px; font-weight: 800">Choose a photo instead</button>
+        <sc-if value="{{cam.denied}}" hint-placeholder-val="{{ false }}">
+          <button type="button" onClick="{{closeCamera}}" style="width: 100%; height: 52px; border-radius: 26px; border: 1px solid #2E343D; background: transparent; color: #EDEFF2; font-size: 16px; font-weight: 600">Open Settings</button>
+        </sc-if>
+        <sc-if value="{{cam.failed}}" hint-placeholder-val="{{ false }}">
+          <button type="button" onClick="{{retryCamera}}" style="width: 100%; height: 52px; border-radius: 26px; border: 1px solid #2E343D; background: transparent; color: #EDEFF2; font-size: 16px; font-weight: 600">Try the camera again</button>
+        </sc-if>
+      </div>
+      </sc-if>
       <div style="display: flex; align-items: center; justify-content: center; gap: 6px; padding-bottom: 30px; font-size: 12px; color: #9AA1AB">
         <svg aria-hidden="true" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="10" rx="2"></rect><path d="M8 11V8a4 4 0 0 1 8 0v3"></path></svg>
         Only Admin and Partner see homework photos.
@@ -369,7 +405,7 @@ a{color:#EDEFF2;text-decoration:none}
   </sc-if>
 </div>
 </x-dc>
-<script type="text/x-dc" data-dc-script data-props='{"step":{"editor":"enum","options":["intro","snap","make","practice","done","summary","chore","choreApprove","bedtime","morning","bucks"],"default":"make"},"hint":{"editor":"enum","options":["off","on"],"default":"off"},"typing":{"editor":"enum","options":["off","on"],"default":"off"},"$preview":{"width":390,"height":844}}'>
+<script type="text/x-dc" data-dc-script data-props='{"step":{"editor":"enum","options":["intro","snap","make","practice","done","summary","chore","choreApprove","bedtime","morning","bucks"],"default":"make"},"hint":{"editor":"enum","options":["off","on"],"default":"off"},"typing":{"editor":"enum","options":["off","on"],"default":"off"},"cam":{"editor":"enum","options":["live","starting","denied","failed"],"default":"live"},"$preview":{"width":390,"height":844}}'>
 // Generated from prototypes/megasprite (mega-template.mjs, pixel-paint.mjs, export-looks.mjs).
 const LOOKS = {"grid":[32,40],"body":[[15,0,2,"outline"],[14,1,1,"outline"],[15,1,2,"tipLight"],[17,1,1,"outline"],[13,2,1,"outline"],[14,2,1,"tipLight"],[15,2,2,"tip"],[17,2,1,"tipLight"],[18,2,1,"outline"],[14,3,1,"outline"],[15,3,2,"tipDark"],[17,3,1,"outline"],[14,4,4,"outline"],[14,5,1,"outline"],[15,5,2,"silver"],[17,5,1,"outline"],[14,6,1,"outline"],[15,6,2,"silver"],[17,6,1,"outline"],[6,7,20,"outline"],[5,8,1,"outline"],[6,8,20,"shellLight"],[26,8,1,"outline"],[4,9,1,"outline"],[5,9,1,"shellLight"],[6,9,20,"shell"],[26,9,1,"shellLight"],[27,9,1,"outline"],[3,10,1,"outline"],[4,10,1,"shellLight"],[5,10,22,"shell"],[27,10,1,"shellLight"],[28,10,1,"outline"],[3,11,1,"outline"],[4,11,4,"shell"],[8,11,16,"visor"],[24,11,4,"shell"],[28,11,1,"outline"],[2,12,2,"outline"],[4,12,3,"shell"],[7,12,3,"visor"],[10,12,3,"glare"],[13,12,12,"visor"],[25,12,3,"shell"],[28,12,2,"outline"],[1,13,1,"outline"],[2,13,1,"shellLight"],[3,13,1,"outline"],[4,13,3,"shell"],[7,13,2,"visor"],[9,13,1,"glare"],[10,13,15,"visor"],[25,13,3,"shell"],[28,13,1,"outline"],[29,13,1,"shellLight"],[30,13,1,"outline"],[0,14,1,"outline"],[1,14,1,"shellLight"],[2,14,1,"shell"],[3,14,1,"outline"],[4,14,3,"shell"],[7,14,2,"visor"],[9,14,1,"glare"],[10,14,15,"visor"],[25,14,3,"shell"],[28,14,1,"outline"],[29,14,1,"shell"],[30,14,1,"shellLight"],[31,14,1,"outline"],[0,15,1,"outline"],[1,15,2,"shell"],[3,15,1,"outline"],[4,15,3,"shell"],[7,15,18,"visor"],[25,15,3,"shell"],[28,15,1,"outline"],[29,15,2,"shell"],[31,15,1,"outline"],[0,16,1,"outline"],[1,16,2,"shell"],[3,16,1,"outline"],[4,16,3,"shell"],[7,16,18,"visor"],[25,16,3,"shell"],[28,16,1,"outline"],[29,16,2,"shell"],[31,16,1,"outline"],[0,17,1,"outline"],[1,17,2,"shell"],[3,17,1,"outline"],[4,17,3,"shell"],[7,17,18,"visor"],[25,17,3,"shell"],[28,17,1,"outline"],[29,17,2,"shell"],[31,17,1,"outline"],[0,18,1,"outline"],[1,18,1,"shellDark"],[2,18,1,"shell"],[3,18,1,"outline"],[4,18,3,"shell"],[7,18,18,"visor"],[25,18,3,"shell"],[28,18,1,"outline"],[29,18,1,"shell"],[30,18,1,"shellDark"],[31,18,1,"outline"],[1,19,1,"outline"],[2,19,1,"shellDark"],[3,19,1,"outline"],[4,19,3,"shell"],[7,19,18,"visor"],[25,19,3,"shell"],[28,19,1,"outline"],[29,19,1,"shellDark"],[30,19,1,"outline"],[2,20,2,"outline"],[4,20,3,"shell"],[7,20,18,"visor"],[25,20,3,"shell"],[28,20,2,"outline"],[3,21,1,"outline"],[4,21,3,"shell"],[7,21,18,"visor"],[25,21,3,"shell"],[28,21,1,"outline"],[3,22,1,"outline"],[4,22,4,"shell"],[8,22,16,"visor"],[24,22,4,"shell"],[28,22,1,"outline"],[3,23,1,"outline"],[4,23,1,"shellDark"],[5,23,22,"shell"],[27,23,1,"shellDark"],[28,23,1,"outline"],[4,24,1,"outline"],[5,24,1,"shellDark"],[6,24,20,"shell"],[26,24,1,"shellDark"],[27,24,1,"outline"],[5,25,1,"outline"],[6,25,20,"shellDark"],[26,25,1,"outline"],[5,26,22,"outline"],[4,27,1,"outline"],[5,27,2,"whiteLight"],[7,27,1,"outline"],[8,27,1,"shellLight"],[9,27,1,"outline"],[10,27,1,"shellLight"],[11,27,2,"shell"],[13,27,6,"outline"],[19,27,2,"shell"],[21,27,1,"shellLight"],[22,27,1,"outline"],[23,27,1,"shellLight"],[24,27,1,"outline"],[25,27,2,"whiteLight"],[27,27,1,"outline"],[3,28,1,"outline"],[4,28,1,"whiteLight"],[5,28,2,"white"],[7,28,1,"whiteLight"],[8,28,2,"outline"],[10,28,2,"shell"],[12,28,1,"outline"],[13,28,6,"whiteLight"],[19,28,1,"outline"],[20,28,2,"shell"],[22,28,2,"outline"],[24,28,1,"whiteLight"],[25,28,2,"white"],[27,28,1,"whiteLight"],[28,28,1,"outline"],[3,29,1,"outline"],[4,29,1,"whiteDark"],[5,29,2,"white"],[7,29,1,"whiteDark"],[8,29,2,"outline"],[10,29,2,"shell"],[12,29,1,"outline"],[13,29,6,"whiteDark"],[19,29,1,"outline"],[20,29,2,"shell"],[22,29,2,"outline"],[24,29,1,"whiteDark"],[25,29,2,"white"],[27,29,1,"whiteDark"],[28,29,1,"outline"],[4,30,1,"outline"],[5,30,2,"whiteDark"],[7,30,1,"outline"],[9,30,1,"outline"],[10,30,1,"shellDark"],[11,30,2,"shell"],[13,30,6,"outline"],[19,30,2,"shell"],[21,30,1,"shellDark"],[22,30,1,"outline"],[24,30,1,"outline"],[25,30,2,"whiteDark"],[27,30,1,"outline"],[5,31,2,"outline"],[10,31,1,"outline"],[11,31,10,"shellDark"],[21,31,1,"outline"],[25,31,2,"outline"],[11,32,10,"outline"],[11,33,1,"outline"],[12,33,2,"shell"],[14,33,1,"outline"],[17,33,1,"outline"],[18,33,2,"shell"],[20,33,1,"outline"],[11,34,4,"outline"],[17,34,4,"outline"],[10,35,1,"outline"],[11,35,3,"whiteLight"],[14,35,1,"outline"],[17,35,1,"outline"],[18,35,3,"whiteLight"],[21,35,1,"outline"],[9,36,1,"outline"],[10,36,1,"whiteLight"],[11,36,3,"white"],[14,36,1,"whiteLight"],[15,36,2,"outline"],[17,36,1,"whiteLight"],[18,36,3,"white"],[21,36,1,"whiteLight"],[22,36,1,"outline"],[10,37,1,"outline"],[11,37,3,"whiteDark"],[14,37,1,"outline"],[17,37,1,"outline"],[18,37,3,"whiteDark"],[21,37,1,"outline"],[11,38,3,"outline"],[18,38,3,"outline"]],"faces":{"calm":[[11,16,2,"eye"],[19,16,2,"eye"],[11,17,2,"eye"],[19,17,2,"eye"]],"happy":[[11,16,2,"eye"],[19,16,2,"eye"],[10,17,1,"eye"],[13,17,1,"eye"],[18,17,1,"eye"],[21,17,1,"eye"],[8,19,2,"blush"],[22,19,2,"blush"]],"wink":[[11,15,2,"eye"],[11,16,2,"eye"],[19,16,2,"eye"],[11,17,2,"eye"],[18,17,1,"eye"],[21,17,1,"eye"]],"open":[[11,15,2,"eye"],[19,15,2,"eye"],[11,16,2,"eye"],[19,16,2,"eye"],[11,17,2,"eye"],[19,17,2,"eye"]],"closed":[[10,17,4,"eye"],[18,17,4,"eye"]]},"fixed":{"outline":"#1B1A3A","visor":"#17143A","glare":"#BFEAF7","white":"#F4F6FB","whiteLight":"#FFFFFF","whiteDark":"#AEB3CC","silver":"#C9CFDB","silverLight":"#E8EBF2","silverDark":"#8E95AB","tip":"#9FF0F7","tipLight":"#F0FFFF","tipDark":"#5FCFE0","eye":"#E8FFFF","blush":"#FF9AB2"},"colors":{"teal":"#2FB8B0","coral":"#F2766B","violet":"#8E6CE0","sun":"#F2B33D","sky":"#5B8DEF","leaf":"#5BBF6A"},"stickers":["star","heart","leaf","bolt"],"personalities":{"calm":{"label":"Calm","face":"calm","blurb":"Gentle and unhurried","sample":"No rush. Practice is at 5:30, and I'll remind you at 4:50."},"cheerful":{"label":"Cheerful","face":"happy","blurb":"Upbeat and encouraging","sample":"Good news! Practice is at 5:30. Want a reminder at 4:50?"},"funny":{"label":"Funny","face":"wink","blurb":"Light jokes, still useful","sample":"Practice at 5:30. I'll ping you at 4:50, before traffic does."},"brief":{"label":"Brief","face":"open","blurb":"Short and to the point","sample":"Practice 5:30. Reminder at 4:50?"}}};
 const STICKER_ART = {"star":"a509b7da6f93811f29bf9e84560af70f","heart":"ef08bdd73525cdfac56fe3c437a18b9c","leaf":"6729bb22fb50e334dd97a073fa44e53a","bolt":"f4bb0c6f1f0fcae62475f582a31df06e"};
@@ -562,13 +598,13 @@ class Component extends DCLogic {
   fresh(p) {
     const step = p.step || 'make';
     return {
-      step, camera: step === 'snap', kid: 'Twin 1', count: '5', made: false,
+      step, camera: step === 'snap', cam: p.cam || 'live', kid: 'Twin 1', count: '5', made: false,
       q: p.hint === 'on' ? 3 : 1, hint: p.hint === 'on', miss: '', amount: step === 'choreApprove' ? 3 : 5, released: '',
       choreDone: false, packed: [true, false, false, false], morning: 1, cheer: false, bucksGone: false, typing: p.typing === 'on',
     };
   }
   componentDidUpdate(prev) {
-    if (prev.step !== this.props.step || prev.hint !== this.props.hint || prev.typing !== this.props.typing) this.setState(this.fresh(this.props));
+    if (prev.step !== this.props.step || prev.hint !== this.props.hint || prev.typing !== this.props.typing || prev.cam !== this.props.cam) this.setState(this.fresh(this.props));
   }
   componentWillUnmount() { clearTimeout(this.cheerT); }
 
@@ -709,6 +745,14 @@ class Component extends DCLogic {
       th: thread(mega, items, extra),
       cameraOpen: step === 'snap' && s.camera,
       closeCamera: () => this.setState({ camera: false }),
+      retryCamera: () => { this.setState({ cam: 'starting' }); setTimeout(() => this.setState({ cam: 'live' }), 1200); },
+      cam: {
+        live: s.cam === 'live', starting: s.cam === 'starting', problem: s.cam === 'denied' || s.cam === 'failed',
+        denied: s.cam === 'denied', failed: s.cam === 'failed', shutter: s.cam === 'live' || s.cam === 'starting',
+        shutterOff: s.cam === 'starting', shutterOpacity: s.cam === 'starting' ? 0.35 : 1,
+        boxBg: s.cam === 'live' ? '#2A2E35' : '#101317',
+        text: s.cam === 'denied' ? 'MEGA needs the camera to read homework. You can turn it on in Settings, or choose a photo instead.' : 'The camera didn’t start. Choose a photo instead?',
+      },
       shoot: () => this.setState({ step: 'make', camera: false }),
       sheet: SHEET,
       isMorning: step === 'morning',

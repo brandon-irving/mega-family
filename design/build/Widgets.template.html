@@ -37,7 +37,7 @@ a{color:inherit;text-decoration:none}
                 <span aria-hidden="true" style="width: 4px; height: 34px; border-radius: 2px; background: {{e.color}}"></span>
                 <span style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px">
                   <span style="font-size: 15px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{e.title}}</span>
-                  <span style="font-size: 12px; color: #9AA1AB">{{e.time}} · {{e.who}}</span>
+                  <span style="font-size: 12px; color: #9AA1AB; display: flex; align-items: center; gap: 4px"><sc-if value="{{e.lock}}" hint-placeholder-val="{{ false }}"><svg aria-label="Only you" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="10" rx="2"></rect><path d="M8 11V8a4 4 0 0 1 8 0v3"></path></svg></sc-if>{{e.time}} · {{e.who}}</span>
                 </span>
                 <span style="font-size: 13px; font-weight: 600; color: #EDEFF2">{{e.until}}</span>
               </div>
@@ -46,7 +46,7 @@ a{color:inherit;text-decoration:none}
         </sc-if>
         <sc-if value="{{noSoon}}" hint-placeholder-val="{{ false }}">
           <div style="font-size: 18px; font-weight: 600; line-height: 24px">{{statement.text}}</div>
-          <div style="margin-top: auto; font-size: 12px; color: #9AA1AB">No events in the next 2 hours · Tap to reply</div>
+          <div style="margin-top: auto; font-size: 12px; color: #9AA1AB">{{mediumFoot}}</div>
         </sc-if>
         <a href="Talk.dc.html" aria-label="Talk to {{mega}}" style="position: absolute; z-index: 2; top: 10px; right: 10px; width: 44px; height: 44px; border-radius: 22px; background: {{accent}}; color: {{accentInk}}; display: flex; align-items: center; justify-content: center">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"></rect><path d="M5 11a7 7 0 0 0 14 0M12 18v3"></path></svg>
@@ -62,7 +62,7 @@ a{color:inherit;text-decoration:none}
                 <span style="position: absolute; left: {{r.l}}px; top: {{r.t}}px; width: {{r.w}}px; height: {{r.h}}px; background: {{r.c}}"></span>
               </sc-for>
             </span>
-            <span style="font-size: 12px; font-weight: 700; color: #04201E; background: rgba(255,255,255,0.75); padding: 3px 7px; border-radius: 8px; margin-left: auto">{{smallTag}}</span>
+            <span style="display: {{smallTagDisplay}}; font-size: 12px; font-weight: 700; color: #04201E; background: rgba(255,255,255,0.75); padding: 3px 7px; border-radius: 8px; margin-left: auto">{{smallTag}}</span>
           </div>
           <div style="font-size: {{smallFont}}px; font-weight: 700; line-height: 1.25; color: {{smallInk}}; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical">{{smallLine}}</div>
           <a href="Talk.dc.html" aria-label="Talk to {{mega}}" style="position: relative; z-index: 2; margin-top: auto; height: 34px; border-radius: 17px; background: rgba(12,14,17,0.85); color: #EDEFF2; display: flex; align-items: center; justify-content: center; gap: 6px; font-size: 14px; font-weight: 700">
@@ -113,7 +113,7 @@ a{color:inherit;text-decoration:none}
   <div aria-hidden="true" style="position: absolute; left: 50%; bottom: 4px; width: 134px; height: 5px; margin-left: -67px; border-radius: 3px; background: #EDEFF2"></div>
 </div>
 </x-dc>
-<script type="text/x-dc" data-dc-script data-props='{"who":{"editor":"enum","options":["admin","kid"],"default":"admin"},"now":{"editor":"enum","options":["afternoon","evening"],"default":"afternoon"},"view":{"editor":"enum","options":["home","lock"],"default":"home"},"$preview":{"width":390,"height":844}}'>
+<script type="text/x-dc" data-dc-script data-props='{"who":{"editor":"enum","options":["admin","kid"],"default":"admin"},"now":{"editor":"enum","options":["afternoon","evening"],"default":"afternoon"},"view":{"editor":"enum","options":["home","lock"],"default":"home"},"state":{"editor":"enum","options":["live","three","private","kidSafe","empty","stale","signedOut"],"default":"live"},"$preview":{"width":390,"height":844}}'>
 // Generated from prototypes/megasprite (mega-template.mjs, pixel-paint.mjs, export-looks.mjs).
 __SPRITE_LIVE__
 __FAMILY_DATA__
@@ -129,33 +129,53 @@ const STATEMENTS = {
   admin: { text: 'Recycling goes out Tuesday. Want a reminder Monday night?', short: 'Recycling goes out Tuesday' },
   kid: { text: 'Reading time is done. Want to pick a book for tomorrow?', short: 'Pick a book for tomorrow?' },
 };
+const THU_NOW = 15 * 60 + 30;
+const THU = [[16 * 60, 'Dentist', 'You', true], [16 * 60 + 30, 'Soccer practice', 'Twins'], [17 * 60 + 30, 'Soccer pickup', 'You']];
 const ICONS = ['#3A4150', '#4B3A50', '#2F4A45', '#50473A', '#3A4A5A', '#45503A', '#503A3F', '#3A3F50', '#4A4A4A', '#2F3A4A', '#4A3A2F'];
 
 class Component extends DCLogic {
   renderVals() {
-    const v = VIEWERS[this.props.who] ?? VIEWERS.admin, nowKey = this.props.now === 'evening' ? 'evening' : 'afternoon', now = NOW[nowKey];
-    const { dark } = shades(v.hex), accent = v.hex;
-    // Priority: anything in the next 2 hours, otherwise the MEGA's proactive statement.
-    const soon = WEEK[0].events.filter(([t, , who]) => v.sees.includes(who) && t >= now && t - now <= SOON_WINDOW)
-      .map(([t, title, who]) => ({ time: clock(t), until: inMinutes(t - now), title, who: who === 'You' && v.kid ? 'Family' : who, color: WHO[who] }));
+    const state = this.props.state || 'live';
+    const signedOut = state === 'signedOut';
+    const v = signedOut ? { mega: 'MEGA', hex: '#7A828E', face: 'closed', sees: [], kid: false } : (VIEWERS[this.props.who] ?? VIEWERS.admin);
+    // Thursday of the seed week (CONTRACT v0.18 widgets.next): Admin's private Dentist, the twins' practice,
+    // Partner's pickup. "three", "private" and "kidSafe" use it; the rest keep the Sunday sample.
+    const thursday = state === 'three' || state === 'private' || state === 'kidSafe';
+    const nowKey = this.props.now === 'evening' ? 'evening' : 'afternoon';
+    const now = thursday ? THU_NOW : NOW[nowKey];
+    const events = thursday ? THU : WEEK[0].events;
+    const { dark } = shades(v.hex), accent = signedOut ? '#2A2E35' : v.hex;
+    // The widget works out "in 40 min" itself from each entry's absolute start (G8_COPY widgetInMinutes / widgetInHours).
+    const rel = (d) => (d <= 0 ? 'now' : d < 60 ? 'in ' + d + ' min' : 'in ' + Math.floor(d / 60) + 'h');
+    const live = state === 'live' || thursday;
+    const soon = !live ? [] : events.filter(([t, , who]) => v.sees.includes(who) && t >= now && t - now <= SOON_WINDOW)
+      .map(([t, title, who, priv]) => ({ time: clock(t), until: thursday ? rel(t - now) : inMinutes(t - now), title, who: who === 'You' && v.kid ? 'Family' : who, color: WHO[who], lock: !!priv, priv: !!priv }));
     const statement = STATEMENTS[this.props.who] ?? STATEMENTS.admin, next = soon[0];
     const time = clock(now).replace(/ (AM|PM)$/, '');
+    // Lock screen: a private item's title is replaced (WIDGET_TIMELINE.lockRedactPrivate) and marked privacySensitive.
+    const lockTitle = next ? (next.priv ? 'Private event' : next.title) : '';
+    const calm = { empty: 'All clear for now.', stale: 'Open ' + v.mega + ' for what’s next', signedOut: 'Open MEGA to sign in' }[state];
+    const quiet = !!calm;
+    const day = thursday ? 'Thursday, October 29' : WEEK[0].full;
     return {
       wallpaper: 'linear-gradient(165deg, ' + dark + ' 0%, #12151A 55%, #0C0E11 100%)',
       isHome: this.props.view !== 'lock', isLock: this.props.view === 'lock', time, mega: v.mega,
       accent, accentInk: inkOn(accent),
       head: sprite(v.hex, v.face, 'none', 1.5, 27), tinyHead: sprite(v.hex, v.face, 'none', 0.8125, 27),
-      hasSoon: soon.length > 0, noSoon: soon.length === 0, soon: soon.slice(0, 3), statement,
-      mediumTitle: soon.length ? 'Coming up · next 2 hours' : v.mega + ' says',
-      mediumLabel: soon.length ? 'Coming up: ' + soon.map((e) => e.title + ' ' + e.until).join(', ') : v.mega + ' says: ' + statement.text,
-      // Tapping a widget opens the chat; the Talk button opens talk mode already listening.
-      tapHref: v.kid ? 'Kid.dc.html' : 'Main.dc.html',
+      hasSoon: soon.length > 0, noSoon: soon.length === 0, soon: soon.slice(0, 3),
+      statement: quiet ? { text: calm, short: calm } : statement,
+      mediumTitle: soon.length ? 'Coming up · next 2 hours' : quiet ? v.mega : v.mega + ' says',
+      mediumFoot: state === 'empty' ? 'No events in the next 2 hours' : state === 'stale' ? 'Last checked 8 hours ago' : signedOut ? 'Nothing personal shows until you sign in' : 'No events in the next 2 hours · Tap to reply',
+      mediumLabel: soon.length ? 'Coming up: ' + soon.map((e) => e.title + ' ' + e.until).join(', ') : quiet ? calm : v.mega + ' says: ' + statement.text,
+      // Tapping a widget opens the chat (sign-in when signed out); the Talk button opens talk mode already listening.
+      tapHref: signedOut ? 'Login.dc.html' : v.kid ? 'Kid.dc.html' : 'Main.dc.html',
       smallBg: accent, smallInk: inkOn(accent), smallFont: v.kid ? 19 : 17,
-      smallTag: next ? next.until.replace('in ', '') : 'Tip',
-      smallLine: next ? next.title : statement.short,
-      inline: WEEK[0].dow + ' ' + WEEK[0].num + (next ? ' · ' + next.title + ' ' + next.time : ''),
-      lockKicker: next ? next.time + ' · ' + next.until : v.mega + ' says',
-      lockLine: next ? next.title : statement.short,
+      smallTag: next ? next.until.replace('in ', '') : 'Tip', smallTagDisplay: quiet ? 'none' : 'inline-block',
+      smallLine: next ? next.title : quiet ? calm : statement.short,
+      // No accessoryInline family in this build (decision 4): the line above the clock is the system date only.
+      inline: day,
+      lockKicker: next ? next.time + ' · ' + next.until : quiet ? v.mega : v.mega + ' says',
+      lockLine: next ? lockTitle : quiet ? calm : statement.short,
       iconsA: ICONS.slice(0, 4), iconsB: ICONS.slice(4, 7), dock: ICONS.slice(7, 11),
     };
   }

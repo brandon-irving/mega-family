@@ -1,7 +1,7 @@
 # Design canvas (mockups)
 
 The approved screen mockups, published as a private Design-canvas artifact:
-https://claude.ai/artifact/Wa23YjuTXtEhL3hy8PvZZV (version 40 after the Oct 29 accounts, HQ and profile pages row, Screen 16).
+https://claude.ai/artifact/Wa23YjuTXtEhL3hy8PvZZV (version 41 after the Oct 29 widgets, scan, snap and paste states row, Screen 17).
 
 - `mega-screens/project/*.dc.html` — one board per screen state; `canvas.json` places the boards (rows per
   screen: Chat, HQ, Profile, Family, Onboarding, Push, Settings, Widgets, Sign in, Kids, Store,
@@ -74,3 +74,11 @@ and the share suggestion (plus the "nothing needs you" card), and the Profile pa
 (parent edits, kid read-only) and "Activity" (who decided each action, what MEGA learned, Forget). Copy is `G5_COPY`
 where it exists; new lines are listed in the frontend notes. The Gmail address, school and team links are made-up
 stand-ins. HQ and Room keep their Screen 2 boards.
+
+Widgets, scan, snap and paste states row (Screen 17, G8, Oct 29): no new template. Wrappers from `SCAN_BOARDS`,
+`SNAP_BOARDS` and `WIDGET_STATE_BOARDS` in `build.py` over `Login` (new props `camera`: ready / denied / notInvite /
+found, and `pasted`: none / nothing / notInvite), `Kids` (new prop `cam`: live / starting / denied / failed) and
+`Widgets` (new prop `state`: live / three / private / kidSafe / empty / stale / signedOut). The Thursday widget states
+use the seed week's Thursday (Admin's private Dentist, the twins' practice, the pickup Admin took over after the
+clash fix). Copy is `G8_COPY` / `KIDS_COPY`. No accessoryInline widget (not in this build): the line above the lock
+screen clock is the date.

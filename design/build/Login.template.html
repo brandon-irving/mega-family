@@ -65,12 +65,20 @@ a{color:#EDEFF2;text-decoration:none}
     <h1 style="position: absolute; top: 112px; left: 24px; right: 24px; margin: 0; font-size: 28px; line-height: 34px; font-weight: 800">I have an invite</h1>
     <p style="position: absolute; top: 154px; left: 24px; right: 24px; margin: 0; font-size: 16px; line-height: 23px; color: #9AA1AB">Paste the link your family admin sent you, or just its code.</p>
     <label for="invite-link" style="position: absolute; top: 222px; left: 24px; font-size: 13px; font-weight: 600; color: #9AA1AB; letter-spacing: .04em; text-transform: uppercase">Invite link</label>
-    <input id="invite-link" type="text" autocomplete="off" spellcheck="false" placeholder="mega.family/join/…" value="{{link}}" onInput="{{typeLink}}" style="position: absolute; top: 246px; left: 24px; width: 248px; height: 52px; box-sizing: border-box; border-radius: 14px; border: 1px solid #2E343D; background: #16191E; color: #EDEFF2; padding: 0 14px; font-size: 16px; font-family: inherit">
+    <input id="invite-link" type="text" autocomplete="off" spellcheck="false" placeholder="mega.family/join/…" value="{{link}}" onInput="{{typeLink}}" aria-invalid="{{pasteMsg.invalid}}" style="position: absolute; top: 246px; left: 24px; width: 248px; height: 52px; box-sizing: border-box; border-radius: 14px; border: 1px solid {{pasteMsg.border}}; background: #16191E; color: #EDEFF2; padding: 0 14px; font-size: 16px; font-family: inherit">
     <button type="button" onClick="{{paste}}" style="position: absolute; top: 246px; right: 24px; width: 86px; height: 52px; border-radius: 14px; border: 1px solid #2E343D; background: transparent; color: #EDEFF2; font-size: 15px; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 6px">
       <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="3" width="8" height="4" rx="1"></rect><path d="M16 5h2a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h2"></path></svg>
       Paste
     </button>
-    <p style="position: absolute; top: 306px; left: 24px; right: 24px; margin: 0; font-size: 13px; line-height: 18px; color: #6B727D">Looks like mega.family/join/7QK2-M4XD, or just 7QK2-M4XD</p>
+    <sc-if value="{{pasteMsg.none}}" hint-placeholder-val="{{ true }}">
+      <p style="position: absolute; top: 306px; left: 24px; right: 24px; margin: 0; font-size: 13px; line-height: 18px; color: #6B727D">Looks like mega.family/join/7QK2-M4XD, or just 7QK2-M4XD</p>
+    </sc-if>
+    <sc-if value="{{pasteMsg.show}}" hint-placeholder-val="{{ false }}">
+      <p role="alert" style="position: absolute; top: 304px; left: 24px; right: 24px; margin: 0; display: flex; gap: 6px; align-items: flex-start; font-size: 13px; line-height: 18px; color: #F2B33D">
+        <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0; margin-top: 1px"><circle cx="12" cy="12" r="9"></circle><path d="M12 8v5M12 16.5v.5"></path></svg>
+        <span>{{pasteMsg.text}}</span>
+      </p>
+    </sc-if>
     <button type="button" disabled="{{cont.disabled}}" onClick="{{toPreview}}" style="position: absolute; top: 340px; left: 24px; right: 24px; height: 56px; border-radius: 28px; border: 1px solid {{cont.border}}; background: {{cont.bg}}; color: {{cont.ink}}; font-size: 17px; font-weight: 800; transform: {{dip.cont}}; box-shadow: {{glow.cont}}; transition: transform 120ms ease, background 200ms ease, box-shadow 200ms ease">Continue</button>
     <div style="position: absolute; top: 428px; left: 24px; right: 24px; display: flex; align-items: center; gap: 12px; color: #9AA1AB; font-size: 13px">
       <span style="flex: 1; height: 1px; background: #2E343D"></span>
@@ -104,7 +112,21 @@ a{color:#EDEFF2;text-decoration:none}
       <svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"></path></svg>
     </button>
     <h1 style="position: absolute; top: 112px; left: 24px; right: 24px; margin: 0; font-size: 22px; line-height: 28px; font-weight: 700; text-align: center">Scan the invite</h1>
-    <button type="button" aria-label="Simulate finding the QR code" onClick="{{foundCode}}" style="position: absolute; top: 252px; left: 75px; width: 240px; height: 240px; padding: 0; border: none; background: transparent">
+<sc-if value="{{scan.denied}}" hint-placeholder-val="{{ false }}">
+      <div style="position: absolute; top: 212px; left: 24px; right: 24px; display: flex; flex-direction: column; align-items: center; gap: 14px; text-align: center">
+        <span aria-hidden="true" style="width: 96px; height: 96px; border-radius: 28px; background: #16191E; border: 1px solid #2E343D; display: flex; align-items: center; justify-content: center; color: #9AA1AB">
+          <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3l18 18"></path><path d="M9.5 5h5l1.5 2h3a1 1 0 0 1 1 1v9M17 19H5a1 1 0 0 1-1-1V8a1 1 0 0 1 1-1h2"></path><path d="M10.2 10.3a3 3 0 0 0 3.5 3.5"></path></svg>
+        </span>
+        <p style="margin: 0; font-size: 17px; line-height: 24px; color: #EDEFF2">MEGA needs the camera to scan an invite. You can turn it on in Settings, or paste the link instead.</p>
+      </div>
+      <div style="position: absolute; left: 24px; right: 24px; bottom: 52px; display: flex; flex-direction: column; gap: 12px">
+        <button type="button" onClick="{{toInvite}}" style="height: 56px; border-radius: 28px; border: none; background: #EDEFF2; color: #0C0E11; font-size: 17px; font-weight: 800">Open Settings</button>
+        <button type="button" onClick="{{toInvite}}" style="height: 52px; border-radius: 26px; border: 1px solid #2E343D; background: transparent; color: #EDEFF2; font-size: 16px; font-weight: 600">Paste a link instead</button>
+        <button type="button" onClick="{{toWelcome}}" style="height: 48px; border-radius: 24px; border: none; background: transparent; color: #9AA1AB; font-size: 16px; font-weight: 600">Not now</button>
+      </div>
+    </sc-if>
+    <sc-if value="{{scan.live}}" hint-placeholder-val="{{ true }}">
+        <button type="button" aria-label="Simulate finding the QR code" onClick="{{foundCode}}" style="position: absolute; top: 252px; left: 75px; width: 240px; height: 240px; padding: 0; border: none; background: transparent">
       <span style="position: absolute; left: 44px; top: 44px; width: 152px; height: 152px; opacity: {{scan.qrOpacity}}; transition: opacity 250ms ease">
         <sc-for list="{{qr}}" as="q" hint-placeholder-count="200">
           <span style="position: absolute; left: {{q.l}}px; top: {{q.t}}px; width: 7px; height: 7px; background: #EDEFF2"></span>
@@ -115,8 +137,9 @@ a{color:#EDEFF2;text-decoration:none}
       <span style="position: absolute; left: 0; bottom: 0; width: 40px; height: 40px; border-bottom: 4px solid {{scan.corner}}; border-left: 4px solid {{scan.corner}}; border-bottom-left-radius: 18px; transition: border-color 200ms ease"></span>
       <span style="position: absolute; right: 0; bottom: 0; width: 40px; height: 40px; border-bottom: 4px solid {{scan.corner}}; border-right: 4px solid {{scan.corner}}; border-bottom-right-radius: 18px; transition: border-color 200ms ease"></span>
     </button>
-    <p style="position: absolute; top: 528px; left: 40px; right: 40px; margin: 0; font-size: 16px; line-height: 23px; color: #B4BAC3; text-align: center">{{scan.hint}}</p>
+    <p role="status" style="position: absolute; top: 528px; left: 40px; right: 40px; margin: 0; font-size: 16px; line-height: 23px; color: {{scan.hintInk}}; text-align: center">{{scan.hint}}</p>
     <button type="button" onClick="{{toInvite}}" style="position: absolute; top: 740px; left: 24px; right: 24px; height: 52px; border-radius: 26px; border: 1px solid #2E343D; background: transparent; color: #EDEFF2; font-size: 16px; font-weight: 600">Paste a link instead</button>
+    </sc-if>
   </sc-if>
 
   <!-- 6 · Adult invite (Oct 28: adults and kids get different screens, chosen from the invite itself).
@@ -325,7 +348,7 @@ a{color:#EDEFF2;text-decoration:none}
   </sc-for>
 </div>
 </x-dc>
-<script type="text/x-dc" data-dc-script data-props='{"step":{"editor":"enum","options":["opening","welcome","invite","scan","preview","locked","family"],"default":"welcome"},"sheet":{"editor":"enum","options":["none","signin","create","demo"],"default":"none"},"form":{"editor":"enum","options":["empty","filled"],"default":"empty"},"scan":{"editor":"enum","options":["ready","later"],"default":"ready"},"who":{"editor":"enum","options":["adult","kid"],"default":"adult"},"invite":{"editor":"enum","options":["valid","expired"],"default":"valid"},"platform":{"editor":"enum","options":["ios","android","web"],"default":"ios"},"build":{"editor":"enum","options":["release","dev"],"default":"release"},"motion":{"editor":"enum","options":["full","reduced"],"default":"full"},"$preview":{"width":390,"height":844}}'>
+<script type="text/x-dc" data-dc-script data-props='{"step":{"editor":"enum","options":["opening","welcome","invite","scan","preview","locked","family"],"default":"welcome"},"sheet":{"editor":"enum","options":["none","signin","create","demo"],"default":"none"},"form":{"editor":"enum","options":["empty","filled"],"default":"empty"},"scan":{"editor":"enum","options":["ready","later"],"default":"ready"},"camera":{"editor":"enum","options":["ready","denied","notInvite","found"],"default":"ready"},"pasted":{"editor":"enum","options":["none","nothing","notInvite"],"default":"none"},"who":{"editor":"enum","options":["adult","kid"],"default":"adult"},"invite":{"editor":"enum","options":["valid","expired"],"default":"valid"},"platform":{"editor":"enum","options":["ios","android","web"],"default":"ios"},"build":{"editor":"enum","options":["release","dev"],"default":"release"},"motion":{"editor":"enum","options":["full","reduced"],"default":"full"},"$preview":{"width":390,"height":844}}'>
 // Walk cycles exported from prototypes/megasprite (the same art HQ uses); badges and big sprites use the live engine.
 const SPRITES = __SPRITES__;
 __SPRITE_LIVE__
@@ -388,6 +411,10 @@ function scene(s) {
     violet: script([at(300, Y.scanCard, 'left'), SHOW, wait(1400, { emote: '?' }), walk(92), wait(1600, { poke: 'scan' }), walk(300)], 2),
     coral: script([HIDE]),
   };
+  // Camera denied: no reticle to walk along, so Teal waits on the Open Settings button's top edge.
+  if (s.step === 'scan' && s.camera === 'denied') return {
+    teal: script([at(300, 612, 'left'), SHOW, wait(2200, { emote: '?' }), walk(240), wait(FOREVER, { face: 'front' })]), violet: script([HIDE]), coral: script([HIDE]),
+  };
   if (s.step === 'scan' && s.found) return {
     teal: script([SHOW, wait(FOREVER, { happy: true, emote: '!' })]), violet: script([HIDE]), coral: script([HIDE]),
   };
@@ -446,7 +473,7 @@ class Component extends DCLogic {
   }
   fresh(p) {
     const filled = p.form === 'filled';
-    return { step: p.step || 'welcome', sheet: p.sheet || 'none', shown: p.sheet || 'none', link: '', linked: false, found: false, busy: null, t: 0,
+    return { step: p.step || 'welcome', sheet: p.sheet || 'none', shown: p.sheet || 'none', link: '', linked: false, found: p.camera === 'found', camera: p.camera || 'ready', pasted: p.pasted || 'none', busy: null, t: 0,
       email: filled ? 'you@example.com' : '', password: filled ? 'paper-kite-42' : '', showPw: false };
   }
   reduced() { return this.props.motion === 'reduced'; }
@@ -456,7 +483,7 @@ class Component extends DCLogic {
     this.timer = setInterval(this.tick, TICK);
   }
   componentDidUpdate(prev) {
-    const keys = ['step', 'sheet', 'who', 'invite', 'motion', 'form', 'scan'];
+    const keys = ['step', 'sheet', 'who', 'invite', 'motion', 'form', 'scan', 'camera', 'pasted'];
     if (keys.some((k) => prev[k] !== this.props[k])) { const s = this.fresh(this.props); this.setState(s); this.setScene(s); }
   }
   componentWillUnmount() { clearInterval(this.timer); (this.timers || []).forEach(clearTimeout); }
@@ -615,7 +642,8 @@ class Component extends DCLogic {
       submitBg: ready ? '#EDEFF2' : '#2E343D', submitInk: ready ? '#0C0E11' : '#9AA1AB',
       submit: () => { if (ready) signIn('email')(); },
     };
-    const scanHint = s.found ? 'Found it! Opening the invite…' : 'Point your camera at the QR code on your family admin’s phone.';
+    const notInvite = s.camera === 'notInvite' && !s.found;
+    const scanHint = s.found ? 'Found it! Opening the invite…' : notInvite ? 'That QR code isn’t a MEGA invite. Ask your family admin to show the one in Family.' : 'Point your camera at the QR code on your family admin’s phone.';
     return {
       is: { opening: step === 'opening', welcome: step === 'welcome', invite: step === 'invite', scan: step === 'scan', locked: step === 'locked', family: step === 'family',
         adultInvite: step === 'preview' && !kid && !expired, kidInvite: step === 'preview' && kid && !expired, expired: step === 'preview' && expired },
@@ -631,7 +659,8 @@ class Component extends DCLogic {
       signinColor: pokes.signin ? '#2FB8B0' : '#EDEFF2', signinLine: pokes.signin ? 'underline' : 'none',
       scanBorder: pokes.scan ? '#2FB8B0' : '#2E343D',
       cont: s.linked ? { disabled: false, bg: '#EDEFF2', ink: '#0C0E11', border: '#EDEFF2' } : { disabled: true, bg: '#16191E', ink: '#9AA1AB', border: '#2E343D' },
-      scan: { qrOpacity: s.found ? 1 : 0.35, corner: s.found ? '#2FB8B0' : '#EDEFF2', hint: scanHint },
+      scan: { qrOpacity: s.found ? 1 : 0.35, corner: s.found ? '#2FB8B0' : notInvite ? '#F2B33D' : '#EDEFF2', hint: scanHint, hintInk: notInvite ? '#F2B33D' : '#B4BAC3', denied: s.camera === 'denied', live: s.camera !== 'denied' },
+      pasteMsg: { none: s.pasted === 'none', show: s.pasted !== 'none', text: s.pasted === 'nothing' ? 'There’s nothing to paste yet. Copy the invite link first.' : 'That doesn’t look like a MEGA invite link.', invalid: String(s.pasted === 'notInvite'), border: s.pasted === 'notInvite' ? '#F2B33D' : '#2E343D' },
       link: s.link,
       family: [['Admin', 'teal'], ['Twin 1', 'violet'], ['Twin 2', 'sun'], ['Hub', 'sky']].map(([n, c]) => ({ name: n, badge: head(LOOKS.colors[c], 'calm') })),
       demo: [['Admin', 'Teal · admin', 'teal', 'Main.dc.html'], ['Partner', 'Coral · adult', 'coral', 'Main.dc.html'], ['Twin 1', 'Zap · kid', 'violet', 'Kid.dc.html'], ['Twin 2', 'Sunny · kid', 'sun', 'Kid.dc.html']]
@@ -649,8 +678,8 @@ class Component extends DCLogic {
         const link = e.target.value, linked = LINK_OK(link);
         if (linked !== s.linked) this.go({ link, linked }); else this.setState({ link });
       },
-      paste: () => { this.lookAt(328, 556); this.go({ link: SAMPLE_LINK, linked: true }); },
-      foundCode: () => { if (s.found) return; this.go({ found: true }); this.later(() => this.go({ step: 'preview', found: false }), 1100); },
+      paste: () => { this.lookAt(328, 556); this.go({ link: SAMPLE_LINK, linked: true, pasted: 'none' }); },
+      foundCode: () => { if (s.found || s.camera === 'denied') return; this.go({ found: true, camera: 'ready' }); this.later(() => this.go({ step: 'preview', found: false }), 1100); },
     };
   }
 }

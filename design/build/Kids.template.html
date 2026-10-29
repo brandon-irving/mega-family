@@ -14,6 +14,8 @@ body{margin:0;background:#0C0E11}
 button{font-family:inherit;cursor:pointer}
 a{color:#EDEFF2;text-decoration:none}
 @keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
+@keyframes spin{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion: reduce){[style*="animation: spin"]{animation:none!important}}
 .bob{animation:bob .9s ease-in-out infinite}
 @keyframes pop{0%{transform:scale(.4);opacity:0}60%{transform:scale(1.12);opacity:1}100%{transform:scale(1)}}
 .pop{animation:pop 520ms cubic-bezier(.2,.9,.3,1.2) both}
@@ -37,8 +39,9 @@ __THREAD__
         </button>
         <div style="flex: 1; text-align: center; font-size: 17px; font-weight: 700; margin-right: 44px">Homework photo</div>
       </div>
-      <div style="position: relative; margin: 28px 24px 0; height: 470px; border-radius: 24px; background: #2A2E35; overflow: hidden; display: flex; align-items: center; justify-content: center">
-        <div aria-label="A fractions worksheet in the camera" role="img" style="width: 250px; height: 330px; transform: rotate(-4deg); background: #F6F3EA; border-radius: 4px; padding: 20px; box-sizing: border-box; color: #2B2B33; display: flex; flex-direction: column; gap: 14px; box-shadow: 0 12px 30px rgba(0,0,0,0.4)">
+      <div style="position: relative; margin: 28px 24px 0; height: 470px; border-radius: 24px; background: {{cam.boxBg}}; overflow: hidden; display: flex; align-items: center; justify-content: center">
+        <sc-if value="{{cam.live}}" hint-placeholder-val="{{ true }}">
+        <div aria-label="Camera viewfinder. Line the worksheet up inside the frame." role="img" style="width: 250px; height: 330px; transform: rotate(-4deg); background: #F6F3EA; border-radius: 4px; padding: 20px; box-sizing: border-box; color: #2B2B33; display: flex; flex-direction: column; gap: 14px; box-shadow: 0 12px 30px rgba(0,0,0,0.4)">
           <div style="display: flex; justify-content: space-between; font-size: 12px"><b style="font-size: 15px">Fractions · Sheet 4</b><span>Name <span style="display: inline-block; width: 56px; border-bottom: 1px solid #8A8F99"></span></span></div>
           <sc-for list="{{sheet}}" as="q" hint-placeholder-count="6">
             <div style="font-size: 15px; display: flex; gap: 8px"><span>{{q.n}}.</span><span style="flex: 1">{{q.text}}</span><span style="width: 44px; border-bottom: 1px solid #8A8F99"></span></div>
@@ -48,13 +51,46 @@ __THREAD__
         <span style="position: absolute; right: 18px; top: 18px; width: 36px; height: 36px; border-top: 4px solid #EDEFF2; border-right: 4px solid #EDEFF2; border-top-right-radius: 14px"></span>
         <span style="position: absolute; left: 18px; bottom: 18px; width: 36px; height: 36px; border-bottom: 4px solid #EDEFF2; border-left: 4px solid #EDEFF2; border-bottom-left-radius: 14px"></span>
         <span style="position: absolute; right: 18px; bottom: 18px; width: 36px; height: 36px; border-bottom: 4px solid #EDEFF2; border-right: 4px solid #EDEFF2; border-bottom-right-radius: 14px"></span>
+        </sc-if>
+        <sc-if value="{{cam.starting}}" hint-placeholder-val="{{ false }}">
+          <div role="status" style="display: flex; flex-direction: column; align-items: center; gap: 16px; color: #B4BAC3; font-size: 16px">
+            <span aria-hidden="true" style="width: 44px; height: 44px; border-radius: 22px; border: 4px solid #2E343D; border-top-color: #EDEFF2; box-sizing: border-box; animation: spin 900ms linear infinite"></span>
+            Starting the camera…
+          </div>
+          <span aria-hidden="true" style="position: absolute; left: 18px; top: 18px; width: 36px; height: 36px; border-top: 4px solid #4A515C; border-left: 4px solid #4A515C; border-top-left-radius: 14px"></span>
+          <span aria-hidden="true" style="position: absolute; right: 18px; top: 18px; width: 36px; height: 36px; border-top: 4px solid #4A515C; border-right: 4px solid #4A515C; border-top-right-radius: 14px"></span>
+          <span aria-hidden="true" style="position: absolute; left: 18px; bottom: 18px; width: 36px; height: 36px; border-bottom: 4px solid #4A515C; border-left: 4px solid #4A515C; border-bottom-left-radius: 14px"></span>
+          <span aria-hidden="true" style="position: absolute; right: 18px; bottom: 18px; width: 36px; height: 36px; border-bottom: 4px solid #4A515C; border-right: 4px solid #4A515C; border-bottom-right-radius: 14px"></span>
+        </sc-if>
+        <sc-if value="{{cam.problem}}" hint-placeholder-val="{{ false }}">
+          <div style="display: flex; flex-direction: column; align-items: center; gap: 14px; padding: 0 28px; text-align: center">
+            <span aria-hidden="true" style="width: 88px; height: 88px; border-radius: 26px; background: #16191E; border: 1px solid #2E343D; display: flex; align-items: center; justify-content: center; color: #9AA1AB">
+              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3l18 18"></path><path d="M9.5 5h5l1.5 2h3a1 1 0 0 1 1 1v9M17 19H5a1 1 0 0 1-1-1V8a1 1 0 0 1 1-1h2"></path><path d="M10.2 10.3a3 3 0 0 0 3.5 3.5"></path></svg>
+            </span>
+            <p role="alert" style="margin: 0; font-size: 17px; line-height: 24px; color: #EDEFF2">{{cam.text}}</p>
+          </div>
+        </sc-if>
       </div>
+      <sc-if value="{{cam.shutter}}" hint-placeholder-val="{{ true }}">
       <p style="margin: 18px 32px 0; font-size: 15px; line-height: 22px; color: #B4BAC3; text-align: center">Fit the whole page in the frame. Teal reads it and makes practice for the twins.</p>
-      <div style="flex: 1; display: flex; align-items: center; justify-content: center">
-        <button type="button" aria-label="Take the photo" onClick="{{shoot}}" style="width: 76px; height: 76px; border-radius: 38px; border: 4px solid #EDEFF2; background: transparent; padding: 4px">
+      <div style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px">
+        <button type="button" aria-label="Take the photo" disabled="{{cam.shutterOff}}" onClick="{{shoot}}" style="width: 76px; height: 76px; border-radius: 38px; border: 4px solid #EDEFF2; background: transparent; padding: 4px; opacity: {{cam.shutterOpacity}}">
           <span style="display: block; width: 100%; height: 100%; border-radius: 30px; background: #EDEFF2"></span>
         </button>
+        <button type="button" onClick="{{shoot}}" style="height: 44px; padding: 0 12px; border: none; background: transparent; color: #B4BAC3; font-size: 15px; font-weight: 600">Choose a photo instead</button>
       </div>
+      </sc-if>
+      <sc-if value="{{cam.problem}}" hint-placeholder-val="{{ false }}">
+      <div style="flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 12px; padding: 0 24px">
+        <button type="button" onClick="{{shoot}}" style="height: 56px; border-radius: 28px; border: none; background: #EDEFF2; color: #0C0E11; font-size: 17px; font-weight: 800">Choose a photo instead</button>
+        <sc-if value="{{cam.denied}}" hint-placeholder-val="{{ false }}">
+          <button type="button" onClick="{{closeCamera}}" style="width: 100%; height: 52px; border-radius: 26px; border: 1px solid #2E343D; background: transparent; color: #EDEFF2; font-size: 16px; font-weight: 600">Open Settings</button>
+        </sc-if>
+        <sc-if value="{{cam.failed}}" hint-placeholder-val="{{ false }}">
+          <button type="button" onClick="{{retryCamera}}" style="width: 100%; height: 52px; border-radius: 26px; border: 1px solid #2E343D; background: transparent; color: #EDEFF2; font-size: 16px; font-weight: 600">Try the camera again</button>
+        </sc-if>
+      </div>
+      </sc-if>
       <div style="display: flex; align-items: center; justify-content: center; gap: 6px; padding-bottom: 30px; font-size: 12px; color: #9AA1AB">
         <svg aria-hidden="true" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="10" rx="2"></rect><path d="M8 11V8a4 4 0 0 1 8 0v3"></path></svg>
         Only Admin and Partner see homework photos.
@@ -140,7 +176,7 @@ __THREAD__
   </sc-if>
 </div>
 </x-dc>
-<script type="text/x-dc" data-dc-script data-props='{"step":{"editor":"enum","options":["intro","snap","make","practice","done","summary","chore","choreApprove","bedtime","morning","bucks"],"default":"make"},"hint":{"editor":"enum","options":["off","on"],"default":"off"},"typing":{"editor":"enum","options":["off","on"],"default":"off"},"$preview":{"width":390,"height":844}}'>
+<script type="text/x-dc" data-dc-script data-props='{"step":{"editor":"enum","options":["intro","snap","make","practice","done","summary","chore","choreApprove","bedtime","morning","bucks"],"default":"make"},"hint":{"editor":"enum","options":["off","on"],"default":"off"},"typing":{"editor":"enum","options":["off","on"],"default":"off"},"cam":{"editor":"enum","options":["live","starting","denied","failed"],"default":"live"},"$preview":{"width":390,"height":844}}'>
 // Generated from prototypes/megasprite (mega-template.mjs, pixel-paint.mjs, export-looks.mjs).
 __SPRITE_LIVE__
 const STORE = __STORE__;
@@ -172,13 +208,13 @@ class Component extends DCLogic {
   fresh(p) {
     const step = p.step || 'make';
     return {
-      step, camera: step === 'snap', kid: 'Twin 1', count: '5', made: false,
+      step, camera: step === 'snap', cam: p.cam || 'live', kid: 'Twin 1', count: '5', made: false,
       q: p.hint === 'on' ? 3 : 1, hint: p.hint === 'on', miss: '', amount: step === 'choreApprove' ? 3 : 5, released: '',
       choreDone: false, packed: [true, false, false, false], morning: 1, cheer: false, bucksGone: false, typing: p.typing === 'on',
     };
   }
   componentDidUpdate(prev) {
-    if (prev.step !== this.props.step || prev.hint !== this.props.hint || prev.typing !== this.props.typing) this.setState(this.fresh(this.props));
+    if (prev.step !== this.props.step || prev.hint !== this.props.hint || prev.typing !== this.props.typing || prev.cam !== this.props.cam) this.setState(this.fresh(this.props));
   }
   componentWillUnmount() { clearTimeout(this.cheerT); }
 
@@ -319,6 +355,14 @@ class Component extends DCLogic {
       th: thread(mega, items, extra),
       cameraOpen: step === 'snap' && s.camera,
       closeCamera: () => this.setState({ camera: false }),
+      retryCamera: () => { this.setState({ cam: 'starting' }); setTimeout(() => this.setState({ cam: 'live' }), 1200); },
+      cam: {
+        live: s.cam === 'live', starting: s.cam === 'starting', problem: s.cam === 'denied' || s.cam === 'failed',
+        denied: s.cam === 'denied', failed: s.cam === 'failed', shutter: s.cam === 'live' || s.cam === 'starting',
+        shutterOff: s.cam === 'starting', shutterOpacity: s.cam === 'starting' ? 0.35 : 1,
+        boxBg: s.cam === 'live' ? '#2A2E35' : '#101317',
+        text: s.cam === 'denied' ? 'MEGA needs the camera to read homework. You can turn it on in Settings, or choose a photo instead.' : 'The camera didn’t start. Choose a photo instead?',
+      },
       shoot: () => this.setState({ step: 'make', camera: false }),
       sheet: SHEET,
       isMorning: step === 'morning',

@@ -65,12 +65,20 @@ a{color:#EDEFF2;text-decoration:none}
     <h1 style="position: absolute; top: 112px; left: 24px; right: 24px; margin: 0; font-size: 28px; line-height: 34px; font-weight: 800">I have an invite</h1>
     <p style="position: absolute; top: 154px; left: 24px; right: 24px; margin: 0; font-size: 16px; line-height: 23px; color: #9AA1AB">Paste the link your family admin sent you, or just its code.</p>
     <label for="invite-link" style="position: absolute; top: 222px; left: 24px; font-size: 13px; font-weight: 600; color: #9AA1AB; letter-spacing: .04em; text-transform: uppercase">Invite link</label>
-    <input id="invite-link" type="text" autocomplete="off" spellcheck="false" placeholder="mega.family/join/…" value="{{link}}" onInput="{{typeLink}}" style="position: absolute; top: 246px; left: 24px; width: 248px; height: 52px; box-sizing: border-box; border-radius: 14px; border: 1px solid #2E343D; background: #16191E; color: #EDEFF2; padding: 0 14px; font-size: 16px; font-family: inherit">
+    <input id="invite-link" type="text" autocomplete="off" spellcheck="false" placeholder="mega.family/join/…" value="{{link}}" onInput="{{typeLink}}" aria-invalid="{{pasteMsg.invalid}}" style="position: absolute; top: 246px; left: 24px; width: 248px; height: 52px; box-sizing: border-box; border-radius: 14px; border: 1px solid {{pasteMsg.border}}; background: #16191E; color: #EDEFF2; padding: 0 14px; font-size: 16px; font-family: inherit">
     <button type="button" onClick="{{paste}}" style="position: absolute; top: 246px; right: 24px; width: 86px; height: 52px; border-radius: 14px; border: 1px solid #2E343D; background: transparent; color: #EDEFF2; font-size: 15px; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 6px">
       <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="3" width="8" height="4" rx="1"></rect><path d="M16 5h2a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h2"></path></svg>
       Paste
     </button>
-    <p style="position: absolute; top: 306px; left: 24px; right: 24px; margin: 0; font-size: 13px; line-height: 18px; color: #6B727D">Looks like mega.family/join/7QK2-M4XD, or just 7QK2-M4XD</p>
+    <sc-if value="{{pasteMsg.none}}" hint-placeholder-val="{{ true }}">
+      <p style="position: absolute; top: 306px; left: 24px; right: 24px; margin: 0; font-size: 13px; line-height: 18px; color: #6B727D">Looks like mega.family/join/7QK2-M4XD, or just 7QK2-M4XD</p>
+    </sc-if>
+    <sc-if value="{{pasteMsg.show}}" hint-placeholder-val="{{ false }}">
+      <p role="alert" style="position: absolute; top: 304px; left: 24px; right: 24px; margin: 0; display: flex; gap: 6px; align-items: flex-start; font-size: 13px; line-height: 18px; color: #F2B33D">
+        <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0; margin-top: 1px"><circle cx="12" cy="12" r="9"></circle><path d="M12 8v5M12 16.5v.5"></path></svg>
+        <span>{{pasteMsg.text}}</span>
+      </p>
+    </sc-if>
     <button type="button" disabled="{{cont.disabled}}" onClick="{{toPreview}}" style="position: absolute; top: 340px; left: 24px; right: 24px; height: 56px; border-radius: 28px; border: 1px solid {{cont.border}}; background: {{cont.bg}}; color: {{cont.ink}}; font-size: 17px; font-weight: 800; transform: {{dip.cont}}; box-shadow: {{glow.cont}}; transition: transform 120ms ease, background 200ms ease, box-shadow 200ms ease">Continue</button>
     <div style="position: absolute; top: 428px; left: 24px; right: 24px; display: flex; align-items: center; gap: 12px; color: #9AA1AB; font-size: 13px">
       <span style="flex: 1; height: 1px; background: #2E343D"></span>
@@ -104,7 +112,21 @@ a{color:#EDEFF2;text-decoration:none}
       <svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"></path></svg>
     </button>
     <h1 style="position: absolute; top: 112px; left: 24px; right: 24px; margin: 0; font-size: 22px; line-height: 28px; font-weight: 700; text-align: center">Scan the invite</h1>
-    <button type="button" aria-label="Simulate finding the QR code" onClick="{{foundCode}}" style="position: absolute; top: 252px; left: 75px; width: 240px; height: 240px; padding: 0; border: none; background: transparent">
+<sc-if value="{{scan.denied}}" hint-placeholder-val="{{ false }}">
+      <div style="position: absolute; top: 212px; left: 24px; right: 24px; display: flex; flex-direction: column; align-items: center; gap: 14px; text-align: center">
+        <span aria-hidden="true" style="width: 96px; height: 96px; border-radius: 28px; background: #16191E; border: 1px solid #2E343D; display: flex; align-items: center; justify-content: center; color: #9AA1AB">
+          <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3l18 18"></path><path d="M9.5 5h5l1.5 2h3a1 1 0 0 1 1 1v9M17 19H5a1 1 0 0 1-1-1V8a1 1 0 0 1 1-1h2"></path><path d="M10.2 10.3a3 3 0 0 0 3.5 3.5"></path></svg>
+        </span>
+        <p style="margin: 0; font-size: 17px; line-height: 24px; color: #EDEFF2">MEGA needs the camera to scan an invite. You can turn it on in Settings, or paste the link instead.</p>
+      </div>
+      <div style="position: absolute; left: 24px; right: 24px; bottom: 52px; display: flex; flex-direction: column; gap: 12px">
+        <button type="button" onClick="{{toInvite}}" style="height: 56px; border-radius: 28px; border: none; background: #EDEFF2; color: #0C0E11; font-size: 17px; font-weight: 800">Open Settings</button>
+        <button type="button" onClick="{{toInvite}}" style="height: 52px; border-radius: 26px; border: 1px solid #2E343D; background: transparent; color: #EDEFF2; font-size: 16px; font-weight: 600">Paste a link instead</button>
+        <button type="button" onClick="{{toWelcome}}" style="height: 48px; border-radius: 24px; border: none; background: transparent; color: #9AA1AB; font-size: 16px; font-weight: 600">Not now</button>
+      </div>
+    </sc-if>
+    <sc-if value="{{scan.live}}" hint-placeholder-val="{{ true }}">
+        <button type="button" aria-label="Simulate finding the QR code" onClick="{{foundCode}}" style="position: absolute; top: 252px; left: 75px; width: 240px; height: 240px; padding: 0; border: none; background: transparent">
       <span style="position: absolute; left: 44px; top: 44px; width: 152px; height: 152px; opacity: {{scan.qrOpacity}}; transition: opacity 250ms ease">
         <sc-for list="{{qr}}" as="q" hint-placeholder-count="200">
           <span style="position: absolute; left: {{q.l}}px; top: {{q.t}}px; width: 7px; height: 7px; background: #EDEFF2"></span>
@@ -115,8 +137,9 @@ a{color:#EDEFF2;text-decoration:none}
       <span style="position: absolute; left: 0; bottom: 0; width: 40px; height: 40px; border-bottom: 4px solid {{scan.corner}}; border-left: 4px solid {{scan.corner}}; border-bottom-left-radius: 18px; transition: border-color 200ms ease"></span>
       <span style="position: absolute; right: 0; bottom: 0; width: 40px; height: 40px; border-bottom: 4px solid {{scan.corner}}; border-right: 4px solid {{scan.corner}}; border-bottom-right-radius: 18px; transition: border-color 200ms ease"></span>
     </button>
-    <p style="position: absolute; top: 528px; left: 40px; right: 40px; margin: 0; font-size: 16px; line-height: 23px; color: #B4BAC3; text-align: center">{{scan.hint}}</p>
+    <p role="status" style="position: absolute; top: 528px; left: 40px; right: 40px; margin: 0; font-size: 16px; line-height: 23px; color: {{scan.hintInk}}; text-align: center">{{scan.hint}}</p>
     <button type="button" onClick="{{toInvite}}" style="position: absolute; top: 740px; left: 24px; right: 24px; height: 52px; border-radius: 26px; border: 1px solid #2E343D; background: transparent; color: #EDEFF2; font-size: 16px; font-weight: 600">Paste a link instead</button>
+    </sc-if>
   </sc-if>
 
   <!-- 6 · Adult invite (Oct 28: adults and kids get different screens, chosen from the invite itself).
@@ -325,7 +348,7 @@ a{color:#EDEFF2;text-decoration:none}
   </sc-for>
 </div>
 </x-dc>
-<script type="text/x-dc" data-dc-script data-props='{"step":{"editor":"enum","options":["opening","welcome","invite","scan","preview","locked","family"],"default":"welcome"},"sheet":{"editor":"enum","options":["none","signin","create","demo"],"default":"none"},"form":{"editor":"enum","options":["empty","filled"],"default":"empty"},"scan":{"editor":"enum","options":["ready","later"],"default":"ready"},"who":{"editor":"enum","options":["adult","kid"],"default":"adult"},"invite":{"editor":"enum","options":["valid","expired"],"default":"valid"},"platform":{"editor":"enum","options":["ios","android","web"],"default":"ios"},"build":{"editor":"enum","options":["release","dev"],"default":"release"},"motion":{"editor":"enum","options":["full","reduced"],"default":"full"},"$preview":{"width":390,"height":844}}'>
+<script type="text/x-dc" data-dc-script data-props='{"step":{"editor":"enum","options":["opening","welcome","invite","scan","preview","locked","family"],"default":"welcome"},"sheet":{"editor":"enum","options":["none","signin","create","demo"],"default":"none"},"form":{"editor":"enum","options":["empty","filled"],"default":"empty"},"scan":{"editor":"enum","options":["ready","later"],"default":"ready"},"camera":{"editor":"enum","options":["ready","denied","notInvite","found"],"default":"ready"},"pasted":{"editor":"enum","options":["none","nothing","notInvite"],"default":"none"},"who":{"editor":"enum","options":["adult","kid"],"default":"adult"},"invite":{"editor":"enum","options":["valid","expired"],"default":"valid"},"platform":{"editor":"enum","options":["ios","android","web"],"default":"ios"},"build":{"editor":"enum","options":["release","dev"],"default":"release"},"motion":{"editor":"enum","options":["full","reduced"],"default":"full"},"$preview":{"width":390,"height":844}}'>
 // Walk cycles exported from prototypes/megasprite (the same art HQ uses); badges and big sprites use the live engine.
 const SPRITES = {"coral_back_stand":"fa94d88923812504ebea672b493fd163","coral_back_stepL":"8a12c9cc65adb9ef9a8fcc6a25b8eb56","coral_back_stepR":"f0eb1e28e9269dba4adc4c71e458a650","coral_front_happy":"005d086744c8e856a06e076b8579864b","coral_front_stand":"f05e04eb588c51e9e1b7b8b388cfc51d","coral_front_stepL":"627d52a86093d22be4b34015e0dbbb5f","coral_front_stepR":"62a40b7f16508d838c0651587778cbf6","coral_left_stand":"63fe58359725183070b5cfb52957ea88","coral_left_stepL":"4960f2018a889569f36a898c4dcac5d5","coral_left_stepR":"25f1c57cbc29a4dd144d7461d88cea04","coral_right_stand":"29cb4407c428746790a7469af32459a2","coral_right_stepL":"3c260cca8e4e8a92bb7171f4feee265b","coral_right_stepR":"267a5f2ebcaa55b0ff0ce81639edbf83","teal_back_stand":"4b6774566fe916d9d0bc316bdcbb5401","teal_back_stepL":"999042ae0b9e4fbaefc3982d671e805c","teal_back_stepR":"b788c30109731414256c9ef3fae2d8ec","teal_front_happy":"10fec01116ae5e2649424a433a191ef8","teal_front_stand":"ec2836d81aacd491281720cfb0f4427f","teal_front_stepL":"1d02fa7b75d3e08a13a2d019a7dc3451","teal_front_stepR":"f6a306f9010c60e8464b9644251c9d0a","teal_left_stand":"fcdd65de14e47f180c7b4e54ab284dec","teal_left_stepL":"ef6833740a535713c31c120252110af3","teal_left_stepR":"096e28d2a1b6fd8d74a1478304051bd2","teal_right_stand":"d18f6fe730cfa48e7025884d4d679bae","teal_right_stepL":"29eead1130f8bf2ed624a8eaeeb0f921","teal_right_stepR":"5dfdf4c1d94a4d8feab96f48787bfd6a","violet_back_stand":"049c98986410dc7a9db7abdfc9169be5","violet_back_stepL":"0cf448e6905d2a4b1367881eb4cf5690","violet_back_stepR":"3a0651bc23a2d8c4f820952d766108b5","violet_front_happy":"eafbb24b7aa2998150983fe74dfc65e8","violet_front_stand":"f711269617ff1f62d229156031391083","violet_front_stepL":"03976cb2bbd7577cc0924cb9dec12869","violet_front_stepR":"f93ad7213071f8855846181c6b1200d4","violet_left_stand":"4a592a38621a9eb5fcea13f0034b887d","violet_left_stepL":"b7499ad05c4c8c3bcd13f2f508133722","violet_left_stepR":"a07ea42d1970f772dd989c411c9c71b1","violet_right_stand":"bde6c99a5be1f60b1412911b33db5076","violet_right_stepL":"faf5080204ea4cea49592b5a2308c4fd","violet_right_stepR":"10a6eaac5e961eb3c26a391abeca5f9d"};
 const LOOKS = {"grid":[32,40],"body":[[15,0,2,"outline"],[14,1,1,"outline"],[15,1,2,"tipLight"],[17,1,1,"outline"],[13,2,1,"outline"],[14,2,1,"tipLight"],[15,2,2,"tip"],[17,2,1,"tipLight"],[18,2,1,"outline"],[14,3,1,"outline"],[15,3,2,"tipDark"],[17,3,1,"outline"],[14,4,4,"outline"],[14,5,1,"outline"],[15,5,2,"silver"],[17,5,1,"outline"],[14,6,1,"outline"],[15,6,2,"silver"],[17,6,1,"outline"],[6,7,20,"outline"],[5,8,1,"outline"],[6,8,20,"shellLight"],[26,8,1,"outline"],[4,9,1,"outline"],[5,9,1,"shellLight"],[6,9,20,"shell"],[26,9,1,"shellLight"],[27,9,1,"outline"],[3,10,1,"outline"],[4,10,1,"shellLight"],[5,10,22,"shell"],[27,10,1,"shellLight"],[28,10,1,"outline"],[3,11,1,"outline"],[4,11,4,"shell"],[8,11,16,"visor"],[24,11,4,"shell"],[28,11,1,"outline"],[2,12,2,"outline"],[4,12,3,"shell"],[7,12,3,"visor"],[10,12,3,"glare"],[13,12,12,"visor"],[25,12,3,"shell"],[28,12,2,"outline"],[1,13,1,"outline"],[2,13,1,"shellLight"],[3,13,1,"outline"],[4,13,3,"shell"],[7,13,2,"visor"],[9,13,1,"glare"],[10,13,15,"visor"],[25,13,3,"shell"],[28,13,1,"outline"],[29,13,1,"shellLight"],[30,13,1,"outline"],[0,14,1,"outline"],[1,14,1,"shellLight"],[2,14,1,"shell"],[3,14,1,"outline"],[4,14,3,"shell"],[7,14,2,"visor"],[9,14,1,"glare"],[10,14,15,"visor"],[25,14,3,"shell"],[28,14,1,"outline"],[29,14,1,"shell"],[30,14,1,"shellLight"],[31,14,1,"outline"],[0,15,1,"outline"],[1,15,2,"shell"],[3,15,1,"outline"],[4,15,3,"shell"],[7,15,18,"visor"],[25,15,3,"shell"],[28,15,1,"outline"],[29,15,2,"shell"],[31,15,1,"outline"],[0,16,1,"outline"],[1,16,2,"shell"],[3,16,1,"outline"],[4,16,3,"shell"],[7,16,18,"visor"],[25,16,3,"shell"],[28,16,1,"outline"],[29,16,2,"shell"],[31,16,1,"outline"],[0,17,1,"outline"],[1,17,2,"shell"],[3,17,1,"outline"],[4,17,3,"shell"],[7,17,18,"visor"],[25,17,3,"shell"],[28,17,1,"outline"],[29,17,2,"shell"],[31,17,1,"outline"],[0,18,1,"outline"],[1,18,1,"shellDark"],[2,18,1,"shell"],[3,18,1,"outline"],[4,18,3,"shell"],[7,18,18,"visor"],[25,18,3,"shell"],[28,18,1,"outline"],[29,18,1,"shell"],[30,18,1,"shellDark"],[31,18,1,"outline"],[1,19,1,"outline"],[2,19,1,"shellDark"],[3,19,1,"outline"],[4,19,3,"shell"],[7,19,18,"visor"],[25,19,3,"shell"],[28,19,1,"outline"],[29,19,1,"shellDark"],[30,19,1,"outline"],[2,20,2,"outline"],[4,20,3,"shell"],[7,20,18,"visor"],[25,20,3,"shell"],[28,20,2,"outline"],[3,21,1,"outline"],[4,21,3,"shell"],[7,21,18,"visor"],[25,21,3,"shell"],[28,21,1,"outline"],[3,22,1,"outline"],[4,22,4,"shell"],[8,22,16,"visor"],[24,22,4,"shell"],[28,22,1,"outline"],[3,23,1,"outline"],[4,23,1,"shellDark"],[5,23,22,"shell"],[27,23,1,"shellDark"],[28,23,1,"outline"],[4,24,1,"outline"],[5,24,1,"shellDark"],[6,24,20,"shell"],[26,24,1,"shellDark"],[27,24,1,"outline"],[5,25,1,"outline"],[6,25,20,"shellDark"],[26,25,1,"outline"],[5,26,22,"outline"],[4,27,1,"outline"],[5,27,2,"whiteLight"],[7,27,1,"outline"],[8,27,1,"shellLight"],[9,27,1,"outline"],[10,27,1,"shellLight"],[11,27,2,"shell"],[13,27,6,"outline"],[19,27,2,"shell"],[21,27,1,"shellLight"],[22,27,1,"outline"],[23,27,1,"shellLight"],[24,27,1,"outline"],[25,27,2,"whiteLight"],[27,27,1,"outline"],[3,28,1,"outline"],[4,28,1,"whiteLight"],[5,28,2,"white"],[7,28,1,"whiteLight"],[8,28,2,"outline"],[10,28,2,"shell"],[12,28,1,"outline"],[13,28,6,"whiteLight"],[19,28,1,"outline"],[20,28,2,"shell"],[22,28,2,"outline"],[24,28,1,"whiteLight"],[25,28,2,"white"],[27,28,1,"whiteLight"],[28,28,1,"outline"],[3,29,1,"outline"],[4,29,1,"whiteDark"],[5,29,2,"white"],[7,29,1,"whiteDark"],[8,29,2,"outline"],[10,29,2,"shell"],[12,29,1,"outline"],[13,29,6,"whiteDark"],[19,29,1,"outline"],[20,29,2,"shell"],[22,29,2,"outline"],[24,29,1,"whiteDark"],[25,29,2,"white"],[27,29,1,"whiteDark"],[28,29,1,"outline"],[4,30,1,"outline"],[5,30,2,"whiteDark"],[7,30,1,"outline"],[9,30,1,"outline"],[10,30,1,"shellDark"],[11,30,2,"shell"],[13,30,6,"outline"],[19,30,2,"shell"],[21,30,1,"shellDark"],[22,30,1,"outline"],[24,30,1,"outline"],[25,30,2,"whiteDark"],[27,30,1,"outline"],[5,31,2,"outline"],[10,31,1,"outline"],[11,31,10,"shellDark"],[21,31,1,"outline"],[25,31,2,"outline"],[11,32,10,"outline"],[11,33,1,"outline"],[12,33,2,"shell"],[14,33,1,"outline"],[17,33,1,"outline"],[18,33,2,"shell"],[20,33,1,"outline"],[11,34,4,"outline"],[17,34,4,"outline"],[10,35,1,"outline"],[11,35,3,"whiteLight"],[14,35,1,"outline"],[17,35,1,"outline"],[18,35,3,"whiteLight"],[21,35,1,"outline"],[9,36,1,"outline"],[10,36,1,"whiteLight"],[11,36,3,"white"],[14,36,1,"whiteLight"],[15,36,2,"outline"],[17,36,1,"whiteLight"],[18,36,3,"white"],[21,36,1,"whiteLight"],[22,36,1,"outline"],[10,37,1,"outline"],[11,37,3,"whiteDark"],[14,37,1,"outline"],[17,37,1,"outline"],[18,37,3,"whiteDark"],[21,37,1,"outline"],[11,38,3,"outline"],[18,38,3,"outline"]],"faces":{"calm":[[11,16,2,"eye"],[19,16,2,"eye"],[11,17,2,"eye"],[19,17,2,"eye"]],"happy":[[11,16,2,"eye"],[19,16,2,"eye"],[10,17,1,"eye"],[13,17,1,"eye"],[18,17,1,"eye"],[21,17,1,"eye"],[8,19,2,"blush"],[22,19,2,"blush"]],"wink":[[11,15,2,"eye"],[11,16,2,"eye"],[19,16,2,"eye"],[11,17,2,"eye"],[18,17,1,"eye"],[21,17,1,"eye"]],"open":[[11,15,2,"eye"],[19,15,2,"eye"],[11,16,2,"eye"],[19,16,2,"eye"],[11,17,2,"eye"],[19,17,2,"eye"]],"closed":[[10,17,4,"eye"],[18,17,4,"eye"]]},"fixed":{"outline":"#1B1A3A","visor":"#17143A","glare":"#BFEAF7","white":"#F4F6FB","whiteLight":"#FFFFFF","whiteDark":"#AEB3CC","silver":"#C9CFDB","silverLight":"#E8EBF2","silverDark":"#8E95AB","tip":"#9FF0F7","tipLight":"#F0FFFF","tipDark":"#5FCFE0","eye":"#E8FFFF","blush":"#FF9AB2"},"colors":{"teal":"#2FB8B0","coral":"#F2766B","violet":"#8E6CE0","sun":"#F2B33D","sky":"#5B8DEF","leaf":"#5BBF6A"},"stickers":["star","heart","leaf","bolt"],"personalities":{"calm":{"label":"Calm","face":"calm","blurb":"Gentle and unhurried","sample":"No rush. Practice is at 5:30, and I'll remind you at 4:50."},"cheerful":{"label":"Cheerful","face":"happy","blurb":"Upbeat and encouraging","sample":"Good news! Practice is at 5:30. Want a reminder at 4:50?"},"funny":{"label":"Funny","face":"wink","blurb":"Light jokes, still useful","sample":"Practice at 5:30. I'll ping you at 4:50, before traffic does."},"brief":{"label":"Brief","face":"open","blurb":"Short and to the point","sample":"Practice 5:30. Reminder at 4:50?"}}};
@@ -438,6 +461,10 @@ function scene(s) {
     violet: script([at(300, Y.scanCard, 'left'), SHOW, wait(1400, { emote: '?' }), walk(92), wait(1600, { poke: 'scan' }), walk(300)], 2),
     coral: script([HIDE]),
   };
+  // Camera denied: no reticle to walk along, so Teal waits on the Open Settings button's top edge.
+  if (s.step === 'scan' && s.camera === 'denied') return {
+    teal: script([at(300, 612, 'left'), SHOW, wait(2200, { emote: '?' }), walk(240), wait(FOREVER, { face: 'front' })]), violet: script([HIDE]), coral: script([HIDE]),
+  };
   if (s.step === 'scan' && s.found) return {
     teal: script([SHOW, wait(FOREVER, { happy: true, emote: '!' })]), violet: script([HIDE]), coral: script([HIDE]),
   };
@@ -496,7 +523,7 @@ class Component extends DCLogic {
   }
   fresh(p) {
     const filled = p.form === 'filled';
-    return { step: p.step || 'welcome', sheet: p.sheet || 'none', shown: p.sheet || 'none', link: '', linked: false, found: false, busy: null, t: 0,
+    return { step: p.step || 'welcome', sheet: p.sheet || 'none', shown: p.sheet || 'none', link: '', linked: false, found: p.camera === 'found', camera: p.camera || 'ready', pasted: p.pasted || 'none', busy: null, t: 0,
       email: filled ? 'you@example.com' : '', password: filled ? 'paper-kite-42' : '', showPw: false };
   }
   reduced() { return this.props.motion === 'reduced'; }
@@ -506,7 +533,7 @@ class Component extends DCLogic {
     this.timer = setInterval(this.tick, TICK);
   }
   componentDidUpdate(prev) {
-    const keys = ['step', 'sheet', 'who', 'invite', 'motion', 'form', 'scan'];
+    const keys = ['step', 'sheet', 'who', 'invite', 'motion', 'form', 'scan', 'camera', 'pasted'];
     if (keys.some((k) => prev[k] !== this.props[k])) { const s = this.fresh(this.props); this.setState(s); this.setScene(s); }
   }
   componentWillUnmount() { clearInterval(this.timer); (this.timers || []).forEach(clearTimeout); }
@@ -665,7 +692,8 @@ class Component extends DCLogic {
       submitBg: ready ? '#EDEFF2' : '#2E343D', submitInk: ready ? '#0C0E11' : '#9AA1AB',
       submit: () => { if (ready) signIn('email')(); },
     };
-    const scanHint = s.found ? 'Found it! Opening the invite…' : 'Point your camera at the QR code on your family admin’s phone.';
+    const notInvite = s.camera === 'notInvite' && !s.found;
+    const scanHint = s.found ? 'Found it! Opening the invite…' : notInvite ? 'That QR code isn’t a MEGA invite. Ask your family admin to show the one in Family.' : 'Point your camera at the QR code on your family admin’s phone.';
     return {
       is: { opening: step === 'opening', welcome: step === 'welcome', invite: step === 'invite', scan: step === 'scan', locked: step === 'locked', family: step === 'family',
         adultInvite: step === 'preview' && !kid && !expired, kidInvite: step === 'preview' && kid && !expired, expired: step === 'preview' && expired },
@@ -681,7 +709,8 @@ class Component extends DCLogic {
       signinColor: pokes.signin ? '#2FB8B0' : '#EDEFF2', signinLine: pokes.signin ? 'underline' : 'none',
       scanBorder: pokes.scan ? '#2FB8B0' : '#2E343D',
       cont: s.linked ? { disabled: false, bg: '#EDEFF2', ink: '#0C0E11', border: '#EDEFF2' } : { disabled: true, bg: '#16191E', ink: '#9AA1AB', border: '#2E343D' },
-      scan: { qrOpacity: s.found ? 1 : 0.35, corner: s.found ? '#2FB8B0' : '#EDEFF2', hint: scanHint },
+      scan: { qrOpacity: s.found ? 1 : 0.35, corner: s.found ? '#2FB8B0' : notInvite ? '#F2B33D' : '#EDEFF2', hint: scanHint, hintInk: notInvite ? '#F2B33D' : '#B4BAC3', denied: s.camera === 'denied', live: s.camera !== 'denied' },
+      pasteMsg: { none: s.pasted === 'none', show: s.pasted !== 'none', text: s.pasted === 'nothing' ? 'There’s nothing to paste yet. Copy the invite link first.' : 'That doesn’t look like a MEGA invite link.', invalid: String(s.pasted === 'notInvite'), border: s.pasted === 'notInvite' ? '#F2B33D' : '#2E343D' },
       link: s.link,
       family: [['Admin', 'teal'], ['Twin 1', 'violet'], ['Twin 2', 'sun'], ['Hub', 'sky']].map(([n, c]) => ({ name: n, badge: head(LOOKS.colors[c], 'calm') })),
       demo: [['Admin', 'Teal · admin', 'teal', 'Main.dc.html'], ['Partner', 'Coral · adult', 'coral', 'Main.dc.html'], ['Twin 1', 'Zap · kid', 'violet', 'Kid.dc.html'], ['Twin 2', 'Sunny · kid', 'sun', 'Kid.dc.html']]
@@ -699,8 +728,8 @@ class Component extends DCLogic {
         const link = e.target.value, linked = LINK_OK(link);
         if (linked !== s.linked) this.go({ link, linked }); else this.setState({ link });
       },
-      paste: () => { this.lookAt(328, 556); this.go({ link: SAMPLE_LINK, linked: true }); },
-      foundCode: () => { if (s.found) return; this.go({ found: true }); this.later(() => this.go({ step: 'preview', found: false }), 1100); },
+      paste: () => { this.lookAt(328, 556); this.go({ link: SAMPLE_LINK, linked: true, pasted: 'none' }); },
+      foundCode: () => { if (s.found || s.camera === 'denied') return; this.go({ found: true, camera: 'ready' }); this.later(() => this.go({ step: 'preview', found: false }), 1100); },
     };
   }
 }

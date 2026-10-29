@@ -37,7 +37,7 @@ a{color:inherit;text-decoration:none}
                 <span aria-hidden="true" style="width: 4px; height: 34px; border-radius: 2px; background: {{e.color}}"></span>
                 <span style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px">
                   <span style="font-size: 15px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{e.title}}</span>
-                  <span style="font-size: 12px; color: #9AA1AB">{{e.time}} · {{e.who}}</span>
+                  <span style="font-size: 12px; color: #9AA1AB; display: flex; align-items: center; gap: 4px"><sc-if value="{{e.lock}}" hint-placeholder-val="{{ false }}"><svg aria-label="Only you" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="10" rx="2"></rect><path d="M8 11V8a4 4 0 0 1 8 0v3"></path></svg></sc-if>{{e.time}} · {{e.who}}</span>
                 </span>
                 <span style="font-size: 13px; font-weight: 600; color: #EDEFF2">{{e.until}}</span>
               </div>
@@ -46,7 +46,7 @@ a{color:inherit;text-decoration:none}
         </sc-if>
         <sc-if value="{{noSoon}}" hint-placeholder-val="{{ false }}">
           <div style="font-size: 18px; font-weight: 600; line-height: 24px">{{statement.text}}</div>
-          <div style="margin-top: auto; font-size: 12px; color: #9AA1AB">No events in the next 2 hours · Tap to reply</div>
+          <div style="margin-top: auto; font-size: 12px; color: #9AA1AB">{{mediumFoot}}</div>
         </sc-if>
         <a href="Talk.dc.html" aria-label="Talk to {{mega}}" style="position: absolute; z-index: 2; top: 10px; right: 10px; width: 44px; height: 44px; border-radius: 22px; background: {{accent}}; color: {{accentInk}}; display: flex; align-items: center; justify-content: center">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"></rect><path d="M5 11a7 7 0 0 0 14 0M12 18v3"></path></svg>
@@ -62,7 +62,7 @@ a{color:inherit;text-decoration:none}
                 <span style="position: absolute; left: {{r.l}}px; top: {{r.t}}px; width: {{r.w}}px; height: {{r.h}}px; background: {{r.c}}"></span>
               </sc-for>
             </span>
-            <span style="font-size: 12px; font-weight: 700; color: #04201E; background: rgba(255,255,255,0.75); padding: 3px 7px; border-radius: 8px; margin-left: auto">{{smallTag}}</span>
+            <span style="display: {{smallTagDisplay}}; font-size: 12px; font-weight: 700; color: #04201E; background: rgba(255,255,255,0.75); padding: 3px 7px; border-radius: 8px; margin-left: auto">{{smallTag}}</span>
           </div>
           <div style="font-size: {{smallFont}}px; font-weight: 700; line-height: 1.25; color: {{smallInk}}; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical">{{smallLine}}</div>
           <a href="Talk.dc.html" aria-label="Talk to {{mega}}" style="position: relative; z-index: 2; margin-top: auto; height: 34px; border-radius: 17px; background: rgba(12,14,17,0.85); color: #EDEFF2; display: flex; align-items: center; justify-content: center; gap: 6px; font-size: 14px; font-weight: 700">
@@ -113,7 +113,7 @@ a{color:inherit;text-decoration:none}
   <div aria-hidden="true" style="position: absolute; left: 50%; bottom: 4px; width: 134px; height: 5px; margin-left: -67px; border-radius: 3px; background: #EDEFF2"></div>
 </div>
 </x-dc>
-<script type="text/x-dc" data-dc-script data-props='{"who":{"editor":"enum","options":["admin","kid"],"default":"admin"},"now":{"editor":"enum","options":["afternoon","evening"],"default":"afternoon"},"view":{"editor":"enum","options":["home","lock"],"default":"home"},"$preview":{"width":390,"height":844}}'>
+<script type="text/x-dc" data-dc-script data-props='{"who":{"editor":"enum","options":["admin","kid"],"default":"admin"},"now":{"editor":"enum","options":["afternoon","evening"],"default":"afternoon"},"view":{"editor":"enum","options":["home","lock"],"default":"home"},"state":{"editor":"enum","options":["live","three","private","kidSafe","empty","stale","signedOut"],"default":"live"},"$preview":{"width":390,"height":844}}'>
 // Generated from prototypes/megasprite (mega-template.mjs, pixel-paint.mjs, export-looks.mjs).
 const LOOKS = {"grid":[32,40],"body":[[15,0,2,"outline"],[14,1,1,"outline"],[15,1,2,"tipLight"],[17,1,1,"outline"],[13,2,1,"outline"],[14,2,1,"tipLight"],[15,2,2,"tip"],[17,2,1,"tipLight"],[18,2,1,"outline"],[14,3,1,"outline"],[15,3,2,"tipDark"],[17,3,1,"outline"],[14,4,4,"outline"],[14,5,1,"outline"],[15,5,2,"silver"],[17,5,1,"outline"],[14,6,1,"outline"],[15,6,2,"silver"],[17,6,1,"outline"],[6,7,20,"outline"],[5,8,1,"outline"],[6,8,20,"shellLight"],[26,8,1,"outline"],[4,9,1,"outline"],[5,9,1,"shellLight"],[6,9,20,"shell"],[26,9,1,"shellLight"],[27,9,1,"outline"],[3,10,1,"outline"],[4,10,1,"shellLight"],[5,10,22,"shell"],[27,10,1,"shellLight"],[28,10,1,"outline"],[3,11,1,"outline"],[4,11,4,"shell"],[8,11,16,"visor"],[24,11,4,"shell"],[28,11,1,"outline"],[2,12,2,"outline"],[4,12,3,"shell"],[7,12,3,"visor"],[10,12,3,"glare"],[13,12,12,"visor"],[25,12,3,"shell"],[28,12,2,"outline"],[1,13,1,"outline"],[2,13,1,"shellLight"],[3,13,1,"outline"],[4,13,3,"shell"],[7,13,2,"visor"],[9,13,1,"glare"],[10,13,15,"visor"],[25,13,3,"shell"],[28,13,1,"outline"],[29,13,1,"shellLight"],[30,13,1,"outline"],[0,14,1,"outline"],[1,14,1,"shellLight"],[2,14,1,"shell"],[3,14,1,"outline"],[4,14,3,"shell"],[7,14,2,"visor"],[9,14,1,"glare"],[10,14,15,"visor"],[25,14,3,"shell"],[28,14,1,"outline"],[29,14,1,"shell"],[30,14,1,"shellLight"],[31,14,1,"outline"],[0,15,1,"outline"],[1,15,2,"shell"],[3,15,1,"outline"],[4,15,3,"shell"],[7,15,18,"visor"],[25,15,3,"shell"],[28,15,1,"outline"],[29,15,2,"shell"],[31,15,1,"outline"],[0,16,1,"outline"],[1,16,2,"shell"],[3,16,1,"outline"],[4,16,3,"shell"],[7,16,18,"visor"],[25,16,3,"shell"],[28,16,1,"outline"],[29,16,2,"shell"],[31,16,1,"outline"],[0,17,1,"outline"],[1,17,2,"shell"],[3,17,1,"outline"],[4,17,3,"shell"],[7,17,18,"visor"],[25,17,3,"shell"],[28,17,1,"outline"],[29,17,2,"shell"],[31,17,1,"outline"],[0,18,1,"outline"],[1,18,1,"shellDark"],[2,18,1,"shell"],[3,18,1,"outline"],[4,18,3,"shell"],[7,18,18,"visor"],[25,18,3,"shell"],[28,18,1,"outline"],[29,18,1,"shell"],[30,18,1,"shellDark"],[31,18,1,"outline"],[1,19,1,"outline"],[2,19,1,"shellDark"],[3,19,1,"outline"],[4,19,3,"shell"],[7,19,18,"visor"],[25,19,3,"shell"],[28,19,1,"outline"],[29,19,1,"shellDark"],[30,19,1,"outline"],[2,20,2,"outline"],[4,20,3,"shell"],[7,20,18,"visor"],[25,20,3,"shell"],[28,20,2,"outline"],[3,21,1,"outline"],[4,21,3,"shell"],[7,21,18,"visor"],[25,21,3,"shell"],[28,21,1,"outline"],[3,22,1,"outline"],[4,22,4,"shell"],[8,22,16,"visor"],[24,22,4,"shell"],[28,22,1,"outline"],[3,23,1,"outline"],[4,23,1,"shellDark"],[5,23,22,"shell"],[27,23,1,"shellDark"],[28,23,1,"outline"],[4,24,1,"outline"],[5,24,1,"shellDark"],[6,24,20,"shell"],[26,24,1,"shellDark"],[27,24,1,"outline"],[5,25,1,"outline"],[6,25,20,"shellDark"],[26,25,1,"outline"],[5,26,22,"outline"],[4,27,1,"outline"],[5,27,2,"whiteLight"],[7,27,1,"outline"],[8,27,1,"shellLight"],[9,27,1,"outline"],[10,27,1,"shellLight"],[11,27,2,"shell"],[13,27,6,"outline"],[19,27,2,"shell"],[21,27,1,"shellLight"],[22,27,1,"outline"],[23,27,1,"shellLight"],[24,27,1,"outline"],[25,27,2,"whiteLight"],[27,27,1,"outline"],[3,28,1,"outline"],[4,28,1,"whiteLight"],[5,28,2,"white"],[7,28,1,"whiteLight"],[8,28,2,"outline"],[10,28,2,"shell"],[12,28,1,"outline"],[13,28,6,"whiteLight"],[19,28,1,"outline"],[20,28,2,"shell"],[22,28,2,"outline"],[24,28,1,"whiteLight"],[25,28,2,"white"],[27,28,1,"whiteLight"],[28,28,1,"outline"],[3,29,1,"outline"],[4,29,1,"whiteDark"],[5,29,2,"white"],[7,29,1,"whiteDark"],[8,29,2,"outline"],[10,29,2,"shell"],[12,29,1,"outline"],[13,29,6,"whiteDark"],[19,29,1,"outline"],[20,29,2,"shell"],[22,29,2,"outline"],[24,29,1,"whiteDark"],[25,29,2,"white"],[27,29,1,"whiteDark"],[28,29,1,"outline"],[4,30,1,"outline"],[5,30,2,"whiteDark"],[7,30,1,"outline"],[9,30,1,"outline"],[10,30,1,"shellDark"],[11,30,2,"shell"],[13,30,6,"outline"],[19,30,2,"shell"],[21,30,1,"shellDark"],[22,30,1,"outline"],[24,30,1,"outline"],[25,30,2,"whiteDark"],[27,30,1,"outline"],[5,31,2,"outline"],[10,31,1,"outline"],[11,31,10,"shellDark"],[21,31,1,"outline"],[25,31,2,"outline"],[11,32,10,"outline"],[11,33,1,"outline"],[12,33,2,"shell"],[14,33,1,"outline"],[17,33,1,"outline"],[18,33,2,"shell"],[20,33,1,"outline"],[11,34,4,"outline"],[17,34,4,"outline"],[10,35,1,"outline"],[11,35,3,"whiteLight"],[14,35,1,"outline"],[17,35,1,"outline"],[18,35,3,"whiteLight"],[21,35,1,"outline"],[9,36,1,"outline"],[10,36,1,"whiteLight"],[11,36,3,"white"],[14,36,1,"whiteLight"],[15,36,2,"outline"],[17,36,1,"whiteLight"],[18,36,3,"white"],[21,36,1,"whiteLight"],[22,36,1,"outline"],[10,37,1,"outline"],[11,37,3,"whiteDark"],[14,37,1,"outline"],[17,37,1,"outline"],[18,37,3,"whiteDark"],[21,37,1,"outline"],[11,38,3,"outline"],[18,38,3,"outline"]],"faces":{"calm":[[11,16,2,"eye"],[19,16,2,"eye"],[11,17,2,"eye"],[19,17,2,"eye"]],"happy":[[11,16,2,"eye"],[19,16,2,"eye"],[10,17,1,"eye"],[13,17,1,"eye"],[18,17,1,"eye"],[21,17,1,"eye"],[8,19,2,"blush"],[22,19,2,"blush"]],"wink":[[11,15,2,"eye"],[11,16,2,"eye"],[19,16,2,"eye"],[11,17,2,"eye"],[18,17,1,"eye"],[21,17,1,"eye"]],"open":[[11,15,2,"eye"],[19,15,2,"eye"],[11,16,2,"eye"],[19,16,2,"eye"],[11,17,2,"eye"],[19,17,2,"eye"]],"closed":[[10,17,4,"eye"],[18,17,4,"eye"]]},"fixed":{"outline":"#1B1A3A","visor":"#17143A","glare":"#BFEAF7","white":"#F4F6FB","whiteLight":"#FFFFFF","whiteDark":"#AEB3CC","silver":"#C9CFDB","silverLight":"#E8EBF2","silverDark":"#8E95AB","tip":"#9FF0F7","tipLight":"#F0FFFF","tipDark":"#5FCFE0","eye":"#E8FFFF","blush":"#FF9AB2"},"colors":{"teal":"#2FB8B0","coral":"#F2766B","violet":"#8E6CE0","sun":"#F2B33D","sky":"#5B8DEF","leaf":"#5BBF6A"},"stickers":["star","heart","leaf","bolt"],"personalities":{"calm":{"label":"Calm","face":"calm","blurb":"Gentle and unhurried","sample":"No rush. Practice is at 5:30, and I'll remind you at 4:50."},"cheerful":{"label":"Cheerful","face":"happy","blurb":"Upbeat and encouraging","sample":"Good news! Practice is at 5:30. Want a reminder at 4:50?"},"funny":{"label":"Funny","face":"wink","blurb":"Light jokes, still useful","sample":"Practice at 5:30. I'll ping you at 4:50, before traffic does."},"brief":{"label":"Brief","face":"open","blurb":"Short and to the point","sample":"Practice 5:30. Reminder at 4:50?"}}};
 const STICKER_ART = {"star":"a509b7da6f93811f29bf9e84560af70f","heart":"ef08bdd73525cdfac56fe3c437a18b9c","leaf":"6729bb22fb50e334dd97a073fa44e53a","bolt":"f4bb0c6f1f0fcae62475f582a31df06e"};
@@ -195,33 +195,53 @@ const STATEMENTS = {
   admin: { text: 'Recycling goes out Tuesday. Want a reminder Monday night?', short: 'Recycling goes out Tuesday' },
   kid: { text: 'Reading time is done. Want to pick a book for tomorrow?', short: 'Pick a book for tomorrow?' },
 };
+const THU_NOW = 15 * 60 + 30;
+const THU = [[16 * 60, 'Dentist', 'You', true], [16 * 60 + 30, 'Soccer practice', 'Twins'], [17 * 60 + 30, 'Soccer pickup', 'You']];
 const ICONS = ['#3A4150', '#4B3A50', '#2F4A45', '#50473A', '#3A4A5A', '#45503A', '#503A3F', '#3A3F50', '#4A4A4A', '#2F3A4A', '#4A3A2F'];
 
 class Component extends DCLogic {
   renderVals() {
-    const v = VIEWERS[this.props.who] ?? VIEWERS.admin, nowKey = this.props.now === 'evening' ? 'evening' : 'afternoon', now = NOW[nowKey];
-    const { dark } = shades(v.hex), accent = v.hex;
-    // Priority: anything in the next 2 hours, otherwise the MEGA's proactive statement.
-    const soon = WEEK[0].events.filter(([t, , who]) => v.sees.includes(who) && t >= now && t - now <= SOON_WINDOW)
-      .map(([t, title, who]) => ({ time: clock(t), until: inMinutes(t - now), title, who: who === 'You' && v.kid ? 'Family' : who, color: WHO[who] }));
+    const state = this.props.state || 'live';
+    const signedOut = state === 'signedOut';
+    const v = signedOut ? { mega: 'MEGA', hex: '#7A828E', face: 'closed', sees: [], kid: false } : (VIEWERS[this.props.who] ?? VIEWERS.admin);
+    // Thursday of the seed week (CONTRACT v0.18 widgets.next): Admin's private Dentist, the twins' practice,
+    // Partner's pickup. "three", "private" and "kidSafe" use it; the rest keep the Sunday sample.
+    const thursday = state === 'three' || state === 'private' || state === 'kidSafe';
+    const nowKey = this.props.now === 'evening' ? 'evening' : 'afternoon';
+    const now = thursday ? THU_NOW : NOW[nowKey];
+    const events = thursday ? THU : WEEK[0].events;
+    const { dark } = shades(v.hex), accent = signedOut ? '#2A2E35' : v.hex;
+    // The widget works out "in 40 min" itself from each entry's absolute start (G8_COPY widgetInMinutes / widgetInHours).
+    const rel = (d) => (d <= 0 ? 'now' : d < 60 ? 'in ' + d + ' min' : 'in ' + Math.floor(d / 60) + 'h');
+    const live = state === 'live' || thursday;
+    const soon = !live ? [] : events.filter(([t, , who]) => v.sees.includes(who) && t >= now && t - now <= SOON_WINDOW)
+      .map(([t, title, who, priv]) => ({ time: clock(t), until: thursday ? rel(t - now) : inMinutes(t - now), title, who: who === 'You' && v.kid ? 'Family' : who, color: WHO[who], lock: !!priv, priv: !!priv }));
     const statement = STATEMENTS[this.props.who] ?? STATEMENTS.admin, next = soon[0];
     const time = clock(now).replace(/ (AM|PM)$/, '');
+    // Lock screen: a private item's title is replaced (WIDGET_TIMELINE.lockRedactPrivate) and marked privacySensitive.
+    const lockTitle = next ? (next.priv ? 'Private event' : next.title) : '';
+    const calm = { empty: 'All clear for now.', stale: 'Open ' + v.mega + ' for what’s next', signedOut: 'Open MEGA to sign in' }[state];
+    const quiet = !!calm;
+    const day = thursday ? 'Thursday, October 29' : WEEK[0].full;
     return {
       wallpaper: 'linear-gradient(165deg, ' + dark + ' 0%, #12151A 55%, #0C0E11 100%)',
       isHome: this.props.view !== 'lock', isLock: this.props.view === 'lock', time, mega: v.mega,
       accent, accentInk: inkOn(accent),
       head: sprite(v.hex, v.face, 'none', 1.5, 27), tinyHead: sprite(v.hex, v.face, 'none', 0.8125, 27),
-      hasSoon: soon.length > 0, noSoon: soon.length === 0, soon: soon.slice(0, 3), statement,
-      mediumTitle: soon.length ? 'Coming up · next 2 hours' : v.mega + ' says',
-      mediumLabel: soon.length ? 'Coming up: ' + soon.map((e) => e.title + ' ' + e.until).join(', ') : v.mega + ' says: ' + statement.text,
-      // Tapping a widget opens the chat; the Talk button opens talk mode already listening.
-      tapHref: v.kid ? 'Kid.dc.html' : 'Main.dc.html',
+      hasSoon: soon.length > 0, noSoon: soon.length === 0, soon: soon.slice(0, 3),
+      statement: quiet ? { text: calm, short: calm } : statement,
+      mediumTitle: soon.length ? 'Coming up · next 2 hours' : quiet ? v.mega : v.mega + ' says',
+      mediumFoot: state === 'empty' ? 'No events in the next 2 hours' : state === 'stale' ? 'Last checked 8 hours ago' : signedOut ? 'Nothing personal shows until you sign in' : 'No events in the next 2 hours · Tap to reply',
+      mediumLabel: soon.length ? 'Coming up: ' + soon.map((e) => e.title + ' ' + e.until).join(', ') : quiet ? calm : v.mega + ' says: ' + statement.text,
+      // Tapping a widget opens the chat (sign-in when signed out); the Talk button opens talk mode already listening.
+      tapHref: signedOut ? 'Login.dc.html' : v.kid ? 'Kid.dc.html' : 'Main.dc.html',
       smallBg: accent, smallInk: inkOn(accent), smallFont: v.kid ? 19 : 17,
-      smallTag: next ? next.until.replace('in ', '') : 'Tip',
-      smallLine: next ? next.title : statement.short,
-      inline: WEEK[0].dow + ' ' + WEEK[0].num + (next ? ' · ' + next.title + ' ' + next.time : ''),
-      lockKicker: next ? next.time + ' · ' + next.until : v.mega + ' says',
-      lockLine: next ? next.title : statement.short,
+      smallTag: next ? next.until.replace('in ', '') : 'Tip', smallTagDisplay: quiet ? 'none' : 'inline-block',
+      smallLine: next ? next.title : quiet ? calm : statement.short,
+      // No accessoryInline family in this build (decision 4): the line above the clock is the system date only.
+      inline: day,
+      lockKicker: next ? next.time + ' · ' + next.until : quiet ? v.mega : v.mega + ' says',
+      lockLine: next ? lockTitle : quiet ? calm : statement.short,
       iconsA: ICONS.slice(0, 4), iconsB: ICONS.slice(4, 7), dock: ICONS.slice(7, 11),
     };
   }
