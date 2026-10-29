@@ -7,6 +7,7 @@ import { pick } from './model/define';
 import { topStatementCandidate, upcomingEvents } from './model/home';
 import { clock } from './ports/clock';
 import { requireViewer } from './model/viewer';
+import { buildWidgetTimeline } from './model/widgetTimeline';
 
 function relativeMinutes(at: number, now: number): string {
   const min = Math.round((at - now) / 60_000);
@@ -60,22 +61,9 @@ export const timeline = query({
   },
 });
 
-/** v0.18 (G8) STUB: an honest single "empty" entry for the caller (no other member's data, ever). The real
- * timeline (docs/gates/G8.md backend task 1) replaces this body. */
+/** v0.18 (G8): the widget's planned timeline for the caller (convex/model/widgetTimeline.ts). Only what the
+ * caller sees in the app; a kid only their own events and the whole family's. */
 export const next = query({
   ...pick(API.widgets.next),
-  handler: async (ctx, _args) => {
-    const viewer = await requireViewer(ctx);
-    const now = await clock.now(ctx, viewer.member.familyId);
-    const mega = viewer.mega
-      ? { name: viewer.mega.name, hex: viewer.mega.look.hex, sticker: viewer.mega.look.sticker, face: PERSONALITIES[viewer.mega.personality].face }
-      : { name: 'MEGA', hex: '#9AA1AB', sticker: 'none', face: 'calm' };
-    return {
-      generatedAt: now,
-      mega,
-      kid: viewer.member.role === 'kid',
-      entries: [{ at: now, kind: 'empty' as const, link: LINKS.today() }],
-      talkLink: LINKS.talk(),
-    };
-  },
+  handler: async (ctx, _args) => buildWidgetTimeline(ctx, await requireViewer(ctx)),
 });
