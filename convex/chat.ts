@@ -25,6 +25,8 @@ import { getOrCreateOwnThread } from './model/threads';
 import { onboardingRow } from './model/integrations';
 import { afterName as afterOnboardingName, answerFamilyBlock, postStep as postOnboardingStep, setName as setOnboardingName, stepIsShowing as onboardingStepIsShowing } from './model/onboarding';
 import { answerCheckQuestion } from './model/profiler';
+import { runFor } from './model/routines';
+import { localDate } from '../shared/time';
 
 const streaming = new PersistentTextStreaming(components.persistentTextStreaming);
 
@@ -105,6 +107,36 @@ export const send = mutation({
       await afterOnboardingName(ctx, viewer.member, now);
       return { messageId, replyMessageId, streamId };
     }
+
+    // G6 #6b (web walkthrough, Oct 29): a kid's "Ready for tomorrow" chat-starter (KID_INTRO.rows, "Show
+    // me") used to send a free-text question straight into the agent loop, which has no tool for a kid's own
+    // routineRuns and so just guessed — the live check saw it describe a different day's "water bottle and
+    // shoes" instead of tonight's actual checklist. Show today's real routine card directly (the same
+    // `{ kind: 'routine', runId }` card the proactive engine delivers, convex/model/routines.ts) — no model
+    // call, so it can never drift from what routines.check/routines.today already say. Falls through to the
+    // ordinary agent loop below when the kid has no run yet today (e.g. asked well before their bedtime/
+    // morning routine time) — there's nothing concrete to ground an answer in yet.
+    const tomorrowAsk = KID_INTRO.rows.find((r) => r.id === 'tomorrow')!.ask;
+    if (viewer.member.role === 'kid' && args.text === tomorrowAsk && viewer.mega) {
+      const today = localDate(now, viewer.family.timezone);
+      const run = (await runFor(ctx, familyId, viewer.member._id, 'bedtime', today)) ?? (await runFor(ctx, familyId, viewer.member._id, 'morning', today));
+      if (run) {
+        const replyMessageId = await ctx.db.insert('messages', {
+          familyId,
+          threadId: thread._id,
+          at: now + 1,
+          author: { kind: 'mega', id: viewer.mega._id },
+          via: 'text',
+          body: { type: 'card', card: { kind: 'routine', runId: run._id } },
+          chips: [],
+        });
+        await ctx.db.patch(thread._id, { lastAt: now + 1 });
+        // A card reply needs no text stream — pendingMegaStreamId (src/features/chat/pendingStream.ts) only
+        // polls a message whose body is still `type: 'text'`; the empty id here is never looked up.
+        return { messageId, replyMessageId, streamId: '' };
+      }
+    }
+
     for (const storageId of args.attachments ?? []) {
       await ctx.db.insert('messages', { familyId, threadId: thread._id, at: now, author: { kind: 'member', id: viewer.member._id }, via: args.via, body: { type: 'image', storageId }, chips: [] });
     }

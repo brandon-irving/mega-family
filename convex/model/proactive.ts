@@ -562,6 +562,7 @@ export async function enqueueCardCandidate(
     source: params.source,
   });
   await finalizeCandidateLogic(ctx, { candidateId, kind: params.kind, title, text, score: 1, reason: `GD card: ${params.source.kind}`, forcedDelivery: 'push' });
+  await deliverNowIfAlreadyDue(ctx, candidateId, params.now);
   return candidateId;
 }
 
@@ -870,6 +871,26 @@ export async function finalizeCandidateLogic(
     deliverAt,
     scheduledId,
   });
+}
+
+/** G6 #6 (web walkthrough, Oct 29): `ctx.scheduler.runAt(deliverAt, ...)` fires against the REAL clock. For
+ * a candidate finalized straight out of `tickFamilyLogic` (a GD card source, scanned synchronously by
+ * `gdTick`) that's harmless — the sweep's own trailing `fireDueScheduledCandidates` call (same mutation)
+ * catches it immediately. But a candidate that only reaches `finalizeCandidateLogic` after an async action
+ * chain never gets that second chance: `routines.ts`'s `prepBedtime` → `finishBedtime` is the one that bit
+ * the demo (its model call and the `finishBedtime` mutation both run well after `clock.jump`'s own tick
+ * already returned). Called only from `enqueueCardCandidate` — every GD card source funnels through it, and
+ * none of them has a reason to sit `'scheduled'` once finalized. NOT called from travel.ts/weather.ts's own
+ * direct `finalizeCandidateLogic` calls: those intentionally leave a freshly finalized candidate `'scheduled'`
+ * for a moment so a fast-following re-check (a newer traffic check, an alert that already ended) can still
+ * patch or cancel it before delivery — forcing it through now would defeat that. Matches
+ * `fireDueScheduledCandidates`'s own due check — see convex/clock.ts's comment ("clock.jump drives the same
+ * tick... firing any candidate whose deliverAt the jump leapt past"). */
+async function deliverNowIfAlreadyDue(ctx: MutationCtx, candidateId: Id<'candidates'>, now: number): Promise<void> {
+  const candidate = await ctx.db.get(candidateId);
+  if (!candidate || candidate.status !== 'scheduled' || candidate.deliverAt === undefined || candidate.deliverAt > now) return;
+  if (candidate.scheduledId) await ctx.scheduler.cancel(candidate.scheduledId);
+  await deliverCandidateLogic(ctx, candidateId);
 }
 
 // ---------- triggers: reminders, cross-member "matters to", daily check-in ----------
