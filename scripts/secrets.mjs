@@ -7,7 +7,7 @@
 //   node scripts/secrets.mjs gen <NAME>           generate a random value for a var marked "generate"
 //   node scripts/secrets.mjs apple-key <file.p8>  store the Sign in with Apple key (base64) and its key id
 //   node scripts/secrets.mjs sync-convex [--prod] push the convex-target vars to the Convex deployment
-//   node scripts/secrets.mjs run [--only app] -- <cmd...>
+//   node scripts/secrets.mjs run [--tty] [--only app] -- <cmd...>   --tty: real terminal (Expo QR); only with public EXPO_PUBLIC_ values
 //                                                 run a command with the vars in its environment;
 //                                                 its output is redacted
 //
@@ -310,13 +310,27 @@ async function syncConvex(extra) {
 
 async function run(argv) {
   const sep = argv.indexOf('--');
-  if (sep < 0 || sep === argv.length - 1) fail('Usage: node scripts/secrets.mjs run [--only app|convex|tool] -- <cmd...>');
+  if (sep < 0 || sep === argv.length - 1) fail('Usage: node scripts/secrets.mjs run [--tty] [--only app|convex|tool] -- <cmd...>');
   const opts = argv.slice(0, sep);
   const only = opts.includes('--only') ? opts[opts.indexOf('--only') + 1]?.split(',') : null;
   const secrets = readSecrets();
   const [cmd, ...args] = argv.slice(sep + 1);
+  const env = envFor(secrets, only);
+  if (opts.includes('--tty')) {
+    // Interactive tools (Expo's QR code, key shortcuts, port prompt) need the real terminal, which a redacting
+    // pipe can't give them. Allowed only when every value passed is public: EXPO_PUBLIC_ values ship inside the
+    // app bundle anyway. The command gets no other secret, so it has nothing to print.
+    const secretNames = Object.keys(env).filter((n) => !n.startsWith('EXPO_PUBLIC_'));
+    if (!only || secretNames.length) fail(`--tty only works when every value passed is EXPO_PUBLIC_ (use --only app)${secretNames.length ? `; this run would pass ${secretNames.join(', ')}` : ''}`);
+    const child = spawn(cmd, args, { cwd: process.cwd(), env: { ...process.env, ...env }, stdio: 'inherit' });
+    process.exitCode = await new Promise((resolve) => {
+      child.on('error', (e) => { process.stderr.write(`secrets: could not start ${cmd}: ${e.code ?? e.message}\n`); resolve(127); });
+      child.on('close', (c, sig) => resolve(c ?? (sig ? 128 : 1)));
+    });
+    return;
+  }
   // redact every known secret, even ones not passed to this command
-  process.exitCode = await runRedacted(cmd, args, envFor(secrets, only), redactionList(secrets));
+  process.exitCode = await runRedacted(cmd, args, env, redactionList(secrets));
 }
 
 // ---------- main ----------
@@ -334,6 +348,6 @@ if (isMain) {
     case 'apple-key': appleKey(rest[0]); break;
     case 'sync-convex': await syncConvex(rest); break;
     case 'run': await run(rest); break;
-    default: fail('Commands: init [--prune] | status | gen <NAME> | apple-key <file.p8> | sync-convex [--prod] | run [--only <targets>] -- <cmd...>');
+    default: fail('Commands: init [--prune] | status | gen <NAME> | apple-key <file.p8> | sync-convex [--prod] | run [--tty] [--only <targets>] -- <cmd...>');
   }
 }

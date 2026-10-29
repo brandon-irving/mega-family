@@ -320,3 +320,35 @@ describe('repo safety', () => {
     assert.equal(r.status, 0);
   });
 });
+
+describe('run --tty (owner, Oct 29: `npm run dev` showed no QR because Expo saw a pipe, not a terminal)', () => {
+  /** Runs the wrapper with its stdout going to a real file: an inherited stdout is that file in the child too. */
+  function stdoutKind(extra) {
+    const outFile = path.join(dir, `out-${randomBytes(4).toString('hex')}.txt`);
+    const fd = fs.openSync(outFile, 'w');
+    const r = spawnSync(process.execPath, [SCRIPT, 'run', ...extra, '--', process.execPath, '-e', 'console.log(require("fs").fstatSync(1).isFile() ? "FILE" : "PIPE")'], {
+      env: { ...process.env, SECRETS_FILE: file },
+      stdio: ['ignore', fd, 'pipe'],
+      encoding: 'utf8',
+    });
+    fs.closeSync(fd);
+    return { code: r.status, out: fs.readFileSync(outFile, 'utf8'), err: r.stderr };
+  }
+
+  test('with --only app, the command gets the real stdout (so Expo shows its QR code and key shortcuts)', () => {
+    const r = stdoutKind(['--tty', '--only', 'app']);
+    assert.equal(r.code, 0, r.err);
+    assert.match(r.out, /FILE/);
+  });
+
+  test('without --tty the output is still piped through the redactor', () => {
+    assert.match(stdoutKind(['--only', 'app']).out, /PIPE/);
+  });
+
+  test('refused unless every passed value is public (EXPO_PUBLIC_): never for secrets', () => {
+    const r = stdoutKind(['--tty']);
+    assert.notEqual(r.code, 0);
+    assert.doesNotMatch(r.out, /FILE|PIPE/);
+    assert.match(r.err, /--tty/);
+  });
+});
