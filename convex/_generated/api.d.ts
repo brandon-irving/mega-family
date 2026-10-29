@@ -128,6 +128,7 @@ import type * as model_ucpProfile from "../model/ucpProfile.js";
 import type * as model_viewer from "../model/viewer.js";
 import type * as model_visibility from "../model/visibility.js";
 import type * as model_weather from "../model/weather.js";
+import type * as model_widgetTimeline from "../model/widgetTimeline.js";
 import type * as notifications from "../notifications.js";
 import type * as onboarding from "../onboarding.js";
 import type * as places from "../places.js";
@@ -297,6 +298,7 @@ declare const fullApi: ApiFromModules<{
   "model/viewer": typeof model_viewer;
   "model/visibility": typeof model_visibility;
   "model/weather": typeof model_weather;
+  "model/widgetTimeline": typeof model_widgetTimeline;
   notifications: typeof notifications;
   onboarding: typeof onboarding;
   places: typeof places;
