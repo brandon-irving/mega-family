@@ -8,7 +8,7 @@ import { localDate, parseClockTime, zonedInstant } from '../shared/time';
 import { internal } from './_generated/api';
 import { internalAction, internalMutation, internalQuery } from './_generated/server';
 import { callModel, decidedByModel, parseJson } from './model/modelCall';
-import { applyProfilerRun, askDueCheckQuestions, buildProfilerPrompt, memoriesForProfiler, PROFILER_MAX_TOKENS, PROFILER_SCHEMA, validateUpdates } from './model/profiler';
+import { applyProfilerRun, askDueCheckQuestions, claimProfilerRun, buildProfilerPrompt, memoriesForProfiler, PROFILER_MAX_TOKENS, PROFILER_SCHEMA, validateUpdates } from './model/profiler';
 import { clock } from './ports/clock';
 
 export const sweep = internalMutation({
@@ -25,11 +25,7 @@ export const sweep = internalMutation({
       for (const member of members) {
         await askDueCheckQuestions(ctx, family, member, now);
         if (runAt === null || now < zonedInstant(day, runAt, tz)) continue;
-        const ran = await ctx.db
-          .query('profilerRuns')
-          .withIndex('by_family_member_day', (q) => q.eq('familyId', family._id).eq('memberId', member._id).eq('day', day))
-          .first();
-        if (!ran) await ctx.scheduler.runAfter(1000 * i++, internal.profiler.runMember, { familyId: family._id, memberId: member._id, day });
+        if (await claimProfilerRun(ctx, family._id, member._id, day, now)) await ctx.scheduler.runAfter(1000 * i++, internal.profiler.runMember, { familyId: family._id, memberId: member._id, day });
       }
     }
     return null;
@@ -47,7 +43,7 @@ export const loadRun = internalQuery({
       .query('profilerRuns')
       .withIndex('by_family_member_day', (q) => q.eq('familyId', familyId).eq('memberId', memberId).eq('day', day))
       .first();
-    if (done) return null;
+    if (done && done.status !== 'running') return null; // a claim (C13) is this run's own row
     const now = await clock.now(ctx, familyId);
     const memories = await memoriesForProfiler(ctx, familyId, memberId, now - 24 * 60 * 60_000, now);
     return { name: member.name, memories: memories.map((m) => ({ _id: m._id, text: m.text })) };

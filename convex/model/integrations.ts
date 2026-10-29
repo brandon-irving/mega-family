@@ -262,12 +262,16 @@ export async function removeIntegrationData(ctx: MutationCtx, integration: Integ
 /** A Google grant lapsed (Testing mode: 7 days) or was revoked: every Google integration of the member flips
  * to `needs_reconnect` (polling stops) and one `reconnect` card goes to their thread per integration that was
  * connected until now (never a second card for the same lapse). */
+/** One Google grant lapsed: every Google integration on it needs a reconnect. v0.17b (C10): ONE card per lapse,
+ * listing them all (`integrationIds`; `integrationId` is the first, for older apps). */
 export async function markNeedsReconnect(ctx: MutationCtx, familyId: Id<'families'>, memberId: Id<'members'>, now: number): Promise<void> {
+  const lapsed: Id<'integrations'>[] = [];
   for (const row of await memberIntegrations(ctx, familyId, memberId)) {
     if (!isGoogleKind(row.kind) || statusOf(row) !== 'connected') continue;
     await ctx.db.patch(row._id, { status: 'needs_reconnect', lastFailure: 'unauthorized', lastFailureAt: now });
-    await postCard(ctx, { familyId, recipientId: memberId, card: { kind: 'reconnect', integrationId: row._id }, now });
+    lapsed.push(row._id);
   }
+  if (lapsed.length) await postCard(ctx, { familyId, recipientId: memberId, card: { kind: 'reconnect', integrationId: lapsed[0], integrationIds: lapsed }, now });
 }
 
 /** v0.17b (C4): a sync's config write MERGES into what's stored (a concurrent writer's keys survive); a key set to

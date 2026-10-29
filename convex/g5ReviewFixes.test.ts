@@ -259,6 +259,52 @@ describe('C12: a full family has a way out of the family step', () => {
   });
 });
 
+describe('C9/C10: a combined Gmail + Calendar grant lapses and reconnects as one', () => {
+  test('a combined lapse posts ONE reconnect card that lists both integrations', async () => {
+    const s = await seeded();
+    await s.connectGoogle('partner', ['gmail', 'googleCalendar']);
+    await s.settle();
+    await s.t.run(async (ctx) => {
+      for (const secret of await ctx.db.query('integrationSecrets').take(10)) await ctx.db.patch(secret._id, { accessTokenExpiresAt: 0 });
+    });
+    __setGoogleOAuthForTests(makeFakeGoogleOAuth({ refreshFails: true }));
+    await s.t.action(internal.integrations.syncGmail, { integrationId: (await s.integ('partner', 'gmail'))!._id });
+    const cards = (await s.thread('partner')).flatMap((x) => (x.body.type === 'card' && x.body.card.kind === 'reconnect' ? [x.body.card] : []));
+    expect(cards).toHaveLength(1);
+    const ids = [(await s.integ('partner', 'gmail'))!._id, (await s.integ('partner', 'googleCalendar'))!._id].sort();
+    expect([...(cards[0] as { integrationIds?: string[] }).integrationIds!].sort()).toEqual(ids);
+  });
+
+  test('a denied combined reconnect records the failure on BOTH offers', async () => {
+    const s = await seeded();
+    await s.connectGoogle('partner', ['gmail', 'googleCalendar'], { error: 'access_denied' });
+    expect(await s.as('partner').query(api.integrations.offer, { offer: 'gmail' })).toMatchObject({ state: 'failed' });
+    expect(await s.as('partner').query(api.integrations.offer, { offer: 'calendar' })).toMatchObject({ state: 'failed' });
+  });
+});
+
+describe('C13: one profiler run per member per day, even if two sweeps overlap', () => {
+  test('the sweep claims a profilerRuns row before scheduling; a second sweep schedules nothing for that member', async () => {
+    const s = await seeded();
+    const now = await s.t.run(async (ctx) => {
+      const c = await ctx.db.query('clocks').withIndex('by_family', (q) => q.eq('familyId', s.familyId)).unique();
+      return Date.now() + (c?.offsetMs ?? 0);
+    });
+    // Two sweeps before either's runMember has run.
+    await s.t.mutation(internal.profiler.sweep, {});
+    await s.t.mutation(internal.profiler.sweep, {});
+    const scheduled = await s.t.run((ctx) => ctx.db.system.query('_scheduled_functions').take(500));
+    const runs = scheduled.filter((f) => f.name.includes('runMember') && f.state.kind === 'pending');
+    const perMember = new Map<string, number>();
+    for (const r of runs) {
+      const key = String((r.args[0] as { memberId: string }).memberId);
+      perMember.set(key, (perMember.get(key) ?? 0) + 1);
+    }
+    expect([...perMember.values()].every((n) => n === 1)).toBe(true);
+    expect(now).toBeGreaterThan(0);
+  });
+});
+
 describe('C4: one sync per integration at a time', () => {
   test('while a sync holds the lease, another sync of the same integration does nothing (no provider calls, no writes)', async () => {
     const s = await seeded();

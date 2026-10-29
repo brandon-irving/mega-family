@@ -130,7 +130,8 @@ export const card = v.union(
   // `mailFound`: what MEGA found in Gmail (board OnboardGmailFound); rows read live via `mail.items`.
   v.object({ kind: v.literal('mailFound'), integrationId: v.id('integrations'), itemIds: v.array(v.id('mailItems')) }),
   // `reconnect`: a Google grant lapsed or was revoked (Testing mode: every 7 days). Tapping reconnects.
-  v.object({ kind: v.literal('reconnect'), integrationId: v.id('integrations') }),
+  // v0.17b (C10): ONE card per lapse; `integrationIds` lists every integration on that grant (Gmail + Calendar).
+  v.object({ kind: v.literal('reconnect'), integrationId: v.id('integrations'), integrationIds: v.optional(v.array(v.id('integrations'))) }),
 );
 export type Card = Infer<typeof card>;
 

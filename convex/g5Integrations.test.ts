@@ -256,9 +256,10 @@ describe('lapse → reconnect, disconnect', () => {
     expect((await s.integ('partner', 'gmail'))!.status).toBe('needs_reconnect');
     expect((await s.integ('partner', 'googleCalendar'))!.status).toBe('needs_reconnect');
     const reconnects = (await s.thread('partner')).filter((x) => x.body.type === 'card' && x.body.card.kind === 'reconnect');
-    expect(reconnects).toHaveLength(2); // one per integration, never repeated
+    // v0.17b (C10): one lapse (one Google grant) → ONE card naming both products, never repeated.
+    expect(reconnects).toHaveLength(1);
     await s.t.action(internal.integrations.syncGmail, { integrationId: gmail._id });
-    expect((await s.thread('partner')).filter((x) => x.body.type === 'card' && x.body.card.kind === 'reconnect')).toHaveLength(2);
+    expect((await s.thread('partner')).filter((x) => x.body.type === 'card' && x.body.card.kind === 'reconnect')).toHaveLength(1);
     // The poll skips it.
     await s.t.mutation(internal.integrations.pollKind, { kind: 'gmail' });
     const scheduled = await s.t.run((ctx) => ctx.db.system.query('_scheduled_functions').collect());

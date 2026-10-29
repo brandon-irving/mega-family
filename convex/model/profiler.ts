@@ -113,7 +113,8 @@ export async function applyProfilerRun(
     .query('profilerRuns')
     .withIndex('by_family_member_day', (q) => q.eq('familyId', p.familyId).eq('memberId', p.memberId).eq('day', p.day))
     .first();
-  if (existing) return;
+  // v0.17b (C13): the sweep's claim (`status: 'running'`) is the row this run fills in; any finished row means done.
+  if (existing && existing.status !== 'running') return;
   const profile = await ctx.db
     .query('profiles')
     .withIndex('by_family_member', (q) => q.eq('familyId', p.familyId).eq('memberId', p.memberId))
@@ -142,7 +143,21 @@ export async function applyProfilerRun(
     }
     await ctx.db.patch(profile._id, { basics, routines: routines.slice(-30), checkQuestions: checkQuestions.slice(-20) });
   }
-  await ctx.db.insert('profilerRuns', { familyId: p.familyId, memberId: p.memberId, day: p.day, memoriesRead: p.memoryIds.length, applied, asked, dropped, decidedBy: p.decidedBy, ranAt: p.now, ...(p.failure ? { failure: p.failure } : {}) });
+  const result = { memoriesRead: p.memoryIds.length, applied, asked, dropped, decidedBy: p.decidedBy, ranAt: p.now, ...(p.failure ? { failure: p.failure } : {}) };
+  if (existing) await ctx.db.patch(existing._id, { ...result, status: undefined });
+  else await ctx.db.insert('profilerRuns', { familyId: p.familyId, memberId: p.memberId, day: p.day, ...result });
+}
+
+/** v0.17b (C13): the sweep claims a member's day before scheduling the run, in the same transaction as its check,
+ * so two overlapping sweeps can never schedule the same member twice. */
+export async function claimProfilerRun(ctx: MutationCtx, familyId: Id<'families'>, memberId: Id<'members'>, day: string, now: number): Promise<boolean> {
+  const ran = await ctx.db
+    .query('profilerRuns')
+    .withIndex('by_family_member_day', (q) => q.eq('familyId', familyId).eq('memberId', memberId).eq('day', day))
+    .first();
+  if (ran) return false;
+  await ctx.db.insert('profilerRuns', { familyId, memberId, day, memoriesRead: 0, applied: 0, asked: 0, dropped: 0, decidedBy: 'rule:profilerClaim', ranAt: now, status: 'running' });
+  return true;
 }
 
 /** Inside the ask window: posts at most maxCheckQuestionsPerMemberPerDay due check questions as quiet choice

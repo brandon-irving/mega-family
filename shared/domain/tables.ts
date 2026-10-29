@@ -825,6 +825,8 @@ export const profilerRuns = {
   decidedBy,
   ranAt: v.number(),
   failure: v.optional(literals(INTEGRATION_FAILURES)),
+  /** v0.17b (G5 review C13): the sweep's claim before the run is scheduled; absent once the run has recorded. */
+  status: v.optional(v.literal('running')),
 };
 
 export const usage = {

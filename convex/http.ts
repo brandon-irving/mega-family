@@ -53,7 +53,8 @@ http.route({
     const claim = await ctx.runMutation(internal.integrations.consumeState, { nonceHash: await sha256Hex(state) });
     if (!claim) return back('failed');
     if (!code || url.searchParams.get('error')) {
-      await ctx.runMutation(internal.integrations.setFailure, { familyId: claim.familyId, memberId: claim.memberId, offer: claim.want.includes('gmail') ? 'gmail' : 'calendar', failure: 'unauthorized' });
+      // v0.17b (C9): a combined Gmail + Calendar consent that was denied fails BOTH offers.
+      await ctx.runMutation(internal.integrations.setFailures, { familyId: claim.familyId, memberId: claim.memberId, want: claim.want, failure: 'unauthorized' });
       return back('failed');
     }
     try {

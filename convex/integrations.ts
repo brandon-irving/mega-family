@@ -57,8 +57,9 @@ export function googleRedirectUri(): string | null {
   return site ? `${site.replace(/\/$/, '')}${GOOGLE.callbackPath}` : null;
 }
 
-function offerForProducts(want: readonly string[]): 'gmail' | 'calendar' {
-  return want.includes('gmail') ? 'gmail' : 'calendar';
+/** v0.17b (C9): every offer a Google consent covered (Gmail and/or Calendar), so a failure lands on each. */
+function offersForProducts(want: readonly string[]): ('gmail' | 'calendar')[] {
+  return [...(want.includes('gmail') ? (['gmail'] as const) : []), ...(want.includes('googleCalendar') ? (['calendar'] as const) : [])];
 }
 
 async function sayAsOwnMega(ctx: MutationCtx, familyId: Id<'families'>, memberId: Id<'members'>, text: string, now: number): Promise<void> {
@@ -128,11 +129,10 @@ export async function exchangeAndStore(
   ctx: { runMutation: import('./_generated/server').ActionCtx['runMutation'] },
   p: { familyId: Id<'families'>; memberId: Id<'members'>; want: ('gmail' | 'googleCalendar')[]; code: string; redirectUri: string },
 ): Promise<SyncOutcome> {
-  const offer = offerForProducts(p.want);
   const r = await getGoogleOAuth().exchangeCode({ code: p.code, redirectUri: p.redirectUri });
   if (!r.ok || !r.tokens.refreshToken) {
     const failure = r.ok ? 'error' : r.failure;
-    await ctx.runMutation(internal.integrations.setFailure, { familyId: p.familyId, memberId: p.memberId, offer, failure });
+    await ctx.runMutation(internal.integrations.setFailures, { familyId: p.familyId, memberId: p.memberId, want: p.want, failure });
     return { status: 'error', failure };
   }
   const now = clock.realNow();
@@ -355,6 +355,17 @@ export const setFailure = internalMutation({
   },
 });
 
+/** v0.17b (C9): a Google connect attempt failed — record it on every offer the consent covered. */
+export const setFailures = internalMutation({
+  args: { familyId: v.id('families'), memberId: v.id('members'), want: googleProducts, failure: T.integrationFailure },
+  returns: v.null(),
+  handler: async (ctx, p) => {
+    const now = await clock.now(ctx, p.familyId);
+    for (const offer of offersForProducts(p.want)) await setOfferFailure(ctx, p.familyId, p.memberId, offer, p.failure, now);
+    return null;
+  },
+});
+
 /** Stores (or replaces) a member's Google grant and connects what was granted; schedules the first syncs. */
 export const storeGrant = internalMutation({
   args: {
@@ -391,7 +402,7 @@ export const storeGrant = internalMutation({
 
     const connected = await connectGoogleProducts(ctx, { familyId: p.familyId, memberId: p.memberId, want: p.want, grantedScopes: p.scopes, email: p.email, now });
     if (!connected.length) {
-      await setOfferFailure(ctx, p.familyId, p.memberId, offerForProducts(p.want), 'unauthorized', now);
+      for (const offer of offersForProducts(p.want)) await setOfferFailure(ctx, p.familyId, p.memberId, offer, 'unauthorized', now);
       return { connected: [] };
     }
     // Also revive any of this member's Google integrations that were waiting for a reconnect.
