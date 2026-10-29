@@ -1,12 +1,15 @@
-// Widgets placeholder (G1 scope item 9 — the real home-screen widgets are a later gate).
+// mega://widgets — how to add MEGA's widgets (G8). The widgets themselves live on the home and lock screens
+// (src/widgets/, kept in step by src/features/widgets/WidgetSync.tsx); they're iOS only, so the web says so.
+import { Platform } from 'react-native';
 import { router } from 'expo-router';
+import { G8_UI_COPY } from '@shared/config/copy';
 import { Sheet } from '@/ui/Sheet';
 import { Text } from '@/ui/Text';
 
 export default function WidgetsRoute() {
   return (
-    <Sheet title="Widgets" onClose={() => router.back()}>
-      <Text color="muted">Home-screen and lock-screen widgets arrive in a later milestone.</Text>
+    <Sheet title={G8_UI_COPY.widgetsSheetTitle} onClose={() => router.back()}>
+      <Text color="muted">{Platform.OS === 'web' ? G8_UI_COPY.widgetsSheetWeb : G8_UI_COPY.widgetsSheetBody}</Text>
     </Sheet>
   );
 }
