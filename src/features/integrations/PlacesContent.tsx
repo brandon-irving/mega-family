@@ -4,7 +4,7 @@
 // (src/app/places.tsx) wires them to `places.*`.
 import { useState } from 'react';
 import { Pressable, TextInput, View } from 'react-native';
-import { G4_COPY, fillCopy } from '@shared/config/copy';
+import { G4_COPY, G4B_UI_COPY, fillCopy } from '@shared/config/copy';
 import { PLACES } from '@shared/config/integrations';
 import { ModalSheet } from '@/ui/ModalSheet';
 import { Text } from '@/ui/Text';
@@ -93,7 +93,35 @@ export function PlacesContent({ places, canEdit, onAdd, onEdit }: PlacesContentP
   );
 }
 
-export type PlaceDraft = { kind: PlaceKind; label: string; address: string };
+/** Board gap (G4b): PlaceSheet has no Outdoor row on the canvas. Drawn like the sheet's other rows: a full-width
+ * 52pt row with the label and its hint, and a switch-style pill on the right (accessibilityRole "switch"). */
+function OutdoorSwitch({ on, onChange }: { on: boolean; onChange: (on: boolean) => void }) {
+  const tokens = useTokens();
+  return (
+    <Pressable
+      onPress={() => onChange(!on)}
+      accessibilityRole="switch"
+      accessibilityState={{ checked: on }}
+      aria-checked={on}
+      accessibilityLabel={G4B_UI_COPY.placeOutdoor}
+      accessibilityHint={G4B_UI_COPY.placeOutdoorHint}
+      style={{ flexDirection: 'row', alignItems: 'center', gap: tokens.spacing.md, minHeight: 52, borderRadius: tokens.radii.lg, borderWidth: 1, borderColor: tokens.line, backgroundColor: tokens.bg, paddingVertical: tokens.spacing.sm, paddingHorizontal: tokens.spacing.md }}
+    >
+      <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
+        <Text variant="label">{G4B_UI_COPY.placeOutdoor}</Text>
+        <Text variant="caption" color="muted">
+          {G4B_UI_COPY.placeOutdoorHint}
+        </Text>
+      </View>
+      <View style={{ width: 46, height: 28, borderRadius: 14, padding: 3, backgroundColor: on ? tokens.accent : tokens.line, alignItems: on ? 'flex-end' : 'flex-start', justifyContent: 'center' }}>
+        <View style={{ width: 22, height: 22, borderRadius: 11, backgroundColor: on ? tokens.onAccent : tokens.muted }} />
+      </View>
+    </Pressable>
+  );
+}
+
+/** G4b (CONTRACT v0.16 `places.upsert` `outdoor`): events at an outdoor place get UV and air-quality tips. */
+export type PlaceDraft = { kind: PlaceKind; label: string; address: string; outdoor: boolean };
 
 export type PlaceSheetProps = {
   open: boolean;
@@ -118,6 +146,7 @@ function PlaceSheetBody({ open, place, hasHome, busy, error, onSave, onRemove, o
   const [kind, setKind] = useState<PlaceKind>(place?.kind ?? (hasHome ? 'school' : 'home'));
   const [label, setLabel] = useState(place?.label ?? PLACES.labels[place?.kind ?? (hasHome ? 'school' : 'home')]);
   const [address, setAddress] = useState(place?.address ?? '');
+  const [outdoor, setOutdoor] = useState(place?.outdoor ?? false);
   const [touched, setTouched] = useState(false);
   const missing = !label.trim() ? G4_COPY.placeNeedName : !address.trim() ? G4_COPY.placeNeedAddress : null;
   const kinds = PLACES.kinds.filter((k) => k !== 'home' || !hasHome || place?.kind === 'home');
@@ -129,7 +158,7 @@ function PlaceSheetBody({ open, place, hasHome, busy, error, onSave, onRemove, o
   };
   const save = () => {
     setTouched(true);
-    if (!missing) onSave({ kind, label: label.trim().slice(0, PLACES.maxLabelLength), address: address.trim().slice(0, PLACES.maxAddressLength) });
+    if (!missing) onSave({ kind, label: label.trim().slice(0, PLACES.maxLabelLength), address: address.trim().slice(0, PLACES.maxAddressLength), outdoor });
   };
   const actions: CardAction[] = [
     ...(place ? [{ id: 'remove', label: G4_COPY.placeRemove, variant: 'ghost' as const, onPress: onRemove, disabled: busy }] : []),
@@ -180,6 +209,7 @@ function PlaceSheetBody({ open, place, hasHome, busy, error, onSave, onRemove, o
           </Text>
         ) : null}
       </View>
+      <OutdoorSwitch on={outdoor} onChange={setOutdoor} />
       {touched && missing ? (
         <Text variant="label" style={{ color: tokens.warn }}>
           {missing}

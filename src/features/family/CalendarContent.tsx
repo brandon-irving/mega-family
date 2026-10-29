@@ -7,10 +7,10 @@
 import { useMemo, useState } from 'react';
 import { Pressable, View } from 'react-native';
 import type { Infer } from 'convex/values';
-import type { eventDoc } from '@shared/domain/api';
+import type { eventDoc, UpcomingHoliday } from '@shared/domain/api';
 import { LAYER_OF_SCOPE } from '@shared/config/calendar';
 import { FAMILY_MEGA_DEFAULTS } from '@shared/config/looks';
-import { CALENDAR_COPY, fillCopy } from '@shared/config/copy';
+import { CALENDAR_COPY, G4B_UI_COPY, fillCopy } from '@shared/config/copy';
 import { readableOn } from '@shared/config/theme';
 import { Text } from '@/ui/Text';
 import { useTokens } from '@/ui/theme';
@@ -37,16 +37,26 @@ export type CalendarContentProps = {
   onOpenEvent?: (event: EventDoc) => void;
   /** G4: saved place labels by id, so an event with a `placeId` shows its place's name. */
   placeLabels?: Record<string, string>;
+  /** G4b (board HolidayCalendar): public holidays (`holidays.upcoming`), marked on their day with a gold
+   * diamond and a banner saying whether the family paused routines. Board gap: the board also lists the paused
+   * morning routine and chores as struck-through PAUSED rows, but routines and chores aren't calendar events
+   * (CONTRACT §2), so the banner carries that instead. */
+  holidays?: UpcomingHoliday[];
 };
 
 const DAY_MS = 24 * 60 * 60 * 1000;
+/** "YYYY-MM-DD" for a day start in the device's local time (the week strip's own days). */
+const dateKey = (ms: number) => {
+  const d = new Date(ms);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
 const clock = (ms: number) => new Date(ms).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
 
 export function eventLayer(e: Pick<EventDoc, 'scope'>) {
   return LAYER_OF_SCOPE[e.scope];
 }
 
-export function CalendarContent({ weekStart, todayIndex = null, events, members, viewerId, hubName = FAMILY_MEGA_DEFAULTS.name, clash, onSeeClash, onOpenEvent, placeLabels }: CalendarContentProps) {
+export function CalendarContent({ weekStart, todayIndex = null, events, members, viewerId, hubName = FAMILY_MEGA_DEFAULTS.name, clash, onSeeClash, onOpenEvent, placeLabels, holidays = [] }: CalendarContentProps) {
   const tokens = useTokens();
   const [selectedDay, setSelectedDay] = useState(todayIndex ?? 0);
   const [showHousehold, setShowHousehold] = useState(true);
@@ -60,6 +70,9 @@ export function CalendarContent({ weekStart, todayIndex = null, events, members,
   const visible = events.filter((e) => (eventLayer(e) === 'private' ? showMine : showHousehold));
   const onDay = (i: number) => visible.filter((e) => e.start >= days[i] && e.start < days[i] + DAY_MS).sort((a, b) => a.start - b.start);
   const dayEvents = onDay(selectedDay);
+  const holidayOn = (i: number) => holidays.find((h) => h.date === dateKey(days[i]));
+  const selectedHoliday = holidayOn(selectedDay);
+  const weekHasHoliday = days.some((_, i) => !!holidayOn(i));
   const ownerOf = (e: EventDoc) => (eventLayer(e) === 'private' ? (e.ownerId ?? e.createdBy) : e.who[0]);
 
   return (
@@ -75,14 +88,26 @@ export function CalendarContent({ weekStart, todayIndex = null, events, members,
         {days.map((d, i) => {
           const on = i === selectedDay;
           const dots = [...new Set(onDay(i).map((e) => colorFor(ownerOf(e))))].slice(0, 3);
+          const holiday = holidayOn(i);
+          const dayName = new Date(d).toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' });
           return (
             <Pressable
               key={d}
               onPress={() => setSelectedDay(i)}
               accessibilityRole="button"
               accessibilityState={{ selected: on }}
-              accessibilityLabel={new Date(d).toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}
-              style={{ flex: 1, height: 70, borderRadius: tokens.radii.md, alignItems: 'center', justifyContent: 'center', gap: 4, backgroundColor: on ? tokens.text : 'transparent' }}
+              accessibilityLabel={holiday ? fillCopy(G4B_UI_COPY.holidayDayLabel, { day: dayName, name: holiday.name }) : dayName}
+              style={{
+                flex: 1,
+                height: 70,
+                borderRadius: tokens.radii.md,
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 4,
+                backgroundColor: on ? tokens.text : 'transparent',
+                borderWidth: holiday && !on ? 1 : 0,
+                borderColor: tokens.warn,
+              }}
             >
               <Text variant="caption" weight="600" style={{ color: on ? onSelected : tokens.muted }}>
                 {new Date(d).toLocaleDateString(undefined, { weekday: 'short' }).slice(0, 3)}
@@ -90,7 +115,8 @@ export function CalendarContent({ weekStart, todayIndex = null, events, members,
               <Text variant="title" style={on ? { color: onSelected } : undefined}>
                 {new Date(d).getDate()}
               </Text>
-              <View style={{ flexDirection: 'row', gap: 3, height: 6 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3, height: 8 }}>
+                {holiday ? <Diamond size={7} testID="holiday-diamond" /> : null}
                 {dots.map((c) => (
                   <View key={c} style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: c }} />
                 ))}
@@ -125,6 +151,7 @@ export function CalendarContent({ weekStart, todayIndex = null, events, members,
       )}
 
       <Text variant="label">{new Date(days[selectedDay]).toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}</Text>
+      {selectedHoliday ? <HolidayBanner holiday={selectedHoliday} /> : null}
       {dayEvents.length === 0 ? (
         <Text color="muted">{CALENDAR_COPY.nothingPlanned}</Text>
       ) : (
@@ -199,7 +226,39 @@ export function CalendarContent({ weekStart, todayIndex = null, events, members,
           {fillCopy(CALENDAR_COPY.privateNote, { hub: hubName })}
         </Text>
       </View>
+      {weekHasHoliday ? (
+        <Text variant="caption" color="muted">
+          {G4B_UI_COPY.holidayNote}
+        </Text>
+      ) : null}
     </>
+  );
+}
+
+/** The board's gold holiday diamond (a rotated square, decorative). */
+function Diamond({ size, testID }: { size: number; testID?: string }) {
+  const tokens = useTokens();
+  return <View testID={testID} {...hiddenFromA11y()} style={{ width: size, height: size, backgroundColor: tokens.warn, transform: [{ rotate: '45deg' }] }} />;
+}
+
+/** Board HolidayCalendar: "{name} · public holiday" and what the family decided for routines that day. */
+function HolidayBanner({ holiday }: { holiday: UpcomingHoliday }) {
+  const tokens = useTokens();
+  const line = holiday.skip?.status === 'paused' ? G4B_UI_COPY.holidayBannerPaused : holiday.skip?.status === 'kept' ? G4B_UI_COPY.holidayBannerKept : null;
+  return (
+    <View testID="holiday-banner" accessible style={{ flexDirection: 'row', alignItems: 'center', gap: tokens.spacing.md, padding: tokens.spacing.md, borderRadius: tokens.radii.lg, backgroundColor: tokens.warnSurface, borderWidth: 1, borderColor: tokens.warn }}>
+      <View style={{ marginHorizontal: 4 }}>
+        <Diamond size={12} />
+      </View>
+      <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
+        <Text variant="label">{fillCopy(G4B_UI_COPY.holidayBanner, { name: holiday.name })}</Text>
+        {line ? (
+          <Text variant="caption" color="muted">
+            {line}
+          </Text>
+        ) : null}
+      </View>
+    </View>
   );
 }
 

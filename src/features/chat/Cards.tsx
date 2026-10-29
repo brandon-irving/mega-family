@@ -2,7 +2,9 @@
 // request and notification. Pure presentational — the "visibleTo" scope line is shared by the kinds
 // that carry one. GD (CONTRACT v0.13): the eight demo kinds (homework, practice, chore, routine, bucks,
 // shareSuggestion, proposal, gifts) carry only an id, so each renders its own connected card from
-// src/features/{kids,calendar}, which loads the item through the query that re-checks who's asking. A kind
+// src/features/{kids,calendar}, which loads the item through the query that re-checks who's asking. G4b
+// (CONTRACT v0.16): `products` (refs only, details read live), `priceDrop` and `holiday` do the same from
+// src/features/{shopping,holidays}. A kind
 // this build doesn't know yet renders nothing rather than crashing the thread.
 import type { Card as CardKind } from '@shared/domain/messages';
 import { BUTTON_SETS } from '@shared/config/notifications';
@@ -23,6 +25,9 @@ import { GiftsCard } from '@/features/calendar/GiftsCard';
 import { ProposalCard } from '@/features/calendar/ProposalCard';
 import { ShareSuggestionCard } from '@/features/calendar/ShareSuggestionCard';
 import { SearchResultCard, TravelResultCard, WeatherResultCard } from '@/features/integrations/IntegrationCards';
+import { ProductsCard } from '@/features/shopping/ProductsCard';
+import { PriceDropCard } from '@/features/shopping/PriceDropCard';
+import { HolidayCard } from '@/features/holidays/HolidayCard';
 
 export type CardProps = {
   card: CardKind;
@@ -75,7 +80,7 @@ export function ResultCard({ card, onRespondRequest, onAnswerNotification, notif
     case 'search':
       return <SearchResultCard card={card} megaName={megaName ?? GD_FALLBACK_FROM} />;
     case 'weather':
-      return <WeatherResultCard card={card} />;
+      return <WeatherResultCard card={card} megaName={megaName ?? GD_FALLBACK_FROM} />;
     case 'travel':
       return <TravelResultCard card={card} megaName={megaName ?? GD_FALLBACK_FROM} />;
     case 'request':
@@ -107,6 +112,12 @@ export function ResultCard({ card, onRespondRequest, onAnswerNotification, notif
       return <GiftsCard giftIdeasId={card.giftIdeasId} megaName={megaName ?? GD_FALLBACK_FROM} />;
     case 'intro':
       return <IntroCard megaName={megaName ?? GD_FALLBACK_FROM} />;
+    case 'products':
+      return <ProductsCard card={card} megaName={megaName ?? GD_FALLBACK_FROM} />;
+    case 'priceDrop':
+      return <PriceDropCard watchId={card.watchId} megaName={megaName ?? GD_FALLBACK_FROM} />;
+    case 'holiday':
+      return <HolidayCard skipId={card.skipId} megaName={megaName ?? GD_FALLBACK_FROM} />;
     default:
       return null;
   }

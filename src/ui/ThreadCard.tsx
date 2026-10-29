@@ -5,7 +5,7 @@
 // src/features/{kids,calendar} composes these; none draws its own frame. Colors and sizes come from tokens
 // only (kid sizing included: `tokens.buttonSize`, `tokens.type` and `tokens.touchTarget` follow the role).
 import type { ReactNode } from 'react';
-import { Pressable, View } from 'react-native';
+import { Pressable, ScrollView, View } from 'react-native';
 import Animated, { FadeIn, useReducedMotion } from 'react-native-reanimated';
 import { readableOn } from '@shared/config/theme';
 import { BucksCoin } from './BucksCoin';
@@ -265,7 +265,8 @@ export function HintNote({ text }: { text: string }) {
   );
 }
 
-/** "Based on what's shared" tags on gift ideas. */
+/** "Based on what's shared" tags on gift ideas: one line that scrolls sideways, never wrapping (owner, Oct 28:
+ * chips never wrap; board GiftsProducts). */
 export function TagList({ label, tags }: { label: string; tags: string[] }) {
   const tokens = useTokens();
   if (tags.length === 0) return null;
@@ -274,15 +275,15 @@ export function TagList({ label, tags }: { label: string; tags: string[] }) {
       <Text variant="caption" weight="700" color="muted">
         {label.toUpperCase()}
       </Text>
-      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6 }} testID="tag-list">
         {tags.map((t) => (
-          <View key={t} style={{ paddingHorizontal: 10, paddingVertical: 5, borderRadius: tokens.radii.md, backgroundColor: tokens.householdSurface, borderWidth: 1, borderColor: tokens.householdLine }}>
-            <Text variant="caption" style={{ color: tokens.householdText }}>
+          <View key={t} style={{ flexShrink: 0, paddingHorizontal: 10, paddingVertical: 5, borderRadius: tokens.radii.md, backgroundColor: tokens.householdSurface, borderWidth: 1, borderColor: tokens.householdLine }}>
+            <Text variant="caption" numberOfLines={1} style={{ color: tokens.householdText }}>
               {t}
             </Text>
           </View>
         ))}
-      </View>
+      </ScrollView>
     </View>
   );
 }
@@ -349,10 +350,12 @@ export function CheckList({ items, onToggle }: { items: CheckItem[]; onToggle: (
 }
 
 /** One gift idea with its Add to list button. */
-export function IdeaRow({ title, why, actionLabel, done, onPress, loading }: { title: string; why: string; actionLabel: string; done: boolean; onPress: () => void; loading?: boolean }) {
+export function IdeaRow({ title, why, actionLabel, done, onPress, loading, bare }: { title: string; why: string; actionLabel: string; done: boolean; onPress: () => void; loading?: boolean; bare?: boolean }) {
   const tokens = useTokens();
+  // `bare`: the row sits inside a larger idea block that draws the box (G4b gift ideas with products).
+  const box = bare ? {} : { borderRadius: tokens.radii.md, backgroundColor: tokens.bg, borderWidth: 1, borderColor: tokens.line, padding: 10, paddingLeft: tokens.spacing.md };
   return (
-    <View style={{ flexDirection: 'row', alignItems: 'center', gap: tokens.spacing.md, borderRadius: tokens.radii.md, backgroundColor: tokens.bg, borderWidth: 1, borderColor: tokens.line, padding: 10, paddingLeft: tokens.spacing.md }}>
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: tokens.spacing.md, ...box }}>
       <View style={{ flex: 1, gap: 2 }}>
         <Text variant="label">{title}</Text>
         <Text variant="caption" color="muted">
