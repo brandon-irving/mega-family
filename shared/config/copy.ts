@@ -939,4 +939,8 @@ export const G5_FIX_COPY = {
   hubTalk: 'Talk to {name}',
   hubAbout: '{name} is your family’s MEGA. It keeps the shared calendar and lists, and passes messages between everyone’s MEGAs.',
   rooms: 'Rooms',
+  // Activity "who decided" (board ProfileActivity)
+  decidedRule: 'Rule',
+  decidedAi: 'MEGA (AI)',
+  decidedYou: 'You',
 } as const;
