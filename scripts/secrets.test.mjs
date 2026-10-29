@@ -3,7 +3,7 @@
 
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { generateKeyPairSync, randomBytes } from 'node:crypto';
+import { generateKeyPairSync, randomBytes, verify } from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -192,6 +192,47 @@ describe('sync-convex', () => {
     assert.deepEqual(rec.names.sort(), ['BETTER_AUTH_SECRET', 'GOOGLE_CLIENT_SECRET', 'GOOGLE_IOS_CLIENT_ID', 'META_API_KEY']);
     assert.deepEqual(tmpDirs(), before, 'a temp copy of the secrets was written');
     assertNoValues(r.out);
+  });
+
+  test('derives APPLE_CLIENT_SECRET (an ES256 JWT, 180 days) from the Apple values and redacts it', () => {
+    // Convex can't finish async work started at module load, so the server can't sign this JWT itself at
+    // startup (found Oct 29: Apple sign-in always failed with CLIENT_ID_AND_SECRET_REQUIRED). sync-convex signs
+    // it here, where the key lives, and sends it with the other values.
+    const { privateKey, publicKey } = generateKeyPairSync('ec', { namedCurve: 'P-256' });
+    const pem = privateKey.export({ type: 'pkcs8', format: 'pem' });
+    const original = fs.readFileSync(file, 'utf8');
+    const apple = { APPLE_TEAM_ID: 'TEAM123456', APPLE_KEY_ID: 'KEYID12345', APPLE_CLIENT_ID: 'com.example.mega.web', APPLE_PRIVATE_KEY_B64: Buffer.from(pem).toString('base64') };
+    let text = original;
+    for (const [k, v] of Object.entries(apple)) text = text.replace(new RegExp(`^${k}=.*$`, 'm'), `${k}=${v}`);
+    fs.writeFileSync(file, text);
+    try {
+      const record = path.join(dir, 'record-apple.json');
+      const fakeConvex = path.join(dir, 'fake-convex-apple.mjs');
+      fs.writeFileSync(fakeConvex, `
+        import fs from 'node:fs';
+        const text = fs.readFileSync(0, 'utf8');
+        fs.writeFileSync(${JSON.stringify(record)}, JSON.stringify(text.trim().split('\\n')));
+        process.stdout.write(text);
+      `);
+      const r = cli(['sync-convex'], { SECRETS_CONVEX_CMD: `${process.execPath} ${fakeConvex}` });
+      assert.equal(r.code, 0, r.out);
+      const line = JSON.parse(fs.readFileSync(record, 'utf8')).find((l) => l.startsWith('APPLE_CLIENT_SECRET='));
+      assert.ok(line, 'APPLE_CLIENT_SECRET was not sent');
+      const jwt = JSON.parse(line.slice('APPLE_CLIENT_SECRET='.length));
+      const [h, p, s] = jwt.split('.');
+      const header = JSON.parse(Buffer.from(h, 'base64url').toString());
+      const payload = JSON.parse(Buffer.from(p, 'base64url').toString());
+      assert.deepEqual(header, { alg: 'ES256', kid: 'KEYID12345' });
+      assert.equal(payload.iss, 'TEAM123456');
+      assert.equal(payload.sub, 'com.example.mega.web');
+      assert.equal(payload.aud, 'https://appleid.apple.com');
+      const days = (payload.exp - payload.iat) / 86400;
+      assert.ok(days > 170 && days <= 180, `expires in ${days} days`);
+      assert.ok(verify('sha256', Buffer.from(`${h}.${p}`), { key: publicKey, dsaEncoding: 'ieee-p1363' }, Buffer.from(s, 'base64url')), 'signature does not verify');
+      assert.ok(!r.out.includes(s), 'the JWT leaked in the output');
+    } finally {
+      fs.writeFileSync(file, original);
+    }
   });
 
   test('passes a failing exit code through', () => {

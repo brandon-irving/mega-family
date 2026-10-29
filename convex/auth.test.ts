@@ -162,3 +162,17 @@ describe('clock.jump: DEMO_MODE gate', () => {
     expect(code(err)).toBe('FORBIDDEN');
   });
 });
+
+describe('Sign in with Apple options', () => {
+  afterEach(() => {
+    delete process.env.APPLE_CLIENT_SECRET;
+    delete process.env.APPLE_CLIENT_ID;
+  });
+
+  test('the client secret comes from APPLE_CLIENT_SECRET (signed by secrets sync-convex), never an empty startup cache', async () => {
+    process.env.APPLE_CLIENT_ID = 'com.example.mega.web';
+    process.env.APPLE_CLIENT_SECRET = 'header.payload.signature';
+    const { appleOptions } = await import('./auth');
+    expect(appleOptions()).toMatchObject({ clientId: 'com.example.mega.web', clientSecret: 'header.payload.signature' });
+  });
+});

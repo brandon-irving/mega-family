@@ -15,7 +15,7 @@
 // SECRETS_CONVEX_CMD overrides the Convex CLI (used by tests).
 
 import { spawn } from 'node:child_process';
-import { createPrivateKey, randomBytes } from 'node:crypto';
+import { createPrivateKey, randomBytes, sign } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -272,16 +272,39 @@ function appleKey(file) {
   console.log(`You can now move ${path.basename(file)} somewhere safe (e.g. a password manager) and delete it from Downloads.`);
 }
 
+const APPLE_SECRET_DAYS = 180; // under Apple's six-month cap on a client-secret JWT
+
+/** Sign in with Apple's client secret: an ES256 JWT signed with the .p8 key (Apple: "Creating a client
+ * secret"; Better Auth's Apple docs allow passing it as a static `clientSecret`). It's derived here, not on
+ * the server, because Convex never finishes async work started at module load, so the server can't sign it
+ * at startup. Null until all four Apple values are set. Re-run sync-convex before it expires. */
+function appleClientSecret(secrets, nowSec = Math.floor(Date.now() / 1000)) {
+  const [team, kid, client, keyB64] = ['APPLE_TEAM_ID', 'APPLE_KEY_ID', 'APPLE_CLIENT_ID', 'APPLE_PRIVATE_KEY_B64'].map((n) => secrets.get(n));
+  if (!team || !kid || !client || !keyB64) return null;
+  const b64url = (o) => Buffer.from(JSON.stringify(o)).toString('base64url');
+  const unsigned = `${b64url({ alg: 'ES256', kid })}.${b64url({ iss: team, iat: nowSec, exp: nowSec + APPLE_SECRET_DAYS * 86400, aud: 'https://appleid.apple.com', sub: client })}`;
+  const key = createPrivateKey(Buffer.from(keyB64, 'base64').toString('utf8'));
+  const sig = sign('sha256', Buffer.from(unsigned), { key, dsaEncoding: 'ieee-p1363' }).toString('base64url');
+  return { value: `${unsigned}.${sig}`, expires: new Date((nowSec + APPLE_SECRET_DAYS * 86400) * 1000) };
+}
+
 async function syncConvex(extra) {
   const secrets = readSecrets();
   const vars = setVars(secrets, ['convex']);
   if (!vars.length) fail('No convex-target vars are set yet. See: node scripts/secrets.mjs status');
+  const redact = redactionList(secrets);
+  const apple = appleClientSecret(secrets);
+  if (apple) {
+    vars.push({ name: 'APPLE_CLIENT_SECRET', value: apple.value });
+    redact.push({ name: 'APPLE_CLIENT_SECRET', value: apple.value }, { name: 'APPLE_CLIENT_SECRET', value: apple.value.split('.')[2] });
+    console.log(`APPLE_CLIENT_SECRET: signed, expires ${apple.expires.toISOString().slice(0, 10)} (run sync-convex again before then)`);
+  }
   // The values go to the Convex CLI on stdin (`npx convex env set --force < file` in the Convex docs),
   // so no copy of them is ever written to disk.
   const input = vars.map((v) => `${v.name}=${JSON.stringify(v.value)}`).join('\n') + '\n';
   const [cmd, ...pre] = (process.env.SECRETS_CONVEX_CMD ?? 'npx convex').split(' ');
   console.log(`Setting on Convex: ${vars.map((v) => v.name).join(', ')}`);
-  const code = await runRedacted(cmd, [...pre, 'env', 'set', '--force', ...extra], {}, redactionList(secrets), input);
+  const code = await runRedacted(cmd, [...pre, 'env', 'set', '--force', ...extra], {}, redact, input);
   if (code !== 0) fail(`Convex CLI exited with ${code}`, code);
 }
 

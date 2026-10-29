@@ -107,6 +107,8 @@ Owner approved **$5 total for live model checks until G6**; ≈3 cents used. The
 
 ## Lessons learned (don't relearn these)
 
+- **Sign in with Apple's client secret (Oct 29):** Convex never finishes async work started at module load, so a JWT signed into a module-level cache at startup stays empty forever (Apple sign-in failed with `CLIENT_ID_AND_SECRET_REQUIRED`, web and native). `secrets.mjs sync-convex` now signs the ES256 JWT locally from the .p8 and sets `APPLE_CLIENT_SECRET` (180 days; **re-run `sync-convex` before 2027-04-27**). `jose` is now unused in app code; remove it after all gates (package freeze).
+
 - **SSRF guard (G5):** Convex actions can't resolve DNS, so the ICS guard checks IP literals (every encoding) and blocked names only; a public hostname that resolves to a private IP isn't caught. Manual redirects (`redirect: 'manual'`) do work in Convex's runtime, so every hop is re-checked.
 - **Invites (G5):** only the token's hash is stored, so an invite link can't be shown again; "show invite" makes a new one. The QR carries the full `mega://join/<token>` link; preview/redeem accept link or token (`shared/inviteToken.ts`).
 

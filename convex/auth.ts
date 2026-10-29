@@ -12,7 +12,6 @@ import { convex, crossDomain } from '@convex-dev/better-auth/plugins';
 import { expo } from '@better-auth/expo';
 import { betterAuth } from 'better-auth/minimal';
 import { anonymous } from 'better-auth/plugins';
-import { importPKCS8, SignJWT } from 'jose';
 import { DEMO } from '../shared/config';
 import { IDENTITY } from '../shared/config/identity';
 import authConfig from './auth.config';
@@ -22,46 +21,18 @@ import type { DataModel } from './_generated/dataModel';
 
 export const authComponent = createClient<DataModel>(components.betterAuth);
 
-function base64ToUtf8(b64: string): string {
-  const binary = atob(b64);
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-  return new TextDecoder().decode(bytes);
+/** Sign in with Apple's client secret is an ES256 JWT (Apple: "Creating a client secret"), valid 180 days.
+ * `scripts/secrets.mjs sync-convex` signs it from the .p8 key and sets APPLE_CLIENT_SECRET; Better Auth's
+ * Apple docs allow a static `clientSecret`. It isn't signed here at startup because Convex never finishes
+ * async work started at module load, so a module-level cache stayed empty and Apple sign-in (web and the
+ * native idToken path) always failed with CLIENT_ID_AND_SECRET_REQUIRED (found Oct 29). */
+export function appleOptions() {
+  return {
+    clientId: process.env.APPLE_CLIENT_ID ?? '',
+    appBundleIdentifier: IDENTITY.bundleId,
+    clientSecret: process.env.APPLE_CLIENT_SECRET ?? '',
+  };
 }
-
-/** Apple's client "secret" is a JWT MEGA signs itself (no static secret to leak), good for 180 days — under
- * Apple's 6-month cap. Needs APPLE_TEAM_ID / APPLE_KEY_ID / APPLE_PRIVATE_KEY_B64 / APPLE_CLIENT_ID. */
-async function generateAppleClientSecret(): Promise<string> {
-  const teamId = process.env.APPLE_TEAM_ID;
-  const keyId = process.env.APPLE_KEY_ID;
-  const keyB64 = process.env.APPLE_PRIVATE_KEY_B64;
-  const clientId = process.env.APPLE_CLIENT_ID;
-  if (!teamId || !keyId || !keyB64 || !clientId) throw new Error('Apple sign-in needs APPLE_TEAM_ID, APPLE_KEY_ID, APPLE_PRIVATE_KEY_B64 and APPLE_CLIENT_ID set on this deployment');
-  const key = await importPKCS8(base64ToUtf8(keyB64), 'ES256');
-  return new SignJWT({})
-    .setProtectedHeader({ alg: 'ES256', kid: keyId })
-    .setIssuer(teamId)
-    .setIssuedAt()
-    .setExpirationTime('180d')
-    .setAudience('https://appleid.apple.com')
-    .setSubject(clientId)
-    .sign(key);
-}
-
-// Better Auth's documented pattern for this is an async `clientSecret` hook (current docs: "Better Auth's
-// async provider configuration"), but the pinned stable `better-auth` release in this repo's package.json
-// (1.7.x) still types `clientSecret` as a plain `string` — only the 1.8 beta line adds the function form.
-// Rather than pin a beta dependency, this generates the JWT once per cold start into a module-level cache
-// (fire-and-forget, never blocks module load) and reads the cached string synchronously; the JWT is valid
-// for 180 days, so recomputing it per-request would be wasteful even with the function form. If Apple env
-// vars aren't set yet, the cache just stays empty and only Apple sign-in is affected (Google/anonymous
-// aren't touched). Revisit this once `better-auth`'s stable line ships the async form.
-let appleClientSecretCache = '';
-void generateAppleClientSecret()
-  .then((s) => {
-    appleClientSecretCache = s;
-  })
-  .catch((e) => console.error('[auth] Apple client secret not generated:', (e as Error).message));
 
 /** `trustedOrigins` for both Better Auth itself (OAuth callback / cross-domain validation) and the HTTP
  * router's CORS config (convex/http.ts): the native app's deep-link scheme and Apple's redirect always;
@@ -91,11 +62,7 @@ export const createAuth = (ctx: GenericCtx<DataModel>) =>
         clientId: [process.env.GOOGLE_WEB_CLIENT_ID ?? '', process.env.GOOGLE_IOS_CLIENT_ID ?? ''],
         clientSecret: process.env.GOOGLE_CLIENT_SECRET ?? '',
       },
-      apple: {
-        clientId: process.env.APPLE_CLIENT_ID ?? '',
-        appBundleIdentifier: IDENTITY.bundleId,
-        clientSecret: appleClientSecretCache,
-      },
+      apple: appleOptions(),
     },
     plugins: [expo(), anonymous(), crossDomain({ siteUrl }), convex({ authConfig })],
   });
