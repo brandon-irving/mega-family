@@ -25,7 +25,7 @@ print('built')
 
 t = open('Profile.template.html').read()
 # Colour maths comes straight from the engine, so the board shades exactly like the app.
-eng = open('/Users/brandonirving/products/mega/prototypes/megasprite/pixel-paint.mjs').read()
+eng = open(S + '/../prototypes/megasprite/pixel-paint.mjs').read()
 shades_src = eng[eng.index('function hexToHsl'):eng.index('/** Expand')].replace('export function', 'function')
 stickers = {'star': 'a509b7da6f93811f29bf9e84560af70f', 'heart': 'ef08bdd73525cdfac56fe3c437a18b9c', 'leaf': '6729bb22fb50e334dd97a073fa44e53a', 'bolt': 'f4bb0c6f1f0fcae62475f582a31df06e'}
 looks_data = 'const LOOKS = ' + compact(json.load(open(A + '/looks/looks.json'))) + ';\nconst STICKER_ART = ' + compact(stickers) + ';\n' + shades_src
@@ -308,3 +308,46 @@ canvas['notes']['screen15defaults'] = {'x': len(SHOP_BOARDS) * GAP, 'y': ROW15, 
     '• Holidays come from a public-holiday calendar. The evening before, MEGA asks a parent once whether to pause routines and chores; the kids hear it at bedtime. School closures still come from the school\'s .ics link.'}
 json.dump(canvas, open(cpath, 'w'), ensure_ascii=False)
 print('built shopping')
+
+# Screen 16 (G5, CONTRACT v0.17, Oct 29): Settings → Connected accounts (with the testing-mode lapse and the
+# disconnect sheet), the in-chat reconnect card, the honest "Google isn't set up" cards, pasting a schedule link,
+# picking phone calendars, removing found email items, and the Profile pages behind "Rules and limits" and
+# "Activity". One template; its main board is SettingsAccounts (the template is Accounts.template.html).
+fill('Accounts', out='SettingsAccounts')
+ACCOUNT_BOARDS = [
+    ('SettingsAccounts', '1 · Settings → Connected accounts', {}),
+    ('SettingsAccountsLapse', '1b · Google lapsed (testing: every 7 days) → Reconnect', {'step': 'accountsLapse'}),
+    ('SettingsDisconnect', '1c · Disconnect Gmail? (sheet with Close)', {'step': 'accountsDisconnect'}),
+    ('Reconnect', '2 · In chat: Google needs you to sign in again', {'step': 'reconnect'}),
+    ('ConnectNotSetUp', '3 · Google not set up: no dead button, phone calendar still offered', {'step': 'notSetUp'}),
+    ('IcsPaste', '4 · Paste a schedule link', {'step': 'icsPaste'}),
+    ('IcsPasteError', '4b · That link didn’t work', {'step': 'icsError'}),
+    ('IcsPasteAdded', '4c · Added, updates every few hours', {'step': 'icsAdded'}),
+    ('PhoneCalendarPick', '5 · This phone’s calendar: pick which (sheet)', {'step': 'phonePick'}),
+    ('PhoneCalendarDenied', '5b · Calendar permission denied', {'step': 'phoneDenied'}),
+    ('PhoneCalendarWeb', '5c · On the web: open MEGA on your phone', {'step': 'phoneWeb'}),
+    ('MailFoundRemove', '6 · Found in Gmail: one removed · share suggestion', {'step': 'mailRemove'}),
+    ('MailFoundNone', '6b · Nothing needs you (never an empty card)', {'step': 'mailNone'}),
+    ('ProfileRules', '7 · Profile → Rules and limits (parent edits Twin 1’s)', {'step': 'rules'}),
+    ('ProfileRulesKid', '7b · Twin 1 sees the rules, read-only', {'step': 'rulesKid'}),
+    ('ProfileActivity', '8 · Profile → Activity: what Teal did, who decided, what it learned', {'step': 'activity'}),
+]
+write_wrappers('SettingsAccounts', ACCOUNT_BOARDS)
+ROW16 = 18960
+for i, (stem, title, _) in enumerate(ACCOUNT_BOARDS):
+    f = stem + '.dc.html'
+    canvas['boards'][f] = {'x': i * GAP, 'y': ROW16, 'w': 390, 'h': 844, 'title': title, 'is_interactive': True}
+    if f not in canvas['order']:
+        canvas['order'].append(f)
+canvas['notes']['screen16'] = {'x': 0, 'y': ROW16 - 260, 'text': 'Screen 16 · Accounts, HQ and profile pages', 'kind': 'title1', 'maxW': len(ACCOUNT_BOARDS) * GAP - 80}
+canvas['notes']['screen16defaults'] = {'x': len(ACCOUNT_BOARDS) * GAP, 'y': ROW16, 'w': 420, 'fill': 'orange', 'size': 's', 'text':
+    'Defaults to confirm\n'
+    '• Connected accounts lists each source with a status dot (Connected / Needs you to sign in again / Couldn\'t check lately), what it reads as, and when it last checked. Schedule links show the site, never the full link (it can carry a private token).\n'
+    '• Testing mode: Google asks again every 7 days. MEGA posts one Reconnect card in your chat and the Settings row turns gold; nothing is read until you reconnect.\n'
+    '• Disconnect asks first, then stops reading and removes what MEGA found. Anything you already shared stays shared.\n'
+    '• Google not set up: the Gmail card says so with only Not now (no button that can\'t work); the calendar card still offers this phone\'s calendar.\n'
+    '• Found items and imported calendars land on YOUR private calendar; MEGA may suggest sharing, only your tap shares. Removing a found item leaves a one-line "Removed" note.\n'
+    '• Rules and limits: parents edit a kid\'s quiet hours, buzzes a day, web search, homework mode, blocked topics and what parents hear; safety concerns are always on. The kid sees the same page read-only.\n'
+    '• Activity: each action shows who decided (Rule, MEGA (AI) or You) and why; What it learned has Forget. The Gmail address, school and team links are made-up stand-ins.'}
+json.dump(canvas, open(cpath, 'w'), ensure_ascii=False)
+print('built accounts')

@@ -325,9 +325,9 @@ const QUESTION_BANK = [
 // The admin's setup chat. Each turn: what the MEGA says, the UI block it shows, and what an answer does.
 // Blocks come from the catalog: chips | text | fields | look | questions | invite | link.
 const ADMIN_TURNS = {
-  hello: { say: ['Hi! I’m {mega}. I’ll help you set up the whole family.', 'First, is it OK if I call you Brandon?'], block: 'chips', options: ['Yes', 'Call me something else'], next: (a, st) => (st.mine.hex === THEMES.midnight.accent ? 'reminders' : 'theme') },
+  hello: { say: ['Hi! I’m {mega}. I’ll help you set up the whole family.', 'First, is it OK if I call you Admin?'], block: 'chips', options: ['Yes', 'Call me something else'], next: (a, st) => (st.mine.hex === THEMES.midnight.accent ? 'reminders' : 'theme') },
   theme: { say: ['Want the whole app in my color? Turn on the preview to try it first.'], block: 'theme', options: ['Use {mega}’s color', 'Keep Midnight'], next: () => 'reminders' },
-  reminders: { say: ['Great, Brandon. When do you like reminders: mornings, evenings, or both?'], block: 'chips', options: ['Mornings', 'Evenings', 'Both'], next: () => 'add' },
+  reminders: { say: ['Great, Admin. When do you like reminders: mornings, evenings, or both?'], block: 'chips', options: ['Mornings', 'Evenings', 'Both'], next: () => 'add' },
   add: { say: ['Now let’s add your family. Who should I add first? Just tell me their name.'], block: 'text', placeholder: 'Their name', next: () => 'relation' },
   relation: { say: ['Who is {person} to you?'], block: 'chips', options: ['Daughter', 'Son', 'Child', 'Partner', 'Parent', 'Something else'], voice: 'Child', next: () => 'give' },
   give: { say: ['Got it, {person} is your {rel}. Should {they} get a MEGA of {their} own?'], block: 'chips', options: ['Yes, make one', 'Not yet'], next: (a) => (a === 'Not yet' ? 'nomega' : 'details') },
@@ -343,7 +343,7 @@ const KID_TURNS = {
   fun: { say: ['Yay! What do you like to do for fun? Hold the button and tell me.'], block: 'none' },
 };
 // Boards can open partway through the setup chat; these answers fast-forward to that point.
-const FAST_FORWARD = { hello: [], theme: ['Yes'], add: ['Yes', 'Both'], relation: ['Yes', 'Both', 'Anela'], details: ['Yes', 'Both', 'Anela', 'Child', 'Yes, make one'], look: ['Yes', 'Both', 'Anela', 'Child', 'Yes, make one', 'skip'], questions: ['Yes', 'Both', 'Anela', 'Child', 'Yes, make one', 'skip', 'look'], invite: ['Yes', 'Both', 'Anela', 'Child', 'Yes, make one', 'skip', 'look', 'questions'] };
+const FAST_FORWARD = { hello: [], theme: ['Yes'], add: ['Yes', 'Both'], relation: ['Yes', 'Both', 'Twin 1'], details: ['Yes', 'Both', 'Twin 1', 'Child', 'Yes, make one'], look: ['Yes', 'Both', 'Twin 1', 'Child', 'Yes, make one', 'skip'], questions: ['Yes', 'Both', 'Twin 1', 'Child', 'Yes, make one', 'skip', 'look'], invite: ['Yes', 'Both', 'Twin 1', 'Child', 'Yes, make one', 'skip', 'look', 'questions'] };
 
 // A QR-style pattern for the mockup (not a scannable code): three finder squares plus seeded modules.
 function qrModules(px) {
@@ -372,7 +372,7 @@ class Component extends DCLogic {
       step, turn: 'hello', history: [], talking: false, draft: '',
       mine: { name: 'Teal', hex: LOOKS.colors.teal, sticker: 'star', personality: 'brief' },
       theirs: { name: 'Sunny', hex: LOOKS.colors.sun, sticker: 'leaf', personality: 'cheerful' },
-      person: 'Anela', rel: 'child', fields: { birthday: '', grade: '', activities: '' },
+      person: 'Twin 1', rel: 'child', fields: { birthday: '', grade: '', activities: '' },
       asks: QUESTION_BANK.map(() => true), extra: [], suggestion: true,
       codeShown: false, code: '', codeError: '', blinking: false, theme: 'theme', preview: false,
     };
@@ -501,7 +501,7 @@ class Component extends DCLogic {
         this.setState({ talking: false });
         const t = this.turns()[this.state.turn] || {};
         if (t.block === 'chips') this.respond(t.voice || t.options[0]);
-        else if (t.block === 'text') this.respond('Anela');
+        else if (t.block === 'text') this.respond('Twin 1');
         else this.setState({ history: [...this.state.history, { text: '[' + this.state.person + '’s answer, typed out as they talk]', fromMega: false, fromMe: true }] });
       },
       kid: { sprite: sprite(s.theirs.hex, face(s.theirs), s.theirs.sticker, 3.5) },

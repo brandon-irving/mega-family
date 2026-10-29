@@ -1,7 +1,7 @@
 # Design canvas (mockups)
 
 The approved screen mockups, published as a private Design-canvas artifact:
-https://claude.ai/artifact/Wa23YjuTXtEhL3hy8PvZZV (version 39 after the Oct 28 shopping, air and holidays row, Screen 15).
+https://claude.ai/artifact/Wa23YjuTXtEhL3hy8PvZZV (version 40 after the Oct 29 accounts, HQ and profile pages row, Screen 16).
 
 - `mega-screens/project/*.dc.html` — one board per screen state; `canvas.json` places the boards (rows per
   screen: Chat, HQ, Profile, Family, Onboarding, Push, Settings, Widgets, Sign in, Kids, Store,
@@ -63,3 +63,14 @@ no prices), the adults-only price drop in chat and as a push, an adult's product
 states, UV and US AQI on the weather card plus the tips (chat, a loud AQI push, a quiet UV update), and public
 holidays (the evening-before ask, paused state, the kid's bedtime card, the calendar marker). Store names and
 product pictures are made-up stand-ins.
+
+Accounts, HQ and profile pages row (Screen 16, G5, Oct 29): `build/Accounts.template.html` → `SettingsAccounts.dc.html`
+(`fill(..., out=)`), with wrappers from `ACCOUNT_BOARDS` in `build.py`: Settings → Connected accounts (Gmail, Google
+Calendar, this phone's calendar, schedule links; status dot, what it reads as, last checked; Sync now / Disconnect,
+the testing-mode lapse with Reconnect, the Disconnect confirm sheet), the in-chat reconnect card, the "Google isn't set
+up" Gmail card (only Not now) followed by a calendar card that still offers the phone, pasting a schedule link (field,
+error, added), the phone-calendar picker sheet plus its denied and web states, found Gmail items with per-row remove
+and the share suggestion (plus the "nothing needs you" card), and the Profile pages behind "Rules and limits"
+(parent edits, kid read-only) and "Activity" (who decided each action, what MEGA learned, Forget). Copy is `G5_COPY`
+where it exists; new lines are listed in the frontend notes. The Gmail address, school and team links are made-up
+stand-ins. HQ and Room keep their Screen 2 boards.

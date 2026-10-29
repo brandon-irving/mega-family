@@ -1,0 +1,733 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Accounts and profile pages</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;family=Pixelify+Sans:wght@400;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#0C0E11}
+button{font-family:inherit;cursor:pointer}
+a{color:#EDEFF2;text-decoration:none}
+a:hover{color:#FFFFFF}
+</style>
+</helmet>
+<div style="position: relative; width: 390px; height: 844px; overflow: hidden; background: #0C0E11; color: #EDEFF2; font-family: Inter, system-ui, sans-serif">
+
+  <!-- Chat thread (Screen 13 language): reconnect, Google not set up, schedule-link paste, phone calendar, found mail. -->
+  <sc-if value="{{showChat}}" hint-placeholder-val="{{ true }}">
+  <div style="position: absolute; inset: 0; display: flex; flex-direction: column">
+    <header style="display: flex; align-items: center; gap: 12px; padding: 54px 16px 12px; border-bottom: 1px solid #22262D; flex-shrink: 0">
+      <button type="button" aria-label="Open {{megaName}}’s profile" style="position: relative; width: 44px; height: 38px; flex-shrink: 0; padding: 0; border: none; border-radius: 10px; overflow: hidden; background: #FFFFFF">
+        <span style="position: absolute; left: 6px; top: 6px; width: 32px; height: 27px">
+          <sc-for list="{{head.rects}}" as="r" hint-placeholder-count="150">
+            <span style="position: absolute; left: {{r.l}}px; top: {{r.t}}px; width: {{r.w}}px; height: {{r.h}}px; background: {{r.c}}"></span>
+          </sc-for>
+        </span>
+      </button>
+      <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px">
+        <div style="font-size: 18px; font-weight: 700">{{megaName}}</div>
+        <div style="font-size: 13px; color: #9AA1AB">{{megaSub}}</div>
+      </div>
+    </header>
+
+    <div style="flex: 1; min-height: 0; overflow: hidden; display: flex; flex-direction: column; justify-content: flex-end; gap: 14px; padding: 16px">
+      <sc-for list="{{items}}" as="m" hint-placeholder-count="3">
+        <sc-if value="{{m.isDay}}" hint-placeholder-val="{{ false }}">
+          <div style="align-self: center; font-size: 12px; font-weight: 600; color: #9AA1AB; padding: 4px 10px; border-radius: 10px; background: #16191E">{{m.text}}</div>
+        </sc-if>
+        <sc-if value="{{m.isMine}}" hint-placeholder-val="{{ false }}">
+          <div style="align-self: flex-end; max-width: 270px; padding: 10px 15px; border-radius: 18px 18px 4px 18px; background: #123B39; font-size: 17px; line-height: 1.35">{{m.text}}</div>
+        </sc-if>
+        <sc-if value="{{m.isText}}" hint-placeholder-val="{{ false }}">
+          <div style="display: flex; flex-direction: column; gap: 4px; max-width: 330px">
+            <div style="font-size: 12px; font-weight: 700; color: #2FB8B0">{{megaName}}</div>
+            <div style="font-size: 17px; line-height: 1.4">{{m.text}}</div>
+          </div>
+        </sc-if>
+
+        <!-- One card shell (Screens 13–15): header line, title, body, then the parts it has. -->
+        <sc-if value="{{m.isCard}}" hint-placeholder-val="{{ true }}">
+          <section aria-label="{{m.label}}" style="border-radius: 20px; background: #16191E; border: 1px solid #2E343D; padding: 14px; display: flex; flex-direction: column; gap: 12px">
+            <div style="display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 700; color: #2FB8B0">
+              <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="{{m.icon}}"></path></svg>
+              <span style="flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{m.from}}</span>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 4px">
+              <span style="font-size: 17px; line-height: 1.3; font-weight: 700">{{m.title}}</span>
+              <sc-if value="{{m.hasBody}}" hint-placeholder-val="{{ true }}">
+                <span style="font-size: 15px; line-height: 1.45; color: #B4BAC3">{{m.body}}</span>
+              </sc-if>
+            </div>
+
+            <!-- Found-mail rows: kind icon, title, when + sender, a 44pt remove button. A removed row leaves one quiet line. -->
+            <sc-if value="{{m.hasRows}}" hint-placeholder-val="{{ false }}">
+              <div style="display: flex; flex-direction: column; border-radius: 14px; border: 1px solid #2E343D; overflow: hidden">
+                <sc-for list="{{m.rows}}" as="r" hint-placeholder-count="3">
+                  <sc-if value="{{r.live}}" hint-placeholder-val="{{ true }}">
+                    <div style="display: flex; align-items: center; gap: 10px; min-height: 60px; padding: 6px 4px 6px 10px; border-top: {{r.divider}}">
+                      <span aria-hidden="true" style="width: 36px; height: 36px; flex-shrink: 0; border-radius: 10px; background: {{r.tile}}; color: {{r.ink}}; display: flex; align-items: center; justify-content: center">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="{{r.icon}}"></path></svg>
+                      </span>
+                      <span style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px">
+                        <span style="font-size: 15px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{r.title}}</span>
+                        <span style="font-size: 13px; color: #9AA1AB; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{r.sub}}</span>
+                      </span>
+                      <button type="button" onClick="{{r.remove}}" aria-label="{{r.removeLabel}}" style="width: 44px; height: 44px; flex-shrink: 0; border: none; border-radius: 22px; background: transparent; color: #9AA1AB; display: flex; align-items: center; justify-content: center">
+                        <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"></path></svg>
+                      </button>
+                    </div>
+                  </sc-if>
+                  <sc-if value="{{r.gone}}" hint-placeholder-val="{{ false }}">
+                    <div role="status" style="display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 12px; border-top: {{r.divider}}; font-size: 14px; color: #9AA1AB">
+                      <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 7"></path></svg>
+                      <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{r.goneText}}</span>
+                    </div>
+                  </sc-if>
+                </sc-for>
+              </div>
+            </sc-if>
+
+            <!-- Choices (the calendar card): full-width options; one that isn't set up is plain text, never a dead button. -->
+            <sc-if value="{{m.hasOptions}}" hint-placeholder-val="{{ false }}">
+              <div style="display: flex; flex-direction: column; gap: 8px">
+                <sc-for list="{{m.options}}" as="o" hint-placeholder-count="2">
+                  <sc-if value="{{o.on}}" hint-placeholder-val="{{ true }}">
+                    <button type="button" onClick="{{o.pick}}" style="display: flex; align-items: center; gap: 12px; min-height: 56px; padding: 8px 14px; border-radius: 14px; border: 1px solid {{o.border}}; background: {{o.bg}}; color: #EDEFF2; text-align: left">
+                      <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0"><path d="{{o.icon}}"></path></svg>
+                      <span style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px">
+                        <span style="font-size: 16px; font-weight: 700">{{o.label}}</span>
+                        <span style="font-size: 13px; color: #9AA1AB">{{o.sub}}</span>
+                      </span>
+                      <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#9AA1AB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"></path></svg>
+                    </button>
+                  </sc-if>
+                  <sc-if value="{{o.off}}" hint-placeholder-val="{{ false }}">
+                    <div style="display: flex; align-items: center; gap: 12px; min-height: 56px; padding: 8px 14px; border-radius: 14px; border: 1px dashed #3A414B; color: #9AA1AB">
+                      <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0"><path d="{{o.icon}}"></path></svg>
+                      <span style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px">
+                        <span style="font-size: 16px; font-weight: 700">{{o.label}}</span>
+                        <span style="font-size: 13px">{{o.sub}}</span>
+                      </span>
+                    </div>
+                  </sc-if>
+                </sc-for>
+              </div>
+            </sc-if>
+
+            <!-- Schedule link field: label, field, the error under it. -->
+            <sc-if value="{{m.hasField}}" hint-placeholder-val="{{ false }}">
+              <div style="display: flex; flex-direction: column; gap: 6px">
+                <label for="ics-link" style="font-size: 13px; font-weight: 700; color: #9AA1AB">Schedule link</label>
+                <input id="ics-link" type="url" inputmode="url" value="{{m.fieldValue}}" placeholder="{{m.fieldPlaceholder}}" onInput="{{m.type}}" aria-invalid="{{m.fieldInvalid}}" aria-describedby="ics-error" style="height: 48px; box-sizing: border-box; border-radius: 12px; border: 1px solid {{m.fieldBorder}}; background: #0C0E11; color: #EDEFF2; padding: 0 14px; font-size: 15px; font-family: inherit; min-width: 0">
+                <sc-if value="{{m.hasError}}" hint-placeholder-val="{{ false }}">
+                  <span id="ics-error" role="alert" style="display: flex; align-items: flex-start; gap: 6px; font-size: 13px; line-height: 1.4; color: #F2766B">
+                    <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0; margin-top: 2px"><circle cx="12" cy="12" r="9"></circle><path d="M12 8v5M12 16h.01"></path></svg>
+                    <span>{{m.error}}</span>
+                  </span>
+                </sc-if>
+              </div>
+            </sc-if>
+
+            <!-- Buttons: one per row when stacked (full width), or a pair side by side. -->
+            <sc-if value="{{m.hasActions}}" hint-placeholder-val="{{ true }}">
+              <div style="display: grid; grid-template-columns: repeat({{m.cols}}, minmax(0, 1fr)); gap: 8px">
+                <sc-for list="{{m.actions}}" as="a" hint-placeholder-count="2">
+                  <button type="button" onClick="{{a.pick}}" style="height: 44px; border-radius: 14px; border: 1px solid {{a.border}}; background: {{a.bg}}; color: {{a.fg}}; font-size: 15px; font-weight: 700">{{a.label}}</button>
+                </sc-for>
+              </div>
+            </sc-if>
+            <sc-if value="{{m.hasStatus}}" hint-placeholder-val="{{ false }}">
+              <div role="status" style="display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 600; color: {{m.statusColor}}">
+                <span style="width: 8px; height: 8px; border-radius: 4px; background: {{m.statusColor}}; flex-shrink: 0"></span>{{m.status}}
+              </div>
+            </sc-if>
+            <sc-if value="{{m.hasFoot}}" hint-placeholder-val="{{ false }}">
+              <div style="display: flex; align-items: flex-start; gap: 6px; font-size: 12px; line-height: 1.4; color: #9AA1AB">
+                <svg aria-hidden="true" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0; margin-top: 2px"><rect x="5" y="11" width="14" height="10" rx="2"></rect><path d="M8 11V8a4 4 0 0 1 8 0v3"></path></svg>
+                <span>{{m.foot}}</span>
+              </div>
+            </sc-if>
+          </section>
+        </sc-if>
+      </sc-for>
+    </div>
+
+    <div style="display: flex; align-items: center; gap: 8px; padding: 10px 16px 30px; flex-shrink: 0">
+      <label for="composer" style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0)">Message {{megaName}}</label>
+      <input id="composer" type="text" placeholder="Message {{megaName}}…" style="flex: 1; min-width: 0; height: 48px; box-sizing: border-box; border-radius: 24px; border: 1px solid #2E343D; background: #16191E; color: #EDEFF2; padding: 0 16px; font-size: 15px; font-family: inherit">
+      <button type="button" aria-label="Talk" style="width: 48px; height: 48px; flex-shrink: 0; border-radius: 24px; border: none; background: #2FB8B0; color: #0C0E11; display: flex; align-items: center; justify-content: center">
+        <svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"></rect><path d="M5 11a7 7 0 0 0 14 0M12 18v3"></path></svg>
+      </button>
+    </div>
+  </div>
+  </sc-if>
+
+  <!-- Pages (Settings / Profile language): back, title, grouped rows. -->
+  <sc-if value="{{showPage}}" hint-placeholder-val="{{ false }}">
+  <div style="position: absolute; inset: 0; display: flex; flex-direction: column; padding-top: 44px">
+    <header style="display: grid; grid-template-columns: 80px 1fr 80px; align-items: center; height: 56px; padding: 0 8px; flex-shrink: 0">
+      <button type="button" aria-label="{{backLabel}}" style="width: 44px; height: 44px; border: none; background: transparent; color: #EDEFF2; display: flex; align-items: center; justify-content: center"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"></path></svg></button>
+      <h1 style="margin: 0; text-align: center; font-size: 17px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{pageTitle}}</h1>
+      <span></span>
+    </header>
+
+    <div style="flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 22px; padding: 6px 16px 34px">
+      <sc-if value="{{hasIntro}}" hint-placeholder-val="{{ false }}">
+        <div style="display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 16px; background: #16191E; border: 1px solid #2E343D">
+          <span style="position: relative; width: 44px; height: 38px; flex-shrink: 0; border-radius: 10px; overflow: hidden; background: #FFFFFF">
+            <span style="position: absolute; left: 6px; top: 6px; width: 32px; height: 27px">
+              <sc-for list="{{introHead.rects}}" as="r" hint-placeholder-count="150">
+                <span style="position: absolute; left: {{r.l}}px; top: {{r.t}}px; width: {{r.w}}px; height: {{r.h}}px; background: {{r.c}}"></span>
+              </sc-for>
+            </span>
+          </span>
+          <span style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px">
+            <span style="font-size: {{rowFont}}px; font-weight: 700">{{introTitle}}</span>
+            <span style="font-size: 13px; line-height: 1.4; color: #9AA1AB">{{introSub}}</span>
+          </span>
+        </div>
+      </sc-if>
+
+      <!-- Filter chips: one line, never wraps (scrolls sideways in the app). -->
+      <sc-if value="{{hasFilters}}" hint-placeholder-val="{{ false }}">
+        <div style="display: flex; gap: 8px; overflow: hidden; white-space: nowrap; margin: -8px 0 -6px">
+          <sc-for list="{{filters}}" as="f" hint-placeholder-count="4">
+            <button type="button" aria-pressed="{{f.onStr}}" onClick="{{f.pick}}" style="flex-shrink: 0; height: 36px; padding: 0 14px; border-radius: 18px; border: 1px solid {{f.border}}; background: {{f.bg}}; color: {{f.fg}}; font-size: 14px; font-weight: 600">{{f.label}}</button>
+          </sc-for>
+        </div>
+      </sc-if>
+
+      <sc-for list="{{sections}}" as="sec" hint-placeholder-count="3">
+        <section style="display: flex; flex-direction: column; gap: 6px">
+          <h2 style="margin: 0 4px; font-size: 13px; font-weight: 700; letter-spacing: 0.6px; text-transform: uppercase; color: #9AA1AB">{{sec.title}}</h2>
+          <div style="border-radius: 16px; background: #16191E; border: 1px solid #2E343D; overflow: hidden">
+            <sc-for list="{{sec.rows}}" as="row" hint-placeholder-count="3">
+              <div style="display: flex; flex-direction: column; gap: 10px; padding: 12px 14px; border-top: {{row.divider}}">
+                <div style="display: flex; align-items: center; gap: 12px; min-height: 36px">
+                  <sc-if value="{{row.hasIcon}}" hint-placeholder-val="{{ false }}">
+                    <span aria-hidden="true" style="width: 36px; height: 36px; flex-shrink: 0; border-radius: 10px; background: {{row.tile}}; color: {{row.ink}}; display: flex; align-items: center; justify-content: center">
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="{{row.icon}}"></path></svg>
+                    </span>
+                  </sc-if>
+                  <span style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px">
+                    <span style="font-size: {{rowFont}}px; font-weight: 500; line-height: 1.3">{{row.label}}</span>
+                    <sc-if value="{{row.hasHint}}" hint-placeholder-val="{{ true }}">
+                      <span style="font-size: 13px; line-height: 1.35; color: #9AA1AB">{{row.hint}}</span>
+                    </sc-if>
+                    <sc-if value="{{row.hasLocked}}" hint-placeholder-val="{{ false }}">
+                      <span style="font-size: 13px; color: #9AA1AB; display: flex; align-items: center; gap: 5px"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"></rect><path d="M8 11V8a4 4 0 0 1 8 0v3"></path></svg>{{row.locked}}</span>
+                    </sc-if>
+                  </span>
+
+                  <!-- Trailing control, one per row type. -->
+                  <sc-if value="{{row.hasPill}}" hint-placeholder-val="{{ false }}">
+                    <span style="flex-shrink: 0; display: flex; align-items: center; gap: 6px; max-width: 132px; font-size: 13px; font-weight: 600; color: {{row.pillColor}}">
+                      <span aria-hidden="true" style="width: 8px; height: 8px; flex-shrink: 0; border-radius: 4px; background: {{row.pillColor}}"></span>
+                      <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{row.pill}}</span>
+                    </span>
+                  </sc-if>
+                  <sc-if value="{{row.isToggle}}" hint-placeholder-val="{{ false }}">
+                    <button type="button" role="switch" aria-checked="{{row.onStr}}" aria-label="{{row.label}}" onClick="{{row.toggle}}" style="position: relative; width: 52px; height: 32px; flex-shrink: 0; border-radius: 16px; border: none; padding: 0; background: {{row.track}}">
+                      <span aria-hidden="true" style="position: absolute; top: 3px; left: {{row.knob}}px; width: 26px; height: 26px; border-radius: 13px; background: #FFFFFF"></span>
+                    </button>
+                  </sc-if>
+                  <sc-if value="{{row.isStepper}}" hint-placeholder-val="{{ false }}">
+                    <span style="flex-shrink: 0; display: flex; align-items: center; gap: 4px">
+                      <button type="button" aria-label="Fewer: {{row.label}}" onClick="{{row.less}}" style="width: 44px; height: 44px; border-radius: 22px; border: 1px solid #3A414B; background: transparent; color: #EDEFF2; font-size: 22px; font-weight: 600; line-height: 1">−</button>
+                      <span aria-live="polite" style="min-width: 28px; text-align: center; font-size: 18px; font-weight: 700; font-variant-numeric: tabular-nums">{{row.value}}</span>
+                      <button type="button" aria-label="More: {{row.label}}" onClick="{{row.more}}" style="width: 44px; height: 44px; border-radius: 22px; border: 1px solid #3A414B; background: transparent; color: #EDEFF2; font-size: 22px; font-weight: 600; line-height: 1">+</button>
+                    </span>
+                  </sc-if>
+                  <sc-if value="{{row.isValue}}" hint-placeholder-val="{{ false }}">
+                    <span style="flex-shrink: 0; font-size: 14px; color: #9AA1AB; text-align: right">{{row.value}}</span>
+                  </sc-if>
+                  <sc-if value="{{row.isLink}}" hint-placeholder-val="{{ false }}">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#9AA1AB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"></path></svg>
+                  </sc-if>
+                  <sc-if value="{{row.hasTime}}" hint-placeholder-val="{{ false }}">
+                    <span style="flex-shrink: 0; align-self: flex-start; font-size: 13px; color: #9AA1AB; font-variant-numeric: tabular-nums">{{row.time}}</span>
+                  </sc-if>
+                </div>
+
+                <!-- Below the line: who decided (activity), a segmented choice, one-line chips, buttons. -->
+                <sc-if value="{{row.hasDecided}}" hint-placeholder-val="{{ false }}">
+                  <div style="display: flex; align-items: center; gap: 6px; padding-left: 48px; white-space: nowrap; overflow: hidden">
+                    <span style="flex-shrink: 0; padding: 3px 8px; border-radius: 10px; background: {{row.decidedBg}}; border: 1px solid {{row.decidedBorder}}; color: {{row.decidedInk}}; font-size: 12px; font-weight: 700">{{row.decided}}</span>
+                    <span style="min-width: 0; font-size: 12px; color: #9AA1AB; overflow: hidden; text-overflow: ellipsis">{{row.decidedWhy}}</span>
+                  </div>
+                </sc-if>
+                <sc-if value="{{row.isSegment}}" hint-placeholder-val="{{ false }}">
+                  <div role="group" aria-label="{{row.label}}" style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; padding: 4px; border-radius: 14px; background: #0C0E11">
+                    <sc-for list="{{row.segs}}" as="g" hint-placeholder-count="3">
+                      <button type="button" aria-pressed="{{g.onStr}}" onClick="{{g.pick}}" style="height: 40px; border-radius: 10px; border: none; background: {{g.bg}}; color: {{g.fg}}; font-size: 14px; font-weight: 700">{{g.label}}</button>
+                    </sc-for>
+                  </div>
+                </sc-if>
+                <sc-if value="{{row.hasChips}}" hint-placeholder-val="{{ false }}">
+                  <div style="display: flex; gap: 6px; overflow: hidden; white-space: nowrap">
+                    <sc-for list="{{row.chips}}" as="c" hint-placeholder-count="3">
+                      <span style="flex-shrink: 0; padding: 6px 10px; border-radius: 12px; background: #22262D; border: 1px solid #3A414B; color: #EDEFF2; font-size: 13px; line-height: 18px">{{c.text}}</span>
+                    </sc-for>
+                  </div>
+                </sc-if>
+                <sc-if value="{{row.hasActions}}" hint-placeholder-val="{{ false }}">
+                  <div style="display: grid; grid-template-columns: repeat({{row.cols}}, minmax(0, 1fr)); gap: 8px">
+                    <sc-for list="{{row.actions}}" as="a" hint-placeholder-count="2">
+                      <button type="button" onClick="{{a.pick}}" aria-label="{{a.aria}}" style="height: 44px; border-radius: 14px; border: 1px solid {{a.border}}; background: {{a.bg}}; color: {{a.fg}}; font-size: 15px; font-weight: 700">{{a.label}}</button>
+                    </sc-for>
+                  </div>
+                </sc-if>
+                <sc-if value="{{row.hasNote}}" hint-placeholder-val="{{ false }}">
+                  <div role="status" style="font-size: 13px; line-height: 1.4; color: {{row.noteColor}}">{{row.note}}</div>
+                </sc-if>
+              </div>
+            </sc-for>
+          </div>
+          <sc-if value="{{sec.hasButton}}" hint-placeholder-val="{{ false }}">
+            <button type="button" onClick="{{sec.buttonPick}}" style="height: 48px; border-radius: 14px; border: 1px solid #3A414B; background: transparent; color: #EDEFF2; font-size: 15px; font-weight: 700; display: flex; align-items: center; justify-content: center; gap: 8px">
+              <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"></path></svg>
+              {{sec.button}}
+            </button>
+          </sc-if>
+          <sc-if value="{{sec.hasFoot}}" hint-placeholder-val="{{ false }}">
+            <p style="margin: 2px 4px 0; font-size: 13px; line-height: 1.45; color: #9AA1AB">{{sec.foot}}</p>
+          </sc-if>
+        </section>
+      </sc-for>
+    </div>
+  </div>
+  </sc-if>
+
+  <!-- Sheets: a scrim + a bottom sheet with Close (disconnect confirm, phone calendar picker). -->
+  <sc-if value="{{showSheet}}" hint-placeholder-val="{{ false }}">
+    <div aria-hidden="true" style="position: absolute; inset: 0; background: rgba(0,0,0,.55)"></div>
+    <section role="dialog" aria-label="{{sheetTitle}}" style="position: absolute; left: 0; right: 0; bottom: 0; border-radius: 24px 24px 0 0; background: #16191E; border-top: 1px solid #2E343D; padding: 8px 16px 34px; display: flex; flex-direction: column; gap: 14px">
+      <span aria-hidden="true" style="align-self: center; width: 40px; height: 5px; border-radius: 3px; background: #3A414B"></span>
+      <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px">
+        <h2 style="margin: 0; font-size: 20px; font-weight: 800">{{sheetTitle}}</h2>
+        <button type="button" aria-label="Close" onClick="{{closeSheet}}" style="width: 44px; height: 44px; flex-shrink: 0; border-radius: 22px; border: none; background: #22262D; color: #EDEFF2; display: flex; align-items: center; justify-content: center"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"></path></svg></button>
+      </div>
+      <p style="margin: -6px 0 0; font-size: 15px; line-height: 1.45; color: #B4BAC3">{{sheetBody}}</p>
+      <sc-if value="{{sheetHasPicks}}" hint-placeholder-val="{{ false }}">
+        <div style="display: flex; flex-direction: column; border-radius: 14px; border: 1px solid #2E343D; overflow: hidden">
+          <sc-for list="{{picks}}" as="p" hint-placeholder-count="4">
+            <button type="button" aria-pressed="{{p.onStr}}" onClick="{{p.toggle}}" style="display: flex; align-items: center; gap: 12px; min-height: 56px; padding: 8px 14px; border: none; border-top: {{p.divider}}; background: transparent; color: #EDEFF2; text-align: left">
+              <span aria-hidden="true" style="width: 24px; height: 24px; flex-shrink: 0; border-radius: 7px; border: 2px solid {{p.boxBorder}}; background: {{p.boxBg}}; color: #0C0E11; display: flex; align-items: center; justify-content: center; box-sizing: border-box">
+                <sc-if value="{{p.on}}" hint-placeholder-val="{{ true }}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 7"></path></svg></sc-if>
+              </span>
+              <span aria-hidden="true" style="width: 10px; height: 10px; flex-shrink: 0; border-radius: 5px; background: {{p.dot}}"></span>
+              <span style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px">
+                <span style="font-size: 16px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{p.label}}</span>
+                <span style="font-size: 13px; color: #9AA1AB; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{p.sub}}</span>
+              </span>
+            </button>
+          </sc-for>
+        </div>
+      </sc-if>
+      <sc-if value="{{sheetHasFoot}}" hint-placeholder-val="{{ false }}">
+        <div style="display: flex; align-items: flex-start; gap: 6px; font-size: 13px; line-height: 1.4; color: #9AA1AB">
+          <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0; margin-top: 2px"><rect x="5" y="11" width="14" height="10" rx="2"></rect><path d="M8 11V8a4 4 0 0 1 8 0v3"></path></svg>
+          <span>{{sheetFoot}}</span>
+        </div>
+      </sc-if>
+      <div style="display: flex; flex-direction: column; gap: 8px">
+        <sc-for list="{{sheetActions}}" as="a" hint-placeholder-count="2">
+          <button type="button" onClick="{{a.pick}}" style="height: 52px; border-radius: 16px; border: 1px solid {{a.border}}; background: {{a.bg}}; color: {{a.fg}}; font-size: 16px; font-weight: 700">{{a.label}}</button>
+        </sc-for>
+      </div>
+    </section>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"step":{"editor":"enum","options":["accounts","accountsLapse","accountsDisconnect","reconnect","notSetUp","icsPaste","icsError","icsAdded","phonePick","phoneDenied","phoneWeb","mailRemove","mailNone","rules","rulesKid","activity"],"default":"accounts"},"$preview":{"width":390,"height":844}}'>
+// Generated from prototypes/megasprite (mega-template.mjs, pixel-paint.mjs, export-looks.mjs).
+const LOOKS = {"grid":[32,40],"body":[[15,0,2,"outline"],[14,1,1,"outline"],[15,1,2,"tipLight"],[17,1,1,"outline"],[13,2,1,"outline"],[14,2,1,"tipLight"],[15,2,2,"tip"],[17,2,1,"tipLight"],[18,2,1,"outline"],[14,3,1,"outline"],[15,3,2,"tipDark"],[17,3,1,"outline"],[14,4,4,"outline"],[14,5,1,"outline"],[15,5,2,"silver"],[17,5,1,"outline"],[14,6,1,"outline"],[15,6,2,"silver"],[17,6,1,"outline"],[6,7,20,"outline"],[5,8,1,"outline"],[6,8,20,"shellLight"],[26,8,1,"outline"],[4,9,1,"outline"],[5,9,1,"shellLight"],[6,9,20,"shell"],[26,9,1,"shellLight"],[27,9,1,"outline"],[3,10,1,"outline"],[4,10,1,"shellLight"],[5,10,22,"shell"],[27,10,1,"shellLight"],[28,10,1,"outline"],[3,11,1,"outline"],[4,11,4,"shell"],[8,11,16,"visor"],[24,11,4,"shell"],[28,11,1,"outline"],[2,12,2,"outline"],[4,12,3,"shell"],[7,12,3,"visor"],[10,12,3,"glare"],[13,12,12,"visor"],[25,12,3,"shell"],[28,12,2,"outline"],[1,13,1,"outline"],[2,13,1,"shellLight"],[3,13,1,"outline"],[4,13,3,"shell"],[7,13,2,"visor"],[9,13,1,"glare"],[10,13,15,"visor"],[25,13,3,"shell"],[28,13,1,"outline"],[29,13,1,"shellLight"],[30,13,1,"outline"],[0,14,1,"outline"],[1,14,1,"shellLight"],[2,14,1,"shell"],[3,14,1,"outline"],[4,14,3,"shell"],[7,14,2,"visor"],[9,14,1,"glare"],[10,14,15,"visor"],[25,14,3,"shell"],[28,14,1,"outline"],[29,14,1,"shell"],[30,14,1,"shellLight"],[31,14,1,"outline"],[0,15,1,"outline"],[1,15,2,"shell"],[3,15,1,"outline"],[4,15,3,"shell"],[7,15,18,"visor"],[25,15,3,"shell"],[28,15,1,"outline"],[29,15,2,"shell"],[31,15,1,"outline"],[0,16,1,"outline"],[1,16,2,"shell"],[3,16,1,"outline"],[4,16,3,"shell"],[7,16,18,"visor"],[25,16,3,"shell"],[28,16,1,"outline"],[29,16,2,"shell"],[31,16,1,"outline"],[0,17,1,"outline"],[1,17,2,"shell"],[3,17,1,"outline"],[4,17,3,"shell"],[7,17,18,"visor"],[25,17,3,"shell"],[28,17,1,"outline"],[29,17,2,"shell"],[31,17,1,"outline"],[0,18,1,"outline"],[1,18,1,"shellDark"],[2,18,1,"shell"],[3,18,1,"outline"],[4,18,3,"shell"],[7,18,18,"visor"],[25,18,3,"shell"],[28,18,1,"outline"],[29,18,1,"shell"],[30,18,1,"shellDark"],[31,18,1,"outline"],[1,19,1,"outline"],[2,19,1,"shellDark"],[3,19,1,"outline"],[4,19,3,"shell"],[7,19,18,"visor"],[25,19,3,"shell"],[28,19,1,"outline"],[29,19,1,"shellDark"],[30,19,1,"outline"],[2,20,2,"outline"],[4,20,3,"shell"],[7,20,18,"visor"],[25,20,3,"shell"],[28,20,2,"outline"],[3,21,1,"outline"],[4,21,3,"shell"],[7,21,18,"visor"],[25,21,3,"shell"],[28,21,1,"outline"],[3,22,1,"outline"],[4,22,4,"shell"],[8,22,16,"visor"],[24,22,4,"shell"],[28,22,1,"outline"],[3,23,1,"outline"],[4,23,1,"shellDark"],[5,23,22,"shell"],[27,23,1,"shellDark"],[28,23,1,"outline"],[4,24,1,"outline"],[5,24,1,"shellDark"],[6,24,20,"shell"],[26,24,1,"shellDark"],[27,24,1,"outline"],[5,25,1,"outline"],[6,25,20,"shellDark"],[26,25,1,"outline"],[5,26,22,"outline"],[4,27,1,"outline"],[5,27,2,"whiteLight"],[7,27,1,"outline"],[8,27,1,"shellLight"],[9,27,1,"outline"],[10,27,1,"shellLight"],[11,27,2,"shell"],[13,27,6,"outline"],[19,27,2,"shell"],[21,27,1,"shellLight"],[22,27,1,"outline"],[23,27,1,"shellLight"],[24,27,1,"outline"],[25,27,2,"whiteLight"],[27,27,1,"outline"],[3,28,1,"outline"],[4,28,1,"whiteLight"],[5,28,2,"white"],[7,28,1,"whiteLight"],[8,28,2,"outline"],[10,28,2,"shell"],[12,28,1,"outline"],[13,28,6,"whiteLight"],[19,28,1,"outline"],[20,28,2,"shell"],[22,28,2,"outline"],[24,28,1,"whiteLight"],[25,28,2,"white"],[27,28,1,"whiteLight"],[28,28,1,"outline"],[3,29,1,"outline"],[4,29,1,"whiteDark"],[5,29,2,"white"],[7,29,1,"whiteDark"],[8,29,2,"outline"],[10,29,2,"shell"],[12,29,1,"outline"],[13,29,6,"whiteDark"],[19,29,1,"outline"],[20,29,2,"shell"],[22,29,2,"outline"],[24,29,1,"whiteDark"],[25,29,2,"white"],[27,29,1,"whiteDark"],[28,29,1,"outline"],[4,30,1,"outline"],[5,30,2,"whiteDark"],[7,30,1,"outline"],[9,30,1,"outline"],[10,30,1,"shellDark"],[11,30,2,"shell"],[13,30,6,"outline"],[19,30,2,"shell"],[21,30,1,"shellDark"],[22,30,1,"outline"],[24,30,1,"outline"],[25,30,2,"whiteDark"],[27,30,1,"outline"],[5,31,2,"outline"],[10,31,1,"outline"],[11,31,10,"shellDark"],[21,31,1,"outline"],[25,31,2,"outline"],[11,32,10,"outline"],[11,33,1,"outline"],[12,33,2,"shell"],[14,33,1,"outline"],[17,33,1,"outline"],[18,33,2,"shell"],[20,33,1,"outline"],[11,34,4,"outline"],[17,34,4,"outline"],[10,35,1,"outline"],[11,35,3,"whiteLight"],[14,35,1,"outline"],[17,35,1,"outline"],[18,35,3,"whiteLight"],[21,35,1,"outline"],[9,36,1,"outline"],[10,36,1,"whiteLight"],[11,36,3,"white"],[14,36,1,"whiteLight"],[15,36,2,"outline"],[17,36,1,"whiteLight"],[18,36,3,"white"],[21,36,1,"whiteLight"],[22,36,1,"outline"],[10,37,1,"outline"],[11,37,3,"whiteDark"],[14,37,1,"outline"],[17,37,1,"outline"],[18,37,3,"whiteDark"],[21,37,1,"outline"],[11,38,3,"outline"],[18,38,3,"outline"]],"faces":{"calm":[[11,16,2,"eye"],[19,16,2,"eye"],[11,17,2,"eye"],[19,17,2,"eye"]],"happy":[[11,16,2,"eye"],[19,16,2,"eye"],[10,17,1,"eye"],[13,17,1,"eye"],[18,17,1,"eye"],[21,17,1,"eye"],[8,19,2,"blush"],[22,19,2,"blush"]],"wink":[[11,15,2,"eye"],[11,16,2,"eye"],[19,16,2,"eye"],[11,17,2,"eye"],[18,17,1,"eye"],[21,17,1,"eye"]],"open":[[11,15,2,"eye"],[19,15,2,"eye"],[11,16,2,"eye"],[19,16,2,"eye"],[11,17,2,"eye"],[19,17,2,"eye"]],"closed":[[10,17,4,"eye"],[18,17,4,"eye"]]},"fixed":{"outline":"#1B1A3A","visor":"#17143A","glare":"#BFEAF7","white":"#F4F6FB","whiteLight":"#FFFFFF","whiteDark":"#AEB3CC","silver":"#C9CFDB","silverLight":"#E8EBF2","silverDark":"#8E95AB","tip":"#9FF0F7","tipLight":"#F0FFFF","tipDark":"#5FCFE0","eye":"#E8FFFF","blush":"#FF9AB2"},"colors":{"teal":"#2FB8B0","coral":"#F2766B","violet":"#8E6CE0","sun":"#F2B33D","sky":"#5B8DEF","leaf":"#5BBF6A"},"stickers":["star","heart","leaf","bolt"],"personalities":{"calm":{"label":"Calm","face":"calm","blurb":"Gentle and unhurried","sample":"No rush. Practice is at 5:30, and I'll remind you at 4:50."},"cheerful":{"label":"Cheerful","face":"happy","blurb":"Upbeat and encouraging","sample":"Good news! Practice is at 5:30. Want a reminder at 4:50?"},"funny":{"label":"Funny","face":"wink","blurb":"Light jokes, still useful","sample":"Practice at 5:30. I'll ping you at 4:50, before traffic does."},"brief":{"label":"Brief","face":"open","blurb":"Short and to the point","sample":"Practice 5:30. Reminder at 4:50?"}}};
+const STICKER_ART = {"star":"a509b7da6f93811f29bf9e84560af70f","heart":"ef08bdd73525cdfac56fe3c437a18b9c","leaf":"6729bb22fb50e334dd97a073fa44e53a","bolt":"f4bb0c6f1f0fcae62475f582a31df06e"};
+function hexToHsl(hex) {
+  const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255);
+  const max = Math.max(r, g, b), min = Math.min(r, g, b), l = (max + min) / 2;
+  if (max === min) return [0, 0, l];
+  const d = max - min, s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+  const h = max === r ? (g - b) / d + (g < b ? 6 : 0) : max === g ? (b - r) / d + 2 : (r - g) / d + 4;
+  return [h * 60, s, l];
+}
+
+function hslToHex(h, s, l) {
+  const k = (n) => (n + h / 30) % 12, a = s * Math.min(l, 1 - l);
+  const f = (n) => l - a * Math.max(-1, Math.min(k(n) - 3, 9 - k(n), 1));
+  return "#" + [0, 8, 4].map((n) => Math.round(f(n) * 255).toString(16).padStart(2, "0")).join("");
+}
+
+const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
+
+/** Light and dark shades of one colour, with a slight hue shift like hand-pixelled art. */
+function shades(hex) {
+  const [h, s, l] = hexToHsl(hex);
+  return {
+    light: hslToHex((h + 356) % 360, s, clamp(l + 0.13, 0, 0.92)),
+    dark: hslToHex((h + 8) % 360, s, clamp(l - 0.16, 0.08, 1)),
+  };
+}
+
+
+// Shared by boards that draw MEGAs live from template data (LOOKS, STICKER_ART, shades()).
+function paletteFor(hex) {
+  const { light, dark } = shades(hex);
+  return { ...LOOKS.fixed, shell: hex, shellLight: light, shellDark: dark };
+}
+// Pixel runs -> positioned boxes at `scale`, optionally only rows above `maxRow` (head crops).
+function draw(hex, face, scale, maxRow) {
+  const pal = paletteFor(hex);
+  const runs = [...LOOKS.body, ...(LOOKS.faces[face] || [])].filter((r) => maxRow === undefined || r[1] < maxRow);
+  return runs.map(([x, y, w, k]) => ({ l: x * scale, t: y * scale, w: w * scale, h: scale, c: pal[k] }));
+}
+function sprite(hex, face, sticker, scale, maxRow) {
+  const [gw, gh] = LOOKS.grid;
+  return { rects: draw(hex, face, scale, maxRow), hasSticker: sticker !== 'none', sticker: sticker === 'none' ? '' : '/_blob/' + STICKER_ART[sticker], w: gw * scale, h: gh * scale };
+}
+// Dark or light text on a coloured button, whichever reads better.
+function inkOn(hex) {
+  const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255);
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b > 0.45 ? '#0C0E11' : '#FFFFFF';
+}
+
+
+
+// Screen 16 (G5, Oct 29): Settings → Connected accounts (Gmail, Google Calendar, this phone's calendar, schedule
+// links), the in-chat reconnect card (Google's 7-day testing lapse), the honest "Google isn't set up" cards, pasting
+// a schedule link, picking phone calendars, removing a found email item, and the Profile pages behind "Rules and
+// limits" and "Activity". Copy is G5_COPY (CONTRACT v0.17) wherever it exists. Sample family only; the Gmail address,
+// school and team links are made-up stand-ins.
+const MEGAS = {
+  teal: { name: 'Teal', hex: '#2FB8B0', face: 'open', sub: 'Your MEGA' },
+  zap: { name: 'Zap', hex: '#8E6CE0', face: 'happy', sub: 'Twin 1’s MEGA' },
+};
+const BTN = {
+  primary: { bg: '#EDEFF2', fg: '#0C0E11', border: '#EDEFF2' },
+  ghost: { bg: 'transparent', fg: '#EDEFF2', border: '#3A414B' },
+  danger: { bg: '#F2766B', fg: '#0C0E11', border: '#F2766B' },
+};
+const btn = (label, pick, kind, aria) => Object.assign({ label, pick, aria: aria || label }, BTN[kind || 'primary']);
+// Status colors (theme tokens in the app: ok / warn / danger / muted).
+const TONE = { ok: '#2FB8B0', warn: '#F2B33D', danger: '#F2766B', muted: '#9AA1AB' };
+const ICON = {
+  mail: 'M3 6h18v12H3z M3 7l9 6 9-6',
+  cal: 'M4 6h16v14H4z M4 10h16 M8 3v4M16 3v4',
+  phone: 'M7 3h10v18H7z M11 18h2',
+  link: 'M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1 M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1',
+  refresh: 'M20 11a8 8 0 0 0-14.3-4.9L4 8 M4 4v4h4 M4 13a8 8 0 0 0 14.3 4.9L20 16 M20 20v-4h-4',
+  plug: 'M9 7V3M15 7V3 M6 7h12v4a6 6 0 0 1-12 0z M12 17v4',
+  camera: 'M4 8h4l2-3h4l2 3h4v11H4z M12 11a3 3 0 1 0 0 6 3 3 0 0 0 0-6z',
+  bill: 'M6 3h12v18l-3-2-3 2-3-2-3 2z M9 8h6M9 12h6',
+  box: 'M3 8l9-5 9 5v8l-9 5-9-5z M3 8l9 5 9-5 M12 13v8',
+  tooth: 'M7 4c-2 0-3 2-3 4 0 3 2 5 2 9 0 2 1 3 2 3s1-3 2-5c.5-1 1.5-1 2 0 1 2 1 5 2 5s2-1 2-3c0-4 2-6 2-9 0-2-1-4-3-4-1.5 0-2.5 1-3.5 1S8.5 4 7 4z',
+  bell: 'M6 16V11a6 6 0 0 1 12 0v5l2 2H4z M10 20h4',
+  moon: 'M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z',
+  spark: 'M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.5 2.5M15.5 15.5L18 18M6 18l2.5-2.5M15.5 8.5L18 6',
+  share: 'M16 6l-4-4-4 4 M12 2v13 M5 12v8h14v-8',
+  brain: 'M9 4a3 3 0 0 0-3 3 3 3 0 0 0-2 5 3 3 0 0 0 2 5 3 3 0 0 0 6 1V5a3 3 0 0 0-3-1z M15 4a3 3 0 0 1 3 3 3 3 0 0 1 2 5 3 3 0 0 1-2 5 3 3 0 0 1-6 1',
+  hand: 'M8 13V5a1.5 1.5 0 0 1 3 0v6 M11 11V4a1.5 1.5 0 0 1 3 0v7 M14 11V6a1.5 1.5 0 0 1 3 0v8a6 6 0 0 1-6 6 6 6 0 0 1-5-3l-2-4a1.5 1.5 0 0 1 2.5-1.5L8 13',
+};
+const TILE = { teal: ['#10201F', '#7FE0D8'], violet: ['#1E1A33', '#C2B0F5'], gold: ['#2A2110', '#F2C46B'], coral: ['#2A1614', '#F7A59D'], grey: ['#22262D', '#B4BAC3'] };
+const GMAIL = 'mega.sample.family@gmail.com';
+
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = this.fresh();
+  }
+  fresh() {
+    const p = this.props.step;
+    return {
+      sheet: p === 'accountsDisconnect' ? 'disconnect' : p === 'phonePick' ? 'phone' : '',
+      gmail: 'on', reconnect: '', gnotset: '', cal: '',
+      ics: p === 'icsError' ? 'webcal-not-a-feed.example.com/schedule' : p === 'icsAdded' ? '' : 'https://calendar.riverside-elementary.example/feed.ics',
+      icsState: p === 'icsError' ? 'error' : p === 'icsAdded' ? 'added' : '',
+      picks: ['home', 'work'], removed: p === 'mailRemove' ? ['bill'] : [], share: '',
+      quiet: 4, web: true, homework: true, blocked: true, readChat: false, summary: 'weekly', filter: 'all', forgot: [],
+    };
+  }
+  componentDidUpdate(prev) {
+    if (prev.step !== this.props.step) this.setState(this.fresh());
+  }
+
+  chat(step) {
+    const s = this.state;
+    if (step === 'reconnect') return [
+      { day: 'Thursday · 8:02 AM' },
+      { card: { icon: ICON.refresh, from: 'Teal · Accounts', title: 'Google needs you to sign in again',
+        body: 'While MEGA is in testing, Google asks again every 7 days. Until then I can’t check your Gmail and Google Calendar.',
+        actions: s.reconnect ? [] : [btn('Reconnect', () => this.setState({ reconnect: 'go' })), btn('Not now', () => this.setState({ reconnect: 'later' }), 'ghost')], cols: 1,
+        status: s.reconnect === 'go' ? 'Opening Google…' : s.reconnect === 'later' ? 'Okay. Reconnect any time in Settings → Connected accounts.' : '',
+        statusColor: s.reconnect === 'go' ? TONE.ok : TONE.muted,
+        foot: 'Google will say this app isn’t verified yet. That’s expected while MEGA is in testing.' } },
+    ];
+    if (step === 'notSetUp') {
+      const skipped = s.gnotset === 'skip';
+      const items = [
+        { day: 'Today · 6:41 PM' },
+        { text: 'Nice to meet you, Admin! A couple of quick things and I can start helping right away.' },
+        { card: { icon: ICON.mail, from: 'Teal · Gmail', title: 'Gmail isn’t set up yet',
+          body: 'Connecting Gmail needs Google turned on for MEGA first, so there’s nothing to press yet. Once it’s on, I’ll offer it in Settings.',
+          actions: skipped ? [] : [btn('Not now', () => this.setState({ gnotset: 'skip' }), 'ghost')], cols: 1,
+          status: skipped ? 'Skipped. You can connect Gmail any time in Settings.' : '', statusColor: TONE.muted } },
+      ];
+      if (skipped) items.push({ card: { icon: ICON.cal, from: 'Teal · Calendar', title: 'Bring in your calendar?',
+        body: 'I’ll add your events to your private calendar so I can plan around them. You choose what the household sees.',
+        options: [
+          { label: 'Google Calendar', sub: 'Not set up yet', icon: ICON.cal, off: true },
+          { label: 'This phone’s calendar', sub: 'Home, work and other calendars on this iPhone', icon: ICON.phone, pick: () => {} },
+        ],
+        actions: [btn('Not now', () => {}, 'ghost')], cols: 1 } });
+      return items;
+    }
+    if (step === 'icsPaste' || step === 'icsError' || step === 'icsAdded') {
+      const st = s.icsState;
+      if (st === 'added') return [
+        { day: 'Today · 6:44 PM' },
+        { mine: 'https://calendar.riverside-elementary.example/feed.ics' },
+        { card: { icon: ICON.link, from: 'Teal · Schedule links', title: 'Added “Riverside Elementary” · updates every few hours',
+          body: '14 school events this month are on your private calendar. I’ll suggest sharing the ones the household should see.',
+          actions: [btn('Paste another', () => this.setState({ icsState: '', ics: '' }), 'ghost'), btn('Done', () => {})], cols: 2,
+          foot: 'Only you see these until you share them.' } },
+      ];
+      return [
+        { day: 'Today · 6:43 PM' },
+        { card: { icon: ICON.link, from: 'Teal · Schedule links', title: 'Any schedule links?',
+          body: 'Schools and sports teams often share a calendar link (it ends in .ics). Paste one and I’ll keep it up to date.',
+          field: true, fieldValue: s.ics, fieldPlaceholder: 'https://… .ics', type: (e) => this.setState({ ics: e.target.value, icsState: '' }),
+          error: st === 'error' ? 'That link didn’t work. It should start with https:// or webcal:// and end in .ics.' : '',
+          actions: [btn(st === 'adding' ? 'Adding…' : 'Add link', () => this.setState({ icsState: /^(https|webcal):\/\/.+\.ics$/.test(s.ics.trim()) ? 'added' : 'error' })), btn('Not now', () => {}, 'ghost')], cols: 1 } },
+      ];
+    }
+    if (step === 'phonePick' || step === 'phoneDenied' || step === 'phoneWeb') {
+      const card = { icon: ICON.cal, from: 'Teal · Calendar', title: 'Bring in your calendar?',
+        body: 'I’ll add your events to your private calendar so I can plan around them. You choose what the household sees.' };
+      if (step === 'phoneDenied') return [
+        { day: 'Today · 6:42 PM' },
+        { mine: 'This phone’s calendar' },
+        { card: Object.assign(card, { title: 'I can’t see this phone’s calendar',
+          body: 'MEGA can’t see this phone’s calendar. You can allow it in the phone’s Settings.',
+          actions: [btn('Open Settings', () => {}), btn('Use Google Calendar instead', () => {}, 'ghost'), btn('Not now', () => {}, 'ghost')], cols: 1 }) },
+      ];
+      if (step === 'phoneWeb') return [
+        { day: 'Today · 6:42 PM' },
+        { card: Object.assign(card, {
+          options: [
+            { label: 'Google Calendar', sub: 'Sign in with Google', icon: ICON.cal, pick: () => {} },
+            { label: 'This phone’s calendar', sub: 'Open MEGA on your phone to add its calendar.', icon: ICON.phone, off: true },
+          ],
+          actions: [btn('Not now', () => {}, 'ghost')], cols: 1 }) },
+      ];
+      return [
+        { day: 'Today · 6:42 PM' },
+        { mine: 'This phone’s calendar' },
+        { card: Object.assign(card, { status: 'Choosing calendars…', statusColor: TONE.ok }) },
+      ];
+    }
+    if (step === 'mailRemove' || step === 'mailNone') {
+      if (step === 'mailNone') return [
+        { day: 'Today · 6:42 PM' },
+        { text: 'Gmail connected · checking the last 14 days' },
+        { card: { icon: ICON.mail, from: 'Teal · From your Gmail', title: 'Nothing needs you in the last 14 days. I’ll keep watching for new ones.',
+          body: 'I looked for school emails, appointments, bills and deliveries.',
+          actions: [btn('Next: your calendar', () => {})], cols: 1,
+          foot: 'Everything I find stays private to you until you share it.' } },
+      ];
+      const ROWS = [
+        { id: 'picture', title: 'Picture day', sub: 'Fri, Nov 6 · School office', icon: ICON.camera, tile: 'violet' },
+        { id: 'dentist', title: 'Dentist appointment', sub: 'Tue, Nov 3 · 3:30 PM · Smile Dental', icon: ICON.tooth, tile: 'teal' },
+        { id: 'bill', title: 'Water bill $48', sub: 'Due Thu, Nov 12 · City utilities', icon: ICON.bill, tile: 'gold' },
+        { id: 'delivery', title: 'Package arrives', sub: 'Wed, Nov 4 · Order shipped', icon: ICON.box, tile: 'coral' },
+      ];
+      const rows = ROWS.map((r, i) => {
+        const gone = s.removed.includes(r.id);
+        return Object.assign({}, r, { live: !gone, gone, goneText: 'Removed “' + r.title + '”.', divider: i ? '1px solid #22262D' : 'none',
+          tile: TILE[r.tile][0], ink: TILE[r.tile][1], removeLabel: 'Remove ' + r.title,
+          remove: () => this.setState({ removed: s.removed.concat(r.id) }) });
+      });
+      const left = ROWS.length - s.removed.length;
+      return [
+        { day: 'Today · 6:42 PM' },
+        { card: { icon: ICON.mail, from: 'Teal · From your Gmail', title: 'I found ' + left + ' things worth keeping in your email.', rows,
+          foot: 'Added items go on your private calendar. Only you see them.' } },
+        { card: { icon: ICON.share, from: 'Teal · Share?', title: 'Share Picture day with the household?',
+          body: 'Partner, Twin 1 and Twin 2 would see “Picture day”. Right now it’s only yours.',
+          actions: s.share ? [] : [btn('Share', () => this.setState({ share: 'yes' })), btn('Keep private', () => this.setState({ share: 'no' }), 'ghost')], cols: 2,
+          status: s.share === 'yes' ? 'Shared with the household.' : s.share === 'no' ? 'Kept private. Only you see it.' : '', statusColor: s.share === 'yes' ? TONE.ok : TONE.muted,
+          foot: 'MEGA never shares anything unless you tap Share.' } },
+      ];
+    }
+    return null;
+  }
+
+  page(step) {
+    const s = this.state, kid = step === 'rulesKid';
+    const row = (o) => Object.assign({ hint: '', icon: '', pill: '', locked: '', isToggle: false, isStepper: false, isValue: false, isLink: false, time: '', decided: '', isSegment: false, chips: [], actions: [], cols: 1, note: '' }, o);
+    const toggle = (label, hint, on, flip) => kid
+      ? row({ label, hint, locked: 'Set by a parent', isValue: true, value: on ? 'On' : 'Off' })
+      : row({ label, hint, isToggle: true, on, toggle: flip });
+
+    if (step === 'accounts' || step === 'accountsLapse' || step === 'accountsDisconnect') {
+      const lapse = step === 'accountsLapse';
+      const google = (label, icon, who, what, extra) => {
+        if (lapse) return row(Object.assign({ label, icon, tile: 'gold', hint: 'Google asks again every 7 days while MEGA is in testing.', pill: 'Needs you to sign in again', tone: 'warn',
+          actions: [btn('Reconnect', () => {}, 'primary', 'Reconnect ' + label)] }, extra));
+        if (label === 'Gmail' && s.gmail === 'off') return row({ label, icon, tile: 'grey', hint: 'Not connected', pill: 'Off', tone: 'muted',
+          note: 'Disconnected. I stopped reading Gmail and removed what I found.', noteColor: TONE.muted,
+          actions: [btn('Connect Gmail', () => this.setState({ gmail: 'on' }))] });
+        return row(Object.assign({ label, icon, tile: 'teal', hint: who + ' · Checked 5 min ago', pill: 'Connected', tone: 'ok', cols: 2,
+          actions: [btn('Sync now', () => {}, 'ghost', 'Sync ' + label + ' now'), btn('Disconnect', () => this.setState({ sheet: 'disconnect' }), 'ghost', 'Disconnect ' + label)] }, extra));
+      };
+      return { title: 'Connected accounts', back: 'Back to Settings', sections: [
+        { title: 'Email', rows: [google('Gmail', ICON.mail, 'Connected as ' + GMAIL)] },
+        { title: 'Calendars', rows: [
+          google('Google Calendar', ICON.cal, GMAIL),
+          row({ label: 'This phone’s calendar', icon: ICON.phone, tile: 'teal', hint: 'Home, Work · Updated when you open MEGA', pill: 'Connected', tone: 'ok', cols: 2,
+            actions: [btn('Choose calendars', () => {}, 'ghost'), btn('Disconnect', () => {}, 'ghost', 'Disconnect this phone’s calendar')] }),
+        ] },
+        { title: 'Schedule links', rows: [
+          row({ label: 'Riverside Elementary', icon: ICON.link, tile: 'violet', hint: 'calendar.riverside-elementary.example · Checked 2 h ago', pill: 'Connected', tone: 'ok',
+            actions: [btn('Remove', () => {}, 'ghost', 'Remove Riverside Elementary')] }),
+          row({ label: 'Under-9 soccer', icon: ICON.link, tile: 'coral', hint: 'league.example.com · Last worked yesterday', pill: 'Couldn’t check lately', tone: 'danger',
+            actions: [btn('Try again', () => {}, 'ghost', 'Try Under-9 soccer again'), btn('Remove', () => {}, 'ghost', 'Remove Under-9 soccer')], cols: 2 }),
+        ], button: 'Add a schedule link', foot: 'MEGA only reads. Everything it finds is private to you until you share it.' },
+      ] };
+    }
+    if (step === 'rules' || step === 'rulesKid') {
+      const seg = (label, value, opts, set) => kid
+        ? row({ label, locked: 'Set by a parent', isValue: true, value: opts.find((o) => o[0] === value)[1] })
+        : row({ label, isSegment: true, segs: opts.map(([id, l]) => ({ label: l, on: id === value, pick: () => set(id) })) });
+      return { title: 'Rules and limits', back: kid ? 'Back to Zap' : 'Back to Zap’s profile',
+        intro: { mega: 'zap', title: kid ? 'Your rules' : 'Twin 1 · Zap', sub: kid ? 'A parent sets these. Ask Admin or Partner if you want one changed.' : 'Only Admin and Partner can change these. Twin 1 can see them.' },
+        sections: [
+          { title: 'Notifications', rows: [
+            kid ? row({ label: 'Quiet hours', locked: 'Set by a parent', isValue: true, value: '8:30 PM – 7 AM' })
+                : row({ label: 'Quiet hours', hint: '8:30 PM – 7:00 AM · nothing buzzes', isLink: true }),
+            kid ? row({ label: 'Buzzes a day', locked: 'Set by a parent', isValue: true, value: String(s.quiet) })
+                : row({ label: 'Buzzes a day', hint: 'At most, outside quiet hours', isStepper: true, value: String(s.quiet),
+                    less: () => this.setState({ quiet: Math.max(1, s.quiet - 1) }), more: () => this.setState({ quiet: Math.min(12, s.quiet + 1) }) }),
+          ] },
+          { title: 'Searching and homework', rows: [
+            toggle('Web search', 'Kid-safe filter always on', s.web, () => this.setState({ web: !s.web })),
+            toggle('Homework mode', 'Hints and questions, never the answer', s.homework, () => this.setState({ homework: !s.homework })),
+            row({ label: 'Blocked topics', hint: kid ? '' : '3 topics · Edit', locked: kid ? 'Set by a parent' : '', isLink: !kid,
+              chips: [{ text: 'Scary videos' }, { text: 'Weapons' }, { text: 'Dating' }] }),
+          ] },
+          { title: kid ? 'What parents hear about' : 'Tell parents', rows: [
+            row({ label: 'Safety concerns', hint: 'Always on, for every kid', locked: kid ? 'Set by a parent' : '', isValue: true, value: 'Always' }),
+            toggle('Blocked searches', 'A quiet note, never a buzz', s.blocked, () => this.setState({ blocked: !s.blocked })),
+            seg('Summary', s.summary, [['none', 'None'], ['daily', 'Daily'], ['weekly', 'Weekly']], (v) => this.setState({ summary: v })),
+            toggle('Parents can read chats', kid ? 'You’re told if this is on' : 'Twin 1 is told if this is on', s.readChat, () => this.setState({ readChat: !s.readChat })),
+          ], foot: kid ? '' : 'Changes apply right away. Twin 1 sees these rules but can’t change them.' },
+        ] };
+    }
+    if (step === 'activity') {
+      const by = { rule: ['Rule', '#22262D', '#3A414B', '#B4BAC3'], ai: ['MEGA (AI)', '#10201F', '#2FB8B0', '#7FE0D8'], you: ['You', '#2A2110', '#6B5320', '#F2C46B'] };
+      const act = (kind, label, hint, time, icon, tile, who, why) => ({ kind, row: row({ label, hint, time, icon, tile, decided: by[who][0], decidedBg: by[who][1], decidedBorder: by[who][2], decidedInk: by[who][3], decidedWhy: why }) });
+      const DAYS = [
+        ['Today', [
+          act('calendar', 'Added Picture day to your private calendar', 'From your Gmail · only you see it', '9:02 AM', ICON.mail, 'violet', 'ai', 'Read as a school event'),
+          act('reminders', 'Held Twin 2’s chore reminder until 7:00 AM', 'Twin 2’s quiet hours', '8:45 PM', ICON.moon, 'grey', 'rule', 'Quiet hours'),
+          act('reminders', 'Didn’t buzz you about the forecast', 'Sunny all day, nothing to plan around', '7:30 AM', ICON.bell, 'grey', 'ai', 'Not worth interrupting you'),
+        ]],
+        ['Yesterday', [
+          act('calendar', 'Proposed a fix for the soccer pickup clash', 'You approved it at 6:12 PM', '6:10 PM', ICON.cal, 'teal', 'ai', 'Household events only'),
+          act('accounts', 'Checked the Riverside Elementary link', '2 new events, kept private', '3:00 PM', ICON.link, 'violet', 'rule', 'Every few hours'),
+          act('accounts', 'Shared Picture day with the household', 'Partner, Twin 1 and Twin 2 can see it', '9:05 AM', ICON.share, 'gold', 'you', 'You tapped Share'),
+        ]],
+      ];
+      const LEARNED = [
+        { id: 'dino', label: 'Twin 1 is into dinosaurs', hint: 'Twin 1 shared it · Oct 27' },
+        { id: 'eve', label: 'You like reminders in the evening', hint: 'You said so · Oct 26' },
+      ];
+      const f = s.filter;
+      const sections = DAYS.map(([title, list]) => ({ title, rows: list.filter((a) => f === 'all' || a.kind === f).map((a) => a.row) })).filter((sec) => sec.rows.length);
+      if (f === 'all' || f === 'learned') sections.push({ title: 'What Teal learned', rows: LEARNED.map((l) => s.forgot.includes(l.id)
+        ? row({ label: l.label, hint: l.hint, note: 'Forgotten. Teal won’t use this again.', noteColor: TONE.muted, icon: ICON.brain, tile: 'grey' })
+        : row({ label: l.label, hint: l.hint, icon: ICON.brain, tile: 'teal', actions: [btn('Forget', () => this.setState({ forgot: s.forgot.concat(l.id) }), 'ghost', 'Forget: ' + l.label)] }))
+        .concat(row({ label: 'Everything Teal remembers', hint: '24 things · search and delete', isLink: true })),
+        foot: 'Teal only keeps what you or your family shared. Forget removes it everywhere.' });
+      return { title: 'Activity', back: 'Back to Teal’s profile', filters: [['all', 'All'], ['calendar', 'Calendar'], ['reminders', 'Reminders'], ['learned', 'Learned'], ['accounts', 'Accounts']], sections };
+    }
+    return null;
+  }
+
+  renderVals() {
+    const step = this.props.step || 'accounts', s = this.state;
+    const chat = this.chat(step);
+    const pg = chat ? null : this.page(step);
+    const items = (chat || []).map((it) => {
+      const base = { isDay: false, isMine: false, isText: false, isCard: false };
+      if (it.day) return Object.assign(base, { isDay: true, text: it.day });
+      if (it.mine) return Object.assign(base, { isMine: true, text: it.mine });
+      if (it.text) return Object.assign(base, { isText: true, text: it.text });
+      const c = Object.assign({ title: '', body: '', cols: 2, rows: [], options: [], field: false, error: '', actions: [], status: '', statusColor: TONE.muted, foot: '' }, it.card);
+      return Object.assign(base, c, {
+        isCard: true, label: c.title, hasBody: !!c.body, hasRows: c.rows.length > 0,
+        hasOptions: c.options.length > 0, options: c.options.map((o) => Object.assign({ on: !o.off, off: !!o.off, bg: 'transparent', border: '#3A414B' }, o)),
+        hasField: c.field, hasError: !!c.error, fieldInvalid: c.error ? 'true' : 'false', fieldBorder: c.error ? TONE.danger : '#2E343D',
+        hasActions: c.actions.length > 0, hasStatus: !!c.status, hasFoot: !!c.foot,
+      });
+    });
+
+    const kid = step === 'rulesKid';
+    const sections = (pg ? pg.sections : []).map((sec) => ({
+      title: sec.title, hasButton: !!sec.button, button: sec.button || '', buttonPick: () => {}, hasFoot: !!sec.foot, foot: sec.foot || '',
+      rows: sec.rows.map((r, i) => Object.assign({}, r, {
+        divider: i ? '1px solid #22262D' : 'none', hasIcon: !!r.icon, tile: r.icon ? TILE[r.tile || 'grey'][0] : '', ink: r.icon ? TILE[r.tile || 'grey'][1] : '',
+        hasHint: !!r.hint, hasLocked: !!r.locked, hasPill: !!r.pill, pillColor: TONE[r.tone || 'muted'],
+        onStr: String(!!r.on), track: r.on ? '#2FB8B0' : '#3A414B', knob: r.on ? 23 : 3,
+        hasTime: !!r.time, hasDecided: !!r.decided, hasChips: r.chips.length > 0, hasActions: r.actions.length > 0, hasNote: !!r.note,
+        segs: (r.segs || []).map((g) => Object.assign({}, g, { onStr: String(g.on), bg: g.on ? '#EDEFF2' : 'transparent', fg: g.on ? '#0C0E11' : '#EDEFF2' })),
+      })),
+    }));
+    const filters = pg && pg.filters ? pg.filters.map(([id, label]) => {
+      const on = s.filter === id;
+      return { label, onStr: String(on), pick: () => this.setState({ filter: id }), bg: on ? '#EDEFF2' : 'transparent', fg: on ? '#0C0E11' : '#EDEFF2', border: on ? '#EDEFF2' : '#3A414B' };
+    }) : [];
+
+    // Sheets.
+    const PHONE_CALS = [
+      { id: 'home', label: 'Home', sub: 'iCloud · 31 events this month', dot: '#2FB8B0' },
+      { id: 'work', label: 'Work', sub: 'Exchange · 22 events this month', dot: '#5B8DEF' },
+      { id: 'birthdays', label: 'Birthdays', sub: 'Contacts · 3 this month', dot: '#F2B33D' },
+      { id: 'holidays', label: 'US Holidays', sub: 'Subscribed · 2 this month', dot: '#9AA1AB' },
+    ];
+    const n = s.picks.length;
+    const sheet = s.sheet === 'disconnect' ? {
+      title: 'Disconnect Gmail?', body: 'I’ll stop reading your Gmail and remove the 3 things I found from your private calendar. Anything you already shared stays shared.',
+      actions: [btn('Disconnect', () => this.setState({ sheet: '', gmail: 'off' }), 'danger'), btn('Keep connected', () => this.setState({ sheet: '' }), 'ghost')],
+    } : s.sheet === 'phone' ? {
+      title: 'Which calendars?', body: 'Pick the calendars on this phone that MEGA should read. You can change this in Settings.',
+      picks: PHONE_CALS.map((c, i) => {
+        const on = s.picks.includes(c.id);
+        return Object.assign({}, c, { on, onStr: String(on), divider: i ? '1px solid #22262D' : 'none', boxBorder: on ? '#2FB8B0' : '#6B727D', boxBg: on ? '#2FB8B0' : 'transparent',
+          toggle: () => this.setState({ picks: on ? s.picks.filter((x) => x !== c.id) : s.picks.concat(c.id) }) });
+      }),
+      foot: 'Events go on your private calendar. Only you see them until you share.',
+      actions: [btn(n ? 'Add ' + n + (n === 1 ? ' calendar' : ' calendars') : 'Pick at least one', () => this.setState({ sheet: '' }))],
+    } : null;
+
+    const im = pg && pg.intro ? MEGAS[pg.intro.mega] : null;
+    const m = MEGAS.teal;
+    return {
+      showChat: !!chat, showPage: !!pg, showSheet: !!sheet,
+      head: sprite(m.hex, m.face, 'none', 1, 27), megaName: m.name, megaSub: m.sub, items,
+      pageTitle: pg ? pg.title : '', backLabel: pg ? pg.back : '', rowFont: kid ? 18 : 16,
+      hasIntro: !!im, introHead: im ? sprite(im.hex, im.face, 'none', 1, 27) : { rects: [] }, introTitle: pg && pg.intro ? pg.intro.title : '', introSub: pg && pg.intro ? pg.intro.sub : '',
+      hasFilters: filters.length > 0, filters, sections,
+      sheetTitle: sheet ? sheet.title : '', sheetBody: sheet ? sheet.body : '', closeSheet: () => this.setState({ sheet: '' }),
+      sheetHasPicks: !!(sheet && sheet.picks), picks: sheet && sheet.picks ? sheet.picks : [],
+      sheetHasFoot: !!(sheet && sheet.foot), sheetFoot: sheet && sheet.foot ? sheet.foot : '', sheetActions: sheet ? sheet.actions : [],
+    };
+  }
+}
+</script>
+</body>
+</html>
