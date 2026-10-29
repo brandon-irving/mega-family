@@ -15,7 +15,6 @@
 // thin action — is the documented pattern for "commit a side effect even though the overall call fails."
 import { type Infer, v } from 'convex/values';
 import { LIMITS } from '../shared/config';
-import { COLORS, HEX_RE, INVITE_MEGA_DEFAULTS } from '../shared/config/looks';
 import { API, LINKS, type InvitePreview } from '../shared/domain/api';
 import * as T from '../shared/domain/tables';
 import { internal } from './_generated/api';
@@ -26,17 +25,8 @@ import { fail } from './model/errors';
 import { clock } from './ports/clock';
 import { randomToken, sha256Hex } from './model/random';
 import { requireViewer, sameFamilyMember } from './model/viewer';
+import { checkedMega, defaultInviteMega } from './model/familyAdd';
 
-type InviteMega = Infer<typeof T.inviteMega>;
-
-/** A MEGA name or look someone typed (the admin on `create`, an adult on `redeem`): trimmed name of a sane
- * length, a real hex color. VALIDATION otherwise. */
-function checkedMega(mega: InviteMega): InviteMega {
-  const name = mega.name.trim();
-  if (!name || name.length > INVITE_MEGA_DEFAULTS.maxNameLength) fail('VALIDATION', 'MEGA name');
-  if (!HEX_RE.test(mega.look.hex)) fail('VALIDATION', 'MEGA color');
-  return { ...mega, name };
-}
 
 async function ownMega(ctx: QueryCtx, familyId: Id<'families'>, memberId: Id<'members'>): Promise<Doc<'megas'> | null> {
   return ctx.db
@@ -45,19 +35,6 @@ async function ownMega(ctx: QueryCtx, familyId: Id<'families'>, memberId: Id<'me
     .first();
 }
 
-/** The MEGA an invite comes with when the admin didn't set one: the member's existing MEGA, else the first
- * preset color no MEGA in the family wears (config INVITE_MEGA_DEFAULTS). */
-async function defaultInviteMega(ctx: QueryCtx, member: Doc<'members'>): Promise<InviteMega> {
-  const existing = await ownMega(ctx, member.familyId, member._id);
-  if (existing) return { name: existing.name, look: existing.look, personality: existing.personality };
-  const worn = new Set(
-    (await ctx.db.query('megas').withIndex('by_family_owner', (q) => q.eq('familyId', member.familyId)).collect()).map((m) => m.look.hex.toUpperCase()),
-  );
-  const presets = Object.entries(COLORS) as [keyof typeof COLORS, string][];
-  const [key, hex] = presets.find(([, c]) => !worn.has(c.toUpperCase())) ?? presets[0];
-  const kind = member.role === 'kid' ? 'kid' : 'adult';
-  return { name: INVITE_MEGA_DEFAULTS.names[key], look: { hex, sticker: INVITE_MEGA_DEFAULTS.sticker }, personality: INVITE_MEGA_DEFAULTS.personality[kind] };
-}
 
 export const create = mutation({
   ...pick(API.invites.create),

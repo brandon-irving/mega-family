@@ -28,7 +28,10 @@ import { mapboxDirections, mapboxGeocoder } from './mapbox';
 import { metaWebSearch } from './metaWebSearch';
 import { openMeteoNwsWeather } from './openMeteoNwsWeather';
 import { nagerHolidays } from './nagerHolidays';
-import { unconfiguredCalendarSource, unconfiguredGoogleOAuth, unconfiguredIcsFetcher, unconfiguredMailSource } from './unconfiguredIntegrations';
+import { gmailMailSource } from './gmail';
+import { googleCalendarSource } from './googleCalendar';
+import { googleOAuth } from './googleOAuth';
+import { icsHttpFetcher } from './icsHttp';
 import { shopifyCatalog } from './shopifyCatalog';
 import type { ChatModel } from '../ports/chatModel';
 import type { Directions } from '../ports/directions';
@@ -170,7 +173,8 @@ export function __setHolidaysForTests(adapter: Holidays | null): void {
 }
 
 // ---------- G5 (CONTRACT v0.17): Google (OAuth, Gmail, Calendar), schedule links ----------
-// Same selection. Until the G5 backend lands, real mode gets the fail-closed placeholders.
+// Same selection. The real Google adapters fail closed (`not_configured`) until GOOGLE_* + INTEGRATION_TOKEN_KEY
+// are set on the deployment; real mode never falls back to a fake.
 
 let googleOAuthOverride: GoogleOAuth | null = null;
 let mailSourceOverride: MailSource | null = null;
@@ -179,19 +183,19 @@ let icsFetcherOverride: IcsFetcher | null = null;
 
 export function getGoogleOAuth(): GoogleOAuth {
   if (googleOAuthOverride) return googleOAuthOverride;
-  return wantsRealAdapters() ? unconfiguredGoogleOAuth : defaultFakeGoogleOAuth;
+  return wantsRealAdapters() ? googleOAuth : defaultFakeGoogleOAuth;
 }
 export function getMailSource(): MailSource {
   if (mailSourceOverride) return mailSourceOverride;
-  return wantsRealAdapters() ? unconfiguredMailSource : defaultFakeMailSource;
+  return wantsRealAdapters() ? gmailMailSource : defaultFakeMailSource;
 }
 export function getCalendarSource(): CalendarSource {
   if (calendarSourceOverride) return calendarSourceOverride;
-  return wantsRealAdapters() ? unconfiguredCalendarSource : defaultFakeCalendarSource;
+  return wantsRealAdapters() ? googleCalendarSource : defaultFakeCalendarSource;
 }
 export function getIcsFetcher(): IcsFetcher {
   if (icsFetcherOverride) return icsFetcherOverride;
-  return wantsRealAdapters() ? unconfiguredIcsFetcher : defaultFakeIcsFetcher;
+  return wantsRealAdapters() ? icsHttpFetcher : defaultFakeIcsFetcher;
 }
 
 export function __setGoogleOAuthForTests(adapter: GoogleOAuth | null): void {

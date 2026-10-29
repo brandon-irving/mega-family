@@ -239,7 +239,9 @@ export const profiles = {
    * not per-member. Kept (always `[]`) so existing rows stay valid; nothing reads or writes it. */
   places: v.array(v.object({ label: v.string(), address: v.string(), lat: v.number(), lng: v.number() })),
   proactive: v.object({ reminder: reactionCounts, request: reactionCounts, tip: reactionCounts, update: reactionCounts }),
-  checkQuestions: v.array(v.object({ memoryId: v.id('memories'), question: v.string(), askAfter: v.number() })),
+  /** v0.17a (G5, additive): `messageId` = the choice block the profiler posted for it (answered via
+   * `chat.answerBlock`, which confirms or retires the memory instead of running the agent). */
+  checkQuestions: v.array(v.object({ memoryId: v.id('memories'), question: v.string(), askAfter: v.number(), messageId: v.optional(v.id('messages')) })),
 };
 
 // ---------- plans and lists ----------
@@ -783,6 +785,26 @@ export const onboarding = {
   personId: v.optional(memberId),
   startedAt: v.number(),
   finishedAt: v.optional(v.number()),
+  /** v0.17a (G5 backend, additive): the family step's sub-step and the answers so far for the person being
+   * added (the member row is created once name, relationship and details are in). */
+  family: v.optional(
+    v.object({
+      step: v.union(v.literal('who'), v.literal('name'), v.literal('relationship'), v.literal('details'), v.literal('getsMega'), v.literal('look'), v.literal('more')),
+      role: v.optional(v.union(v.literal('adult'), v.literal('kid'))),
+      name: v.optional(v.string()),
+      relationship: v.optional(relationship),
+    }),
+  ),
+  /** v0.17a: the onboarding block waiting for an answer (`chat.answerBlock` routes it here, not to the agent). */
+  blockMessageId: v.optional(v.id('messages')),
+  /** v0.17a: the last failed connect attempt per offer (`integrations.offer` → `failed`); cleared on connect. */
+  failures: v.optional(
+    v.object({
+      gmail: v.optional(literals(INTEGRATION_FAILURES)),
+      calendar: v.optional(literals(INTEGRATION_FAILURES)),
+      ics: v.optional(literals(INTEGRATION_FAILURES)),
+    }),
+  ),
 };
 
 /** One nightly profiler run per member per day (idempotency + audit). */
