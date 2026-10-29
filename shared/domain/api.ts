@@ -71,6 +71,42 @@ export const widgetEntry = v.object({
 });
 export type WidgetEntry = Infer<typeof widgetEntry>;
 
+/** v0.18 (G8): the home/lock widget's timeline (`widgets.next`, CONTRACT §6). Built on the server from what the
+ * viewer can already see (an adult: what `family.comingUp` shows; a kid: household events they're in or that
+ * are for everyone; plus their own MEGA's top statement), so a widget never shows more than the app would. The widget renders "in 40 min" itself from `startsAt` and the
+ * entry's date (the widget runtime has no network and no app state). */
+export const widgetMega = v.object({ name: v.string(), hex: v.string(), sticker: v.string(), face: v.string() });
+export const widgetSoonItem = v.object({
+  title: v.string(),
+  startsAt: v.number(),
+  /** "5:30 PM" in the family's time zone (the widget doesn't format dates). */
+  timeLabel: v.string(),
+  who: v.array(v.object({ name: v.string(), hex: v.string() })),
+  /** The viewer's own private-layer event: the lock screen hides the title (WIDGET_TIMELINE.lockRedactPrivate). */
+  private: v.boolean(),
+});
+export const widgetNextEntry = v.object({
+  /** When this entry becomes current (the first entry is "now"). */
+  at: v.number(),
+  kind: v.union(v.literal('soon'), v.literal('statement'), v.literal('empty'), v.literal('stale')),
+  soon: v.optional(v.array(widgetSoonItem)),
+  statement: v.optional(v.object({ text: v.string(), short: v.string() })),
+  /** Where a tap goes (LINKS). */
+  link: v.string(),
+});
+export const widgetTimeline = v.object({
+  generatedAt: v.number(),
+  mega: widgetMega,
+  /** Kid sizes and kid copy on the widget (boards WidgetsKid*). */
+  kid: v.boolean(),
+  entries: v.array(widgetNextEntry),
+  /** The round Talk widget's tap target (LINKS.talk()). */
+  talkLink: v.string(),
+});
+export type WidgetSoonItem = Infer<typeof widgetSoonItem>;
+export type WidgetNextEntry = Infer<typeof widgetNextEntry>;
+export type WidgetTimeline = Infer<typeof widgetTimeline>;
+
 export const memberCard = v.object({
   member: memberDoc,
   mega: v.union(megaDoc, v.null()),
@@ -450,6 +486,8 @@ export const API = {
   },
   widgets: {
     timeline: fn({ kind: 'query', day1: 'real', args: {}, returns: v.array(widgetEntry) }),
+    // v0.18 (G8): the widget timeline the app writes into MegaNext/MegaTalk (CONTRACT §6). Any member, own data only.
+    next: fn({ kind: 'query', day1: 'stub', args: {}, returns: widgetTimeline }),
   },
   sharing: {
     get: fn({ kind: 'query', day1: 'real', args: {}, returns: v.union(v.object({ schedule: shareLevel, lists: shareLevel, hqActivity: shareLevel }), v.null()) }),

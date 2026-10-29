@@ -33,3 +33,26 @@ export const WIDGETS = {
 
 /** Android widgets are off for now (iPhone first; `updateTimeline` is iOS-only). Turning this on needs a build. */
 export const WIDGETS_ANDROID = false;
+
+/** G8 (CONTRACT v0.18): how the server builds `widgets.next` and how the app writes it into the widget.
+ * Widgets refresh only while the app runs (no background-refresh module is in the frozen build), so the
+ * server pre-computes a timeline that stays honest for `horizonHours`, then ends on a "check the app" entry. */
+export const WIDGET_TIMELINE = {
+  /** "Coming up" = events starting within this window of the entry's time (board: "next 2 hours"). */
+  soonWindowMinutes: 120,
+  /** An event stays on the widget this long after it starts ("now"), then the next one takes over. */
+  startedGraceMinutes: 10,
+  /** At most this many events on the medium widget (board: 3). Small and lock show the first. */
+  maxSoon: 3,
+  /** How far ahead the server plans entries; the last entry says to open MEGA for what's next. */
+  horizonHours: 8,
+  /** Upper bound on timeline entries the app writes (WidgetKit's own budget is per day; keep it small). */
+  maxEntries: 12,
+  /** Statement text longer than this is cut for the small and lock widgets (`short`). */
+  shortStatementChars: 32,
+  /** Lock screen: a private event's title is replaced with `G8_COPY.widgetPrivate` and marked
+   * `privacySensitive` (iOS redacts it while the phone is locked). Rules only tighten: never turn this off for kids. */
+  lockRedactPrivate: true,
+  /** The app refreshes the widget at most this often from a changing subscription (and always on foreground). */
+  minRefreshSeconds: 60,
+} as const;

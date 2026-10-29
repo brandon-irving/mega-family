@@ -59,3 +59,23 @@ export const timeline = query({
     return [{ at: await clock.now(ctx, viewer.member.familyId), kind: 'empty' as const, title: 'All clear for now.', mega: megaInfo, link: LINKS.today() }];
   },
 });
+
+/** v0.18 (G8) STUB: an honest single "empty" entry for the caller (no other member's data, ever). The real
+ * timeline (docs/gates/G8.md backend task 1) replaces this body. */
+export const next = query({
+  ...pick(API.widgets.next),
+  handler: async (ctx, _args) => {
+    const viewer = await requireViewer(ctx);
+    const now = await clock.now(ctx, viewer.member.familyId);
+    const mega = viewer.mega
+      ? { name: viewer.mega.name, hex: viewer.mega.look.hex, sticker: viewer.mega.look.sticker, face: PERSONALITIES[viewer.mega.personality].face }
+      : { name: 'MEGA', hex: '#9AA1AB', sticker: 'none', face: 'calm' };
+    return {
+      generatedAt: now,
+      mega,
+      kid: viewer.member.role === 'kid',
+      entries: [{ at: now, kind: 'empty' as const, link: LINKS.today() }],
+      talkLink: LINKS.talk(),
+    };
+  },
+});

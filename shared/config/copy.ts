@@ -956,3 +956,43 @@ export const G5_FIX_COPY = {
   buzzesFewer: 'Fewer: {label}',
   buzzesMore: 'More: {label}',
 } as const;
+
+/** G8 (CONTRACT v0.18): widgets, QR invite scan, homework viewfinder, invite Paste. Board text where a board
+ * exists (Widgets*, LoginInvite, LoginScan, KidsSnap); the rest follows the same voice. */
+export const G8_COPY = {
+  // Widgets (boards Widgets, WidgetsEvening, WidgetsKid*, WidgetsLock*)
+  widgetSoonTitle: 'Coming up · next 2 hours',
+  widgetSaysTitle: '{mega} says',
+  widgetTapToReply: 'Tap to reply',
+  widgetNoSoon: 'No events in the next 2 hours',
+  widgetTip: 'Tip',
+  widgetNow: 'now',
+  widgetInMinutes: 'in {n} min',
+  widgetInHours: 'in {n}h',
+  widgetTalk: 'Talk',
+  /** The lock screen's stand-in for a private event's title (WIDGET_TIMELINE.lockRedactPrivate). */
+  widgetPrivate: 'Private event',
+  widgetEmpty: 'All clear for now.',
+  /** The timeline's last entry, after WIDGET_TIMELINE.horizonHours with no app open. */
+  widgetStale: 'Open {mega} for what’s next',
+  /** Signed out or another account: the widget shows nothing personal. */
+  widgetSignedOut: 'Open MEGA to sign in',
+  // QR invite scan (boards LoginInvite "Scan QR code", LoginScan)
+  scanCard: 'Scan QR code',
+  scanCardHint: 'Point your camera at your admin’s phone',
+  scanTitle: 'Scan the invite',
+  scanHint: 'Point your camera at the QR code on your family admin’s phone.',
+  scanFound: 'Found it! Opening the invite…',
+  scanNotInvite: 'That QR code isn’t a MEGA invite. Ask your family admin to show the one in Family.',
+  scanDenied: 'MEGA needs the camera to scan an invite. You can turn it on in Settings, or paste the link instead.',
+  scanOpenSettings: 'Open Settings',
+  scanPasteInstead: 'Paste a link instead',
+  // Invite Paste (board LoginInvite)
+  paste: 'Paste',
+  pasteNothing: 'There’s nothing to paste yet. Copy the invite link first.',
+  pasteNotInvite: 'That doesn’t look like a MEGA invite link.',
+  // Homework viewfinder (board KidsSnap)
+  viewfinderLabel: 'Camera viewfinder. Line the worksheet up inside the frame.',
+  viewfinderStarting: 'Starting the camera…',
+  viewfinderFailed: 'The camera didn’t start. Choose a photo instead?',
+} as const;

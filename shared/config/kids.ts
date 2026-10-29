@@ -18,6 +18,9 @@ export const HOMEWORK = {
   maxTriesPerQuestion: 2,
   /** Max image size accepted from the camera sheet (bytes), checked before the model call. */
   maxPhotoBytes: 8 * 1024 * 1024,
+  /** G8 viewfinder (expo-camera `takePictureAsync`): JPEG quality, and never EXIF (no GPS or device data
+   * leaves the phone). The photo goes only to the upload; nothing is saved to the camera roll. */
+  capture: { quality: 0.7, exif: false, shutterSound: true },
 } as const;
 
 export const CHORES = {

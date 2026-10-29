@@ -23,3 +23,12 @@ export const AUTH = {
    * "join or start a family" screen flashed for a frame). */
   signInHoldMaxMs: 10_000,
 } as const;
+
+/** G8 (CONTRACT v0.18): what the QR scanner accepts. Only `<scheme>://join/<token>` or a bare token (48 lowercase
+ * hex characters, convex/model/random.ts `randomToken`); anything else is "not a MEGA invite" and is never opened. */
+export const INVITE_SCAN = {
+  barcodeTypes: ['qr'] as const,
+  tokenPattern: /^[0-9a-f]{48}$/,
+  /** After a good scan, ignore further reads for this long while the invite opens (no double navigation). */
+  cooldownMs: 2000,
+} as const;
