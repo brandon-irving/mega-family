@@ -173,8 +173,10 @@ export function HqRoom({
             <Pressable
               key={d.memberId}
               onPress={() => onVisitRoom(d.memberId)}
-              accessibilityRole="button"
-              accessibilityLabel={d.mine ? U.yourRoom : fillCopy(U.memberRoom, { name: d.name })}
+              // A tap target on the art only: screen readers get each room once, from the Rooms row below.
+              accessible={false}
+              importantForAccessibility="no-hide-descendants"
+              accessibilityElementsHidden
               style={{ position: 'absolute', left: px(tile[0]), top: px(tile[1]), width: Math.max(px(1), 44), height: Math.max(px(1), 44) }}
             />
           );
