@@ -1,5 +1,5 @@
-// GD + G4 evals (evals/run.ts): the push judge and the kid search query check, run on one synthetic case through the production prompt, parser
-// and thresholds, inside the spend guard (callModel). Internal only; nothing in the app calls it.
+// GD + G4 + G5 evals (evals/run.ts): the push judge, the kid search query check and the Gmail extraction, run on one synthetic case through the
+// production prompt, parser and thresholds, inside the spend guard (callModel). Internal only; nothing in the app calls it.
 import { v } from 'convex/values';
 import { LIMITS } from '../shared/config/limits';
 import type { Role } from '../shared/domain/enums';
@@ -8,6 +8,25 @@ import { callModel } from './model/modelCall';
 import { DRAFT_JUDGE_SCHEMA, buildDraftJudgePrompt, judgedDelivery, parseDraftJudgeResult } from './model/proactive';
 import { kidQueryVerdict } from './search';
 import { KID_SAFETY } from '../shared/config/kidSafety';
+import { extractItems, isSkippedSender } from './model/mailExtract';
+
+/** The mail eval's fixed clock: Sunday Oct 25, 2026, 10 AM New York (the seed week), so dates resolve the same
+ * every run. */
+const EVAL_MAIL_TZ = 'America/New_York';
+const EVAL_MAIL_NOW = Date.UTC(2026, 9, 25, 14);
+
+/** G5 eval (evals/mailExtract): one synthetic email through the production sender skip + extraction call
+ * (convex/model/mailExtract.ts). */
+export const mailExtractCase = internalAction({
+  args: { familyId: v.id('families'), fromName: v.string(), fromAddress: v.string(), subject: v.string(), text: v.string() },
+  returns: v.object({ kinds: v.array(v.string()), titles: v.array(v.string()), decidedBy: v.string() }),
+  handler: async (ctx, args) => {
+    if (isSkippedSender(args.fromAddress)) return { kinds: ['skip'], titles: [], decidedBy: 'rule:skipSender' };
+    const message = { id: 'eval', threadId: 'eval', internalDate: EVAL_MAIL_NOW, fromName: args.fromName, fromAddress: args.fromAddress, subject: args.subject, text: args.text };
+    const r = await extractItems(ctx, args.familyId, message, EVAL_MAIL_TZ, EVAL_MAIL_NOW);
+    return { kinds: r.items.map((i) => i.kind), titles: r.items.map((i) => `${i.title} ${i.date}${i.time ? ` ${i.time}` : ''}`), decidedBy: r.decidedBy };
+  },
+});
 
 export const judgeCase = internalAction({
   args: {

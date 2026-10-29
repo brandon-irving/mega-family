@@ -3,7 +3,8 @@ import { API } from '../shared/domain/api';
 import { mutation, query } from './_generated/server';
 import { pick } from './model/define';
 import { fail } from './model/errors';
-import { notBuiltYet } from './model/g5Stub';
+import { addFamilyMember } from './model/familyAdd';
+import { clock } from './ports/clock';
 import { upcomingEvents } from './model/home';
 import { megaStatusFor } from './model/megaStatus';
 import { requireAdmin, requireViewer, sameFamilyMember } from './model/viewer';
@@ -106,12 +107,15 @@ export const comingUp = query({
   handler: async (ctx) => upcomingEvents(ctx, await requireViewer(ctx)),
 });
 
-// G5 (CONTRACT v0.17): the onboarding family step's "add a person". Stub until the G5 backend.
+// G5 (CONTRACT v0.17): the onboarding family step's "add a person" (later Family → Add a family member). Admin
+// only. The member has no login until they redeem an invite; see convex/model/familyAdd.ts.
 export const add = mutation({
   ...pick(API.family.add),
-  handler: async (ctx) => {
+  handler: async (ctx, args) => {
     const viewer = await requireViewer(ctx);
     requireAdmin(viewer.member.role);
-    return notBuiltYet('family.add');
+    const now = await clock.now(ctx, viewer.member.familyId);
+    const memberId = await addFamilyMember(ctx, viewer.member, args, now);
+    return { memberId };
   },
 });

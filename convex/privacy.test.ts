@@ -473,6 +473,54 @@ describe('Milestone D: privacy grid', () => {
       }
     });
 
+    // ---------- G5 (docs/gates/G5.md invariants 1, 2, 3) ----------
+
+    test('G5 integrations / mailItems: only the owner (Admin, in the seed) sees them — not Partner, not the kids', async () => {
+      const gmail = (famA.docs.integrations as unknown as { _id: Id<'integrations'>; kind: string; memberId: string }[]).find((i) => i.kind === 'gmail')!;
+      const item = famA.docs.mailItems![0] as unknown as { _id: Id<'mailItems'> };
+      expect(gmail.memberId, 'fixture sanity: the seeded Gmail is the admin’s').toBe(famA.members.admin);
+      for (const k of ['partner', 'twin1', 'twin2'] as const) {
+        expect((await A(k).query(api.integrations.list, {})).some((i) => i.integrationId === gmail._id), k).toBe(false);
+        expect((await A(k).query(api.integrations.offer, { offer: 'gmail' })).integrations, k).toEqual([]);
+        expect(codeOf(await A(k).query(api.mail.items, { itemIds: [item._id] }).catch((e) => e)), k).toBe('NOT_FOUND');
+        expect(codeOf(await A(k).action(api.integrations.syncNow, { integrationId: gmail._id }).catch((e) => e)), k).toBe('NOT_FOUND');
+      }
+      // (No positive check for the admin: the grid above already probed `integrations.disconnect` as the admin.)
+    });
+
+    test('G5 the seeded Gmail’s private event stays off everyone else’s calendar', async () => {
+      const item = famA.docs.mailItems![0] as unknown as { eventId: string };
+      for (const k of ['partner', 'twin1', 'twin2'] as const) {
+        const range = await A(k).query(api.calendar.range, { from: Date.UTC(2026, 9, 1), to: Date.UTC(2027, 0, 1) });
+        const strings = new Set<string>();
+        collectStrings(range, strings);
+        expect(strings.has(item.eventId), k).toBe(false);
+      }
+    });
+
+    test('G5 onboarding / integrationSecrets / oauthStates: no public function returns them', async () => {
+      const secretId = await t.run((ctx) =>
+        ctx.db.insert('integrationSecrets', { familyId: famA.familyId, memberId: famA.members.admin as Id<'members'>, provider: 'google', refreshToken: 'v1.SEALED-REFRESH', accessToken: 'v1.SEALED-ACCESS', scopes: [], grantedAt: 0 }),
+      );
+      const stateId = await t.run((ctx) => ctx.db.insert('oauthStates', { familyId: famA.familyId, memberId: famA.members.admin as Id<'members'>, nonceHash: 'HASHED-NONCE', want: ['gmail'], createdAt: 0, expiresAt: 0 }));
+      const outputs = [
+        await A('admin').query(api.integrations.list, {}),
+        await A('admin').query(api.integrations.offer, { offer: 'gmail' }),
+        await A('admin').query(api.integrations.offer, { offer: 'calendar' }),
+        await A('admin').query(api.onboarding.state, {}),
+        await A('admin').query(api.me.get, {}),
+      ];
+      const strings = new Set<string>();
+      collectStrings(outputs, strings);
+      for (const s of ['v1.SEALED-REFRESH', 'v1.SEALED-ACCESS', 'HASHED-NONCE', secretId, stateId, 'https://calendar.example-league.test/fall.ics']) expect(strings.has(s), s).toBe(false);
+      await t.run(async (ctx) => {
+        await ctx.db.delete(secretId);
+        await ctx.db.delete(stateId);
+      });
+      // Joined members never get the admin onboarding (the grid's `onboarding.skip` may have recorded a skipped offer: done).
+      for (const k of ['partner', 'twin1'] as const) expect([null, 'done'], k).toContain((await A(k).query(api.onboarding.state, {}))?.step ?? null);
+    });
+
     test('memories.list returns the admin -> partner shared memory to partner (the grantee)', async () => {
       const sharedMemory = (famA.docs.memories as unknown as { scope: string; text: string }[]).find((m) => m.scope === 'shared');
       expect(sharedMemory).toBeDefined();

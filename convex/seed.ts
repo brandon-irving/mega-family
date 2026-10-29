@@ -439,6 +439,22 @@ export const resetSampleFamily = internalMutation({
   },
 });
 
+/** Live check only (G5): removes a family a live onboarding run created, so the dev deployment keeps only the
+ * sample family. Refuses unless DEMO_MODE and the family's admin signed in as a `live-check:` identity (never a
+ * real person's family). `npx convex run seed:deleteLiveCheckFamily '{"familyId":"…"}'`. */
+export const deleteLiveCheckFamily = internalMutation({
+  args: { familyId: v.id('families') },
+  returns: v.null(),
+  handler: async (ctx, { familyId }) => {
+    if (process.env[DEMO.envVar] !== 'true') throw new Error(`deleteLiveCheckFamily refuses to run unless ${DEMO.envVar}=true on this deployment`);
+    const family = await ctx.db.get(familyId);
+    const admin = family?.adminId ? await ctx.db.get(family.adminId) : null;
+    if (!family || !admin?.authId?.startsWith('live-check:')) throw new Error('not a live-check family');
+    await deleteFamilyCompletely(ctx, familyId);
+    return null;
+  },
+});
+
 /** Demo / live check only (G4b): real prices rarely drop on cue, so this STAGES one — every active price watch's
  * baseline is set `percent` above its last checked live price and its last alert cleared — then runs the normal
  * price check, which finds the "drop" and sends the usual cards. The "was" price it shows is staged, not a real
