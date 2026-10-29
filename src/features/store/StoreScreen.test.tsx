@@ -1,9 +1,11 @@
 // Board Store and its tabs, StoreEyes ("Need N more"), StoreConfirm → StoreBought; plus StoreTray's NEW.
+import { useState } from 'react';
 import { fireEvent, screen } from '@testing-library/react-native';
 import { renderWithTheme } from '@/test/renderWithTheme';
 import { CATALOG, ZAP_LOOK } from '@/test/gdFixtures';
+import type { CatalogItem } from './storeModel';
 import { trayPieces } from './KidRoomPanel';
-import { StoreScreenView } from './StoreScreen';
+import { StoreScreenView, type StoreScreenViewProps } from './StoreScreen';
 
 const noop = () => {};
 
@@ -52,6 +54,48 @@ describe('StoreScreenView', () => {
     await fireEvent.press(screen.getByText('Buy it'));
     expect(screen.queryByText('It’s yours!')).toBeNull();
     expect(screen.getByText('Buy Star antenna?')).toBeTruthy();
+  });
+
+  // G6 walkthrough defect #2 (P1): without the kid tapping a tile first, the bottom bar defaults to
+  // `firstPick(tiles)` (the cheapest affordable/first unowned tile). Buying it flips that tile to
+  // `owned` in the live `items` prop (exactly how the real store.tsx wires `store.catalog`'s reactive
+  // query), so `firstPick` re-picks the *next* unowned tile mid-sheet — and the old code read the
+  // "bought" confirmation's item straight off that live pick, naming whatever got re-selected instead of
+  // what was actually bought and charged for.
+  test('bought confirmation names the actual purchased item, even after it flips to owned and a different tile becomes the live firstPick', async () => {
+    const seed: CatalogItem[] = [
+      { id: 'furniture:bed', label: 'Bed', price: 0, owned: true, wearing: false },
+      { id: 'furniture:plant', label: 'Plant', price: 4, owned: false, wearing: false },
+      { id: 'furniture:toybox', label: 'Toy box', price: 6, owned: false, wearing: false },
+    ];
+    function Wrapper(props: Partial<StoreScreenViewProps>) {
+      const [items, setItems] = useState(seed);
+      return (
+        <StoreScreenView
+          megaName="Zap"
+          balance={10}
+          items={items}
+          look={ZAP_LOOK}
+          onClose={noop}
+          onWear={noop}
+          onDecorate={noop}
+          onBuy={async (tile) => {
+            // Mirrors src/app/store.tsx: a successful buy is followed by the catalog query re-rendering
+            // with that item now owned — never explicitly re-picked by the kid.
+            setItems((prev) => prev.map((i) => (i.id === tile.itemId ? { ...i, owned: true } : i)));
+            return true;
+          }}
+          {...props}
+        />
+      );
+    }
+    await renderWithTheme(<Wrapper />, { role: 'kid' });
+    // No tile tapped: the default pick is the first unowned furniture tile (Plant, 4 Mega Bucks).
+    await fireEvent.press(screen.getByText('Buy for 4'));
+    await fireEvent.press(screen.getByText('Buy it'));
+    expect(await screen.findByText('It’s yours!')).toBeTruthy();
+    expect(screen.getByText('Find the plant in Decorate and put it anywhere in your room.')).toBeTruthy();
+    expect(screen.queryByText('Find the toy box in Decorate and put it anywhere in your room.')).toBeNull();
   });
 });
 
