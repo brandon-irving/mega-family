@@ -8,13 +8,23 @@ import { useViewer } from '@/data/useViewer';
 import { useForgetMemory, useMegaActivity, useMemories } from '@/data/useMega';
 import { useFamilyNow } from '@/data/useShopping';
 import { ActivityContent, type ActivityFilter, type MemoryDoc } from '@/features/settings/ActivityContent';
+import { AdultOnly } from '@/features/shell/RoleGate';
 import { MegaLoader } from '@/features/walkers';
 import { Sheet } from '@/ui/Sheet';
 
 /** How many recent memories the "learned" section lists before "Everything … remembers". */
 const LEARNED_SHOWN = 5;
 
+/** The admin's alone (G5 UX review): anyone else is sent back to chat before the activity query runs. */
 export default function ActivityRoute() {
+  return (
+    <AdultOnly adminOnly>
+      <ActivityScreen />
+    </AdultOnly>
+  );
+}
+
+function ActivityScreen() {
   const viewer = useViewer();
   const isAdmin = viewer?.member.role === 'admin';
   const activity = useMegaActivity(isAdmin);

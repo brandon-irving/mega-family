@@ -10,11 +10,21 @@ import type { StickerId } from '@shared/config/looks';
 import { useFamilyMembers, useMemberDetail, useSetKidControls } from '@/data/useFamily';
 import { joinNames } from '@/features/holidays/HolidayCard';
 import { RulesContent } from '@/features/settings/RulesContent';
+import { AdultOnly } from '@/features/shell/RoleGate';
 import { MegaLoader } from '@/features/walkers';
 import { Sheet } from '@/ui/Sheet';
 import { Text } from '@/ui/Text';
 
+/** Adults only (G5 UX review): a kid reads their own rules from their MEGA profile instead (/mega-profile/rules). */
 export default function RulesRoute() {
+  return (
+    <AdultOnly>
+      <RulesScreen />
+    </AdultOnly>
+  );
+}
+
+function RulesScreen() {
   const { memberId } = useLocalSearchParams<{ memberId: string }>();
   const id = memberId as Id<'members'>;
   const detail = useMemberDetail(id);

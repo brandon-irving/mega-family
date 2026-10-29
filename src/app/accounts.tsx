@@ -19,13 +19,23 @@ import { PhoneCalendarSheet } from '@/features/accounts/PhoneCalendarSheet';
 import { looksLikeFeedUrl } from '@/features/accounts/ConnectCard';
 import { syncPhone, usePhoneCalendarFlow } from '@/features/accounts/usePhoneCalendarFlow';
 import { CardFallback } from '@/features/kids/CardFallback';
+import { AdultOnly } from '@/features/shell/RoleGate';
 import { Button } from '@/ui/Button';
 import { ModalSheet } from '@/ui/ModalSheet';
 import { Sheet } from '@/ui/Sheet';
 import { Text } from '@/ui/Text';
 import { useTokens } from '@/ui/theme';
 
+/** Adults only (G5 UX review): a kid is sent back to chat before any of this page's queries run. */
 export default function AccountsRoute() {
+  return (
+    <AdultOnly>
+      <AccountsScreen />
+    </AdultOnly>
+  );
+}
+
+function AccountsScreen() {
   const tokens = useTokens();
   const list = useIntegrations();
   const gmailOffer = useOffer('gmail');

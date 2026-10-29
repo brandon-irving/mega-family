@@ -10,12 +10,22 @@ import { useMemberDetail, useSetKidControls } from '@/data/useFamily';
 import { useKidSearchLog } from '@/data/useIntegrations';
 import { useViewer } from '@/data/useViewer';
 import { useRunAction } from '@/features/shell/useRunAction';
+import { AdultOnly } from '@/features/shell/RoleGate';
 import { SearchLogContent } from '@/features/integrations/SearchLogContent';
 import { LoadingScreen } from '@/ui/LoadingScreen';
 import { Sheet } from '@/ui/Sheet';
 import { Text } from '@/ui/Text';
 
+/** Parents only (G5 UX review): a kid is sent back to chat before the search log is asked for. */
 export default function KidSearchesRoute() {
+  return (
+    <AdultOnly>
+      <KidSearchesScreen />
+    </AdultOnly>
+  );
+}
+
+function KidSearchesScreen() {
   const { memberId } = useLocalSearchParams<{ memberId: string }>();
   const id = memberId as Id<'members'>;
   const viewer = useViewer();
