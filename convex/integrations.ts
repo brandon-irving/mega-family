@@ -5,7 +5,7 @@
 // the owner's private layer (invariant 3). The OAuth callback is an HTTP route (convex/http.ts).
 import { v } from 'convex/values';
 import { G5_COPY, fillCopy } from '../shared/config/copy';
-import { DEVICE_CALENDAR, ICS, ONBOARDING } from '../shared/config/onboarding';
+import { DEVICE_CALENDAR, ICS, ICS_FAILURE_REASONS, ONBOARDING } from '../shared/config/onboarding';
 import { GMAIL, GOOGLE, INTEGRATION_SYNC } from '../shared/config/google';
 import { API } from '../shared/domain/api';
 import { externalEvent } from '../shared/domain/integrationShapes';
@@ -37,6 +37,8 @@ import {
 } from './model/integrations';
 import { readIcs, syncGmail as syncGmailCore, syncGoogleCalendar as syncGoogleCalendarCore, syncIcs as syncIcsCore, type SyncOutcome } from './model/integrationSync';
 import { eventPreview, suggestShare } from './model/layers';
+
+type IcsFailureReason = (typeof ICS_FAILURE_REASONS)[number];
 import { completeOffer, gmailFirstLookDone } from './model/onboarding';
 import { postCard } from './model/proactive';
 import { randomToken } from './model/random';
@@ -213,15 +215,17 @@ export const syncDevice = mutation({
 
 export const addIcs = action({
   ...pick(API.integrations.addIcs),
-  handler: async (ctx, { url }): Promise<{ integrationId?: Id<'integrations'>; label?: string; events: number; failure?: Doc<'integrations'>['lastFailure'] }> => {
+  handler: async (ctx, { url }): Promise<{ integrationId?: Id<'integrations'>; label?: string; events: number; failure?: Doc<'integrations'>['lastFailure']; reason?: IcsFailureReason }> => {
     const caller = await ctx.runQuery(internal.integrations.callerCheck, { connector: true });
     const fetchUrl = icsFetchUrl(url);
     if (!fetchUrl || url.length > 2000) fail('VALIDATION', G5_COPY.icsBad);
     const r = await readIcs(url.trim(), {}, caller.timezone, caller.now);
     if (!r.ok || r.notModified) {
       const failure = r.ok ? 'error' : r.failure;
+      // v0.17b (U1): say why, so "couldn't reach it" isn't shown as "that link didn't work".
+      const reason: IcsFailureReason = !r.ok && (ICS_FAILURE_REASONS as readonly string[]).includes(r.detail ?? '') ? (r.detail as IcsFailureReason) : 'unreachable';
       await ctx.runMutation(internal.integrations.setFailure, { familyId: caller.familyId, memberId: caller.memberId, offer: 'ics', failure });
-      return { events: 0, failure };
+      return { events: 0, failure, reason };
     }
     const host = new URL(fetchUrl).host;
     const label = (r.label ?? host).slice(0, 80);

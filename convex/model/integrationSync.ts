@@ -17,7 +17,7 @@ import type { IntegrationFailure } from '../ports/integrationResult';
 import { accessTokenFor } from './googleAccess';
 import { parseIcs } from './ics';
 import { windowAround } from './integrations';
-import { extractItems, isSkippedSender, type ExtractedItem } from './mailExtract';
+import { cleanSenderName, extractItems, isSkippedSender, type ExtractedItem } from './mailExtract';
 
 type IntegrationStatus = (typeof INTEGRATION_STATUSES)[number];
 export type SyncOutcome = { status: IntegrationStatus; failure?: IntegrationFailure };
@@ -44,7 +44,7 @@ export async function syncGmail(ctx: ActionCtx, integrationId: Id<'integrations'
   let newIds: string[] = [];
   let full = !historyId;
   if (historyId) {
-    const h = await source.history({ accessToken: token.accessToken, startHistoryId: historyId, max: GMAIL.historyMaxResults });
+    const h = await source.history({ accessToken: token.accessToken, startHistoryId: historyId, max: GMAIL.maxMessagesPerPoll + GMAIL.pendingMax });
     if (!h.ok) {
       if (h.failure === 'unauthorized') await ctx.runMutation(internal.integrations.markLapsed, { familyId: integration.familyId, memberId: integration.memberId! });
       return failed(ctx, integrationId, h.failure, firstLook);
@@ -92,7 +92,7 @@ export async function syncGmail(ctx: ActionCtx, integrationId: Id<'integrations'
     try {
       const r = await extractItems(ctx, integration.familyId, got.message, timezone, now);
       decidedBy = r.decidedBy;
-      if (r.items.length) found.push({ gmailMessageId: id, sourceLabel: got.message.fromName.slice(0, 80) || 'Gmail', items: r.items });
+      if (r.items.length) found.push({ gmailMessageId: id, sourceLabel: cleanSenderName(got.message.fromName) || 'Gmail', items: r.items });
       processed.push(id);
     } catch {
       // Model down or over budget: keep the rest for the next poll.
@@ -162,7 +162,7 @@ export async function readIcs(url: string, prev: { etag?: string; lastModified?:
   const r = await getIcsFetcher().fetch({ url, etag: prev.etag, lastModified: prev.lastModified, maxBytes: ICS.maxBytes, timeoutMs: ICS.timeoutMs });
   if (!r.ok) return r;
   if (r.notModified) return { ok: true as const, notModified: true as const };
-  if (!/BEGIN:VCALENDAR/i.test(r.text)) return { ok: false as const, failure: 'error' as const, detail: 'not a calendar' };
+  if (!/BEGIN:VCALENDAR/i.test(r.text)) return { ok: false as const, failure: 'error' as const, detail: 'not_a_calendar' };
   const window = windowAround(now, timezone, ICS.pastDays, ICS.futureDays);
   const parsed = parseIcs(r.text, { familyTz: timezone, ...window });
   return { ok: true as const, notModified: false as const, label: parsed.label, events: parsed.events, window, etag: r.etag, lastModified: r.lastModified };

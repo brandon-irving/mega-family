@@ -51,8 +51,18 @@ export const MAIL_EXTRACT_SCHEMA = {
   },
 } as const;
 
-/** The prompt for one email. The body and subject are fenced and labelled untrusted; the sender's address is not
- * sent (only the display name). */
+/** v0.17b (S3): the sender's display name is chosen by the sender, so it is cleaned like a title (no control
+ * characters, no angle brackets, one line, capped) before it goes into the prompt or is stored as `sourceLabel`. */
+export function cleanSenderName(name: string): string {
+  return name
+    .replace(/[\u0000-\u001f\u007f<>]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 80);
+}
+
+/** The prompt for one email. Sender name, subject and body are all fenced and labelled untrusted; the sender's
+ * address is not sent (only the cleaned display name). */
 export function buildExtractPrompt(m: MailMessage, p: { today: string; weekday: string; receivedDate: string }): { system: string; user: string } {
   const system = [
     'You read ONE email for a family assistant and list the few things worth keeping on the reader’s own private calendar:',
@@ -65,8 +75,8 @@ export function buildExtractPrompt(m: MailMessage, p: { today: string; weekday: 
   ].join(' ');
   const user = [
     `Today is ${p.weekday}, ${p.today}. The email was received ${p.receivedDate}.`,
-    `From: ${m.fromName.slice(0, 80)}`,
     '<untrusted_email>',
+    `From: ${cleanSenderName(m.fromName)}`,
     `Subject: ${m.subject.slice(0, 200)}`,
     '',
     m.text,

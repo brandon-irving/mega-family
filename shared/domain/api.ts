@@ -4,6 +4,7 @@
 import { paginationOptsValidator, paginationResultValidator } from 'convex/server';
 import { type Infer, v } from 'convex/values';
 import { IDENTITY } from '../config/identity';
+import { ICS_FAILURE_REASONS } from '../config/onboarding';
 import { notificationKind, personality, platform, reaction, relationship, scope, shareLevel, station, themeName, via } from './enums';
 import { holiday, product, productRef } from './integrationShapes';
 import { blockAnswer, spokenMention } from './messages';
@@ -774,7 +775,10 @@ export const API = {
     syncDevice: fn({ kind: 'mutation', day1: 'real', args: { integrationId: v.id('integrations'), windowStart: v.number(), windowEnd: v.number(), events: v.array(deviceEventInput) }, returns: v.object({ added: v.number(), updated: v.number(), removed: v.number() }) }),
     // A schedule link: https:// or webcal:// (else VALIDATION); fetched and parsed now (fails → `failure`, nothing
     // saved). ≤ ICS.maxFeedsPerMember. Returns the feed's title and how many events it brought in.
-    addIcs: fn({ kind: 'action', day1: 'real', args: { url: v.string() }, returns: v.object({ integrationId: v.optional(v.id('integrations')), label: v.optional(v.string()), events: v.number(), failure: v.optional(T.integrationFailure) }) }),
+    // v0.17b: `reason` says why a link couldn't be added (unreachable / not_a_calendar / too_large / refused) so the
+    // app can say "couldn't reach it" instead of "that link didn't work". A malformed or private-address link is
+    // still a VALIDATION error (G5_COPY.icsBad). The whole add is bounded by ICS.timeoutMs.
+    addIcs: fn({ kind: 'action', day1: 'real', args: { url: v.string() }, returns: v.object({ integrationId: v.optional(v.id('integrations')), label: v.optional(v.string()), events: v.number(), failure: v.optional(T.integrationFailure), reason: v.optional(literals(ICS_FAILURE_REASONS)) }) }),
     // Owner only. Google: revokes the grant when it was the last Google integration, deletes the secret. Every
     // kind: removes the events/items it brought in (the owner's private copies; anything already shared stays
     // shared, as a household event the owner made). Idempotent.

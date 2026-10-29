@@ -13,17 +13,39 @@ type Header = { name?: string; value?: string };
 type Part = { mimeType?: string; filename?: string; headers?: Header[]; body?: { data?: string; size?: number }; parts?: Part[] };
 type RawMessage = { id?: string; threadId?: string; internalDate?: string; payload?: Part };
 
-/** base64url → UTF-8 text (Gmail's body encoding). */
-export function decodeBase64Url(data: string): string {
+/** Labels whose bytes map 1:1 to code points 0–255 (used when the runtime's TextDecoder doesn't know them). */
+const LATIN1_LABELS = ['iso-8859-1', 'iso8859-1', 'latin1', 'latin-1', 'l1', 'us-ascii', 'ascii', 'cp819'];
+/** windows-1252's 0x80–0x9F (curly quotes, dashes, €…); the rest of it is Latin-1. */
+const CP1252_HIGH = '€\u0081‚ƒ„…†‡ˆ‰Š‹Œ\u008DŽ\u008F\u0090‘’“”•–—˜™š›œ\u009Džÿ';
+
+function decodeBytes(bytes: Uint8Array, charset: string): string {
+  const label = charset.trim().toLowerCase() || 'utf-8';
+  try {
+    return new TextDecoder(label).decode(bytes);
+  } catch {
+    // v0.17b (C6): not every runtime ships every legacy decoder; Latin-1 and windows-1252 are decoded by hand.
+    if (label === 'windows-1252' || label === 'cp1252') return Array.from(bytes, (b) => (b >= 0x80 && b <= 0x9f ? CP1252_HIGH[b - 0x80] : String.fromCharCode(b))).join('');
+    if (LATIN1_LABELS.includes(label)) return Array.from(bytes, (b) => String.fromCharCode(b)).join('');
+    return new TextDecoder('utf-8').decode(bytes);
+  }
+}
+
+/** base64url → text in the part's declared charset (utf-8 when none or unknown). */
+export function decodeBase64Url(data: string, charset = 'utf-8'): string {
   const b64 = data.replace(/-/g, '+').replace(/_/g, '/');
   const padded = b64.padEnd(Math.ceil(b64.length / 4) * 4, '=');
   try {
     const bin = atob(padded);
     const bytes = Uint8Array.from(bin, (c) => c.charCodeAt(0));
-    return new TextDecoder('utf-8').decode(bytes);
+    return decodeBytes(bytes, charset);
   } catch {
     return '';
   }
+}
+
+/** `text/plain; charset="ISO-8859-1"` → `ISO-8859-1`; '' when absent (v0.17b, C6). */
+function charsetOf(headers: Header[] | undefined): string {
+  return header(headers, 'Content-Type').match(/charset\s*=\s*"?([^";\s]+)"?/i)?.[1] ?? '';
 }
 
 /** HTML → readable text: drops style/script, turns block ends into line breaks, strips tags, decodes the common
@@ -52,8 +74,8 @@ export function bodyText(part: Part | undefined): string {
   const walk = (p: Part | undefined) => {
     if (!p) return;
     if (p.filename) return; // an attachment
-    if (p.body?.data && p.mimeType === 'text/plain') plain.push(decodeBase64Url(p.body.data));
-    else if (p.body?.data && p.mimeType === 'text/html') html.push(decodeBase64Url(p.body.data));
+    if (p.body?.data && p.mimeType === 'text/plain') plain.push(decodeBase64Url(p.body.data, charsetOf(p.headers)));
+    else if (p.body?.data && p.mimeType === 'text/html') html.push(decodeBase64Url(p.body.data, charsetOf(p.headers)));
     for (const child of p.parts ?? []) walk(child);
   };
   walk(part);
@@ -102,11 +124,16 @@ export const gmailMailSource: MailSource = {
     return { ok: true, messageIds: (j.messages ?? []).map((m) => m.id).filter((id): id is string => !!id) };
   },
 
+  // v0.17b (C1): the response's `historyId` is only a safe next start once every page has been read. Pages run
+  // until `nextPageToken` is gone; when that would take more than GMAIL.historyMaxPages pages or more than `max`
+  // new messages, the pass is abandoned as `stale` (the caller does a full resync from `messages.list`), so a
+  // half-read history never moves the cursor past mail we didn't see.
   async history({ accessToken, startHistoryId, max }) {
     const ids: string[] = [];
     let pageToken: string | undefined;
     let historyId = startHistoryId;
-    do {
+    for (let page = 0; ; page++) {
+      if (page >= GMAIL.historyMaxPages) return { ok: true, stale: true };
       const r = await googleGet(
         withQuery(`${GMAIL.baseUrl}/history`, { startHistoryId, historyTypes: 'messageAdded', labelId: GMAIL.labelId, maxResults: Math.min(GMAIL.historyMaxResults, 500), pageToken }),
         accessToken,
@@ -117,10 +144,12 @@ export const gmailMailSource: MailSource = {
       }
       const j = r.json as { history?: { messagesAdded?: { message?: { id?: string; labelIds?: string[] } }[] }[]; historyId?: string; nextPageToken?: string };
       for (const h of j.history ?? []) for (const added of h.messagesAdded ?? []) if (added.message?.id && !ids.includes(added.message.id)) ids.push(added.message.id);
+      if (ids.length > max) return { ok: true, stale: true };
       if (j.historyId) historyId = String(j.historyId);
       pageToken = j.nextPageToken;
-    } while (pageToken && ids.length < max);
-    return { ok: true, stale: false, messageIds: ids.slice(0, max), historyId };
+      if (!pageToken) break;
+    }
+    return { ok: true, stale: false, messageIds: ids, historyId };
   },
 
   async getMessage({ accessToken, id, maxBodyChars }) {

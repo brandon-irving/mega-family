@@ -54,7 +54,11 @@ export const GMAIL = {
   firstSyncDays: 30,
   /** Only the inbox; history.list `labelId` + `historyTypes: messageAdded`. */
   labelId: 'INBOX',
+  /** history.list page size (`maxResults`). */
   historyMaxResults: 100,
+  /** v0.17b (C1): a history pass reads at most this many pages; past that (or past the queue's room) it is a full
+   * resync instead of a half-read cursor. */
+  historyMaxPages: 10,
   /** Cap per poll so one busy inbox can't run up model spend; the rest waits for the next poll. */
   maxMessagesPerPoll: 20,
   /** messages.get `format: full`; we keep only From (display name), Subject, Date and the plain-text body, cut
