@@ -931,4 +931,8 @@ export const G5_FIX_COPY = {
   inviteShareMessage: '{name}, here’s your MEGA invite: {url}',
   inviteWaiting: 'An invite is waiting · works until {when}',
   inviteFoot: 'A new code doesn’t cancel the old one; each works until it expires or someone joins with it.',
+  // A kid's own rules (UX review finding 4; boards SettingsKid / ProfileRulesKid)
+  kidReadChats: 'Your parents can read your chats',
+  kidRulesHint: 'What your parents set',
+  kidRulesIntro: '{parents} set these. Ask them if something should change.',
 } as const;

@@ -10,7 +10,7 @@ import { Pressable, TextInput, View } from 'react-native';
 import type { Infer } from 'convex/values';
 import type { megaDoc } from '@shared/domain/api';
 import type { Role, ShareLevel } from '@shared/domain/enums';
-import { G5_UI_COPY, PROFILE_COPY as C, fillCopy } from '@shared/config/copy';
+import { G5_FIX_COPY, G5_UI_COPY, PROFILE_COPY as C, fillCopy } from '@shared/config/copy';
 import { ROLES_CONFIG } from '@shared/config/roles';
 import { Button } from '@/ui/Button';
 import { Card } from '@/ui/Card';
@@ -37,12 +37,14 @@ export type ProfileContentProps = {
   onOpenMemories?: () => void;
   /** G5 (admin): what the family's MEGAs did, and why (board ProfileActivity). */
   onOpenActivity?: () => void;
+  /** A kid's own Rules and limits, read-only (G5 UX review; board ProfileRulesKid). */
+  onOpenRules?: () => void;
 };
 
 const SHARE_LEVELS: ShareLevel[] = ['me', 'partner', 'family'];
 const SHARE_LABEL: Record<ShareLevel, string> = { me: 'Only me', partner: 'Partner', family: 'Family' };
 
-export function ProfileContent({ mega, role, statusLine, sharing, onRename, onOpenLookPersonality, onOpenNotifications, onOpenTheme, onChangeSharing, onOpenMemories, onOpenActivity }: ProfileContentProps) {
+export function ProfileContent({ mega, role, statusLine, sharing, onRename, onOpenLookPersonality, onOpenNotifications, onOpenTheme, onChangeSharing, onOpenMemories, onOpenActivity, onOpenRules }: ProfileContentProps) {
   const tokens = useTokens();
   const access = ROLES_CONFIG[role].profile;
   const [editing, setEditing] = useState(false);
@@ -116,6 +118,7 @@ export function ProfileContent({ mega, role, statusLine, sharing, onRename, onOp
         <Row label={C.notifications} title={C.notifications} hint={C.notificationsHint} onPress={onOpenNotifications} />
         <Row label={C.theme} title={C.theme} hint={C.themeHint} onPress={onOpenTheme} />
         {access.memories && onOpenMemories ? <Row label={C.remembers(mega.name)} title={C.remembers(mega.name)} hint={C.remembersHint} onPress={onOpenMemories} /> : null}
+        {onOpenRules ? <Row label={G5_UI_COPY.rulesRow} title={G5_UI_COPY.rulesRow} hint={G5_FIX_COPY.kidRulesHint} onPress={onOpenRules} /> : null}
         {onOpenActivity ? <Row label={G5_UI_COPY.activityRow} title={G5_UI_COPY.activityRow} hint={fillCopy(G5_UI_COPY.activityRowHint, { mega: mega.name })} onPress={onOpenActivity} /> : null}
       </View>
     </>
