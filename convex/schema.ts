@@ -70,4 +70,9 @@ export default defineSchema({
   weatherCache: defineTable(T.weatherCache).index('by_family_place_kind', ['familyId', 'placeId', 'kind']),
   travelChecks: defineTable(T.travelChecks).index('by_family_event_checked', ['familyId', 'eventId', 'checkedAt']),
   searchLog: defineTable(T.searchLog).index('by_family_member_at', ['familyId', 'memberId', 'at']),
+
+  // G4b (CONTRACT v0.16)
+  priceWatches: defineTable(T.priceWatches).index('by_family_status', ['familyId', 'status']).index('by_family_ideas', ['familyId', 'giftIdeasId']),
+  routineSkips: defineTable(T.routineSkips).index('by_family_date', ['familyId', 'date']),
+  holidays: defineTable(T.holidays).index('by_family_country_year', ['familyId', 'country', 'year']),
 });

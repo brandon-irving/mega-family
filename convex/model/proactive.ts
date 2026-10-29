@@ -475,6 +475,16 @@ export async function candidateStillApplies(ctx: Ctx, source: CandidateSource | 
       if (!place) return false;
       return alertStillActive(ctx, place.familyId, place._id, source.alertId, await clock.now(ctx, place.familyId));
     }
+    // G4b (v0.16). A price drop only while the watch is on, and never for the gift's recipient (defense in
+    // depth: the trigger never targets them). A holiday question only until an adult has answered it.
+    case 'priceDrop': {
+      const w = await ctx.db.get(source.watchId);
+      return !!w && w.status === 'watching' && recipientId !== w.forMemberId;
+    }
+    case 'holiday': {
+      const s = await ctx.db.get(source.skipId);
+      return !!s && s.status === 'asked';
+    }
   }
 }
 
@@ -501,6 +511,10 @@ export function cardForSource(source: CandidateSource | undefined): ThreadCard |
       return { kind: 'gifts', giftIdeasId: source.giftIdeasId };
     case 'bucks':
       return { kind: 'bucks', ledgerId: source.ledgerId };
+    case 'priceDrop':
+      return { kind: 'priceDrop', watchId: source.watchId };
+    case 'holiday':
+      return { kind: 'holiday', skipId: source.skipId };
     default:
       return null;
   }

@@ -21,6 +21,14 @@ export const BUTTON_SETS = {
     { id: 'done', label: 'Done' },
     { id: 'snooze_10', label: 'In 10 min' },
   ],
+  // G4b (CONTRACT v0.16). The evening-before-a-holiday question to adults (`holidays.answer` runs the same
+  // effect), and a watched gift's price drop. "Open in store" is not a push button: a tap never opens the app
+  // or a browser (§5), so the link is on the thread card; tapping the notification itself opens that card.
+  'holiday.default': [
+    { id: 'pause', label: 'Pause for the day' },
+    { id: 'keep', label: 'Keep as usual' },
+  ],
+  'price.default': [{ id: 'stop_watching', label: 'Stop watching' }],
 } as const satisfies Record<(typeof BUTTON_SET_IDS)[number], readonly { id: string; label: string }[]>;
 export type ButtonSetId = keyof typeof BUTTON_SETS;
 

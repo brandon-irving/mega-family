@@ -1,7 +1,8 @@
 // CONTRACT §3. Chat message bodies, thread UI blocks, block answers, cards and save chips.
 import { type Infer, v } from 'convex/values';
 import { personality, scope } from './enums';
-import { ALERT_SEVERITIES, INTEGRATION_FAILURES, SEARCH_OUTCOMES } from '../config/ids';
+import { ALERT_SEVERITIES, INTEGRATION_FAILURES, SEARCH_OUTCOMES, WEATHER_TIPS } from '../config/ids';
+import { productRef } from './integrationShapes';
 import { literals } from './validators';
 
 const option = v.object({ id: v.string(), label: v.string() });
@@ -76,6 +77,11 @@ export const card = v.union(
     eventId: v.optional(v.id('events')),
     /** v0.15a: the current temperature (Open-Meteo `current` block), rounded °F. */
     nowF: v.optional(v.number()),
+    /** v0.16 (G4b): air quality and UV (Open-Meteo air-quality API). `usAqi` is the US AQI now (or at the event's
+     * start for a tip), `uvIndexMax` today's peak UV, `uvAt` the UV at the event's start for a tip. */
+    air: v.optional(v.object({ usAqi: v.optional(v.number()), uvIndexMax: v.optional(v.number()), uvAt: v.optional(v.number()) })),
+    /** v0.16: which event tip this card is ("rain" is G4's "Rain at pickup"). Absent on a plain forecast card. */
+    tip: v.optional(literals(WEATHER_TIPS)),
   }),
   v.object({
     kind: v.literal('travel'),
@@ -109,6 +115,12 @@ export const card = v.union(
   // CONTRACT v0.13b (additive): a kid's first-open "Here's what we can do" (board KidsIntro). No id: the rows
   // are config (shared/config/starters.ts KID_INTRO), the same for every kid.
   v.object({ kind: v.literal('intro') }),
+  // CONTRACT v0.16 (G4b, additive). `products` keeps only product refs (Shopify's catalog terms forbid caching
+  // results): the app reads current details with `shopping.products`. Written only into the asking adult's own
+  // thread (the `shop_search` tool). `failure` instead of refs when the catalog couldn't answer.
+  v.object({ kind: v.literal('products'), query: v.string(), refs: v.array(productRef), failure: v.optional(literals(INTEGRATION_FAILURES)) }),
+  v.object({ kind: v.literal('priceDrop'), watchId: v.id('priceWatches') }), // adults who can see the gift ideas, never the recipient
+  v.object({ kind: v.literal('holiday'), skipId: v.id('routineSkips') }), // adults: "Pause the morning routine and chores?"
 );
 export type Card = Infer<typeof card>;
 

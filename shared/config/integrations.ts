@@ -84,7 +84,39 @@ export const WEATHER = {
   eventLookaheadHours: 12,
   /** How many upcoming hours `weather.get` and the weather card show. */
   viewHours: 6,
+  /** G4b (v0.16): air quality and UV from Open-Meteo's air-quality API (`air-quality-api.open-meteo.com/v1/
+   * air-quality`, free, no key, same `latitude`/`longitude`/`timezone`). Fetched with the forecast and cached with
+   * it; an air failure never fails the forecast (the card just has no air row). Pollen is Europe-only there
+   * (CAMS Europe), so there is none. `uvIndexMax` is the max of today's hourly `uv_index`. */
+  air: {
+    url: 'https://air-quality-api.open-meteo.com/v1/air-quality',
+    current: ['us_aqi', 'uv_index'] as const,
+    hourly: ['us_aqi', 'uv_index'] as const,
+    forecastDays: 2,
+  },
+  /** Event tips (kind 'tip', same judge and dedupe as rain) for events at an `outdoor` place within
+   * `eventLookaheadHours`: UV at the start hour ≥ `uvTipMin`, or US AQI at the start hour ≥ `aqiTipMin`. */
+  uvTipMin: 6,
+  aqiTipMin: 101,
 } as const;
+
+/** G4b: US EPA AQI categories and WHO UV index bands, lower bound inclusive. Labels in G4B_COPY; colors are theme
+ * tokens chosen by the app per level. */
+export const AQI_LEVELS = [
+  { min: 0, level: 'good' },
+  { min: 51, level: 'moderate' },
+  { min: 101, level: 'sensitive' },
+  { min: 151, level: 'unhealthy' },
+  { min: 201, level: 'veryUnhealthy' },
+  { min: 301, level: 'hazardous' },
+] as const;
+export const UV_LEVELS = [
+  { min: 0, level: 'low' },
+  { min: 3, level: 'moderate' },
+  { min: 6, level: 'high' },
+  { min: 8, level: 'veryHigh' },
+  { min: 11, level: 'extreme' },
+] as const;
 
 /** WMO weather codes (open-meteo.com/en/docs "WMO Weather interpretation codes") → the short words a card or
  * a reply uses. A code missing here reads as `WEATHER_SUMMARY_FALLBACK`. */

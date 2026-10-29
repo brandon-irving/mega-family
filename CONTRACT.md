@@ -7,6 +7,7 @@ This is the agreement both build tracks follow. The backend owns `convex/`, the 
 ## Changelog
 | Version | Date | Change |
 |---|---|---|
+| 0.16 | Oct 28 | **Pending approval.** G4b (owner, Oct 28: shopping, air quality and UV, holidays before G5), all additive. **§2:** `families.country?` (holidays; `HOLIDAYS.defaultCountry` when empty), `places.outdoor?`, `giftIdeas.ideas[].productRefs?`; new tables `priceWatches`, `routineSkips`, `holidays`. **§3:** cards `products` (refs only), `priceDrop`, `holiday`; the `weather` card gains `air?` and `tip?: "rain" \| "uv" \| "air"`. **§4:** new `shopping.products` (a), `shopping.watches` / `.watch` (q), `shopping.unwatch` (m), `holidays.upcoming` / `.question` (q), `holidays.answer` (m), all stubs until the G4b backend; `places.upsert` takes `outdoor?`; `WeatherView` gains `air?`. **§5:** button sets `holiday.default` (`pause` / `keep`) and `price.default` (`stop_watching`). **§7:** `shared/config/shopping.ts` (`SHOPPING`, `HOLIDAYS`), `WEATHER.air` / `uvTipMin` / `aqiTipMin`, `AQI_LEVELS`, `UV_LEVELS`, `GIFTS.productsPerIdea` / `priceSlackPct`, `G4B_COPY`, roles tool `shop_search` (adults). **§8:** ports `ProductCatalog`, `Holidays`; `WeatherForecast` gains `air?`. **Internal only:** candidate sources `priceDrop`, `holiday`, and `weatherEvent.tip?`; agent tool `shop_search` (registered, not implemented). **Provider rule that shaped this:** Shopify's catalog terms forbid caching search results and images, so we store only product refs (plus the price watch's own observations of an item a member chose to keep) and the app reads current details live through `shopping.products`. |
 | 0.15a | Oct 28 | **Pending approval.** G4 backend addendum, all additive. **Built:** every v0.15 function is `real`; the real `WebSearch` (Meta Responses API `web_search`, `include: ["web_search_call.results"]`), `Weather` (Open-Meteo + NWS), `Directions` and `Geocoder` (Mapbox; `not_configured` without MAPBOX_TOKEN) adapters replace the placeholders. **§4 (G4 frontend requests):** `travel.answer({ travelCheckId, action })` → `{ message, remindAt }`; the leave-by push's On my way / Snooze 5 min use the same path. **§3 cards:** `travel` gains `eventTitle?`, `eventStart?`; `weather` gains `nowF?` (Open-Meteo `current`); `search` gains `parentsTold?` (a kid's blocked card). **§8:** `WeatherForecast` gains optional `current`. **Internal only:** `candidateSource` gains `searchNotice` (the quiet notice to a kid's parents about a blocked/rephrased search, always a statement); the agent loop routes `web_search` / `weather` / `travel_time` to `convex/agent/netTools.ts` and, once a search result is in a turn, refuses non-read-only tools for the rest of that turn (invariant 1); gift ideas get one product `url` each from web search. **Config:** `WEATHER.current`, `WEATHER.viewHours`, `WEATHER_CODES`, `TRAVEL.firstEstimateMinutes` / `snoozeMinutes` / `remindBeforeEventMinutes`, `GIFTS.productSearch`, `KID_SAFETY.search.blockedKeywords` (a starter list), G4 dedupe keys. **Seed:** soccer and school drop-off events link to their places; one past search per kid (Twin 2's blocked); Thursday's pickup has an honest `not_configured` travel check; no seeded forecast (`seed.resetDemo` fetches a real one). |
 | 0.15 | Oct 28 | **Pending approval.** Gate G4: web search with the kid filter, weather + NWS alerts, travel time (brief: docs/gates/G4.md). All additive. **New tables (§2):** `places` (family places: home/school/work/custom — household data, every member reads, adults edit; coordinates from the new `Geocoder` port, never the phone), `weatherCache` (internal), `travelChecks` (leave-by results; visible only to members who can see the event), `searchLog` (every search and what the kid filter did, with `decidedBy`; the member reads their own, a kid's parents only that kid's blocked/rephrased rows and only when `tellsParents.blockedSearches` is on). **New optional fields:** `events.placeId`; `profiles.places` is superseded by `places` (kept, always `[]`). **Cards (§3):** `search` gains `outcome?`, `rephrasedTo?`, `searchLogId?`; `weather` gains `placeLabel?`, `hours?`, `highF?`, `lowF?`, `alert?`, `eventId?`; `travel` gains `eventId?`, `fromLabel?`, `typicalMinutes?`, `checkId?`, `failure?` (fail closed: no made-up times). **New functions (§4):** `places.list` / `.upsert` / `.remove`, `weather.get` / `.refresh`, `travel.forEvent`, `search.log`, all `stub` (real validators; empty results or `NOT_FOUND` "not built yet") until the G4 backend; `events.create` / `.update` take optional `placeId` (update: `null` clears). Search itself stays the agent's `web_search` tool (no public function). **Ports (§8):** `WebSearch`, `Weather`, `Directions`, `Geocoder`, each returning `{ ok: true, … } \| { ok: false, failure }` (`not_configured` when a secret such as MAPBOX_TOKEN is missing); fakes for tests, fail-closed placeholders in real mode until the G4 adapters land. **Config (§7):** `shared/config/integrations.ts` (`PLACES`, `GEOCODING`, `WEB_SEARCH`, `WEATHER`, `TRAVEL`, `INTEGRATION_COPY`), `KID_SAFETY.search`, `models.webSearch.model`/`api`, `PRICING.webSearch`, ids `PLACE_KINDS`, `ALERT_SEVERITIES`, `SEARCH_OUTCOMES`, `INTEGRATION_FAILURES`, `GEOCODE_STATUSES`. **Internal only:** `candidateSource` gains `leaveBy`, `weatherAlert`, `weatherEvent`. **Seed (§10):** four places at public Brooklyn landmarks (home, school, work, a soccer field). |
 | 0.14a | Oct 28 | **Pending approval.** GD review fixes (all additive). **§4:** `chores.snooze({ choreId })` (m, the kid it's for, on today's still-due instance) → `{ remindAt }`: the chore card's "In 10 min", the same re-remind as the push's `snooze_10` (after `CHORES.snoozeMinutes`, through the normal quiet hours and caps); VALIDATION when nothing is due. **§2:** `routineRuns.steps[].source` gains `start?` (the household event's start, ms) so the bedtime card can say "…at 4:30"; `collisions.fingerprint?` (internal: both events' timing and people when detected; a dismissed or resolved clash is raised again only once this changes). **Behavior, no shape change:** the clash checker now also sees household events already in progress; an all-day event saved without `end` gets the end of its local day; a stale clash that recurs is raised again; `invites.redeem` refuses a second claim of one invite (INVALID_INVITE) even when two redeems race; the old cross-member "matters to" trigger is removed (no `familyEvents` row can push to another member). |
@@ -65,7 +66,7 @@ Values that are config rather than enums (the id lists live in `shared/config/id
 Every row in a family-owned table has `familyId`, and every index starts with `familyId`. **No query may read across families.**
 
 ### Family and people
-**families**: `name`, `timezone`, `adminId?: id(members)` (set right after the admin member is created), `parentCode: string` (5 digits; shown to the admin in Settings, so it's stored rather than hashed and only `family.parentCode` returns it), `createdAt`
+**families**: `name`, `timezone`, `adminId?: id(members)` (set right after the admin member is created), `parentCode: string` (5 digits; shown to the admin in Settings, so it's stored rather than hashed and only `family.parentCode` returns it), `createdAt`, `country?` (v0.16: ISO 3166-1 alpha-2 for public holidays; `HOLIDAYS.defaultCountry` when empty)
 
 **members**: `familyId`, `name`, `role: Role`, `authId?: string` (Better Auth user id; empty for the toddler), `birthday?: "YYYY-MM-DD"`, `grade?: string`, `activities: string[]`, `hasMega: boolean`, `joinedAt?`
 - indexes: `by_family`, `by_authId` (no family prefix: used at sign-in, before the family is known)
@@ -138,7 +139,7 @@ Every row in a family-owned table has `familyId`, and every index starts with `f
 **proposals**: `familyId`, `collisionId`, `megaId` (Hub, disclosed as AI), `fix: { kind: "reassign", eventId, from, to } | { kind: "move", eventId, start, end? }`, `title`, `text` (worded by Muse Wonder), `before` / `after: { eventId, title, start, end?, who }`, `wordedBy`, `reasonedBy`, `audience: id(members)[]` (membership when made), `status: "pending" | "approved" | "rejected" | "expired" | "stale"`, `createdAt`, `expiresAt`, `decision?: { byId, at, approve, audience }`, `messageId?` — nothing changes until the Admin approves
 - indexes: `by_family_status`, `by_family_collision`
 
-**giftIdeas**: `familyId`, `forMemberId`, `occasion: "birthday"`, `date`, `basedOn: { label, source: { kind: "memory", memoryId } | { kind: "member", field: "activities" } }[]`, `ideas: { title, why, price?, basedOn: number[], url? }[]`, `status: "queued" | "ready" | "failed"`, `createdBy?`, `createdAt`, `addedToList: number[]` — built only from household-shared facts; never visible to `forMemberId` or kids
+**giftIdeas**: `familyId`, `forMemberId`, `occasion: "birthday"`, `date`, `basedOn: { label, source: { kind: "memory", memoryId } | { kind: "member", field: "activities" } }[]`, `ideas: { title, why, price?, basedOn: number[], url?, productRefs?: ProductRef[] }[]` (v0.16: `productRefs`, up to `GIFTS.productsPerIdea`; `url` stays the web-search fallback), `status: "queued" | "ready" | "failed"`, `createdBy?`, `createdAt`, `addedToList: number[]` — built only from household-shared facts; never visible to `forMemberId` or kids
 - index: `by_family_for`
 
 ### Kids: homework, chores, routines, Mega Bucks (v0.13, gate GD)
@@ -181,7 +182,7 @@ Every row in a family-owned table has `familyId`, and every index starts with `f
 **clocks**: `familyId`, `mode: "real" | "simulated"`, `offsetMs: number`
 
 ### Places, weather, travel and search (v0.15, gate G4)
-**places**: `familyId`, `kind: "home" | "school" | "work" | "other"`, `label`, `address`, `lat?`, `lng?`, `geocode: { status: "pending" | "ok" | "failed" | "not_configured" | "seed", at? }`, `createdBy`, `updatedAt` — household data: every member reads; adults (`PLACES.editors`) write; at most one `home`. Coordinates only from the `Geocoder` port (Mapbox, `permanent` results), never the phone. Supersedes `profiles.places`.
+**places**: `familyId`, `kind: "home" | "school" | "work" | "other"`, `label`, `address`, `lat?`, `lng?`, `geocode: { status: "pending" | "ok" | "failed" | "not_configured" | "seed", at? }`, `createdBy`, `updatedAt` — household data: every member reads; adults (`PLACES.editors`) write; at most one `home`. Coordinates only from the `Geocoder` port (Mapbox, `permanent` results), never the phone. Supersedes `profiles.places`. `outdoor?: boolean` (v0.16): events there get UV and air-quality tips.
 
 **weatherCache**: `familyId`, `placeId`, `kind: "forecast" | "alerts"`, `fetchedAt`, `expiresAt`, `failure?: IntegrationFailure`, `data` (the Weather port's normalized result) — internal; never returned raw.
 
@@ -190,6 +191,15 @@ Every row in a family-owned table has `familyId`, and every index starts with `f
 **searchLog**: `familyId`, `memberId`, `at`, `query`, `outcome: "answered" | "rephrased" | "blocked" | "failed"`, `rephrasedTo?`, `category?`, `decidedBy?: "rule:<id>" | "model:<id>"`, `sourceCount`, `messageId?` — the member reads their own; a kid's parents read that kid's `blocked`/`rephrased` rows only when `tellsParents.blockedSearches` is on; siblings never.
 
 `IntegrationFailure = "not_configured" | "no_result" | "rate_limited" | "error"`
+
+### Shopping, price watch and holidays (v0.16, gate G4b)
+**priceWatches**: `familyId`, `giftIdeasId`, `ideaIndex`, `forMemberId` (the gift's recipient: never told, never shown), `ref: ProductRef`, `title`, `store`, `url`, `currency`, `baselinePriceCents`, `lastPriceCents?`, `lastCheckedAt?`, `lastFailure?: IntegrationFailure`, `alertedPriceCents?` (dedupe: one alert per watch × price), `status: "watching" | "stopped"`, `createdBy`, `createdAt`, `stoppedBy?`, `stoppedAt?` — made by `gifts.addToList` for each of the idea's products; same audience as gift ideas (adults, never `forMemberId`). The family's own saved item plus the prices our checks observed, not a cached search result.
+
+**routineSkips**: `familyId`, `date`, `holidayName`, `memberIds: id(members)[]` (kids with a morning routine or chore that day), `status: "asked" | "paused" | "kept"`, `askedAt`, `answeredBy?`, `answeredAt?` — one per family × date; adults read and answer; `paused` skips that day's morning routine and chores for `memberIds` and the bedtime prep the night before says so.
+
+**holidays**: `familyId`, `country`, `year`, `list: Holiday[]`, `fetchedAt`, `expiresAt`, `failure?: IntegrationFailure` — internal cache of public holidays (Nager.Date; public data); the app reads `holidays.upcoming`.
+
+`ProductRef = { productId, variantId? }` (Shopify `gid://shopify/p/…` / `gid://shopify/ProductVariant/…`) · `Product = { productId, variantId?, title, priceCents, listPriceCents?, currency, store, url, imageUrl?, available }` (read live, never stored) · `Holiday = { date, name, localName, global, regions?, types: string[] }`
 
 ---
 
@@ -224,7 +234,8 @@ Card =
   | { kind: "search", query, answer, sources: { title, url }[],
       outcome?: "answered" | "rephrased" | "blocked" | "failed", rephrasedTo?, searchLogId? }   // v0.15 fields optional
   | { kind: "weather", summary, at, placeLabel?, hours?: { at, tempF, precipPct, code }[], highF?, lowF?,
-      alert?: { event, headline, severity, ends? }, eventId? }                                  // v0.15 fields optional
+      alert?: { event, headline, severity, ends? }, eventId?,                                   // v0.15 fields optional
+      air?: { usAqi?, uvIndexMax?, uvAt? }, tip?: "rain" | "uv" | "air" }                        // v0.16 fields optional
   | { kind: "travel", to, leaveBy, minutes, eventId?, fromLabel?, typicalMinutes?, checkId?,
       failure?: IntegrationFailure }                                  // v0.15; with failure, minutes/leaveBy are 0 and the card shows INTEGRATION_COPY
   | { kind: "request", requestId }
@@ -239,6 +250,10 @@ Card =
   | { kind: "proposal", proposalId }                               // Hub's clash fix (AI), before/after
   | { kind: "gifts", giftIdeasId }                                 // adults, never the birthday person
   | { kind: "intro" }                                               // v0.13b: a kid's first-open "Here's what we can do" (rows are config)
+  // v0.16 (G4b)
+  | { kind: "products", query, refs: ProductRef[], failure?: IntegrationFailure } // adults' own thread; details via shopping.products
+  | { kind: "priceDrop", watchId }                                 // adults who can see the gift ideas, never the recipient
+  | { kind: "holiday", skipId }                                    // adults: "Pause the morning routine and chores?"
 
 SaveChip = { memoryId, scope: Scope, label: string }               // "Saved · Family", tap → change scope / forget
 ```
@@ -383,13 +398,26 @@ Web search has no public function: it's the agent's `web_search` tool (`chat.sen
 | Function | Type | Args | Returns | Day 1 |
 |---|---|---|---|---|
 | `places.list` | q | — (any member; household data) | `Place[]` (home, school, work, then custom) | real |
-| `places.upsert` | m | `{ placeId?, kind, label, address }` (adults) | `id(places)` (a new or changed address queues geocoding) | real |
+| `places.upsert` | m | `{ placeId?, kind, label, address, outdoor? }` (adults; v0.16 `outdoor`) | `id(places)` (a new or changed address queues geocoding) | real |
 | `places.remove` | m | `{ placeId }` (adults) | `null` (events keep their free-text `place`) | real |
-| `weather.get` | q | `{ placeId? }` (any member; home when omitted) | `WeatherView \| null` = `{ placeId, placeLabel, fetchedAt, stale, failure?, now, hours, today, alerts }` | real |
+| `weather.get` | q | `{ placeId? }` (any member; home when omitted) | `WeatherView \| null` = `{ placeId, placeLabel, fetchedAt, stale, failure?, now, hours, today, alerts, air? }` (v0.16 `air: { usAqi?, uvIndex?, uvIndexMax? }`) | real |
 | `weather.refresh` | m | `{ placeId? }` (any member) | `{ queued }` (only when the cache is past its TTL) | real |
 | `travel.forEvent` | q | `{ eventId }` (members who can see the event) | `TravelView \| null` = `{ eventId, from, to, minutes, typicalMinutes, leaveBy, checkedAt, failure? }` | real |
 | `travel.answer` | m | `{ travelCheckId, action: "on_my_way" \| "snooze_5" \| "remind_30_before" }` (members who can see the event; v0.15a) | `{ message, remindAt: number \| null }` (re-reminders are `reminders` rows for the caller; the leave-by push buttons take the same path) | real |
 | `search.log` | q | `{ memberId?, paginationOpts }` (own; a parent: a kid's blocked/rephrased rows if `tellsParents.blockedSearches`) | page of `SearchLog` | real |
+
+### Shopping, price watch and holidays (v0.16, gate G4b; stubs until the G4b backend)
+Product search has no public function: it's the adults' `shop_search` agent tool, and its result is a `products` card in the asker's own thread. Gift ideas carry `productRefs` per idea; `gifts.addToList` starts a price watch for each of the added idea's products. Nothing a catalog search returns is stored except refs (Shopify's terms).
+
+| Function | Type | Args | Returns | Day 1 |
+|---|---|---|---|---|
+| `shopping.products` | a | `{ refs: ProductRef[] }` (adults; ≤ `SHOPPING.maxLookup`) | `{ products: Product[], failure? }` (live lookup, nothing stored) | stub |
+| `shopping.watches` | q | — (adults who can see gift ideas, never the recipient) | `PriceWatch[]` (status `watching`) | stub |
+| `shopping.watch` | q | `{ watchId }` (same) | `PriceWatch` (any status) | stub |
+| `shopping.unwatch` | m | `{ watchId }` (same; idempotent) | `null` (the push's `stop_watching` takes the same path) | stub |
+| `holidays.upcoming` | q | `{ days? }` (any member) | `UpcomingHoliday[]` = `{ date, name, localName, global, regions?, types, skip: { skipId, status } \| null }` | stub |
+| `holidays.question` | q | `{ skipId }` (adults) | `RoutineSkip` | stub |
+| `holidays.answer` | m | `{ skipId, action: "pause" \| "keep" }` (adults; first answer wins) | `{ message, status }` (the push's `pause` / `keep` take the same path) | stub |
 
 ---
 
@@ -401,6 +429,8 @@ Web search has no public function: it's the agent's `web_search` tool (`chat.sen
   - `request.default`: `yes` "Yes" · `cant` "I can't"
   - `tip.default` and `update.default`: no buttons
   - `chore.default` (v0.13, v0.13a): `done` "Done" · `snooze_10` "In 10 min" (a kid's chore reminder; Done claims it via `notifications.choreId`; In 10 min re-reminds after `CHORES.snoozeMinutes`)
+  - `holiday.default` (v0.16): `pause` "Pause for the day" · `keep` "Keep as usual" (the evening-before-a-holiday question to adults; same effect as `holidays.answer`)
+  - `price.default` (v0.16): `stop_watching` "Stop watching" (a gift's price drop; "Open in store" is on the thread card, since a button never opens the app or a browser)
 - **Loudness → platform:** `timeSensitive` / `active` / `passive` → iOS `interruptionLevel`; Android channels `mega.loud` and `mega.quiet` (ids in config).
 - **Answer path:** a button tap calls `notifications.answer` while the app is running (from the response listener), or **`POST /push/answer`** (v0.11, `h`) when it's been killed — the background notification-response task has no signed-in session, so it sends `{ notificationId, buttonId, answerToken }` (the token from the payload above) instead of relying on auth. The thread block, `notifications.answer`, and `POST /push/answer` all run the same per-kind effect dispatcher (`convex/model/notificationEffects.ts`), so every answer path is recorded the same way. **Idempotent (G3):** an already-answered notification (`answer` already set) returns its stored `reply` again rather than re-running the button's effect — safe for a retried call from either path.
 
@@ -439,18 +469,19 @@ The rule (events in the next 2 hours first, otherwise the top statement) is appl
 - `limits` (daily caps, quiet hours defaults, agent max steps, spend per family per day)
 - `learningPolicy` (trigger × kind → save now / save unconfirmed / queue / ask / drop, default scope, pattern N and window, fade half-life)
 - `kidSafety` (age bands, blocked categories, domains; v0.15: `KID_SAFETY.search` — query check, keyword backstop, answer check, max sources, homework hints)
-- `integrations` (v0.15, `shared/config/integrations.ts`: `PLACES`, `GEOCODING`, `WEB_SEARCH`, `WEATHER` (TTLs, poll interval, push/quiet severities, rain threshold), `TRAVEL` (profile, leave-by buffer, lookahead, recheck), `INTEGRATION_COPY`)
+- `integrations` (v0.15, `shared/config/integrations.ts`: `PLACES`, `GEOCODING`, `WEB_SEARCH`, `WEATHER` (TTLs, poll interval, push/quiet severities, rain threshold), `TRAVEL` (profile, leave-by buffer, lookahead, recheck), `INTEGRATION_COPY`; v0.16: `WEATHER.air`, `uvTipMin`, `aqiTipMin`, `AQI_LEVELS`, `UV_LEVELS`)
+- `shopping` (v0.16, `shared/config/shopping.ts`: `SHOPPING` (endpoint, agent profile path, country, limits, price-check interval and drop thresholds, viewers), `HOLIDAYS` (provider, default country, types, ask time, what a pause skips)); `GIFTS.productsPerIdea` / `priceSlackPct`; `G4B_COPY`
 - `demo` (simulated clock allowed)
 - `store` (v0.13: `STORE_CATALOG`, `STORE_TABS`, `STORE_RULES`, `MEGA_BUCKS`), `calendar` (`LAYER_OF_SCOPE`, `CLASH`, `GIFTS`), `kids` (`HOMEWORK`, `CHORES`, `ROUTINES`); `models.vision` / `models.wording`; ids `ANTENNA_IDS`, `EYE_STYLE_IDS`, `EYE_COLOR_IDS`, `STORE_ITEM_IDS`, `ROUTINE_KINDS`
 
 ## 8. Ports (internal to the backend; listed so the master plan is complete)
-`ChatModel.chat({ messages, tools?, schema? })` · `ImageGenerator.generate({ prompt, referenceImage? })` · `Segmenter.segment({ image, prompt })` · `Transcriber.transcribe({ audio })` · `WebSearch.search({ query, instructions?, approximateLocation?, contextSize })` (v0.15; no `safe` flag — Meta's tool has none, so the kid filter runs around it) · `MemoryIndex.search({ scopeKeys, query, limit })` · `Weather.forecast({ lat, lng, timezone, days })` / `.alerts({ lat, lng })` · `Directions.travelTime({ from, to, departAt })` · `Geocoder.geocode({ address, country?, proximity? })` (v0.15) — the four G4 ports return `{ ok: true, … } | { ok: false, failure: IntegrationFailure }` · `CalendarFeed.fetch({ url })` · `PushSender.send(...)` · `BlobStore.put/get` · `Clock.now(familyId)`
+`ChatModel.chat({ messages, tools?, schema? })` · `ImageGenerator.generate({ prompt, referenceImage? })` · `Segmenter.segment({ image, prompt })` · `Transcriber.transcribe({ audio })` · `WebSearch.search({ query, instructions?, approximateLocation?, contextSize })` (v0.15; no `safe` flag — Meta's tool has none, so the kid filter runs around it) · `MemoryIndex.search({ scopeKeys, query, limit })` · `Weather.forecast({ lat, lng, timezone, days })` / `.alerts({ lat, lng })` · `Directions.travelTime({ from, to, departAt })` · `Geocoder.geocode({ address, country?, proximity? })` (v0.15) · `ProductCatalog.search({ query, country, maxPriceCents?, limit })` / `.lookup({ refs, country })` → `{ products, notFound }` · `Holidays.list({ year, country })` → `{ holidays }` (v0.16; `WeatherForecast` gains `air?`) — the G4 and G4b ports return `{ ok: true, … } | { ok: false, failure: IntegrationFailure }` · `CalendarFeed.fetch({ url })` · `PushSender.send(...)` · `BlobStore.put/get` · `Clock.now(familyId)`
 
 ## 9. Error codes
 `UNAUTHENTICATED` · `NOT_A_MEMBER` · `FORBIDDEN` (role or parent check) · `NOT_FOUND` · `INVALID_INVITE` · `WRONG_PARENT_CODE` · `RATE_LIMITED` · `BUDGET_EXCEEDED` · `KID_BLOCKED` (kid filter) · `VALIDATION`
 
 ## 10. Seed: the sample family (`seed.sampleFamily`, internal)
-Members use generic labels: Admin (MEGA Teal), Partner (MEGA Coral), Twin 1 (MEGA Zap), Twin 2 (MEGA Sunny), Toddler (care MEGA, used by parents). The seed also adds a week of events (from the mockups' `family-data.js`), a Groceries list, a few memories in each scope, one open request (milk) and a kid's held reminder, so every screen has data on day 1. v0.15: four `places` at public Brooklyn landmarks (Home: Grand Army Plaza; School: Brooklyn Museum; Work: Brooklyn Borough Hall; Soccer field: Parade Ground), with fixed coordinates (`geocode.status: "seed"`) — never a real home.
+Members use generic labels: Admin (MEGA Teal), Partner (MEGA Coral), Twin 1 (MEGA Zap), Twin 2 (MEGA Sunny), Toddler (care MEGA, used by parents). The seed also adds a week of events (from the mockups' `family-data.js`), a Groceries list, a few memories in each scope, one open request (milk) and a kid's held reminder, so every screen has data on day 1. v0.15: four `places` at public Brooklyn landmarks (Home: Grand Army Plaza; School: Brooklyn Museum; Work: Brooklyn Borough Hall; Soccer field: Parade Ground), with fixed coordinates (`geocode.status: "seed"`) — never a real home. v0.16: the Soccer field is `outdoor`; the first gift idea has a sample product ref and a `priceWatches` row (replaced by live catalog results in `seed.resetDemo`); a past Labor Day `routineSkips` row (kept); the 2026 US holidays cached (real dates).
 
 ---
 

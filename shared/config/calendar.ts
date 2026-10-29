@@ -42,4 +42,9 @@ export const GIFTS = {
   sourceScopes: ['family', 'adults'] as readonly Scope[],
   /** G4: each idea gets one product link from web search; the query is only the idea and the age. */
   productSearch: true,
+  /** G4b (v0.16): catalog products per idea (Shopify Global Catalog via the ProductCatalog port), searched with the
+   * same household-only query; the idea's price (when it has one) caps the search at `priceSlackPct` over it.
+   * The G4 web-search `url` stays as the fallback when the catalog is not configured or finds nothing. */
+  productsPerIdea: 2,
+  priceSlackPct: 25,
 } as const;

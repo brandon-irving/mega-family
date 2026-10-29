@@ -60,8 +60,9 @@ export const SAMPLE_FAMILY = {
     { key: 'home', kind: 'home', label: 'Home', address: 'Grand Army Plaza, Brooklyn, NY 11238', lat: 40.674, lng: -73.97 },
     { key: 'school', kind: 'school', label: 'School', address: 'Brooklyn Museum, 200 Eastern Pkwy, Brooklyn, NY 11238', lat: 40.6712, lng: -73.9636 },
     { key: 'work', kind: 'work', label: 'Work', address: 'Brooklyn Borough Hall, 209 Joralemon St, Brooklyn, NY 11201', lat: 40.6925, lng: -73.9904 },
-    { key: 'field', kind: 'other', label: 'Soccer field', address: 'Parade Ground, Caton Ave & Coney Island Ave, Brooklyn, NY 11226', lat: 40.6497, lng: -73.9682 },
-  ] as { key: string; kind: 'home' | 'school' | 'work' | 'other'; label: string; address: string; lat: number; lng: number }[],
+    // v0.16 (G4b): outdoor, so soccer gets UV and air-quality tips.
+    { key: 'field', kind: 'other', label: 'Soccer field', address: 'Parade Ground, Caton Ave & Coney Island Ave, Brooklyn, NY 11226', lat: 40.6497, lng: -73.9682, outdoor: true },
+  ] as { key: string; kind: 'home' | 'school' | 'work' | 'other'; label: string; address: string; lat: number; lng: number; outdoor?: boolean }[],
   /** One or more memories in every scope, so the privacy tests have something to leak. */
   memories: [
     { scope: 'family', about: [], kind: 'fact', text: 'Trash and recycling go out Tuesday night.', pinned: true },
@@ -172,5 +173,26 @@ export const SAMPLE_FAMILY = {
       { for: 'twin1', query: 'how many hearts does an octopus have', outcome: 'answered', sourceCount: 2, minutesAgo: 90 },
       { for: 'twin2', query: 'scary videos of real accidents', outcome: 'blocked', category: 'violence', decidedBy: 'model:muse-spark-1.3', sourceCount: 0, minutesAgo: 45 },
     ] as { for: SampleKey; query: string; outcome: 'answered' | 'rephrased' | 'blocked'; category?: string; decidedBy?: string; sourceCount: number; minutesAgo: number }[],
+  },
+  /** G4b (CONTRACT v0.16). A price watch on the first gift idea and a past holiday decision, so `shopping.*` and
+   * `holidays.*` have rows to probe. The watched product is a clearly fake ref (tests use the fake catalog);
+   * `seed.resetDemo` in real mode replaces it with live catalog results for the gift ideas (never invented prices).
+   * The holiday rows are real 2026 US public holidays (Nager.Date, Oct 28), cached so the calendar works offline. */
+  g4b: {
+    watch: {
+      ideaIndex: 0,
+      ref: { productId: 'gid://shopify/p/sample-dino-kit', variantId: 'gid://shopify/ProductVariant/sample-dino-kit' },
+      title: 'Dinosaur building kit (sample)',
+      store: 'Example Toy Shop',
+      url: 'https://example.com/products/dino-kit',
+      baselinePriceCents: 3500,
+    },
+    pastSkip: { date: '2026-09-07', holidayName: 'Labor Day', status: 'kept' as const, by: 'admin' as SampleKey },
+    holidays: [
+      { date: '2026-09-07', name: 'Labor Day', localName: 'Labor Day', global: true, types: ['Public', 'Bank'] },
+      { date: '2026-11-11', name: 'Veterans Day', localName: 'Veterans Day', global: true, types: ['Public', 'Bank'] },
+      { date: '2026-11-26', name: 'Thanksgiving Day', localName: 'Thanksgiving Day', global: true, types: ['Public', 'Bank'] },
+      { date: '2026-12-25', name: 'Christmas Day', localName: 'Christmas Day', global: true, types: ['Public', 'Bank'] },
+    ],
   },
 };

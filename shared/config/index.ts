@@ -14,6 +14,7 @@ export * from './notifications';
 export * from './pricing';
 export * from './proactive';
 export * from './roles';
+export * from './shopping';
 export * from './rooms';
 export * from './speaker';
 export * from './starters';

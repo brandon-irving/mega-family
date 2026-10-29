@@ -12,6 +12,8 @@
 import { defaultFakeChatModel } from './fakeChatModel';
 import { defaultFakeDirections } from './fakeDirections';
 import { defaultFakeGeocoder } from './fakeGeocoder';
+import { defaultFakeHolidays } from './fakeHolidays';
+import { defaultFakeProductCatalog } from './fakeProductCatalog';
 import { defaultFakePushSender } from './fakePushSender';
 import { defaultFakeTranscriber } from './fakeTranscriber';
 import { defaultFakeWeather } from './fakeWeather';
@@ -23,10 +25,13 @@ import { metaTranscriber } from './metaTranscriber';
 import { mapboxDirections, mapboxGeocoder } from './mapbox';
 import { metaWebSearch } from './metaWebSearch';
 import { openMeteoNwsWeather } from './openMeteoNwsWeather';
+import { unconfiguredHolidays, unconfiguredProductCatalog } from './unconfiguredIntegrations';
 import type { ChatModel } from '../ports/chatModel';
 import type { Directions } from '../ports/directions';
 import type { EmailSender } from '../ports/emailSender';
 import type { Geocoder } from '../ports/geocoder';
+import type { Holidays } from '../ports/holidays';
+import type { ProductCatalog } from '../ports/productCatalog';
 import type { PushSender } from '../ports/pushSender';
 import type { Transcriber } from '../ports/transcriber';
 import type { Weather } from '../ports/weather';
@@ -40,6 +45,8 @@ let webSearchOverride: WebSearch | null = null;
 let weatherOverride: Weather | null = null;
 let directionsOverride: Directions | null = null;
 let geocoderOverride: Geocoder | null = null;
+let productCatalogOverride: ProductCatalog | null = null;
+let holidaysOverride: Holidays | null = null;
 
 function wantsRealAdapters(): boolean {
   return process.env.MEGA_MODEL_ADAPTER === 'real';
@@ -127,4 +134,24 @@ export function __setDirectionsForTests(adapter: Directions | null): void {
 }
 export function __setGeocoderForTests(adapter: Geocoder | null): void {
   geocoderOverride = adapter;
+}
+
+// ---------- G4b (CONTRACT v0.16): shopping, holidays ----------
+// Same selection. Real mode uses fail-closed placeholders until the G4b backend's real adapters land.
+
+export function getProductCatalog(): ProductCatalog {
+  if (productCatalogOverride) return productCatalogOverride;
+  return wantsRealAdapters() ? unconfiguredProductCatalog : defaultFakeProductCatalog;
+}
+
+export function getHolidays(): Holidays {
+  if (holidaysOverride) return holidaysOverride;
+  return wantsRealAdapters() ? unconfiguredHolidays : defaultFakeHolidays;
+}
+
+export function __setProductCatalogForTests(adapter: ProductCatalog | null): void {
+  productCatalogOverride = adapter;
+}
+export function __setHolidaysForTests(adapter: Holidays | null): void {
+  holidaysOverride = adapter;
 }

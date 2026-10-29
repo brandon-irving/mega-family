@@ -21,6 +21,7 @@ import { internalAction, internalMutation, type MutationCtx } from './_generated
 import { sanitizeDraftText } from './model/proactive';
 import { seedGd } from './model/seedGd';
 import { seedG4 } from './model/seedG4';
+import { seedG4b } from './model/seedG4b';
 import { FRACTIONS_SHEET } from '../shared/fixtures/homework/fractionsSheet';
 import { scopeKey } from './model/scopes';
 import { randomToken } from './model/random';
@@ -198,6 +199,7 @@ async function createSampleFamily(ctx: MutationCtx, weekOf: string | undefined, 
         geocode: { status: 'seed' },
         createdBy: m.admin,
         updatedAt: demoNow,
+        ...(p.outdoor ? { outdoor: true } : {}),
       });
     }
 
@@ -369,6 +371,7 @@ async function createSampleFamily(ctx: MutationCtx, weekOf: string | undefined, 
     await seedGd(ctx, { familyId, m, hubId: mega.family, sunday, at, now: demoNow, homeworkStorageId });
     // G4: events linked to saved places, past kid searches, Thursday's pickup travel check (docs/gates/G4.md).
     await seedG4(ctx, { familyId, m, now: demoNow });
+    await seedG4b(ctx, { familyId, m, now: demoNow });
 
     return { familyId, members: m };
 }

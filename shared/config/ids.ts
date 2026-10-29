@@ -2,7 +2,7 @@
 // them without a cycle; the richer config (labels, art, sets) lives in the sibling files and is typed by these.
 export const STICKERS = ['star', 'heart', 'leaf', 'bolt', 'none'] as const;
 export const WALLPAPER_PRESET_IDS = ['glow', 'night', 'dawn', 'room'] as const;
-export const BUTTON_SET_IDS = ['reminder.default', 'request.default', 'tip.default', 'update.default', 'chore.default'] as const;
+export const BUTTON_SET_IDS = ['reminder.default', 'request.default', 'tip.default', 'update.default', 'chore.default', 'holiday.default', 'price.default'] as const;
 
 // GD (CONTRACT v0.13): MEGA look parts sold in the Store. 'classic' is everyone's default and always free.
 // The art for each lives in the sprite engine (prototypes/megasprite/mega-template.mjs ANTENNAS / EYE_STYLES
@@ -22,6 +22,13 @@ export const ALERT_SEVERITIES = ['Extreme', 'Severe', 'Moderate', 'Minor', 'Unkn
 export const SEARCH_OUTCOMES = ['answered', 'rephrased', 'blocked', 'failed'] as const;
 /** G4: why an integration couldn't answer. `not_configured` = its secret (e.g. MAPBOX_TOKEN) isn't set. */
 export const INTEGRATION_FAILURES = ['not_configured', 'no_result', 'rate_limited', 'error'] as const;
+/** G4b (CONTRACT v0.16): which weather tip an event got ("Rain at pickup", "UV is high during soccer", "Air
+ * quality is poor during soccer"). Part of the tip's dedupe key: one per event × tip × day. */
+export const WEATHER_TIPS = ['rain', 'uv', 'air'] as const;
+/** G4b: a holiday question's state (`routineSkips.status`). `asked` until an adult answers. */
+export const ROUTINE_SKIP_STATUSES = ['asked', 'paused', 'kept'] as const;
+/** G4b: a price watch's state (`priceWatches.status`). */
+export const PRICE_WATCH_STATUSES = ['watching', 'stopped'] as const;
 /** G4: how a place's coordinates were found. `seed` = the sample family's fixed public landmarks. */
 export const GEOCODE_STATUSES = ['pending', 'ok', 'failed', 'not_configured', 'seed'] as const;
 

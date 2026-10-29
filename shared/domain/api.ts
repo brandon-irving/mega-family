@@ -5,6 +5,7 @@ import { paginationOptsValidator, paginationResultValidator } from 'convex/serve
 import { type Infer, v } from 'convex/values';
 import { IDENTITY } from '../config/identity';
 import { notificationKind, personality, platform, reaction, scope, shareLevel, station, themeName, via } from './enums';
+import { holiday, product, productRef } from './integrationShapes';
 import { blockAnswer, spokenMention } from './messages';
 import * as T from './tables';
 import { literals, withSystemFields } from './validators';
@@ -36,6 +37,9 @@ export const bucksLedgerDoc = withSystemFields('bucksLedger', T.bucksLedger);
 // G4 (CONTRACT v0.15)
 export const placeDoc = withSystemFields('places', T.places);
 export const searchLogDoc = withSystemFields('searchLog', T.searchLog);
+// G4b (CONTRACT v0.16)
+export const priceWatchDoc = withSystemFields('priceWatches', T.priceWatches);
+export const routineSkipDoc = withSystemFields('routineSkips', T.routineSkips);
 
 // ---------- view models ----------
 
@@ -194,6 +198,9 @@ export const weatherView = v.object({
   hours: v.array(v.object({ at: v.number(), tempF: v.number(), precipPct: v.number(), code: v.number() })),
   today: v.union(v.object({ highF: v.number(), lowF: v.number(), precipPct: v.number(), code: v.number() }), v.null()),
   alerts: v.array(v.object({ id: v.string(), event: v.string(), headline: v.string(), severity: T.alertSeverity, ends: v.optional(v.number()) })),
+  /** v0.16 (G4b, optional): US AQI and UV now, and today's peak UV (Open-Meteo air quality). Absent when the
+   * air-quality call failed or hasn't run; a missing number is omitted, never guessed. */
+  air: v.optional(v.object({ usAqi: v.optional(v.number()), uvIndex: v.optional(v.number()), uvIndexMax: v.optional(v.number()) })),
 });
 export type WeatherView = Infer<typeof weatherView>;
 
@@ -211,6 +218,23 @@ export const travelView = v.object({
   failure: v.optional(v.union(T.integrationFailure, v.literal('noPlace'))),
 });
 export type TravelView = Infer<typeof travelView>;
+
+// ---------- G4b (CONTRACT v0.16) view models ----------
+
+/** `shopping.products`: current details for refs, read live (nothing stored). `failure` when the catalog couldn't
+ * answer; refs it no longer knows are left out. */
+export const productsResult = v.object({ products: v.array(product), failure: v.optional(T.integrationFailure) });
+export type ProductsResult = Infer<typeof productsResult>;
+export type PriceWatch = Infer<typeof priceWatchDoc>;
+export type RoutineSkip = Infer<typeof routineSkipDoc>;
+
+/** One upcoming public holiday for the calendar's marker. `skip` is the family's decision for that day, when an
+ * adult has made one (kids see `paused` too: their routine says so). */
+export const upcomingHoliday = v.object({
+  ...holiday.fields,
+  skip: v.union(v.object({ skipId: v.id('routineSkips'), status: T.routineSkipStatus }), v.null()),
+});
+export type UpcomingHoliday = Infer<typeof upcomingHoliday>;
 
 // ---------- the API ----------
 
@@ -557,7 +581,8 @@ export const API = {
     upsert: fn({
       kind: 'mutation',
       day1: 'real',
-      args: { placeId: v.optional(v.id('places')), kind: T.placeKind, label: v.string(), address: v.string() },
+      // v0.16 (G4b): optional `outdoor` (events there get UV and air-quality tips); omitted keeps the current value.
+      args: { placeId: v.optional(v.id('places')), kind: T.placeKind, label: v.string(), address: v.string(), outdoor: v.optional(v.boolean()) },
       returns: v.id('places'),
     }),
     // Adults only. Events keep their free-text `place`; their `placeId` is cleared.
@@ -596,6 +621,40 @@ export const API = {
       day1: 'real',
       args: { memberId: v.optional(v.id('members')), paginationOpts: paginationOptsValidator },
       returns: paginationResultValidator(searchLogDoc),
+    }),
+  },
+
+  // ---------- G4b (CONTRACT v0.16): shopping, price watch, holidays. Stubs until the G4b backend. ----------
+  // Product search has no public function: it's the adults' `shop_search` agent tool, and its result is a
+  // `products` card in the asker's own thread. Gift ideas get `productRefs` per idea; `gifts.addToList` starts a
+  // price watch for each of the added idea's products.
+  shopping: {
+    // Adults (SHOPPING.viewers); kids → FORBIDDEN. Looks refs up live in the catalog (≤ SHOPPING.maxLookup; more →
+    // VALIDATION) and stores nothing: Shopify's terms forbid caching results. Used by the products, gifts and
+    // priceDrop cards.
+    products: fn({ kind: 'action', day1: 'stub', args: { refs: v.array(productRef) }, returns: productsResult }),
+    // Adults who can see gift ideas, never the gift's recipient: the family's watches with status `watching`.
+    watches: fn({ kind: 'query', day1: 'stub', args: {}, returns: v.array(priceWatchDoc) }),
+    // Same audience (the recipient and kids → NOT_FOUND). Any status, so a card can say "Stopped watching".
+    watch: fn({ kind: 'query', day1: 'stub', args: { watchId: v.id('priceWatches') }, returns: priceWatchDoc }),
+    // Same audience. Idempotent: stopping a stopped watch changes nothing. The price push's `stop_watching`
+    // button takes the same path.
+    unwatch: fn({ kind: 'mutation', day1: 'stub', args: { watchId: v.id('priceWatches') }, returns: v.null() }),
+  },
+  holidays: {
+    // Any member. Public holidays in the next `days` (HOLIDAYS.upcomingDays default, max HOLIDAYS.maxUpcomingDays)
+    // for the family's country, from the cache, oldest first, with the family's pause decision.
+    upcoming: fn({ kind: 'query', day1: 'stub', args: { days: v.optional(v.number()) }, returns: v.array(upcomingHoliday) }),
+    // Adults. The question behind a `holiday` card (any status, so the card can show who decided).
+    question: fn({ kind: 'query', day1: 'stub', args: { skipId: v.id('routineSkips') }, returns: routineSkipDoc }),
+    // Adults. `pause` skips that day's morning routine and chores for the question's kids (and the bedtime prep
+    // the night before says "No school routine tomorrow"); `keep` changes nothing. First answer wins; a later
+    // answer returns the existing outcome's message. The push buttons (`holiday.default`) take the same path.
+    answer: fn({
+      kind: 'mutation',
+      day1: 'stub',
+      args: { skipId: v.id('routineSkips'), action: v.union(v.literal('pause'), v.literal('keep')) },
+      returns: v.object({ message: v.string(), status: T.routineSkipStatus }),
     }),
   },
 } as const;

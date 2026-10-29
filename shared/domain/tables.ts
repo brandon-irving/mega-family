@@ -19,6 +19,7 @@ import {
   themeName,
   via,
 } from './enums';
+import { holiday, productRef } from './integrationShapes';
 import { author, messageBody, saveChip } from './messages';
 import {
   ALERT_SEVERITIES,
@@ -29,11 +30,14 @@ import {
   GEOCODE_STATUSES,
   INTEGRATION_FAILURES,
   PLACE_KINDS,
+  PRICE_WATCH_STATUSES,
   ROUTINE_KINDS,
+  ROUTINE_SKIP_STATUSES,
   SEARCH_OUTCOMES,
   STICKERS,
   STORE_ITEM_IDS,
   WALLPAPER_PRESET_IDS,
+  WEATHER_TIPS,
 } from '../config/ids';
 import { literals } from './validators';
 
@@ -70,6 +74,8 @@ export const families = {
   adminId: v.optional(memberId), // set right after the admin member is created
   parentCode: v.string(),
   createdAt: v.number(),
+  /** v0.16 (G4b, optional): ISO 3166-1 alpha-2 country for public holidays; HOLIDAYS.defaultCountry when empty. */
+  country: v.optional(v.string()),
 };
 
 export const members = {
@@ -312,10 +318,15 @@ export const candidateSource = v.union(
   // event's weather tip ("Rain at pickup", `tip` kind). All go through the normal judge/timing/caps.
   v.object({ kind: v.literal('leaveBy'), eventId: v.id('events'), checkId: v.id('travelChecks') }),
   v.object({ kind: v.literal('weatherAlert'), alertId: v.string(), placeId: v.id('places') }),
-  v.object({ kind: v.literal('weatherEvent'), eventId: v.id('events') }),
+  // v0.16 (G4b): `tip` says which (rain/uv/air); absent means rain (G4's only tip).
+  v.object({ kind: v.literal('weatherEvent'), eventId: v.id('events'), tip: v.optional(literals(WEATHER_TIPS)) }),
   // G4 backend addendum (v0.15a, internal only): a quiet notice to a kid's parents that the kid filter blocked
   // or rephrased a search (KID_SAFETY / kidControls.tellsParents.blockedSearches). Always a statement, never a push.
   v.object({ kind: v.literal('searchNotice'), searchLogId: v.id('searchLog') }),
+  // G4b (v0.16, internal only): a watched gift's price dropped (an `update` to adults who can see the gift ideas,
+  // never the recipient), and the evening-before-a-holiday question (a `request` to adults, `holiday.default`).
+  v.object({ kind: v.literal('priceDrop'), watchId: v.id('priceWatches'), priceCents: v.number() }),
+  v.object({ kind: v.literal('holiday'), skipId: v.id('routineSkips') }),
 );
 export type CandidateSource = Infer<typeof candidateSource>;
 
@@ -483,7 +494,11 @@ export const giftIdeas = {
       source: v.union(v.object({ kind: v.literal('memory'), memoryId: v.id('memories') }), v.object({ kind: v.literal('member'), field: v.literal('activities') })),
     }),
   ),
-  ideas: v.array(v.object({ title: v.string(), why: v.string(), price: v.optional(v.string()), basedOn: v.array(v.number()), url: v.optional(v.string()) })),
+  // v0.16 (G4b): `productRefs` — up to GIFTS.productsPerIdea catalog products for the idea (refs only; the app
+  // reads current price and stock with `shopping.products`). `url` (G4's web-search link) stays the fallback.
+  ideas: v.array(
+    v.object({ title: v.string(), why: v.string(), price: v.optional(v.string()), basedOn: v.array(v.number()), url: v.optional(v.string()), productRefs: v.optional(v.array(productRef)) }),
+  ),
   status: v.union(v.literal('queued'), v.literal('ready'), v.literal('failed')),
   createdBy: v.optional(memberId), // empty when Hub offered them on its own
   createdAt: v.number(),
@@ -699,6 +714,8 @@ export const places = {
   geocode: v.object({ status: geocodeStatus, at: v.optional(v.number()) }),
   createdBy: memberId,
   updatedAt: v.number(),
+  /** v0.16 (G4b, optional): an outdoor place (a field, a park). Events there get UV and air-quality tips. */
+  outdoor: v.optional(v.boolean()),
 };
 
 /** Internal cache of provider responses per place (never returned raw; `weather.get` builds its view from it).
@@ -749,6 +766,66 @@ export const searchLog = {
   messageId: v.optional(v.id('messages')),
 };
 
+// ---------- G4b (CONTRACT v0.16): shopping, holidays ----------
+
+export const priceWatchStatus = literals(PRICE_WATCH_STATUSES);
+export const routineSkipStatus = literals(ROUTINE_SKIP_STATUSES);
+
+/** A gift-list product whose price MEGA watches (made when an adult adds a gift idea with products to the list).
+ * Same audience as the gift ideas (GIFTS.viewers, never `forMemberId`). This is the family's own saved item, not
+ * a cached search result: it keeps the ref, the title/store/url the adult saw when saving it, and the prices our
+ * checks observed (`baselinePriceCents` when saved). `alertedPriceCents` is the last price a drop was announced
+ * at (dedupe: one alert per watch × price). Stops after the occasion (SHOPPING.stopAfterOccasionDays). */
+export const priceWatches = {
+  familyId,
+  giftIdeasId: v.id('giftIdeas'),
+  ideaIndex: v.number(),
+  forMemberId: memberId, // the gift's recipient: never told, never shown
+  ref: productRef,
+  title: v.string(),
+  store: v.string(),
+  url: v.string(),
+  currency: v.string(),
+  baselinePriceCents: v.number(),
+  lastPriceCents: v.optional(v.number()),
+  lastCheckedAt: v.optional(v.number()),
+  lastFailure: v.optional(integrationFailure),
+  alertedPriceCents: v.optional(v.number()),
+  status: priceWatchStatus,
+  createdBy: memberId,
+  createdAt: v.number(),
+  stoppedBy: v.optional(memberId),
+  stoppedAt: v.optional(v.number()),
+};
+
+/** "Monday is Veterans Day. Pause the morning routine and chores?" A federal holiday isn't always a day off
+ * school, so MEGA asks the adults the evening before (HOLIDAYS.askAt) instead of deciding. `paused` makes that
+ * day's morning routine, chores and the night-before bedtime prep skip for `memberIds` (the kids who had any);
+ * `kept` changes nothing. `answeredBy` is the adult who decided. One row per family × date. */
+export const routineSkips = {
+  familyId,
+  date: dateOnly,
+  holidayName: v.string(),
+  memberIds: v.array(memberId),
+  status: routineSkipStatus,
+  askedAt: v.number(),
+  answeredBy: v.optional(memberId),
+  answeredAt: v.optional(v.number()),
+};
+
+/** A family's cached public holidays for one country × year (Nager.Date; public data, safe to cache). Refreshed
+ * weekly (HOLIDAYS.refreshDays) and on demand; `failure` when the provider couldn't answer. Internal: the app
+ * reads `holidays.upcoming`. */
+export const holidays = {
+  familyId,
+  country: v.string(),
+  year: v.number(),
+  list: v.array(holiday),
+  fetchedAt: v.number(),
+  expiresAt: v.number(),
+  failure: v.optional(integrationFailure),
+};
+
 /** Every table's fields, keyed by table name. convex/schema.ts iterates this, so a table can't be missed. */
 export const TABLES = {
   families,
@@ -795,5 +872,8 @@ export const TABLES = {
   weatherCache,
   travelChecks,
   searchLog,
+  priceWatches,
+  routineSkips,
+  holidays,
 } as const;
 export type TableName = keyof typeof TABLES;

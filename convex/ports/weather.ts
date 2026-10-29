@@ -29,8 +29,20 @@ export interface WeatherDay {
   code: number;
 }
 
-/** `current` (v0.15a): Open-Meteo's current-conditions block, when the provider returns it. */
-export type WeatherForecast = IntegrationResult<{ current?: { at?: number; tempF: number; code: number }; hours: WeatherHour[]; days: WeatherDay[] }>;
+/** G4b (v0.16): air quality and UV from Open-Meteo's air-quality API (`/v1/air-quality?latitude&longitude
+ * &current=us_aqi,uv_index&hourly=us_aqi,uv_index&timezone&forecast_days`). Probed Oct 28 for the seed home: 200,
+ * `current.us_aqi` 79, hourly `uv_index` floats. Pollen is Europe-only (CAMS Europe), so not requested. Every field
+ * is optional: a missing value is omitted, never guessed. `uvIndexMax` = max of today's hourly UV. */
+export interface WeatherAir {
+  usAqi?: number;
+  uvIndex?: number;
+  uvIndexMax?: number;
+  hourly?: { at: number; usAqi?: number; uv?: number }[];
+}
+
+/** `current` (v0.15a): Open-Meteo's current-conditions block, when the provider returns it. `air` (v0.16, optional):
+ * absent when the air-quality call failed — that never fails the forecast itself. */
+export type WeatherForecast = IntegrationResult<{ current?: { at?: number; tempF: number; code: number }; hours: WeatherHour[]; days: WeatherDay[]; air?: WeatherAir }>;
 
 export interface WeatherAlert {
   /** NWS alert id (stable across updates of the same alert; used in the candidate dedupeKey). */
