@@ -116,8 +116,15 @@ export const send = mutation({
     // call, so it can never drift from what routines.check/routines.today already say. Falls through to the
     // ordinary agent loop below when the kid has no run yet today (e.g. asked well before their bedtime/
     // morning routine time) — there's nothing concrete to ground an answer in yet.
+    //
+    // G6 review fix: only take the shortcut for a plain text message with nothing attached. It matched on
+    // text alone before, which silently dropped an attached photo (the shortcut path never looks at
+    // `args.attachments`) and, in voice/talk mode, returned `streamId: ''` — talk mode always needs a
+    // readable text stream to caption, so that hung. Attachments and voice/talk now always fall through
+    // to the normal agent-loop path below, which keeps the attachment and always starts a stream.
     const tomorrowAsk = KID_INTRO.rows.find((r) => r.id === 'tomorrow')!.ask;
-    if (viewer.member.role === 'kid' && args.text === tomorrowAsk && viewer.mega) {
+    const noAttachments = !args.attachments || args.attachments.length === 0;
+    if (viewer.member.role === 'kid' && args.text === tomorrowAsk && args.via === 'text' && noAttachments && viewer.mega) {
       const today = localDate(now, viewer.family.timezone);
       const run = (await runFor(ctx, familyId, viewer.member._id, 'bedtime', today)) ?? (await runFor(ctx, familyId, viewer.member._id, 'morning', today));
       if (run) {
