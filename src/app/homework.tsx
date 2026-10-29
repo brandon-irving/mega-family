@@ -16,7 +16,9 @@ export default function HomeworkRoute() {
   if (viewer === undefined) return <LoadingScreen />;
   if (!viewer || !isAdultRole(viewer.member.role)) return <Redirect href="/chat" />;
   return (
-    <Screen padded={false}>
+    // fullBleed: the live camera (HomeworkSnap) fills the frame edge to edge; the default content-width
+    // cap (src/ui/Screen.tsx) squeezed it to 720px on wide desktop web (G6 review fix).
+    <Screen padded={false} fullBleed>
       <HomeworkSnap megaName={viewer.mega?.name ?? 'MEGA'} onDone={close} />
     </Screen>
   );

@@ -75,4 +75,48 @@ describe('chat.send → G6 #6b: the "Ready for tomorrow" chat-starter must groun
     }
     expect(modelCalls).toBe(0); // grounded directly from routines.ts, never the free model path
   });
+
+  // G6 review fix: the shortcut matched on text alone, so it could also fire with an attachment attached
+  // (dropping the photo on the floor — nothing in the shortcut path stores `args.attachments`) or in voice/
+  // talk mode (returning `streamId: ''`, which talk mode can't caption — it always needs a text stream).
+  // The shortcut now requires `args.via === 'text'` and no attachments; everything else falls through to
+  // the normal agent-loop path.
+  test('an attachment with the exact starter text: the photo is still stored and the normal path runs', async () => {
+    const { t } = await seeded();
+    const asTwin2 = t.withIdentity({ subject: 'sample:twin2' });
+    const photo = await t.run((ctx) => ctx.storage.store(new Blob(['png-bytes'], { type: 'image/png' })));
+
+    __setChatModelForTests(makeFakeChatModel(() => textReply('normal agent reply')));
+
+    const ask = KID_INTRO.rows.find((r) => r.id === 'tomorrow')!.ask;
+    const { replyMessageId, streamId } = await asTwin2.mutation(api.chat.send, { text: ask, via: 'text', attachments: [photo] });
+    await t.finishAllScheduledFunctions(vi.runAllTimers);
+
+    expect(streamId).not.toBe('');
+    const reply = await t.run((ctx) => ctx.db.get(replyMessageId));
+    expect(reply?.body.type).toBe('text'); // never the shortcut's routine card
+    const threadMessages = await t.run((ctx) =>
+      ctx.db
+        .query('messages')
+        .withIndex('by_family_thread_at', (q) => q.eq('familyId', reply!.familyId).eq('threadId', reply!.threadId))
+        .collect(),
+    );
+    const attachmentMessage = threadMessages.find((m) => m.body.type === 'image');
+    expect(attachmentMessage?.body).toMatchObject({ type: 'image', storageId: photo });
+  });
+
+  test('voice (talk mode) with the exact starter text: the normal path runs and returns a non-empty streamId', async () => {
+    const { t } = await seeded();
+    const asTwin2 = t.withIdentity({ subject: 'sample:twin2' });
+
+    __setChatModelForTests(makeFakeChatModel(() => textReply('normal agent reply')));
+
+    const ask = KID_INTRO.rows.find((r) => r.id === 'tomorrow')!.ask;
+    const { replyMessageId, streamId } = await asTwin2.mutation(api.chat.send, { text: ask, via: 'voice' });
+    await t.finishAllScheduledFunctions(vi.runAllTimers);
+
+    expect(streamId).not.toBe(''); // talk mode always needs a readable stream to caption
+    const reply = await t.run((ctx) => ctx.db.get(replyMessageId));
+    expect(reply?.body.type).toBe('text'); // never the shortcut's routine card
+  });
 });
