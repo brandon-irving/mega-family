@@ -77,4 +77,19 @@ describe('Screen content width (G6 polish)', () => {
     expect(style.width).toBe('100%');
     expect(style.maxWidth).toBe(LAYOUT.contentMaxWidth);
   });
+
+  // G6 review fix: the cap had no opt-out, so the homework live camera (HomeworkSnap) was squeezed to
+  // 720px on wide desktop web instead of filling the frame. `fullBleed` skips the cap entirely.
+  test('fullBleed skips the cap, even at a wide (desktop) frame', async () => {
+    const view = await renderWithTheme(
+      <SafeAreaProvider initialMetrics={{ ...METRICS, frame: { ...METRICS.frame, width: 1440 } }}>
+        <Screen testID="screen" fullBleed>
+          <Text>Live camera</Text>
+        </Screen>
+      </SafeAreaProvider>,
+    );
+    const content = view.getByTestId('screen-content');
+    const style = StyleSheet.flatten(content.props.style) as { maxWidth?: number };
+    expect(style.maxWidth).toBeUndefined();
+  });
 });
