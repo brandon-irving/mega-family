@@ -55,6 +55,28 @@ export const create = mutation({
   },
 });
 
+/** v0.17b (G5 review U3): the invite state on a member's Family row — admin or that member's parent only. The link
+ * can't be read back (only its hash is stored); "Show invite" calls `create` for a fresh one. */
+export const forMember = query({
+  ...pick(API.invites.forMember),
+  handler: async (ctx, args) => {
+    const viewer = await requireViewer(ctx);
+    const member = await sameFamilyMember(ctx, viewer.member.familyId, args.memberId);
+    if (viewer.member.role !== 'admin' && !viewer.isParentOf.includes(member._id)) fail('FORBIDDEN');
+    if (member.authId) return { status: 'joined' as const };
+    const latest = await ctx.db
+      .query('invites')
+      .withIndex('by_family_member', (q) => q.eq('familyId', viewer.member.familyId).eq('memberId', member._id))
+      .order('desc')
+      .first();
+    if (!latest || latest.redeemedAt) return { status: 'none' as const };
+    const now = await clock.now(ctx, viewer.member.familyId);
+    if (latest.expiresAt <= now) return { status: 'expired' as const, expiresAt: latest.expiresAt };
+    const inviter = latest.invitedBy ? await ctx.db.get(latest.invitedBy) : null;
+    return { status: 'pending' as const, expiresAt: latest.expiresAt, invitedByName: inviter?.name ?? '' };
+  },
+});
+
 async function inviteByToken(ctx: QueryCtx, token: string): Promise<Doc<'invites'> | null> {
   const hash = await sha256Hex(token);
   return ctx.db

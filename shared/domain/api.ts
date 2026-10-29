@@ -85,7 +85,17 @@ export const memberDetail = v.object({
   canReadChat: v.boolean(),
 });
 
-export const activityItem = v.object({ at: v.number(), type: v.string(), summary: v.string() });
+// v0.17b (G5 frontend ask): `decidedBy` — who decided (`rule:…`, `model:…`, or `member` for a person's own action);
+// the event's own when it recorded one, else ACTIVITY.decidedByDefault for its type.
+export const activityItem = v.object({ at: v.number(), type: v.string(), summary: v.string(), decidedBy: v.optional(v.string()) });
+
+/** v0.17b (U3): `invites.forMember`. */
+export const inviteStatus = v.union(
+  v.object({ status: v.literal('none') }),
+  v.object({ status: v.literal('joined') }),
+  v.object({ status: v.literal('pending'), expiresAt: v.number(), invitedByName: v.string() }),
+  v.object({ status: v.literal('expired'), expiresAt: v.number() }),
+);
 
 const eventFields = {
   title: v.string(),
@@ -104,6 +114,9 @@ const megaPatchFields = {
   look: v.optional(T.megaLook),
   personality: v.optional(personality),
 };
+
+/** v0.17b: `kidControls.mine` — the kid's own rules, read-only, plus their notification cap. */
+const kidRulesView = v.object({ ...T.kidControlsFields, dailyCap: v.number() });
 
 const kidControlsPatch = v.object({
   homeworkMode: v.optional(v.boolean()),
@@ -352,6 +365,9 @@ export const API = {
     // do both in one round trip.
     // v0.14 (additive): `mega` — an adult's change to the MEGA the invite came with (FORBIDDEN for a kid).
     redeem: fn({ kind: 'action', day1: 'real', args: { token: v.string(), parentCode: v.optional(v.string()), mega: v.optional(T.inviteMega) }, returns: v.object({ memberId: v.id('members') }) }),
+    // v0.17b (G5 review U3): the invite state on a member's Family row (admin or that member's parent). The link
+    // itself can't be read back (only its hash is stored); "Show invite" makes a fresh one with `invites.create`.
+    forMember: fn({ kind: 'query', day1: 'real', args: { memberId: v.id('members') }, returns: inviteStatus }),
   },
   family: {
     parentCode: fn({ kind: 'query', day1: 'real', adminOnly: true, args: {}, returns: v.object({ code: v.string() }) }),
@@ -443,6 +459,12 @@ export const API = {
   },
   kidControls: {
     set: fn({ kind: 'mutation', day1: 'real', args: { memberId: v.id('members'), patch: kidControlsPatch }, returns: v.null() }),
+    // v0.17b (G5 frontend asks): a kid reads their own rules (Profile → Rules and limits, read-only, "Set by a
+    // parent"); null for an adult. `dailyCap` is the kid's notifications-a-day ("buzzes a day").
+    mine: fn({ kind: 'query', day1: 'real', args: {}, returns: v.union(v.null(), kidRulesView) }),
+    // v0.17b: a parent sets a kid's buzzes-a-day (settings.notify.dailyCap; kids can't change their own notify),
+    // within LIMITS.push.kidDailyCapRange.
+    setDailyCap: fn({ kind: 'mutation', day1: 'real', args: { memberId: v.id('members'), dailyCap: v.number() }, returns: v.null() }),
   },
   calendar: {
     range: fn({ kind: 'query', day1: 'real', args: { from: v.number(), to: v.number() }, returns: v.array(eventDoc) }),

@@ -528,5 +528,17 @@ describe('Milestone D: privacy grid', () => {
       const partnerTexts = await memoryTextsFor('sample:partner');
       expect(partnerTexts, 'partner is the grantee of the admin -> partner share').toContain(sharedMemory!.text);
     });
+
+    test('G5 v0.17b invites.forMember / kidControls.setDailyCap: a sibling is FORBIDDEN; kidControls.mine is only ever the caller’s own', async () => {
+      const as = (k: string) => t.withIdentity({ subject: `sample:${k}` });
+      expect(codeOf(await as('twin1').query(api.invites.forMember, { memberId: famA.members.toddler }).catch((e) => e))).toBe('FORBIDDEN');
+      expect(codeOf(await as('twin1').mutation(api.kidControls.setDailyCap, { memberId: famA.members.twin2, dailyCap: 1 }).catch((e) => e))).toBe('FORBIDDEN');
+      expect(codeOf(await as('twin2').mutation(api.kidControls.setDailyCap, { memberId: famA.members.twin2, dailyCap: 1 }).catch((e) => e))).toBe('FORBIDDEN');
+      // A kid's own rules are theirs: twin1's view equals twin1's row, never twin2's.
+      const mine = await as('twin1').query(api.kidControls.mine, {});
+      const row = (famA.docs.kidControls as unknown as { memberId: string; blockedTopics: string[] }[]).find((r) => r.memberId === famA.members.twin1);
+      expect(mine?.blockedTopics).toEqual(row?.blockedTopics);
+      expect(await as('partner').query(api.kidControls.mine, {})).toBeNull();
+    });
   });
 });

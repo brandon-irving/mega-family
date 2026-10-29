@@ -305,6 +305,72 @@ describe('C13: one profiler run per member per day, even if two sweeps overlap',
   });
 });
 
+describe('U3: an invite can be found again from the member’s row', () => {
+  async function withUnjoinedKid() {
+    const s = await seeded();
+    const kidId = await s.t.run(async (ctx) => {
+      const id = await ctx.db.insert('members', { familyId: s.familyId, name: 'New Kid', role: 'kid', activities: [], hasMega: false });
+      await ctx.db.insert('relationships', { familyId: s.familyId, from: s.m.admin, to: id, kind: 'parent' });
+      return id;
+    });
+    return { ...s, kidId };
+  }
+
+  test('none → pending (with expiry and who sent it) after invites.create; the link itself is never readable back', async () => {
+    const s = await withUnjoinedKid();
+    expect(await s.as('admin').query(api.invites.forMember, { memberId: s.kidId })).toEqual({ status: 'none' });
+    const { expiresAt } = await s.as('admin').mutation(api.invites.create, { memberId: s.kidId });
+    const view = await s.as('admin').query(api.invites.forMember, { memberId: s.kidId });
+    expect(view).toEqual({ status: 'pending', expiresAt, invitedByName: 'Admin' });
+    expect(JSON.stringify(view)).not.toContain('mega://join/');
+  });
+
+  test('expired after its TTL; joined for a member who already signed in', async () => {
+    const s = await withUnjoinedKid();
+    await s.as('admin').mutation(api.invites.create, { memberId: s.kidId });
+    await s.t.run(async (ctx) => {
+      for (const inv of await ctx.db.query('invites').take(50)) await ctx.db.patch(inv._id, { expiresAt: 0 });
+    });
+    expect(await s.as('admin').query(api.invites.forMember, { memberId: s.kidId })).toMatchObject({ status: 'expired' });
+    expect(await s.as('admin').query(api.invites.forMember, { memberId: s.m.twin1 })).toEqual({ status: 'joined' });
+  });
+
+  test('only the admin or the member’s parent: a sibling is FORBIDDEN', async () => {
+    const s = await withUnjoinedKid();
+    expect(codeOf(await s.as('twin1').query(api.invites.forMember, { memberId: s.kidId }).catch((e) => e))).toBe('FORBIDDEN');
+  });
+});
+
+describe('frontend asks: activity decidedBy, a kid’s own rules, a kid’s notification cap', () => {
+  test('megas.activity items carry decidedBy: the event’s own when it has one, else the config default for its type', async () => {
+    const s = await seeded();
+    await s.t.run(async (ctx) => {
+      await ctx.db.insert('familyEvents', { familyId: s.familyId, at: Date.UTC(2030, 0, 1), type: 'said', payload: { decidedBy: 'model:muse-spark-1.3' }, processed: { memory: true, profiler: true, triggers: true } });
+      await ctx.db.insert('familyEvents', { familyId: s.familyId, at: Date.UTC(2030, 0, 2), type: 'reminder.due', payload: {}, processed: { memory: true, profiler: true, triggers: true } });
+    });
+    const page = await s.as('admin').query(api.megas.activity, { paginationOpts: { numItems: 2, cursor: null } });
+    expect(page.page.map((i) => i.decidedBy)).toEqual(['rule:reminder', 'model:muse-spark-1.3']);
+  });
+
+  test('kidControls.mine: a kid reads their own rules (incl. "parents can read chats" and the buzz cap); an adult gets null', async () => {
+    const s = await seeded();
+    const mine = await s.as('twin1').query(api.kidControls.mine, {});
+    expect(mine).toMatchObject({ parentsCanReadChat: expect.any(Boolean), webSearch: expect.any(Boolean), homeworkMode: expect.any(Boolean), dailyCap: expect.any(Number), quietHours: expect.any(Object) });
+    expect(await s.as('admin').query(api.kidControls.mine, {})).toBeNull();
+  });
+
+  test('kidControls.setDailyCap: a parent sets a kid’s buzzes-a-day (bounded by config); the kid and a sibling can’t', async () => {
+    const s = await seeded();
+    await s.as('admin').mutation(api.kidControls.setDailyCap, { memberId: s.m.twin1, dailyCap: 2 });
+    expect((await s.as('twin1').query(api.kidControls.mine, {}))!.dailyCap).toBe(2);
+    expect(codeOf(await s.as('twin1').mutation(api.kidControls.setDailyCap, { memberId: s.m.twin1, dailyCap: 9 }).catch((e) => e))).toBe('FORBIDDEN');
+    expect(codeOf(await s.as('twin2').mutation(api.kidControls.setDailyCap, { memberId: s.m.twin1, dailyCap: 1 }).catch((e) => e))).toBe('FORBIDDEN');
+    expect(codeOf(await s.as('admin').mutation(api.kidControls.setDailyCap, { memberId: s.m.twin1, dailyCap: 0 }).catch((e) => e))).toBe('VALIDATION');
+    expect(codeOf(await s.as('admin').mutation(api.kidControls.setDailyCap, { memberId: s.m.twin1, dailyCap: 999 }).catch((e) => e))).toBe('VALIDATION');
+    expect(codeOf(await s.as('admin').mutation(api.kidControls.setDailyCap, { memberId: s.m.partner, dailyCap: 3 }).catch((e) => e))).toBe('FORBIDDEN');
+  });
+});
+
 describe('C4: one sync per integration at a time', () => {
   test('while a sync holds the lease, another sync of the same integration does nothing (no provider calls, no writes)', async () => {
     const s = await seeded();
