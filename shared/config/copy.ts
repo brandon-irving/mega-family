@@ -645,6 +645,9 @@ export const G5_COPY = {
   personInvite: '{mega} is ready! Scan this on {name}’s device, or send the link if {name} isn’t nearby.',
   personNoMega: '{name} is in the family. You can make a MEGA for them any time from Family.',
   familyAllSet: 'All set. I’ll be in your chat whenever you need me.',
+  // v0.17b (G5 review C12): the family step at ONBOARDING.maxFamilyMembers.
+  familyFull: 'Your family has {max} people, the most I can set up here. You can manage everyone from Family.',
+  familyDoneForNow: 'Done for now',
   nameAgain: 'I didn’t catch that. What should I call you? (A name up to {max} characters.)',
   // v0.17a: the reply to a profiler check question (no agent turn).
   checkAck: 'Got it, thanks!',

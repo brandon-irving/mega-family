@@ -11,7 +11,7 @@ import type { Doc, Id } from './_generated/dataModel';
 import { mutation, query, type MutationCtx } from './_generated/server';
 import { fail } from './model/errors';
 import { pick } from './model/define';
-import { onboardingRow } from './model/integrations';
+import { onboardingRow, requireConnector } from './model/integrations';
 import { afterName, completeOffer, postStep, setName as setNameLogic } from './model/onboarding';
 import { randomDigits } from './model/random';
 import { postOwnMegaMessage } from './model/threads';
@@ -167,6 +167,8 @@ export const skip = mutation({
   ...pick(API.onboarding.skip),
   handler: async (ctx, { offer }) => {
     const viewer = await requireViewer(ctx);
+    // v0.17b (C8): adults only, like every connect mutation.
+    requireConnector(viewer.member);
     const now = await clock.now(ctx, viewer.member.familyId);
     await completeOffer(ctx, { familyId: viewer.member.familyId, memberId: viewer.member._id, offer, outcome: 'skipped', now });
     return null;

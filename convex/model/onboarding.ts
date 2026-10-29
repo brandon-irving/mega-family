@@ -12,7 +12,7 @@ import type { BlockAnswer, UIBlock } from '../../shared/domain/messages';
 import type { Doc, Id } from '../_generated/dataModel';
 import type { MutationCtx } from '../_generated/server';
 import { fail } from './errors';
-import { addFamilyMember, defaultInviteMega, giveMega } from './familyAdd';
+import { addFamilyMember, defaultInviteMega, familyIsFull, giveMega } from './familyAdd';
 import { type ConnectOffer, onboardingRow } from './integrations';
 import { postOwnMegaMessage } from './threads';
 
@@ -58,9 +58,9 @@ const text = (t: string): Body => ({ type: 'text', text: t });
 const block = (b: UIBlock): Body => ({ type: 'block', block: b });
 const choice = (prompt: string, options: { id: string; label: string }[]): UIBlock => ({ kind: 'choice', prompt, options, multi: false, allowOther: false });
 
-/** Posts a block and remembers it as the one waiting for an answer. */
+/** Posts a block (answered by rule, never by an agent turn: v0.17b C3) and remembers it as the one waiting. */
 async function ask(ctx: MutationCtx, row: Row, b: UIBlock, family: Row['family'], now: number): Promise<void> {
-  const blockMessageId = await say(ctx, row, block(b), now);
+  const blockMessageId = await postOwnMegaMessage(ctx, row.familyId, row.memberId, block(b), now, { ruleBlock: 'onboarding' });
   await ctx.db.patch(row._id, { family, blockMessageId: blockMessageId ?? undefined });
 }
 
@@ -70,6 +70,52 @@ const whoChoice = () =>
     { id: 'other', label: G5_COPY.familyOther },
     { id: 'justMe', label: G5_COPY.familyJustMe },
   ]);
+
+const nameBlock = (): UIBlock => ({ kind: 'text', prompt: G5_COPY.personName, placeholder: G5_COPY.personNamePlaceholder });
+
+const getsMegaChoice = (name: string) =>
+  choice(fillCopy(G5_COPY.personGetsMega, { name }), [
+    { id: 'yes', label: G5_COPY.personGetsMegaYes },
+    { id: 'no', label: G5_COPY.personGetsMegaNo },
+  ]);
+
+function detailsBlock(role: 'adult' | 'kid'): UIBlock {
+  return {
+    kind: 'fields',
+    prompt: G5_COPY.personDetails,
+    fields: [
+      { id: 'birthday', label: G5_COPY.personDetailsBirthday, type: 'date' },
+      { id: 'grade', label: role !== 'kid' ? G5_COPY.personDetailsWork : G5_COPY.personDetailsGrade, type: 'text' },
+      { id: 'activities', label: G5_COPY.personDetailsActivities, type: 'text' },
+    ],
+    skippable: true,
+  };
+}
+
+/** v0.17b (C12): the family is at ONBOARDING.maxFamilyMembers — say so and offer the only way on. */
+const fullChoice = () => choice(fillCopy(G5_COPY.familyFull, { max: ONBOARDING.maxFamilyMembers }), [{ id: 'done', label: G5_COPY.familyDoneForNow }]);
+
+/** v0.17b (C2): the block the family sub-step is waiting on, rebuilt from the row (when the posted one is gone). */
+async function familyBlockFor(ctx: MutationCtx, row: Row): Promise<UIBlock> {
+  const f = row.family!;
+  const person = row.personId ? await ctx.db.get(row.personId) : null;
+  switch (f.step) {
+    case 'who':
+      return whoChoice();
+    case 'more':
+      return (await familyIsFull(ctx, row.familyId)) ? fullChoice() : moreChoice();
+    case 'name':
+      return nameBlock();
+    case 'relationship':
+      return relationshipChoice(f.name ?? '', f.role ?? 'kid');
+    case 'getsMega':
+      return getsMegaChoice(f.name ?? person?.name ?? '');
+    case 'details':
+      return detailsBlock(person?.role === 'kid' || f.role === 'kid' ? 'kid' : 'adult');
+    case 'look':
+      return person ? lookBlock(ctx, person) : whoChoice();
+  }
+}
 
 /** Posts what the current step shows: the greeting and the name question, a connect card, or the family ask. */
 export async function postStep(ctx: MutationCtx, row: Row, now: number): Promise<void> {
@@ -86,6 +132,12 @@ export async function postStep(ctx: MutationCtx, row: Row, now: number): Promise
       await say(ctx, row, { type: 'card', card: { kind: 'connect', offer: STEP_OFFER[row.step]! } }, now);
       return;
     case 'family':
+      // v0.17b (C2): a family step already under way re-shows ITS current block (a person half-added stays
+      // half-added, never restarted from "who"); only a fresh family step gets the intro and "who".
+      if (row.family) {
+        await ask(ctx, row, await familyBlockFor(ctx, row), row.family, now);
+        return;
+      }
       await say(ctx, row, text(G5_COPY.familyIntro), now);
       await ask(ctx, row, whoChoice(), { step: 'who' }, now);
       return;
@@ -104,7 +156,11 @@ export async function stepIsShowing(ctx: MutationCtx, row: Row, threadId: Id<'th
   const offer = STEP_OFFER[row.step];
   if (offer) return recent.some((m) => m.body.type === 'card' && m.body.card.kind === 'connect' && m.body.card.offer === offer);
   if (row.step === 'name') return recent.some((m) => m.body.type === 'text' && m.body.text === G5_COPY.askName);
-  if (row.step === 'family') return !!row.blockMessageId && recent.some((m) => m._id === row.blockMessageId);
+  // v0.17b (C2): the family block counts as showing while it exists unanswered, however far back it is.
+  if (row.step === 'family') {
+    const waiting = row.blockMessageId ? await ctx.db.get(row.blockMessageId) : null;
+    return !!waiting && waiting.body.type === 'block' && waiting.body.answeredWith === undefined;
+  }
   return true;
 }
 
@@ -207,10 +263,14 @@ async function inviteAndMore(ctx: MutationCtx, row: Row, person: Doc<'members'>,
   await ask(ctx, row, moreChoice(), { step: 'more' }, now);
 }
 
-async function askLook(ctx: MutationCtx, row: Row, person: Doc<'members'>, now: number): Promise<void> {
+async function lookBlock(ctx: MutationCtx, person: Doc<'members'>): Promise<UIBlock> {
   const start = await defaultInviteMega(ctx, person);
   const prompt = fillCopy(person.role === 'kid' ? G5_COPY.personLookKid : G5_COPY.personLook, { name: person.name });
-  await ask(ctx, row, { kind: 'look', prompt, forMemberId: person._id, value: { hex: start.look.hex, sticker: start.look.sticker, personality: start.personality, name: start.name } }, { ...row.family!, step: 'look' }, now);
+  return { kind: 'look', prompt, forMemberId: person._id, value: { hex: start.look.hex, sticker: start.look.sticker, personality: start.personality, name: start.name } };
+}
+
+async function askLook(ctx: MutationCtx, row: Row, person: Doc<'members'>, now: number): Promise<void> {
+  await ask(ctx, row, await lookBlock(ctx, person), { ...row.family!, step: 'look' }, now);
 }
 
 /** Routes an answer to the onboarding block waiting for one. Returns false when `message` isn't it (the caller
@@ -232,7 +292,12 @@ export async function answerFamilyBlock(ctx: MutationCtx, admin: Doc<'members'>,
         return true;
       }
       if (picked !== 'kid' && picked !== 'other') fail('VALIDATION', 'pick one');
-      await ask(ctx, row, { kind: 'text', prompt: G5_COPY.personName, placeholder: G5_COPY.personNamePlaceholder }, { step: 'name', role: picked === 'kid' ? 'kid' : 'adult' }, now);
+      // v0.17b (C12): a full family can't take another person; offer "Done for now" instead of a dead end.
+      if (await familyIsFull(ctx, row.familyId)) {
+        await ask(ctx, row, fullChoice(), { step: 'more' }, now);
+        return true;
+      }
+      await ask(ctx, row, nameBlock(), { step: 'name', role: picked === 'kid' ? 'kid' : 'adult' }, now);
       return true;
     }
     case 'name': {
@@ -245,18 +310,13 @@ export async function answerFamilyBlock(ctx: MutationCtx, admin: Doc<'members'>,
       const allowed = f.role === 'kid' ? KID_RELATIONSHIPS : ADULT_RELATIONSHIPS;
       if (!picked || !(allowed as string[]).includes(picked)) fail('VALIDATION', 'pick one');
       const relationship = picked as Relationship;
+      if (await familyIsFull(ctx, row.familyId)) {
+        await ask(ctx, row, fullChoice(), { step: 'more' }, now);
+        return true;
+      }
       const personId = await addFamilyMember(ctx, admin, { name: f.name!, role: f.role ?? 'kid', relationship }, now);
       await ctx.db.patch(row._id, { personId });
-      await ask(
-        ctx,
-        { ...row, personId },
-        choice(fillCopy(G5_COPY.personGetsMega, { name: f.name! }), [
-          { id: 'yes', label: G5_COPY.personGetsMegaYes },
-          { id: 'no', label: G5_COPY.personGetsMegaNo },
-        ]),
-        { ...f, step: 'getsMega', relationship },
-        now,
-      );
+      await ask(ctx, { ...row, personId }, getsMegaChoice(f.name!), { ...f, step: 'getsMega', relationship }, now);
       return true;
     }
     case 'getsMega': {
@@ -267,18 +327,7 @@ export async function answerFamilyBlock(ctx: MutationCtx, admin: Doc<'members'>,
         return true;
       }
       if (picked !== 'yes') fail('VALIDATION', 'pick one');
-      const adultish = person.role !== 'kid';
-      const details: UIBlock = {
-        kind: 'fields',
-        prompt: G5_COPY.personDetails,
-        fields: [
-          { id: 'birthday', label: G5_COPY.personDetailsBirthday, type: 'date' },
-          { id: 'grade', label: adultish ? G5_COPY.personDetailsWork : G5_COPY.personDetailsGrade, type: 'text' },
-          { id: 'activities', label: G5_COPY.personDetailsActivities, type: 'text' },
-        ],
-        skippable: true,
-      };
-      await ask(ctx, row, details, { ...f, step: 'details' }, now);
+      await ask(ctx, row, detailsBlock(person.role === 'kid' ? 'kid' : 'adult'), { ...f, step: 'details' }, now);
       return true;
     }
     case 'details': {

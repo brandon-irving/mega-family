@@ -8,7 +8,8 @@ import { v } from 'convex/values';
 import { PersistentTextStreaming, type StreamId } from '@convex-dev/persistent-text-streaming';
 import { API } from '../shared/domain/api';
 import { components, internal } from './_generated/api';
-import { internalAction, internalMutation, mutation, query } from './_generated/server';
+import type { Doc, Id } from './_generated/dataModel';
+import { internalAction, internalMutation, mutation, query, type MutationCtx } from './_generated/server';
 import { describeBlockAnswer, requireReadableStream } from './model/chat';
 import { pick } from './model/define';
 import { fail } from './model/errors';
@@ -26,6 +27,16 @@ import { afterName as afterOnboardingName, answerFamilyBlock, postStep as postOn
 import { answerCheckQuestion } from './model/profiler';
 
 const streaming = new PersistentTextStreaming(components.persistentTextStreaming);
+
+/** The answer bubble already posted for a block (looked for just after it in its thread); the block itself when
+ * none is found, so a repeat answer still returns an id without writing anything (v0.17b, C3). */
+async function firstAnswerTo(ctx: MutationCtx, block: Doc<'messages'>): Promise<Id<'messages'>> {
+  const after = await ctx.db
+    .query('messages')
+    .withIndex('by_family_thread_at', (q) => q.eq('familyId', block.familyId).eq('threadId', block.threadId).gte('at', block.at))
+    .take(50);
+  return after.find((m) => m.body.type === 'answer' && m.body.blockMessageId === block._id)?._id ?? block._id;
+}
 
 export const thread = query({
   ...pick(API.chat.thread),
@@ -150,6 +161,9 @@ export const answerBlock = mutation({
     const thread = await ctx.db.get(message.threadId);
     if (!thread || thread.ownerId !== viewer.member._id) fail('FORBIDDEN');
     if (message.body.type !== 'block') fail('VALIDATION', 'not a block message');
+    // v0.17b (C3): a block answered by rule (onboarding, a profiler check question) is answered once; a double-tap,
+    // retry or replay is a no-op that returns the first answer and never starts an agent reply.
+    if (message.ruleBlock && message.body.answeredWith !== undefined) return { answerMessageId: await firstAnswerTo(ctx, message) };
 
     const now = await clock.now(ctx, viewer.member.familyId);
     const answerMessageId = await ctx.db.insert('messages', {
@@ -168,6 +182,8 @@ export const answerBlock = mutation({
     // not by an agent turn.
     if (await answerFamilyBlock(ctx, viewer.member, message, args.answer, now)) return { answerMessageId };
     if (await answerCheckQuestion(ctx, viewer.member, message, args.answer, now)) return { answerMessageId };
+    // A rule block no handler took (it has moved on, e.g. superseded after a resume) still never reaches the agent.
+    if (message.ruleBlock) return { answerMessageId };
 
     // Feed the answer back into the agent loop (task brief: "chat.answerBlock should feed the answer back
     // into the loop"), as an ordinary turn from the same MEGA that asked — the member sees a real reply,

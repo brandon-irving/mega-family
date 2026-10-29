@@ -196,6 +196,9 @@ export const messages = {
   chips: v.array(saveChip),
   reaction: v.optional(reaction),
   fromNotificationId: v.optional(v.id('notifications')),
+  /** v0.17b (G5 review C3): a block answered by rule, never by an agent turn (the onboarding family step, a
+   * profiler check question). A repeat or stale answer to one is a no-op. */
+  ruleBlock: v.optional(v.union(v.literal('onboarding'), v.literal('profiler'))),
 };
 
 // ---------- memory and learning ----------

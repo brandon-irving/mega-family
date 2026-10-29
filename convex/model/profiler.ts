@@ -189,6 +189,7 @@ export async function askDueCheckQuestions(ctx: MutationCtx, family: Doc<'famili
         },
       },
       now,
+      { ruleBlock: 'profiler' },
     );
     if (!messageId) break;
     questions[i] = { ...q, messageId };

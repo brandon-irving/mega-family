@@ -103,6 +103,162 @@ describe('U1: a schedule link that can’t be added says why', () => {
   });
 });
 
+const TZ = 'America/New_York';
+
+/** A brand-new owner mid-onboarding (no sample family). */
+async function freshOwner() {
+  const t = convexTest(schema, modules);
+  registerPersistentTextStreaming(t);
+  const me = t.withIdentity({ subject: 'new-owner' });
+  const settle = () => t.finishAllScheduledFunctions(vi.runAllTimers);
+  const { familyId, threadId } = await me.mutation(api.onboarding.begin, { timezone: TZ });
+  const messages = () => t.run((ctx) => ctx.db.query('messages').withIndex('by_family_thread_at', (q) => q.eq('familyId', familyId).eq('threadId', threadId)).collect());
+  const lastBlock = async () => [...(await messages())].reverse().find((m) => m.body.type === 'block')!;
+  const answer = async (a: Record<string, unknown>) => me.mutation(api.chat.answerBlock, { messageId: (await lastBlock())._id, answer: a, via: 'text' });
+  const row = () => t.run((ctx) => ctx.db.query('onboarding').withIndex('by_family_member', (q) => q.eq('familyId', familyId)).first());
+  const toFamilyStep = async () => {
+    await me.mutation(api.onboarding.setName, { name: 'Sam' });
+    for (const offer of ['gmail', 'calendar', 'ics'] as const) await me.mutation(api.onboarding.skip, { offer });
+  };
+  return { t, me, settle, familyId, threadId, messages, lastBlock, answer, row, toFamilyStep };
+}
+
+const blockKind = (m: { body: { type: string } }) => (m.body as { block?: { kind: string } }).block?.kind;
+
+describe('C2: resuming onboarding never restarts the family step', () => {
+  test('20+ other messages later, chat.start keeps the current sub-step (look) and its block; no second "who"', async () => {
+    const s = await freshOwner();
+    await s.toFamilyStep();
+    await s.answer({ optionIds: ['kid'] });
+    await s.answer({ value: 'Robin' });
+    await s.answer({ optionIds: ['daughter'] });
+    await s.answer({ optionIds: ['yes'] });
+    await s.answer({ skipped: true });
+    const before = await s.row();
+    expect(before!.family!.step).toBe('look');
+    const whoCount = async () => (await s.messages()).filter((m) => m.body.type === 'block' && (m.body.block as { prompt?: string }).prompt === 'Who should I add first?').length;
+    const whoBefore = await whoCount();
+    await s.t.run(async (ctx) => {
+      for (let i = 0; i < 25; i++) await ctx.db.insert('messages', { familyId: s.familyId, threadId: s.threadId, at: Date.now() + i, author: before!.blockMessageId ? { kind: 'member', id: before!.memberId } : { kind: 'member', id: before!.memberId }, via: 'text', body: { type: 'text', text: `chatter ${i}` }, chips: [] });
+    });
+    await s.me.mutation(api.chat.start, {});
+    const after = await s.row();
+    expect(after!.family!.step).toBe('look');
+    expect(after!.personId).toEqual(before!.personId);
+    expect(await whoCount()).toBe(whoBefore);
+    const members = await s.t.run((ctx) => ctx.db.query('members').withIndex('by_family', (q) => q.eq('familyId', s.familyId)).collect());
+    expect(members.filter((m) => m.name === 'Robin')).toHaveLength(1);
+  });
+
+  test('if the waiting block is gone, chat.start re-posts the SAME sub-step’s block (look), not "who"', async () => {
+    const s = await freshOwner();
+    await s.toFamilyStep();
+    await s.answer({ optionIds: ['kid'] });
+    await s.answer({ value: 'Robin' });
+    await s.answer({ optionIds: ['daughter'] });
+    await s.answer({ optionIds: ['yes'] });
+    await s.answer({ skipped: true });
+    const before = (await s.row())!;
+    await s.t.run((ctx) => ctx.db.delete(before.blockMessageId!));
+    await s.me.mutation(api.chat.start, {});
+    const after = (await s.row())!;
+    expect(after.family!.step).toBe('look');
+    expect(after.blockMessageId).not.toEqual(before.blockMessageId);
+    const reposted = await s.t.run((ctx) => ctx.db.get(after.blockMessageId!));
+    expect(blockKind(reposted!)).toBe('look');
+    // And it can be answered, finishing the person as usual.
+    await s.answer({ fields: { hex: '#8E6CE0', sticker: 'bolt', personality: 'cheerful', name: 'Zip' } });
+    expect((await s.row())!.family!.step).toBe('more');
+  });
+});
+
+describe('C3: a repeat answer to a rule-answered block is a no-op (never an agent reply)', () => {
+  test('double-tapping a family block: the second call returns no streamId and schedules no model call', async () => {
+    const s = await freshOwner();
+    await s.toFamilyStep();
+    const who = await s.lastBlock();
+    await s.me.mutation(api.chat.answerBlock, { messageId: who._id, answer: { optionIds: ['kid'] }, via: 'text' });
+    const count = (await s.messages()).length;
+    const again = await s.me.mutation(api.chat.answerBlock, { messageId: who._id, answer: { optionIds: ['kid'] }, via: 'text' });
+    expect(again.streamId).toBeUndefined();
+    await s.settle();
+    expect(modelCalls).toBe(0);
+    expect((await s.messages()).length).toBe(count);
+  });
+
+  test('double-tapping a profiler check question: no second answer bubble, no agent reply', async () => {
+    const s = await seeded();
+    const now = await s.t.run(async (ctx) => {
+      const c = await ctx.db.query('clocks').withIndex('by_family', (q) => q.eq('familyId', s.familyId)).unique();
+      return Date.now() + (c?.offsetMs ?? 0);
+    });
+    const memoryId = await s.t.run((ctx) =>
+      ctx.db.insert('memories', {
+        familyId: s.familyId,
+        scope: 'personal',
+        scopeKey: `${s.familyId}:personal:${s.m.partner}`,
+        about: [s.m.partner],
+        kind: 'routine',
+        text: 'Partner walks the dog at 7',
+        source: { kind: 'message' },
+        trigger: 'stated',
+        confidence: 0.8,
+        confirmed: false,
+        sensitive: false,
+        pinned: false,
+        createdAt: now,
+        lastUsedAt: now,
+      }),
+    );
+    await s.t.run(async (ctx) => {
+      const p = (await ctx.db.query('profiles').withIndex('by_family_member', (q) => q.eq('familyId', s.familyId).eq('memberId', s.m.partner)).unique())!;
+      await ctx.db.patch(p._id, { checkQuestions: [{ memoryId, question: 'Still walking the dog at 7?', askAfter: 0 }] });
+      const c = (await ctx.db.query('clocks').withIndex('by_family', (q) => q.eq('familyId', s.familyId)).unique())!;
+      const day = new Date(now).toLocaleDateString('en-CA', { timeZone: TZ });
+      const { zonedInstant } = await import('../shared/time');
+      await ctx.db.patch(c._id, { offsetMs: c.offsetMs + (zonedInstant(day, 17 * 60, TZ) - now) });
+    });
+    await s.t.mutation(internal.profiler.sweep, {});
+    const thread = await s.thread('partner');
+    const block = thread.find((m) => m.body.type === 'block' && (m.body.block as { prompt?: string }).prompt === 'Still walking the dog at 7?')!;
+    expect(block).toBeDefined();
+    await s.as('partner').mutation(api.chat.answerBlock, { messageId: block._id, answer: { optionIds: ['yes'] }, via: 'text' });
+    const count = (await s.thread('partner')).length;
+    const again = await s.as('partner').mutation(api.chat.answerBlock, { messageId: block._id, answer: { optionIds: ['yes'] }, via: 'text' });
+    expect(again.streamId).toBeUndefined();
+    // (The sweep also scheduled the nightly profiler runs, which call the model; the answer itself must not.)
+    const after = await s.thread('partner');
+    expect(after.length).toBe(count);
+    expect(after.some((m) => m.streamId !== undefined && m.at >= block.at)).toBe(false);
+  });
+});
+
+describe('C8: onboarding.skip is adults only', () => {
+  test('a kid gets FORBIDDEN and no onboarding row is written', async () => {
+    const s = await seeded();
+    expect(codeOf(await s.as('twin1').mutation(api.onboarding.skip, { offer: 'gmail' }).catch((e) => e))).toBe('FORBIDDEN');
+    expect(await s.t.run((ctx) => ctx.db.query('onboarding').withIndex('by_family_member', (q) => q.eq('familyId', s.familyId).eq('memberId', s.m.twin1)).unique())).toBeNull();
+  });
+});
+
+describe('C12: a full family has a way out of the family step', () => {
+  test('at ONBOARDING.maxFamilyMembers, picking "A kid" says the family is full and offers "Done for now", which finishes', async () => {
+    const s = await freshOwner();
+    await s.t.run(async (ctx) => {
+      for (let i = 0; i < 11; i++) await ctx.db.insert('members', { familyId: s.familyId, name: `Person ${i}`, role: 'adult', activities: [], hasMega: false });
+    });
+    await s.toFamilyStep();
+    await s.answer({ optionIds: ['kid'] });
+    const block = await s.lastBlock();
+    const options = (block.body as { block: { options?: { id: string }[] } }).block.options ?? [];
+    expect(options.map((o) => o.id)).toEqual(['done']);
+    await s.answer({ optionIds: ['done'] });
+    expect((await s.row())!.step).toBe('done');
+    const members = await s.t.run((ctx) => ctx.db.query('members').withIndex('by_family', (q) => q.eq('familyId', s.familyId)).collect());
+    expect(members).toHaveLength(12);
+  });
+});
+
 describe('C4: one sync per integration at a time', () => {
   test('while a sync holds the lease, another sync of the same integration does nothing (no provider calls, no writes)', async () => {
     const s = await seeded();
