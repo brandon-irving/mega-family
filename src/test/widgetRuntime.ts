@@ -22,7 +22,6 @@ export function renderWidget<P>(layout: unknown, props: P, env: Record<string, u
   if (typeof layout !== 'string') throw new Error('Expected a stringified widget layout (is the widgets babel plugin on?)');
   const names = ['_jsx', '_jsxs', '_Fragment', ...COMPONENT_NAMES, ...MODIFIER_NAMES];
   const values = [jsx, jsx, 'Fragment', ...COMPONENT_NAMES, ...MODIFIER_NAMES.map((name) => (...args: unknown[]): ModifierCall => ({ modifier: name, args }))];
-  // eslint-disable-next-line @typescript-eslint/no-implied-eval
   const make = new Function(...names, `"use strict"; return (${layout});`) as (...v: unknown[]) => (p: P, e: Record<string, unknown>) => WidgetNode;
   return make(...values)(props, env);
 }

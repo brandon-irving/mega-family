@@ -7,7 +7,8 @@
 //   timeline is showing), so one person's day never sits on the next person's lock screen.
 // - The no-flicker query wrapper keeps the last value across an argument change, so the member part is keyed
 //   by member id: a new member starts with no timeline rather than briefly holding the previous one's.
-// - Off iOS the writer is a no-op (src/services/widgetSync.ts), so this is safe to mount everywhere.
+// - Off iOS the writer is a no-op (src/services/widgetSync.ts) and the widgets are stand-ins
+//   (src/widgets/registry.ts), so this is safe to mount everywhere.
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { AppState } from 'react-native';
 import { useViewer } from '@/data/useViewer';
@@ -15,8 +16,8 @@ import { useWidgetTimeline } from '@/data/useWidgets';
 import { useAuthState } from '@/services/auth';
 import { createWidgetWriter, widgetColors } from '@/services/widgetSync';
 import { useTokens } from '@/ui/theme';
-import { MegaNext } from '@/widgets/MegaNext';
-import { MegaTalk } from '@/widgets/MegaTalk';
+// The real widgets on iOS, a no-op pair elsewhere (registry.ios.ts / registry.ts), so the web never loads @expo/ui.
+import { MegaNext, MegaTalk } from '@/widgets/registry';
 import type { WidgetColors } from '@/widgets/types';
 
 const writer = createWidgetWriter({ next: MegaNext, talk: MegaTalk });
