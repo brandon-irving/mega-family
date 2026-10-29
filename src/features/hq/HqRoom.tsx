@@ -13,6 +13,7 @@ import type { Station } from '@shared/domain/enums';
 import { G5_FIX_COPY, G5_UI_COPY as U, fillCopy } from '@shared/config/copy';
 import type { StickerId } from '@shared/config/looks';
 import type { FrameName } from '@shared/sprite';
+import { hiddenFromA11y } from '@/ui/a11y';
 import { Button } from '@/ui/Button';
 import { MegaSprite } from '@/ui/MegaSprite';
 import { Text } from '@/ui/Text';
@@ -175,8 +176,7 @@ export function HqRoom({
               onPress={() => onVisitRoom(d.memberId)}
               // A tap target on the art only: screen readers get each room once, from the Rooms row below.
               accessible={false}
-              importantForAccessibility="no-hide-descendants"
-              accessibilityElementsHidden
+              {...hiddenFromA11y()}
               style={{ position: 'absolute', left: px(tile[0]), top: px(tile[1]), width: Math.max(px(1), 44), height: Math.max(px(1), 44) }}
             />
           );
