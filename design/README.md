@@ -1,7 +1,7 @@
 # Design canvas (mockups)
 
 The approved screen mockups, published as a private Design-canvas artifact:
-https://claude.ai/artifact/Wa23YjuTXtEhL3hy8PvZZV (version 36 after the Oct 28 search, weather and travel row, Screen 14).
+https://claude.ai/artifact/Wa23YjuTXtEhL3hy8PvZZV (version 39 after the Oct 28 shopping, air and holidays row, Screen 15).
 
 - `mega-screens/project/*.dc.html` — one board per screen state; `canvas.json` places the boards (rows per
   screen: Chat, HQ, Profile, Family, Onboarding, Push, Settings, Widgets, Sign in, Kids, Store,
@@ -55,3 +55,11 @@ head 388, make 628, opening 414.
 Kid composer (Oct 28): `thread.html` has one kid bar for every kid board (72pt Talk button + 72pt keyboard
 toggle; typing swaps in a full-width field with a mic to go back), matching the Kid board. `KidsIntro` shows a
 kid's first open: their MEGA says hi and how it helps, so a thread is never empty.
+
+Shopping, air and holidays row (Screen 15, G4b, Oct 28): `build/Shopping.template.html` → `GiftsProducts.dc.html`
+(`fill(..., out=)`), with wrappers from `SHOP_BOARDS` in `build.py`: gift ideas with up to two catalog products each
+(picture, price, store, Open; a pixel gift box when the store has no picture) and the not-set-up fallback (web links,
+no prices), the adults-only price drop in chat and as a push, an adult's product search with empty and not-set-up
+states, UV and US AQI on the weather card plus the tips (chat, a loud AQI push, a quiet UV update), and public
+holidays (the evening-before ask, paused state, the kid's bedtime card, the calendar marker). Store names and
+product pictures are made-up stand-ins.

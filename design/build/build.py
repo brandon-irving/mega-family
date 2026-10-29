@@ -145,12 +145,12 @@ print('built login')
 store_parts = compact(json.load(open(A + '/looks/store.json')))
 store_live = open('store-live.js').read()
 thread_html, thread_js = open('thread.html').read(), open('thread.js').read()
-def fill(name, extra=()):
+def fill(name, extra=(), out=None):
     t = open(name + '.template.html').read().replace('__THREAD__\n', thread_html).replace('__THREAD_JS__', thread_js)
     t = t.replace('__SPRITE_LIVE__', live).replace('__STORE__', store_parts).replace('__STORE_LIVE__', store_live).replace('__FAMILY_DATA__', family_data)
     for k, v in extra:
         t = t.replace(k, v)
-    open(f'{S}/mega-screens/project/{name}.dc.html', 'w').write(t)
+    open(f'{S}/mega-screens/project/{out or name}.dc.html', 'w').write(t)
     assert '__' not in t.replace('__proto', ''), name
 fill('Kids')
 fill('Store', [('__ROOM__', compact(json.load(open(A + '/room/room.json')))), ('__ITEMS__', compact(items)), ('__BASE__', json.dumps(bases[0])), ('__ZAP__', compact(zap))])
@@ -269,3 +269,42 @@ canvas['notes']['screen14defaults'] = {'x': len(INTEGRATION_BOARDS) * GAP, 'y': 
     'Defaults to confirm\n• Search cards show the answer and tappable sources (title + site). Kids get kid sizes and at most 3 kid-safe sources.\n• A rephrased kid search says so above the answer; a blocked one shows only "I can\'t look that up. Ask a grown-up." and searches nothing.\n• Parents see only blocked and changed searches (Family → kid → Searches), when "Tell me about blocked searches" is on.\n• Weather: Open-Meteo forecast for a saved place; NWS alerts on top, colored by severity. Only Severe/Extreme alerts push.\n• Travel: "Leave by" uses Mapbox traffic between saved places, same words as the leave-by push. Without a Mapbox key the card says travel time isn\'t set up and never guesses.\n• Places are household data, edited by adults; kids read-only. MEGA never uses the phone\'s location.\n• Sample places are public landmarks; Home is a placeholder address.'}
 json.dump(canvas, open(cpath, 'w'), ensure_ascii=False)
 print('built integrations')
+
+# Screen 15 (G4b, Oct 28): real products for gift ideas (product catalog), price drops on the gift list, an
+# adult's shopping question, UV + air quality, and public holidays. One template; its main board is
+# GiftsProducts (the template is Shopping.template.html), with wrappers for the other states.
+fill('Shopping', out='GiftsProducts')
+SHOP_BOARDS = [
+    ('GiftsProducts', '1 · Gift ideas with real products (price, store, Open)', {}),
+    ('GiftsNoCatalog', '1b · Store prices not set up: web links, no made-up prices', {'step': 'giftsNoCatalog'}),
+    ('PriceDrop', '2 · Price drop on the gift list (adults only)', {'step': 'priceDrop'}),
+    ('PriceDropPush', '2b · Price-drop push: Open in store / Stop watching', {'step': 'priceDropPush'}),
+    ('ShopResults', '3 · “Find a rain jacket for Twin 1 under $40”', {'step': 'shopResults'}),
+    ('ShopEmpty', '3b · Nothing under the budget', {'step': 'shopEmpty'}),
+    ('ShopNotSetUp', '3c · Store search not set up (never a guessed price)', {'step': 'shopNotSetUp'}),
+    ('WeatherAir', '4 · Weather card + UV and air quality', {'step': 'weatherAir'}),
+    ('WeatherAirTips', '4b · UV and air tips in chat', {'step': 'airTips'}),
+    ('WeatherAirPush', '4c · Air push (loud) + UV tip (quiet)', {'step': 'airPush'}),
+    ('HolidayAsk', '5 · The evening before a holiday: pause routines?', {'step': 'holidayAsk'}),
+    ('HolidayPaused', '5b · Paused for the day', {'step': 'holidayPaused'}),
+    ('HolidayKid', '5c · Kid bedtime: no school tomorrow', {'step': 'holidayKid'}),
+    ('HolidayCalendar', '5d · Calendar: holiday marker, paused routine', {'step': 'holidayCalendar'}),
+]
+write_wrappers('GiftsProducts', SHOP_BOARDS)
+ROW15 = 17696
+for i, (stem, title, _) in enumerate(SHOP_BOARDS):
+    f = stem + '.dc.html'
+    canvas['boards'][f] = {'x': i * GAP, 'y': ROW15, 'w': 390, 'h': 844, 'title': title, 'is_interactive': True}
+    if f not in canvas['order']:
+        canvas['order'].append(f)
+canvas['notes']['screen15'] = {'x': 0, 'y': ROW15 - 260, 'text': 'Screen 15 · Shopping, air and holidays', 'kind': 'title1', 'maxW': len(SHOP_BOARDS) * GAP - 80}
+canvas['notes']['screen15defaults'] = {'x': len(SHOP_BOARDS) * GAP, 'y': ROW15, 'w': 420, 'fill': 'orange', 'size': 's', 'text':
+    'Defaults to confirm\n'
+    '• Gift ideas show up to 2 real products each (picture, price, store, Open) from a product catalog. No picture from the store → the pixel gift box. Store names and pictures here are made-up stand-ins.\n'
+    '• MEGA only searches and reads prices. It never buys; Open goes to the store.\n'
+    '• Price drops: MEGA watches items added to a gift list and tells Admin and Partner when one gets cheaper. The birthday kid never gets it.\n'
+    '• Not set up → honest copy and web links without prices; never a guessed price.\n'
+    '• UV (max today, with the WHO level word) and US AQI (EPA level word, short form) sit on the weather card, colored ok / warn / danger. A tip goes out when UV ≥ 8 during an event, or AQI > 100 during an outdoor event; AQI over 150 is a normal push, everything else quiet. Sample numbers are summer values (late-October UV is low).\n'
+    '• Holidays come from a public-holiday calendar. The evening before, MEGA asks a parent once whether to pause routines and chores; the kids hear it at bedtime. School closures still come from the school\'s .ics link.'}
+json.dump(canvas, open(cpath, 'w'), ensure_ascii=False)
+print('built shopping')

@@ -1,0 +1,599 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Shopping, air and holidays</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;family=Pixelify+Sans:wght@400;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#0C0E11}
+button{font-family:inherit;cursor:pointer}
+a{color:#EDEFF2;text-decoration:none}
+a:hover{color:#FFFFFF}
+</style>
+</helmet>
+<div style="position: relative; width: 390px; height: 844px; overflow: hidden; background: {{bg}}; color: #EDEFF2; font-family: Inter, system-ui, sans-serif">
+
+  <!-- Chat thread with the Screen 15 cards: gift products, price drop, product results, weather + air, holiday ask. -->
+  <sc-if value="{{showChat}}" hint-placeholder-val="{{ true }}">
+  <div style="position: absolute; inset: 0; display: flex; flex-direction: column">
+    <header style="display: flex; align-items: center; gap: 12px; padding: 54px 16px 12px; border-bottom: 1px solid #22262D; flex-shrink: 0">
+      <span style="position: relative; width: 44px; height: 38px; flex-shrink: 0; border-radius: 10px; overflow: hidden; background: #FFFFFF">
+        <span style="position: absolute; left: 6px; top: 6px; width: 32px; height: 27px">
+          <sc-for list="{{head.rects}}" as="r" hint-placeholder-count="150">
+            <span style="position: absolute; left: {{r.l}}px; top: {{r.t}}px; width: {{r.w}}px; height: {{r.h}}px; background: {{r.c}}"></span>
+          </sc-for>
+        </span>
+      </span>
+      <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px">
+        <div style="font-size: 18px; font-weight: 700">{{megaName}}</div>
+        <div style="font-size: 13px; color: #9AA1AB">{{megaSub}}</div>
+      </div>
+    </header>
+
+    <div style="flex: 1; min-height: 0; overflow: hidden; display: flex; flex-direction: column; justify-content: flex-end; gap: 14px; padding: 16px">
+      <sc-for list="{{items}}" as="m" hint-placeholder-count="3">
+        <sc-if value="{{m.isDay}}" hint-placeholder-val="{{ false }}">
+          <div style="align-self: center; font-size: 12px; font-weight: 600; color: #9AA1AB; padding: 4px 10px; border-radius: 10px; background: #16191E">{{m.text}}</div>
+        </sc-if>
+        <sc-if value="{{m.isMine}}" hint-placeholder-val="{{ false }}">
+          <div style="align-self: flex-end; max-width: 270px; padding: 10px 15px; border-radius: 18px 18px 4px 18px; background: {{mine}}; font-size: {{font}}px; line-height: 1.35">{{m.text}}</div>
+        </sc-if>
+        <sc-if value="{{m.isText}}" hint-placeholder-val="{{ false }}">
+          <div style="display: flex; flex-direction: column; gap: 4px; max-width: 330px">
+            <div style="font-size: 12px; font-weight: 700; color: {{accent}}">{{megaName}}</div>
+            <div style="font-size: {{font}}px; line-height: 1.4">{{m.text}}</div>
+          </div>
+        </sc-if>
+
+        <!-- One card shell for every Screen 15 card: header line, title, body, then the parts it has. -->
+        <sc-if value="{{m.isCard}}" hint-placeholder-val="{{ true }}">
+          <section aria-label="{{m.label}}" style="border-radius: 20px; background: #16191E; border: 1px solid #2E343D; padding: 14px; display: flex; flex-direction: column; gap: 12px">
+            <div style="display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 700; color: {{accent}}">
+              <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="{{m.icon}}"></path></svg>
+              <span style="flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{m.from}}</span>
+            </div>
+            <sc-if value="{{m.hasTitle}}" hint-placeholder-val="{{ true }}">
+              <div style="display: flex; flex-direction: column; gap: 4px">
+                <span style="font-size: {{m.titleSize}}px; line-height: 1.3; font-weight: 700">{{m.title}}</span>
+                <sc-if value="{{m.hasBody}}" hint-placeholder-val="{{ true }}">
+                  <span style="font-size: {{body}}px; line-height: 1.45; color: #B4BAC3">{{m.body}}</span>
+                </sc-if>
+              </div>
+            </sc-if>
+
+            <!-- "Based on" chips: one line, never wraps (scrolls sideways in the app). -->
+            <sc-if value="{{m.hasTags}}" hint-placeholder-val="{{ false }}">
+              <div style="display: flex; flex-direction: column; gap: 6px">
+                <span style="font-size: 12px; font-weight: 700; color: #9AA1AB; letter-spacing: .04em; text-transform: uppercase">Based on what’s shared</span>
+                <div style="display: flex; gap: 6px; overflow: hidden; white-space: nowrap">
+                  <sc-for list="{{m.tags}}" as="t" hint-placeholder-count="3">
+                    <span style="flex-shrink: 0; padding: 5px 10px; border-radius: 12px; background: #10243F; border: 1px solid #2B4A7A; color: #C9D8F7; font-size: 13px; line-height: 18px">{{t.text}}</span>
+                  </sc-for>
+                </div>
+              </div>
+            </sc-if>
+
+            <!-- Was / now (price drop). -->
+            <sc-if value="{{m.hasDrop}}" hint-placeholder-val="{{ false }}">
+              <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px">
+                <div style="border-radius: 14px; background: #0C0E11; border: 1px solid #2E343D; padding: 10px; display: flex; flex-direction: column; gap: 2px">
+                  <span style="font-size: 11px; font-weight: 700; color: #9AA1AB; letter-spacing: .05em; text-transform: uppercase">Was</span>
+                  <span style="font-size: 20px; font-weight: 700; color: #9AA1AB; text-decoration: line-through; font-variant-numeric: tabular-nums">{{m.was}}</span>
+                </div>
+                <div style="border-radius: 14px; background: #123B39; border: 1px solid #2FB8B0; padding: 10px; display: flex; flex-direction: column; gap: 2px">
+                  <span style="font-size: 11px; font-weight: 700; color: #7FE0D8; letter-spacing: .05em; text-transform: uppercase">Now</span>
+                  <span style="font-size: 20px; font-weight: 800; font-variant-numeric: tabular-nums">{{m.now}}</span>
+                </div>
+              </div>
+            </sc-if>
+
+            <!-- Gift ideas: each idea, then up to two real products from the catalog. -->
+            <sc-if value="{{m.hasIdeas}}" hint-placeholder-val="{{ false }}">
+              <div style="display: flex; flex-direction: column; gap: 10px">
+                <sc-for list="{{m.ideas}}" as="g" hint-placeholder-count="2">
+                  <div style="border-radius: 16px; background: #0C0E11; border: 1px solid #22262D; padding: 10px; display: flex; flex-direction: column; gap: 8px">
+                    <div style="display: flex; align-items: center; gap: 10px">
+                      <span style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px">
+                        <span style="font-size: 15px; font-weight: 700">{{g.title}}</span>
+                        <span style="font-size: 13px; color: #9AA1AB">{{g.why}}</span>
+                      </span>
+                      <button type="button" onClick="{{g.act}}" aria-label="{{g.aria}}" style="height: 40px; padding: 0 12px; border-radius: 20px; border: 1px solid {{g.border}}; background: {{g.bg}}; color: {{g.fg}}; font-size: 13px; font-weight: 700; flex-shrink: 0">{{g.actLabel}}</button>
+                    </div>
+                    <sc-for list="{{g.products}}" as="p" hint-placeholder-count="2">
+                      <div style="display: flex; align-items: center; gap: 10px; border-radius: 12px; background: #16191E; border: 1px solid #22262D; padding: 8px">
+                        <span role="img" aria-label="{{p.imgLabel}}" style="position: relative; width: 52px; height: 52px; flex-shrink: 0; border-radius: 10px; background: {{p.tile}}; overflow: hidden">
+                          <span style="position: absolute; left: 10px; top: 10px; width: 32px; height: 32px">
+                            <sc-for list="{{p.pix}}" as="x" hint-placeholder-count="30">
+                              <span style="position: absolute; left: {{x.l}}px; top: {{x.t}}px; width: 4px; height: 4px; background: {{x.c}}"></span>
+                            </sc-for>
+                          </span>
+                        </span>
+                        <span style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px">
+                          <span style="font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{p.title}}</span>
+                          <span style="display: flex; align-items: baseline; gap: 6px; white-space: nowrap; overflow: hidden">
+                            <span style="font-size: 15px; font-weight: 800; font-variant-numeric: tabular-nums">{{p.price}}</span>
+                            <span style="font-size: 12px; color: #9AA1AB; overflow: hidden; text-overflow: ellipsis">{{p.store}}</span>
+                          </span>
+                        </span>
+                        <a href="#" aria-label="Open {{p.title}} at {{p.store}}" style="height: 40px; padding: 0 12px; border-radius: 20px; border: 1px solid #3A414B; font-size: 13px; font-weight: 700; display: flex; align-items: center; gap: 5px; flex-shrink: 0">Open<svg aria-hidden="true" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"></path></svg></a>
+                      </div>
+                    </sc-for>
+                    <sc-if value="{{g.hasLink}}" hint-placeholder-val="{{ false }}">
+                      <a href="#" aria-label="{{g.linkTitle}}, {{g.linkDomain}}" style="display: flex; align-items: center; gap: 10px; min-height: 44px; box-sizing: border-box; border-radius: 12px; background: #16191E; border: 1px solid #22262D; padding: 8px 12px">
+                        <span style="width: 26px; height: 26px; border-radius: 7px; background: #22262D; color: #B4BAC3; font-size: 12px; font-weight: 800; display: flex; align-items: center; justify-content: center; flex-shrink: 0">{{g.linkInitial}}</span>
+                        <span style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px">
+                          <span style="font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{g.linkTitle}}</span>
+                          <span style="font-size: 12px; color: #9AA1AB">{{g.linkDomain}} · no price checked</span>
+                        </span>
+                        <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B727D" stroke-width="2" stroke-linecap="round"><path d="M9 6l6 6-6 6"></path></svg>
+                      </a>
+                    </sc-if>
+                  </div>
+                </sc-for>
+              </div>
+            </sc-if>
+
+            <!-- Product results (an adult's shopping question): 3–4 rows. -->
+            <sc-if value="{{m.hasProducts}}" hint-placeholder-val="{{ false }}">
+              <div style="display: flex; flex-direction: column; gap: 8px">
+                <sc-for list="{{m.products}}" as="p" hint-placeholder-count="4">
+                  <div style="display: flex; align-items: center; gap: 10px; border-radius: 14px; background: #0C0E11; border: 1px solid #22262D; padding: 8px">
+                    <span role="img" aria-label="{{p.imgLabel}}" style="position: relative; width: 52px; height: 52px; flex-shrink: 0; border-radius: 10px; background: {{p.tile}}; overflow: hidden">
+                      <span style="position: absolute; left: 10px; top: 10px; width: 32px; height: 32px">
+                        <sc-for list="{{p.pix}}" as="x" hint-placeholder-count="30">
+                          <span style="position: absolute; left: {{x.l}}px; top: {{x.t}}px; width: 4px; height: 4px; background: {{x.c}}"></span>
+                        </sc-for>
+                      </span>
+                    </span>
+                    <span style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px">
+                      <span style="font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{p.title}}</span>
+                      <span style="display: flex; align-items: baseline; gap: 6px; white-space: nowrap; overflow: hidden">
+                        <span style="font-size: 15px; font-weight: 800; font-variant-numeric: tabular-nums">{{p.price}}</span>
+                        <span style="font-size: 12px; color: #9AA1AB; overflow: hidden; text-overflow: ellipsis">{{p.store}}</span>
+                      </span>
+                    </span>
+                    <a href="#" aria-label="Open {{p.title}} at {{p.store}}" style="height: 40px; padding: 0 12px; border-radius: 20px; border: 1px solid #3A414B; font-size: 13px; font-weight: 700; display: flex; align-items: center; gap: 5px; flex-shrink: 0">Open<svg aria-hidden="true" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"></path></svg></a>
+                  </div>
+                </sc-for>
+              </div>
+            </sc-if>
+
+            <!-- Weather with UV and air quality. -->
+            <sc-if value="{{m.hasWeather}}" hint-placeholder-val="{{ false }}">
+              <div style="display: flex; align-items: center; justify-content: space-between">
+                <span style="display: flex; flex-direction: column; gap: 2px">
+                  <span style="font-size: 13px; font-weight: 700; color: #9AA1AB">{{m.place}} · now</span>
+                  <span style="font-size: 15px; color: #B4BAC3">{{m.summary}}</span>
+                </span>
+                <span style="font-family: 'Pixelify Sans', monospace; font-size: 40px; font-weight: 600">{{m.nowF}}°</span>
+              </div>
+              <div style="display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px">
+                <sc-for list="{{m.hours}}" as="h" hint-placeholder-count="5">
+                  <div style="border-radius: 12px; background: #0C0E11; border: 1px solid #22262D; padding: 8px 0; display: flex; flex-direction: column; align-items: center; gap: 5px">
+                    <span style="font-size: 12px; color: #9AA1AB">{{h.time}}</span>
+                    <span role="img" aria-label="{{h.label}}" style="position: relative; width: 24px; height: 24px">
+                      <sc-for list="{{h.icon}}" as="p" hint-placeholder-count="20">
+                        <span style="position: absolute; left: {{p.l}}px; top: {{p.t}}px; width: 3px; height: 3px; background: {{p.c}}"></span>
+                      </sc-for>
+                    </span>
+                    <span style="font-size: 15px; font-weight: 700">{{h.temp}}°</span>
+                    <span style="font-size: 12px; color: #9AA1AB">UV {{h.uv}}</span>
+                  </div>
+                </sc-for>
+              </div>
+              <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px">
+                <sc-for list="{{m.air}}" as="a" hint-placeholder-count="2">
+                  <div role="group" aria-label="{{a.aria}}" style="border-radius: 14px; background: {{a.bg}}; border: 1px solid {{a.color}}; padding: 10px 12px; display: flex; flex-direction: column; gap: 2px">
+                    <span style="font-size: 11px; font-weight: 700; color: #9AA1AB; letter-spacing: .05em; text-transform: uppercase">{{a.label}}</span>
+                    <span style="display: flex; align-items: baseline; gap: 8px; white-space: nowrap">
+                      <span style="font-family: 'Pixelify Sans', monospace; font-size: 26px; font-weight: 600">{{a.value}}</span>
+                      <span style="font-size: 14px; font-weight: 700; color: {{a.color}}; overflow: hidden; text-overflow: ellipsis">{{a.level}}</span>
+                    </span>
+                    <span style="font-size: 12px; color: #B4BAC3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{a.when}}</span>
+                  </div>
+                </sc-for>
+              </div>
+              <div style="display: flex; justify-content: space-between; font-size: 13px; color: #9AA1AB">
+                <span>High {{m.high}}° · Low {{m.low}}°</span>
+                <span>Open-Meteo</span>
+              </div>
+            </sc-if>
+
+            <!-- A tip chip (UV / air): the number and level, matching the weather card. -->
+            <sc-if value="{{m.hasLevel}}" hint-placeholder-val="{{ false }}">
+              <div style="display: flex; align-items: center; gap: 10px; border-radius: 14px; background: {{m.levelBg}}; border: 1px solid {{m.levelColor}}; padding: 10px 12px">
+                <span style="font-family: 'Pixelify Sans', monospace; font-size: 26px; font-weight: 600">{{m.levelValue}}</span>
+                <span style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px">
+                  <span style="font-size: 14px; font-weight: 700; color: {{m.levelColor}}; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{m.levelWord}}</span>
+                  <span style="font-size: 12px; color: #B4BAC3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{m.levelWhen}}</span>
+                </span>
+              </div>
+            </sc-if>
+
+            <!-- Buttons: one per row when stacked (full width), or a pair side by side. -->
+            <sc-if value="{{m.hasActions}}" hint-placeholder-val="{{ true }}">
+              <div style="display: grid; grid-template-columns: repeat({{m.cols}}, minmax(0, 1fr)); gap: 8px">
+                <sc-for list="{{m.actions}}" as="a" hint-placeholder-count="2">
+                  <button type="button" onClick="{{a.pick}}" style="height: {{btnH}}px; border-radius: 14px; border: 1px solid {{a.border}}; background: {{a.bg}}; color: {{a.fg}}; font-size: {{btnFont}}px; font-weight: 700">{{a.label}}</button>
+                </sc-for>
+              </div>
+            </sc-if>
+            <sc-if value="{{m.hasStatus}}" hint-placeholder-val="{{ false }}">
+              <div role="status" style="display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 600; color: {{m.statusColor}}">
+                <span style="width: 8px; height: 8px; border-radius: 4px; background: {{m.statusColor}}; flex-shrink: 0"></span>{{m.status}}
+              </div>
+            </sc-if>
+            <sc-if value="{{m.hasFoot}}" hint-placeholder-val="{{ false }}">
+              <div style="display: flex; align-items: flex-start; gap: 6px; font-size: 12px; line-height: 1.4; color: #9AA1AB">
+                <svg aria-hidden="true" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0; margin-top: 2px"><rect x="5" y="11" width="14" height="10" rx="2"></rect><path d="M8 11V8a4 4 0 0 1 8 0v3"></path></svg>
+                <span>{{m.foot}}</span>
+              </div>
+            </sc-if>
+          </section>
+        </sc-if>
+      </sc-for>
+    </div>
+
+    <sc-if value="{{kidBar}}" hint-placeholder-val="{{ false }}">
+      <div style="display: flex; align-items: center; gap: 12px; padding: 8px 16px 30px; flex-shrink: 0">
+        <button type="button" style="flex: 1; min-width: 0; height: 72px; border-radius: 36px; border: none; background: {{accent}}; color: #0C0E11; font-size: 20px; font-weight: 800; display: flex; align-items: center; justify-content: center; gap: 10px">
+          <svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"></rect><path d="M5 11a7 7 0 0 0 14 0M12 18v3"></path></svg>
+          Talk to {{megaName}}
+        </button>
+        <button type="button" aria-label="Type instead" style="width: 72px; height: 72px; flex-shrink: 0; border-radius: 36px; border: 1px solid #3A414B; background: #16191E; color: #EDEFF2; display: flex; align-items: center; justify-content: center">
+          <svg aria-hidden="true" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="13" rx="2.5"></rect><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M6 14h.01M18 14h.01M9 14.5h6"></path></svg>
+        </button>
+      </div>
+    </sc-if>
+    <sc-if value="{{adultBar}}" hint-placeholder-val="{{ true }}">
+      <div style="display: flex; align-items: center; gap: 8px; padding: 10px 16px 30px; flex-shrink: 0">
+        <label for="composer" style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0)">Message {{megaName}}</label>
+        <input id="composer" type="text" placeholder="Message {{megaName}}…" style="flex: 1; min-width: 0; height: 48px; box-sizing: border-box; border-radius: 24px; border: 1px solid #2E343D; background: #16191E; color: #EDEFF2; padding: 0 16px; font-size: 15px; font-family: inherit">
+        <button type="button" aria-label="Talk" style="width: 48px; height: 48px; flex-shrink: 0; border-radius: 24px; border: none; background: {{accent}}; color: #0C0E11; display: flex; align-items: center; justify-content: center">
+          <svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"></rect><path d="M5 11a7 7 0 0 0 14 0M12 18v3"></path></svg>
+        </button>
+      </div>
+    </sc-if>
+  </div>
+  </sc-if>
+
+  <!-- Lock screen (same style as the Screen 6 Push boards): the price-drop push, the air pushes. -->
+  <sc-if value="{{showLock}}" hint-placeholder-val="{{ false }}">
+    <div style="position: absolute; inset: 0; display: flex; flex-direction: column">
+      <div style="display: flex; flex-direction: column; align-items: center; padding-top: 58px; gap: 2px; flex-shrink: 0">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#EDEFF2" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"></rect><path d="M8 11V8a4 4 0 0 1 8 0v3"></path></svg>
+        <div style="font-size: 17px; font-weight: 600; margin-top: 6px">{{lockDate}}</div>
+        <div style="font-size: 86px; font-weight: 700; line-height: 92px; letter-spacing: -2px">{{lockTime}}</div>
+      </div>
+      <div style="flex: 1; display: flex; flex-direction: column; justify-content: flex-end; gap: 8px; padding: 0 10px 118px; min-height: 0">
+        <sc-for list="{{pushes}}" as="c" hint-placeholder-count="2">
+          <section aria-label="{{c.title}}" style="background: rgba(28,32,38,0.86); border-radius: 22px; padding: 12px; display: flex; flex-direction: column; gap: 10px; box-shadow: 0 10px 28px rgba(0,0,0,0.35)">
+            <div style="display: flex; gap: 10px; align-items: flex-start">
+              <span style="position: relative; width: 40px; height: 34px; flex-shrink: 0; border-radius: 9px; overflow: hidden; background: #FFFFFF">
+                <span style="position: absolute; left: 4px; top: 4px; width: 32px; height: 27px">
+                  <sc-for list="{{c.head.rects}}" as="r" hint-placeholder-count="150">
+                    <span style="position: absolute; left: {{r.l}}px; top: {{r.t}}px; width: {{r.w}}px; height: {{r.h}}px; background: {{r.c}}"></span>
+                  </sc-for>
+                </span>
+              </span>
+              <span style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px">
+                <span style="display: flex; gap: 8px; font-size: 13px; color: #B4BAC3"><span style="flex: 1; font-weight: 600; color: {{c.kindColor}}">{{c.from}}</span><span>{{c.when}}</span></span>
+                <span style="font-size: 16px; font-weight: 600; line-height: 21px">{{c.title}}</span>
+                <span style="font-size: 14px; line-height: 19px; color: #C9CED6">{{c.body}}</span>
+                <sc-if value="{{c.quiet}}" hint-placeholder-val="{{ false }}">
+                  <span style="font-size: 12px; color: #9AA1AB; display: flex; align-items: center; gap: 5px; margin-top: 2px"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"></path><path d="M3 3l18 18"></path></svg>Quiet update · no sound</span>
+                </sc-if>
+              </span>
+            </div>
+            <sc-if value="{{c.hasActions}}" hint-placeholder-val="{{ true }}">
+              <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px">
+                <sc-for list="{{c.actions}}" as="a" hint-placeholder-count="2">
+                  <button type="button" onClick="{{a.pick}}" style="height: 44px; border-radius: 14px; border: none; background: {{a.bg}}; color: {{a.fg}}; font-size: 15px; font-weight: 600">{{a.label}}</button>
+                </sc-for>
+              </div>
+            </sc-if>
+            <sc-if value="{{c.hasStatus}}" hint-placeholder-val="{{ false }}">
+              <div role="status" style="font-size: 14px; color: #C9CED6"><b>{{c.megaName}}:</b> {{c.status}}</div>
+            </sc-if>
+          </section>
+        </sc-for>
+      </div>
+      <div aria-hidden="true" style="position: absolute; left: 44px; right: 44px; bottom: 38px; display: flex; justify-content: space-between">
+        <span style="width: 50px; height: 50px; border-radius: 25px; background: rgba(28,32,38,0.7)"></span>
+        <span style="width: 50px; height: 50px; border-radius: 25px; background: rgba(28,32,38,0.7)"></span>
+      </div>
+      <div aria-hidden="true" style="position: absolute; left: 50%; bottom: 10px; width: 134px; height: 5px; margin-left: -67px; border-radius: 3px; background: #EDEFF2"></div>
+    </div>
+  </sc-if>
+
+  <!-- Calendar week with a public holiday marked on its day (same week view as Screen 12). -->
+  <sc-if value="{{showWeek}}" hint-placeholder-val="{{ false }}">
+    <section aria-label="Family calendar" style="position: absolute; inset: 0; display: flex; flex-direction: column; padding-top: 44px">
+      <header style="display: grid; grid-template-columns: 56px 1fr 56px; align-items: center; height: 56px; padding: 0 8px; flex-shrink: 0">
+        <button type="button" aria-label="Close calendar" style="width: 44px; height: 44px; border: none; background: transparent; color: #EDEFF2; display: flex; align-items: center; justify-content: center"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"></path></svg></button>
+        <h2 style="margin: 0; text-align: center; font-size: 17px; font-weight: 700">November 2026</h2>
+        <span></span>
+      </header>
+      <div style="display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; padding: 6px 10px 12px; border-bottom: 1px solid #22262D">
+        <sc-for list="{{days}}" as="d" hint-placeholder-count="7">
+          <button type="button" aria-pressed="{{d.on}}" aria-label="{{d.full}}" onClick="{{d.pick}}" style="display: flex; flex-direction: column; align-items: center; gap: 4px; height: 70px; padding: 6px 0; border-radius: 14px; border: {{d.border}}; box-sizing: border-box; background: {{d.bg}}; color: {{d.fg}}">
+            <span style="font-size: 12px; font-weight: 600; opacity: .8">{{d.dow}}</span>
+            <span style="font-size: 18px; font-weight: 800">{{d.num}}</span>
+            <span style="display: flex; align-items: center; gap: 3px; height: 8px">
+              <sc-if value="{{d.holiday}}" hint-placeholder-val="{{ false }}">
+                <span aria-hidden="true" style="width: 7px; height: 7px; background: #F2B33D; transform: rotate(45deg)"></span>
+              </sc-if>
+              <sc-for list="{{d.dots}}" as="c" hint-placeholder-count="2">
+                <span style="width: 6px; height: 6px; border-radius: 3px; background: {{c}}"></span>
+              </sc-for>
+            </span>
+          </button>
+        </sc-for>
+      </div>
+      <div style="flex: 1; overflow: hidden; display: flex; flex-direction: column; gap: 4px; padding: 14px 16px 24px">
+        <div style="font-size: 15px; font-weight: 700">{{dayLabel}}</div>
+        <sc-if value="{{dayHoliday}}" hint-placeholder-val="{{ true }}">
+          <div style="display: flex; align-items: center; gap: 12px; margin: 8px 0 6px; padding: 12px; border-radius: 16px; background: #3A2B10; border: 1px solid #6B5320">
+            <span aria-hidden="true" style="width: 12px; height: 12px; margin: 0 4px; background: #F2B33D; transform: rotate(45deg); flex-shrink: 0"></span>
+            <span style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px">
+              <span style="font-size: 15px; font-weight: 700">Veterans Day · public holiday</span>
+              <span style="font-size: 13px; color: #E9D3A6">{{holidayLine}}</span>
+            </span>
+          </div>
+        </sc-if>
+        <sc-for list="{{agenda}}" as="e" hint-placeholder-count="3">
+          <div style="display: flex; gap: 14px; align-items: center; min-height: 62px; border-bottom: 1px solid #22262D; opacity: {{e.opacity}}">
+            <span style="width: 74px; font-size: 14px; color: #9AA1AB; font-variant-numeric: tabular-nums">{{e.time}}</span>
+            <span aria-hidden="true" style="width: 4px; height: 38px; border-radius: 2px; background: {{e.bar}}"></span>
+            <span style="display: flex; flex-direction: column; gap: 3px; flex: 1; min-width: 0">
+              <span style="display: flex; align-items: center; gap: 8px">
+                <span style="font-size: 16px; font-weight: 600; text-decoration: {{e.strike}}">{{e.title}}</span>
+                <sc-if value="{{e.paused}}" hint-placeholder-val="{{ false }}">
+                  <span style="padding: 1px 7px; border-radius: 8px; background: #22262D; color: #B4BAC3; font-size: 11px; font-weight: 800; letter-spacing: .04em">PAUSED</span>
+                </sc-if>
+              </span>
+              <span style="font-size: 13px; color: #8A919B">{{e.who}}</span>
+            </span>
+          </div>
+        </sc-for>
+        <div style="display: flex; gap: 6px; font-size: 13px; line-height: 18px; color: #8A919B; margin-top: 12px">
+          <svg aria-hidden="true" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0; margin-top: 2px"><circle cx="12" cy="12" r="9"></circle><path d="M12 8h.01M11 12h1v5h1"></path></svg>
+          <span>Public holidays come from a holiday calendar. School closures still come from the school’s own calendar link.</span>
+        </div>
+      </div>
+    </section>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"step":{"editor":"enum","options":["giftsProducts","giftsNoCatalog","priceDrop","priceDropPush","shopResults","shopEmpty","shopNotSetUp","weatherAir","airTips","airPush","holidayAsk","holidayPaused","holidayKid","holidayCalendar"],"default":"giftsProducts"},"$preview":{"width":390,"height":844}}'>
+// Generated from prototypes/megasprite (mega-template.mjs, pixel-paint.mjs, export-looks.mjs).
+__SPRITE_LIVE__
+
+// Screen 15 (G4b, Oct 28): real products for gift ideas (a product catalog), price drops on the gift list,
+// an adult's shopping question, UV and air quality on the weather card and as tips, and public holidays
+// (the evening-before question, the kid's bedtime line, the calendar marker). Sample family only; stores are
+// generic made-up names and product pictures are pixel stand-ins (the app shows the store's own image).
+const MEGAS = {
+  teal: { name: 'Teal', hex: '#2FB8B0', face: 'open', sub: 'Your MEGA', mine: '#123B39' },
+  zap: { name: 'Zap', hex: '#8E6CE0', face: 'happy', sub: 'Twin 1’s MEGA', mine: '#2A2147', kid: true },
+};
+const SIZES = { adult: { font: 17, body: 15, title: 17, btnH: 44, btnFont: 15 }, kid: { font: 20, body: 17, title: 22, btnH: 54, btnFont: 18 } };
+const BTN = { primary: { bg: '#EDEFF2', fg: '#0C0E11', border: '#EDEFF2' }, ghost: { bg: 'transparent', fg: '#EDEFF2', border: '#3A414B' } };
+const btn = (label, pick, kind) => Object.assign({ label, pick }, BTN[kind || 'primary']);
+// Level colors (theme tokens in the app: ok / warn / danger), with the tinted fill under each.
+const LEVEL = { ok: ['#2FB8B0', '#10201F'], warn: ['#F2B33D', '#2A2110'], danger: ['#F2766B', '#2A1614'] };
+const level = (k) => ({ color: LEVEL[k][0], bg: LEVEL[k][1] });
+// Card header icons (stroke paths).
+const ICON = {
+  gift: 'M4 11h16v9H4z M3 7h18v4H3z M12 7v13 M12 7c-2-4-6-3-5 0M12 7c2-4 6-3 5 0',
+  tag: 'M3 12V4h8l10 10-8 8z M7.5 7.5h.01',
+  cart: 'M3 4h2l2.5 11h11L21 7H6.5 M9 20h.01M18 20h.01',
+  sun: 'M12 4v2M12 18v2M4 12h2M18 12h2M6.3 6.3l1.4 1.4M16.3 16.3l1.4 1.4M6.3 17.7l1.4-1.4M16.3 7.7l1.4-1.4 M12 8.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7z',
+  air: 'M3 9h11a3 3 0 1 0-3-3 M3 14h15a3 3 0 1 1-3 3 M3 19h6',
+  flag: 'M5 21V4 M5 4h11l-2 4 2 4H5',
+  moon: 'M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z',
+};
+// 8×8 pixel stand-ins for product pictures (4px cells). G = the gift-box placeholder the app shows when a
+// product has no image.
+const PIX = {
+  dino: ['........', '....WWW.', '....W.WW', '...WWW..', 'W.WWWW..', '.WWWWW..', '..W..W..', '..W..W..'],
+  fossil: ['........', '.BBBBBB.', 'BBWBBWBB', 'BWWWWWWB', 'BBWBBWBB', 'BBBBBBBB', '.BBBBBB.', '........'],
+  jacket: ['..YYYY..', '.YYYYYY.', 'YYYKKYYY', 'YY.KK.YY', 'YY.KK.YY', '.Y.KK.Y.', '.YYKKYY.', '.YYYYYY.'],
+  box: ['........', '.R.RR.R.', '..RRRR..', 'GGGRRGGG', 'GGGRRGGG', 'GGGRRGGG', 'GGGRRGGG', 'GGGRRGGG'],
+};
+const PAL = { W: '#EDE6D4', B: '#B98A55', Y: '#F2B33D', K: '#3A414B', R: '#F2766B', G: '#6B727D' };
+const pix = (k) => PIX[k].flatMap((row, y) => [...row].map((ch, x) => (ch === '.' ? null : { l: x * 4, t: y * 4, c: PAL[ch] })).filter(Boolean));
+const product = (title, price, store, art, tile) => ({ title, price, store, pix: pix(art || 'box'), tile: tile || '#22262D',
+  imgLabel: art ? 'Product photo: ' + title : 'No picture from the store' });
+// Weather icons (3px cells), as on Screen 14.
+const WICONS = {
+  sun: ['...S....', '.S.S.S..', '..SSS...', 'SSSSSSS.', '..SSS...', '.S.S.S..', '...S....', '........'],
+  cloud: ['........', '...CC...', '..CCCC..', '.CCCCCC.', 'CCCCCCCC', 'CCCCCCCC', '........', '........'],
+  haze: ['...S....', '..SSS...', 'SSSSSSS.', '........', 'CCCCCC..', '........', '..CCCCCC', '........'],
+};
+const WPAL = { S: '#FFD54A', C: '#B4BAC3' };
+const wicon = (k) => WICONS[k].flatMap((row, y) => [...row].map((ch, x) => (ch === '.' ? null : { l: x * 3, t: y * 3, c: WPAL[ch] })).filter(Boolean));
+const hour = (time, k, label, temp, uv) => ({ time, icon: wicon(k), label, temp, uv });
+
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = this.fresh();
+  }
+  fresh() {
+    return { added: ['set'], drop: '', shop: '', holiday: this.props.step === 'holidayPaused' ? 'pause' : '', day: 3 };
+  }
+  componentDidUpdate(prev) {
+    if (prev.step !== this.props.step) this.setState(this.fresh());
+  }
+
+  chat(step) {
+    const s = this.state;
+    const idea = (id, title, why, products, link) => {
+      const done = s.added.includes(id);
+      return { title, why, products: products || [], hasLink: !!link, linkTitle: link ? link[0] : '', linkDomain: link ? link[1] : '', linkInitial: link ? link[1][0].toUpperCase() : '',
+        act: () => this.setState({ added: done ? s.added.filter((x) => x !== id) : s.added.concat(id) }), actLabel: done ? 'Added' : 'Add to list',
+        aria: (done ? 'Added ' : 'Add ') + title + ' to the gift list',
+        bg: done ? '#123B39' : 'transparent', fg: done ? '#7FE0D8' : '#EDEFF2', border: done ? '#2FB8B0' : '#3A414B' };
+    };
+    const tags = ['Twin 1 shared: loves dinosaurs', 'Family notes: into building sets', 'Partner shared: about $40'].map((text) => ({ text }));
+    if (step === 'giftsProducts') return { mega: 'teal', items: [
+      { day: 'Today · 9:00 AM' },
+      { mine: 'Yes please' },
+      { card: { icon: ICON.gift, from: 'Teal · Gift ideas', title: 'Gift ideas for Twin 1', body: 'Birthday Sunday, November 8. Prices checked just now.', tags,
+        ideas: [
+          idea('set', 'Dinosaur skeleton building set', 'Dinosaurs + building', [
+            product('T. rex skeleton building kit, 120 pieces', '$34.99', 'Toy Shop', 'dino', '#1E2A24'),
+            product('Glow-in-the-dark dino fossil builder', '$29.00', 'Little Makers Co.', 'dino', '#24203A')]),
+          idea('dig', 'Dig-your-own fossil kit', 'Loves dinosaurs', [product('Fossil dig kit with 10 real fossils', '$19.50', 'Discovery Store')]),
+        ],
+        foot: 'Only shared info is used. I’ll tell you if a price drops on something you add. I never buy anything.' } },
+    ] };
+    if (step === 'giftsNoCatalog') return { mega: 'teal', items: [
+      { day: 'Today · 9:00 AM' },
+      { mine: 'Yes please' },
+      { card: { icon: ICON.gift, from: 'Teal · Gift ideas', title: 'Gift ideas for Twin 1', body: 'Store prices aren’t set up yet, so these are web links without prices. I won’t guess what things cost.', tags,
+        ideas: [
+          idea('set', 'Dinosaur skeleton building set', 'Dinosaurs + building', [], ['Best dinosaur building sets for kids', 'example-reviews.com']),
+          idea('dig', 'Dig-your-own fossil kit', 'Loves dinosaurs', [], ['Fossil dig kits, compared', 'example-parents.org']),
+        ],
+        foot: 'Only shared info is used. Private notes stay private.' } },
+    ] };
+    if (step === 'priceDrop') return { mega: 'teal', items: [
+      { day: 'Friday · 12:15 PM' },
+      { text: 'Good news for the gift list.' },
+      { card: { icon: ICON.tag, from: 'Teal · Price drop', title: 'The dinosaur building set dropped to $28', body: 'Twin 1’s birthday is in 9 days.',
+        was: '$35.00', now: '$28.00',
+        products: [product('T. rex skeleton building kit, 120 pieces', '$28.00', 'Toy Shop', 'dino', '#1E2A24')],
+        actions: s.drop === 'stop' ? [] : [btn('Open in store', () => this.setState({ drop: 'open' })), btn('Stop watching', () => this.setState({ drop: 'stop' }), 'ghost')],
+        status: s.drop === 'stop' ? 'Stopped watching. I won’t check this price again.' : '', statusColor: '#9AA1AB',
+        foot: 'Only Admin and Partner get price alerts. Twin 1 never sees them, so the gift stays a surprise.' } },
+    ] };
+    if (step === 'shopResults' || step === 'shopEmpty' || step === 'shopNotSetUp') {
+      const ask = { mine: 'Find a rain jacket for Twin 1 under $40' };
+      if (step === 'shopResults') return { mega: 'teal', items: [
+        { day: 'Today · 7:48 PM' }, ask,
+        { text: 'Here are four kids’ rain jackets under $40. Twin 1 wears a size 8 (from Family notes).' },
+        { card: { icon: ICON.cart, from: 'Teal · Shopping', title: 'Kids’ rain jackets · size 8 · under $40', products: [
+          product('Packable rain jacket · Navy', '$32.00', 'Kids Outfitters', 'jacket', '#1A2233'),
+          product('Reflective rain shell, ages 6–10', '$38.50', 'Trail Kids', 'jacket', '#2A2110'),
+          product('Classic yellow raincoat', '$27.99', 'Rainy Day Shop', 'jacket', '#2A2110'),
+          product('Lightweight rain jacket · Teal', '$39.00', 'Kids Outfitters')],
+          foot: 'Prices from the stores, checked just now. I never buy anything; Open takes you to the store.' } },
+      ] };
+      if (step === 'shopEmpty') return { mega: 'teal', items: [
+        { day: 'Today · 7:48 PM' }, ask,
+        { card: { icon: ICON.cart, from: 'Teal · Shopping', title: 'No rain jackets under $40 right now', body: 'I checked kids’ size 8 rain jackets. The closest ones start at $44.',
+          actions: s.shop ? [] : [btn('Show up to $50', () => this.setState({ shop: 'more' })), btn('Watch for one under $40', () => this.setState({ shop: 'watch' }), 'ghost')], cols: 1,
+          status: s.shop === 'watch' ? 'I’ll tell you if one drops under $40.' : s.shop === 'more' ? 'Looking up to $50…' : '', statusColor: '#2FB8B0' } },
+      ] };
+      return { mega: 'teal', items: [
+        { day: 'Today · 7:48 PM' }, ask,
+        { card: { icon: ICON.cart, from: 'Teal · Shopping', title: 'Store search isn’t set up yet.', body: 'I can’t check stores or prices until your family admin turns it on, so I won’t guess. I can search the web instead.',
+          actions: s.shop ? [] : [btn('Search the web instead', () => this.setState({ shop: 'web' }))], cols: 1,
+          status: s.shop === 'web' ? 'Searching the web…' : '', statusColor: '#2FB8B0' } },
+      ] };
+    }
+    if (step === 'weatherAir') return { mega: 'teal', items: [
+      { day: 'Saturday · 11:40 AM' },
+      { mine: 'What’s the weather at the soccer field?' },
+      { card: { icon: ICON.sun, from: 'Teal · Weather', hasTitle: false, weather: true, place: 'Riverside Park Field', summary: 'Sunny and hazy', nowF: 84, high: 88, low: 71,
+        hours: [hour('12 PM', 'sun', 'Sunny', 84, 8), hour('1 PM', 'sun', 'Sunny', 86, 8), hour('2 PM', 'haze', 'Hazy sun', 87, 7), hour('3 PM', 'haze', 'Hazy sun', 88, 6), hour('4 PM', 'cloud', 'Cloudy', 86, 4)],
+        air: [
+          Object.assign({ label: 'UV · max today', value: '8', level: 'Very high', when: 'Highest 12–2 PM', aria: 'UV index 8, very high, highest 12 to 2 PM' }, level('danger')),
+          Object.assign({ label: 'Air quality', value: '132', level: 'Sensitive groups', when: 'US AQI · worst 2–5 PM', aria: 'Air quality index 132, unhealthy for sensitive groups, worst 2 to 5 PM' }, level('warn')),
+        ] } },
+    ] };
+    if (step === 'airTips') return { mega: 'teal', items: [
+      { day: 'Saturday · 11:40 AM' },
+      { card: { icon: ICON.sun, from: 'Teal · Before soccer', title: 'UV is very high during soccer (8). Pack sunscreen.', body: 'Practice is 12:30–2:00 PM at Riverside Park Field.',
+        levelValue: '8', levelWord: 'Very high', levelWhen: 'UV index · 12–2 PM', lv: 'danger',
+        actions: [btn('Add to the bag list', () => {}), btn('Thanks', () => {}, 'ghost')] } },
+      { card: { icon: ICON.air, from: 'Teal · Air quality', title: 'Air quality is poor this afternoon (AQI 132). Maybe skip the park.', body: 'It’s worst from 2 to 5 PM and better by evening.',
+        levelValue: '132', levelWord: 'Unhealthy for sensitive groups', levelWhen: 'US AQI · 2–5 PM', lv: 'warn',
+        actions: [btn('Thanks', () => {}, 'ghost')] } },
+    ] };
+    if (step === 'holidayAsk' || step === 'holidayPaused') {
+      const a = s.holiday;
+      return { mega: 'teal', items: [
+        { day: 'Tuesday · 7:30 PM' },
+        { card: { icon: ICON.flag, from: 'Teal · Tomorrow', title: 'Wednesday is Veterans Day. Pause the morning routine and chores?', body: 'Many schools are closed. Nothing on the household calendar says the twins have school tomorrow.',
+          actions: a ? [] : [btn('Pause for the day', () => this.setState({ holiday: 'pause' })), btn('Keep as usual', () => this.setState({ holiday: 'keep' }), 'ghost')], cols: 1,
+          status: a === 'pause' ? 'Paused for Wednesday. Zap and Sunny will tell the twins at bedtime. Everything is back Thursday.' : a === 'keep' ? 'Keeping everything as usual tomorrow.' : '',
+          statusColor: a === 'pause' ? '#2FB8B0' : '#9AA1AB',
+          foot: 'Asked once, the evening before. Only Admin and Partner can pause routines.' } },
+      ] };
+    }
+    if (step === 'holidayKid') return { mega: 'zap', items: [
+      { day: 'Tonight · 8:15 PM' },
+      { text: 'Tomorrow is Veterans Day!' },
+      { card: { icon: ICON.moon, from: 'Zap · Tomorrow', title: 'No school tomorrow', titleSize: 24, body: 'Admin paused your morning routine and chores for Wednesday. They’re back on Thursday. Sleep well!' } },
+    ] };
+    return null;
+  }
+
+  renderVals() {
+    const step = this.props.step || 'giftsProducts', s = this.state;
+    const lock = step === 'priceDropPush' || step === 'airPush', week = step === 'holidayCalendar';
+    const chat = lock || week ? null : this.chat(step);
+    const m = MEGAS[chat ? chat.mega : 'teal'];
+    const size = SIZES[m.kid ? 'kid' : 'adult'];
+    const items = (chat ? chat.items : []).map((it) => {
+      const base = { isDay: false, isMine: false, isText: false, isCard: false };
+      if (it.day) return Object.assign(base, { isDay: true, text: it.day });
+      if (it.mine) return Object.assign(base, { isMine: true, text: it.mine });
+      if (it.text) return Object.assign(base, { isText: true, text: it.text });
+      const c = Object.assign({ hasTitle: true, title: '', body: '', titleSize: size.title, cols: 2, tags: [], ideas: [], products: [], actions: [], status: '', statusColor: '#9AA1AB', foot: '' }, it.card);
+      const lv = c.lv ? level(c.lv) : { color: '#9AA1AB', bg: '#0C0E11' };
+      return Object.assign(base, c, {
+        isCard: true, label: c.title || c.from, hasBody: !!c.body, hasTags: c.tags.length > 0, hasDrop: !!c.was, hasIdeas: c.ideas.length > 0,
+        hasProducts: c.products.length > 0, hasWeather: !!c.weather, hasLevel: !!c.lv, levelColor: lv.color, levelBg: lv.bg,
+        hasActions: c.actions.length > 0, hasStatus: !!c.status, hasFoot: !!c.foot,
+      });
+    });
+
+    // Lock screen pushes.
+    const tealHead = sprite(MEGAS.teal.hex, 'open', 'none', 1, 27);
+    const push = (o) => Object.assign({ head: tealHead, megaName: 'Teal', kindColor: '#7FE0D8', quiet: false, actions: [], status: '' }, o, { hasActions: !!(o.actions && o.actions.length), hasStatus: !!o.status });
+    const pushes = step === 'priceDropPush'
+      ? [push({ from: 'Teal · Price drop', when: 'now', title: 'Dinosaur building set: $28 (was $35)', body: 'At Toy Shop. Twin 1’s birthday is in 9 days.',
+          actions: s.drop === 'stop' ? [] : [{ label: 'Open in store', pick: () => this.setState({ drop: 'open' }), bg: '#EDEFF2', fg: '#0C0E11' }, { label: 'Stop watching', pick: () => this.setState({ drop: 'stop' }), bg: 'rgba(255,255,255,0.12)', fg: '#EDEFF2' }],
+          status: s.drop === 'stop' ? 'Stopped watching that price.' : '' })]
+      : [push({ from: 'Teal · Air quality', when: '1:55 PM', title: 'Air quality is poor this afternoon (AQI 132)', body: 'Maybe skip the park. It’s better by evening.', kindColor: '#F2B33D' }),
+         push({ from: 'Teal · Before soccer', when: '11:40 AM', title: 'UV is very high during soccer (8)', body: 'Pack sunscreen. Practice is 12:30–2:00 PM.', quiet: true })];
+
+    // Holiday week (Sun Nov 8 – Sat Nov 14, 2026; Veterans Day is Wednesday Nov 11).
+    const paused = true;
+    const WK = [['Sun', 8], ['Mon', 9], ['Tue', 10], ['Wed', 11], ['Thu', 12], ['Fri', 13], ['Sat', 14]];
+    const FULL = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    const isHol = (i) => i === 3;
+    const days = WK.map(([dow, num], i) => ({ dow, num, full: FULL[i] + ', November ' + num + (isHol(i) ? ', Veterans Day' : ''), holiday: isHol(i),
+      on: String(i === s.day), pick: () => this.setState({ day: i }), dots: i === 0 ? ['#8E6CE0'] : i % 2 ? ['#9AA1AB'] : ['#2FB8B0'],
+      bg: i === s.day ? '#EDEFF2' : 'transparent', fg: i === s.day ? '#0C0E11' : '#EDEFF2', border: isHol(i) && i !== s.day ? '1px solid #6B5320' : 'none' }));
+    const agenda = isHol(s.day)
+      ? [{ time: '7:00 AM', title: 'Morning routine', who: 'Twins · Household', bar: '#8E6CE0', paused, strike: 'line-through', opacity: 0.6 },
+         { time: '4:00 PM', title: 'Chores', who: 'Twins · Household', bar: '#8E6CE0', paused, strike: 'line-through', opacity: 0.6 },
+         { time: '6:00 PM', title: 'Soccer practice', who: 'Twins · Household', bar: '#8E6CE0', paused: false, strike: 'none', opacity: 1 }]
+      : [{ time: '7:00 AM', title: 'Morning routine', who: 'Twins · Household', bar: '#8E6CE0', paused: false, strike: 'none', opacity: 1 },
+         { time: '8:00 AM', title: 'School drop-off', who: 'Partner · Household', bar: '#F2766B', paused: false, strike: 'none', opacity: 1 }];
+
+    return {
+      bg: lock ? 'linear-gradient(165deg, #123B39 0%, #12151A 55%, #0C0E11 100%)' : '#0C0E11',
+      showChat: !!chat, showLock: lock, showWeek: week,
+      head: sprite(m.hex, m.face, 'none', 1, 27), megaName: m.name, megaSub: m.sub, accent: m.hex, mine: m.mine,
+      font: size.font, body: size.body, btnH: size.btnH, btnFont: size.btnFont,
+      kidBar: !!chat && !!m.kid, adultBar: !!chat && !m.kid, items,
+      lockDate: step === 'priceDropPush' ? 'Friday, October 30' : 'Saturday, June 13', lockTime: step === 'priceDropPush' ? '12:15' : '1:56', pushes,
+      days, dayLabel: FULL[s.day] + ', November ' + WK[s.day][1], dayHoliday: isHol(s.day),
+      holidayLine: 'Admin paused the morning routine and chores for the day.', agenda,
+    };
+  }
+}
+</script>
+</body>
+</html>
