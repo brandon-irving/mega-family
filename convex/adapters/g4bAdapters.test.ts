@@ -126,7 +126,7 @@ describe('Shopify Global Catalog adapter', () => {
 
   test('the request is JSON-RPC tools/call with our agent profile, ships-to and price filters, and nothing about the asker', async () => {
     stubFetch(() => ({ status: 200, body: SEARCH_RESPONSE }));
-    const r = await shopifyCatalog.search({ query: 'dinosaur kit', country: 'US', maxPriceCents: 4500, limit: 2 });
+    const r = await shopifyCatalog.search({ query: 'dinosaur kit', country: 'US', currency: 'USD', maxPriceCents: 4500, limit: 2 });
     expect(r.ok).toBe(true);
     expect(calls[0].url).toBe(SHOPPING.endpoint);
     const body = JSON.parse(String(calls[0].init.body));
@@ -135,33 +135,48 @@ describe('Shopify Global Catalog adapter', () => {
     expect(body.params.arguments.catalog).toEqual({
       query: 'dinosaur kit',
       filters: { ships_to: { country: 'US' }, available: true, price: { max: 4500 } },
-      context: { address_country: 'US' },
+      context: { address_country: 'US', currency: 'USD' },
       pagination: { limit: 2 },
     });
   });
 
+  test('a product priced in another currency (a Canadian store’s CA$) is dropped from search and unresolved on lookup, never converted', async () => {
+    const cad = {
+      id: 'gid://shopify/p/cad',
+      title: 'Kids rain jacket',
+      variants: [{ id: 'gid://shopify/ProductVariant/cad', url: 'https://ca.example/p/jacket', price: { amount: 3998, currency: 'CAD' }, seller: { name: 'Northern Kids' }, inputs: [{ id: 'gid://shopify/ProductVariant/cad', match: 'exact' }] }],
+    };
+    const withCad = (r: typeof SEARCH_RESPONSE) => ({ ...r, result: { structuredContent: { ...r.result.structuredContent, products: [cad, ...r.result.structuredContent.products] } } });
+    stubFetch(() => ({ status: 200, body: withCad(SEARCH_RESPONSE) }));
+    const found = await shopifyCatalog.search({ query: 'kids rain jacket', country: 'US', currency: 'USD', limit: 5 });
+    expect(found.ok && found.products.map((p) => p.currency)).toEqual(['USD']);
+    stubFetch(() => ({ status: 200, body: withCad(LOOKUP_RESPONSE as unknown as typeof SEARCH_RESPONSE) }));
+    const looked = await shopifyCatalog.lookup({ refs: [{ productId: 'gid://shopify/p/cad', variantId: 'gid://shopify/ProductVariant/cad' }], country: 'US', currency: 'USD' });
+    expect(looked).toMatchObject({ ok: true, products: [], notFound: [{ productId: 'gid://shopify/p/cad' }] });
+  });
+
   test('lookup sends variant ids (prices are per variant)', async () => {
     stubFetch(() => ({ status: 200, body: LOOKUP_RESPONSE }));
-    await shopifyCatalog.lookup({ refs: [{ productId: PRODUCT, variantId: VARIANT }, { productId: 'gid://shopify/p/x' }], country: 'US' });
+    await shopifyCatalog.lookup({ refs: [{ productId: PRODUCT, variantId: VARIANT }, { productId: 'gid://shopify/p/x' }], country: 'US', currency: 'USD' });
     const body = JSON.parse(String(calls[0].init.body));
     expect(body.params.name).toBe('lookup_catalog');
-    expect(body.params.arguments.catalog).toEqual({ ids: [VARIANT, 'gid://shopify/p/x'], context: { address_country: 'US' } });
+    expect(body.params.arguments.catalog).toEqual({ ids: [VARIANT, 'gid://shopify/p/x'], context: { address_country: 'US', currency: 'USD' } });
   });
 
   test('fails closed: no site URL → not_configured (no request); 422 profile error → error; 429 → rate_limited; RPC error → error', async () => {
     delete process.env.CONVEX_SITE_URL;
     stubFetch(() => ({ status: 200, body: SEARCH_RESPONSE }));
     expect(agentProfileUrl()).toBeNull();
-    expect(await shopifyCatalog.search({ query: 'x', country: 'US', limit: 1 })).toMatchObject({ ok: false, failure: 'not_configured' });
+    expect(await shopifyCatalog.search({ query: 'x', country: 'US', currency: 'USD', limit: 1 })).toMatchObject({ ok: false, failure: 'not_configured' });
     expect(calls.length).toBe(0);
 
     process.env.CONVEX_SITE_URL = 'https://example-site.convex.site';
     stubFetch(() => ({ status: 422, body: { jsonrpc: '2.0', id: 1, error: { code: -32001, message: 'UCP discovery failed', data: { code: 'invalid_profile_url' } } } }));
-    expect(await shopifyCatalog.search({ query: 'x', country: 'US', limit: 1 })).toMatchObject({ ok: false, failure: 'error' });
+    expect(await shopifyCatalog.search({ query: 'x', country: 'US', currency: 'USD', limit: 1 })).toMatchObject({ ok: false, failure: 'error' });
     stubFetch(() => ({ status: 429, body: {} }));
-    expect(await shopifyCatalog.lookup({ refs: [{ productId: PRODUCT }], country: 'US' })).toMatchObject({ ok: false, failure: 'rate_limited' });
+    expect(await shopifyCatalog.lookup({ refs: [{ productId: PRODUCT }], country: 'US', currency: 'USD' })).toMatchObject({ ok: false, failure: 'rate_limited' });
     stubFetch(() => ({ status: 200, body: { jsonrpc: '2.0', id: 1, error: { code: -32602, message: 'bad params' } } }));
-    expect(await shopifyCatalog.search({ query: 'x', country: 'US', limit: 1 })).toMatchObject({ ok: false, failure: 'error' });
+    expect(await shopifyCatalog.search({ query: 'x', country: 'US', currency: 'USD', limit: 1 })).toMatchObject({ ok: false, failure: 'error' });
   });
 
   test('our agent profile declares catalog search + lookup (and the Global Catalog extension) only: no cart, checkout or order', () => {

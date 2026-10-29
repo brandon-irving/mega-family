@@ -39,7 +39,7 @@ export const products = action({
     if (refs.some((r) => !r.productId.trim() || r.productId.length > MAX_ID_LENGTH || (r.variantId ?? '').length > MAX_ID_LENGTH)) fail('VALIDATION', 'not a product id');
     if (!refs.length) return { products: [] };
     // Read live and returned as is: nothing here is written anywhere (Shopify's terms forbid caching results).
-    const r = await getProductCatalog().lookup({ refs, country: SHOPPING.country });
+    const r = await getProductCatalog().lookup({ refs, country: SHOPPING.country, currency: SHOPPING.currency });
     return r.ok ? { products: r.products } : { products: [], failure: r.failure };
   },
 });
@@ -111,7 +111,7 @@ export const startWatches = internalAction({
   handler: async (ctx, a) => {
     const refs = await ctx.runQuery(internal.shopping.watchTargets, a);
     if (!refs?.length) return null;
-    const r = await getProductCatalog().lookup({ refs, country: SHOPPING.country });
+    const r = await getProductCatalog().lookup({ refs, country: SHOPPING.country, currency: SHOPPING.currency });
     if (!r.ok || !r.products.length) return null;
     const products = r.products.map((p) => ({ productId: p.productId, variantId: p.variantId, title: p.title, priceCents: p.priceCents, currency: p.currency, store: p.store, url: p.url }));
     await ctx.runMutation(internal.shopping.saveWatches, { ...a, products });
@@ -151,7 +151,7 @@ export const checkFamily = internalAction({
     const checks: PriceCheck[] = [];
     for (let i = 0; i < due.length; i += LOOKUP_BATCH) {
       const batch = due.slice(i, i + LOOKUP_BATCH);
-      const r = await getProductCatalog().lookup({ refs: batch.map((b) => b.ref), country: SHOPPING.country });
+      const r = await getProductCatalog().lookup({ refs: batch.map((b) => b.ref), country: SHOPPING.country, currency: SHOPPING.currency });
       for (const b of batch) {
         if (!r.ok) {
           checks.push({ watchId: b.watchId, failure: r.failure });

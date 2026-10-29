@@ -197,6 +197,7 @@ async function catalogRefsFor(title: string, price: string | undefined): Promise
   const r = await getProductCatalog().search({
     query: title,
     country: SHOPPING.country,
+    currency: SHOPPING.currency,
     ...(max !== undefined ? { maxPriceCents: Math.round((max * (100 + GIFTS.priceSlackPct)) / 100) } : {}),
     limit: GIFTS.productsPerIdea,
   });

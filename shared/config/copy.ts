@@ -502,6 +502,9 @@ export const G4B_COPY = {
   tipUv: 'UV is high during {event}. Pack sunscreen.',
   tipAir: 'Air quality is poor during {event}. Maybe keep it short or indoors.',
   airSource: 'Open-Meteo air quality',
+  /** The weather sentence the MEGA is given (and the card summary): numbers from the provider, words from the bands. */
+  sentenceAqi: 'air quality US AQI {aqi} ({level})',
+  sentenceUv: 'UV {uv} ({level}) at today’s peak',
   holidayMarker: '{name}',
   holidayQuestionTitle: '{day} is {name}',
   holidayQuestion: '{day} is {name}. Pause the morning routine and chores for {kids}?',

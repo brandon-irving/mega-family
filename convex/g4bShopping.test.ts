@@ -259,10 +259,26 @@ describe('shop_search (adults) and invariant 4: results are untrusted', () => {
     __setChatModelForTests(makeFakeChatModel(() => (++step === 1 ? toolCallReply([{ id: 'c1', name: 'shop_search', arguments: { query: 'kids rain jacket', maxPrice: 40 } }]) : textReply('Found a few.'))));
     const { turn, cards } = await agent(s);
     await turn('admin', 'find a rain jacket for Twin 1 under $40');
-    expect(fake.searches[0]).toMatchObject({ query: 'kids rain jacket', maxPriceCents: 4000, country: 'US', limit: SHOPPING.searchLimit });
+    expect(fake.searches[0]).toMatchObject({ query: 'kids rain jacket', maxPriceCents: 4000, country: 'US', currency: SHOPPING.currency, limit: SHOPPING.searchLimit });
     const [card] = await cards('admin');
     expect(card).toEqual({ kind: 'products', query: 'kids rain jacket', refs: [{ productId: 'gid://shopify/p/test1', variantId: 'gid://shopify/ProductVariant/test1' }, { productId: 'gid://shopify/p/test2', variantId: 'gid://shopify/ProductVariant/test2' }] });
     expect(await cards('partner')).toEqual([]);
+  });
+
+  test('v0.16b: the model’s short heading becomes the card `title` (trimmed, capped); blank or missing → no title', async () => {
+    const s = await seeded();
+    __setProductCatalogForTests(catalog({}));
+    const { turn, cards } = await agent(s);
+    // One product search per reply (SHOPPING.maxSearchesPerReply), so one turn per heading.
+    for (const title of ['  Kids’ rain jackets · under $40  ', '   ', 'x'.repeat(200)]) {
+      let step = 0;
+      __setChatModelForTests(makeFakeChatModel(() => (++step === 1 ? toolCallReply([{ id: 'c1', name: 'shop_search', arguments: { query: 'kids rain jacket', title } }]) : textReply('Found a few.'))));
+      await turn('admin', 'find a rain jacket for Twin 1 under $40');
+    }
+    const posted = await cards('admin');
+    expect(posted[0].title).toBe('Kids’ rain jackets · under $40');
+    expect(posted[1]).not.toHaveProperty('title');
+    expect(posted[2].title!.length).toBe(SHOPPING.titleMax);
   });
 
   test('a kid is never offered shop_search, and a forced call is refused without searching', async () => {

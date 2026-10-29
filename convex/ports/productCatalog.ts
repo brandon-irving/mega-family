@@ -21,6 +21,8 @@ export interface ProductSearchRequest {
   query: string;
   /** ISO 3166-1 alpha-2 (SHOPPING.country): only products that ship there. */
   country: string;
+  /** ISO 4217 (SHOPPING.currency): results priced in any other currency are dropped, never converted. */
+  currency: string;
   maxPriceCents?: number;
   limit: number;
 }
@@ -28,6 +30,8 @@ export interface ProductSearchRequest {
 export interface ProductLookupRequest {
   refs: ProductRef[];
   country: string;
+  /** As on search: a ref now priced in another currency comes back in `notFound`. */
+  currency: string;
 }
 
 /** `notFound`: refs the catalog no longer resolves (a watch then stops with `no_result`). */

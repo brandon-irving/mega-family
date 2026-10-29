@@ -121,6 +121,14 @@ export const UV_LEVELS = [
   { min: 11, level: 'extreme' },
 ] as const;
 
+/** The band a value falls in (AQI_LEVELS / UV_LEVELS): the last band whose `min` it reaches. Used by the app's
+ * tiles and the backend's weather sentence alike. */
+export function levelOf<L extends string>(bands: readonly { min: number; level: L }[], value: number): L {
+  let found = bands[0].level;
+  for (const b of bands) if (value >= b.min) found = b.level;
+  return found;
+}
+
 /** WMO weather codes (open-meteo.com/en/docs "WMO Weather interpretation codes") → the short words a card or
  * a reply uses. A code missing here reads as `WEATHER_SUMMARY_FALLBACK`. */
 export const WEATHER_CODES: Record<number, string> = {
