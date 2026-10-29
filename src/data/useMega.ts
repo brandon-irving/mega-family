@@ -46,3 +46,9 @@ export function useForgetMemory() {
 export function useChangeMemoryScope() {
   return useMutation(api.memories.changeScope);
 }
+
+/** G5 (board ProfileActivity): what the family's MEGAs did, newest first (`megas.activity`, admin only —
+ * skipped for everyone else). */
+export function useMegaActivity(enabled: boolean) {
+  return useStablePaginatedQuery(usePaginatedQuery(api.megas.activity, enabled ? {} : 'skip', { initialNumItems: 40 }));
+}

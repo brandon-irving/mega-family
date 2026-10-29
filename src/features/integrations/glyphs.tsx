@@ -30,6 +30,18 @@ export const GLYPHS = {
   air: 'M3 9h11a3 3 0 1 0-3-3 M3 14h15a3 3 0 1 1-3 3 M3 19h6',
   flag: 'M5 21V4 M5 4h11l-2 4 2 4H5',
   external: 'M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5',
+  // G5 (Screen 16 boards: connected accounts, found mail, activity).
+  mail: 'M3 6h18v12H3z M3 7l9 6 9-6',
+  calendar: 'M4 6h16v14H4z M4 10h16 M8 3v4M16 3v4',
+  phone: 'M7 3h10v18H7z M11 18h2',
+  link: 'M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1 M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1',
+  refresh: 'M20 11a8 8 0 0 0-14.3-4.9L4 8 M4 4v4h4 M4 13a8 8 0 0 0 14.3 4.9L20 16 M20 20v-4h-4',
+  bill: 'M6 3h12v18l-3-2-3 2-3-2-3 2z M9 8h6M9 12h6',
+  box: 'M3 8l9-5 9 5v8l-9 5-9-5z M3 8l9 5 9-5 M12 13v8',
+  bell: 'M6 16V11a6 6 0 0 1 12 0v5l2 2H4z M10 20h4',
+  share: 'M16 6l-4-4-4 4 M12 2v13 M5 12v8h14v-8',
+  brain: 'M9 4a3 3 0 0 0-3 3 3 3 0 0 0-2 5 3 3 0 0 0 2 5 3 3 0 0 0 6 1V5a3 3 0 0 0-3-1z M15 4a3 3 0 0 1 3 3 3 3 0 0 1 2 5 3 3 0 0 1-2 5 3 3 0 0 1-6 1',
+  check: 'M5 12l5 5 9-10',
 } as const;
 export type GlyphName = keyof typeof GLYPHS;
 export type PlaceKind = (typeof PLACE_KINDS)[number];

@@ -6,7 +6,6 @@
 import { StyleSheet } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { renderWithTheme } from '@/test/renderWithTheme';
-import OnboardingRoute from '@/app/onboarding';
 import StartRoute from '@/app/start';
 import WelcomeRoute from '@/app/welcome';
 
@@ -29,14 +28,7 @@ const inset = (ui: React.ReactElement) => renderWithTheme(<SafeAreaProvider init
 const pad = (node: { props: { style?: unknown } }) => StyleSheet.flatten(node.props.style as never) as { paddingTop?: number; paddingBottom?: number };
 
 describe('routes before the tabs respect the top and bottom insets', () => {
-  test('onboarding ("Welcome to MEGA"): title below the status bar', async () => {
-    const view = await inset(<OnboardingRoute />);
-    const frame = view.getByTestId('onboarding');
-    expect(pad(frame).paddingTop).toBe(59);
-    expect(pad(frame).paddingBottom).toBe(34);
-  });
-
-  test('start (join or start a family)', async () => {
+  test('start (join or start a family; G5: the onboarding itself is the chat)', async () => {
     const view = await inset(<StartRoute />);
     expect(pad(view.getByTestId('start-safe')).paddingTop).toBe(59);
   });

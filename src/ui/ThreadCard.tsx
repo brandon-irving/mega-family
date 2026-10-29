@@ -155,7 +155,7 @@ export function LockGlyph({ color, size = 12 }: { color: string; size?: number }
   );
 }
 
-export type CardAction = { id: string; label: string; onPress: () => void; variant?: 'primary' | 'ghost'; loading?: boolean; disabled?: boolean };
+export type CardAction = { id: string; label: string; onPress: () => void; variant?: 'primary' | 'ghost'; loading?: boolean; disabled?: boolean; accessibilityLabel?: string };
 
 /** The card's action buttons, sized from the role (BUTTON_SIZES), laid out in the same explicit lines as
  * ButtonRow (owner, Oct 28: stacked buttons are full width, pairs split evenly); `cols={1}` always stacks. */
@@ -171,6 +171,7 @@ export function CardActions({ actions, cols = 2 }: { actions: CardAction[]; cols
             <Button
               key={a.id}
               label={a.label}
+              accessibilityLabel={a.accessibilityLabel}
               variant={a.variant === 'ghost' ? 'secondary' : 'primary'}
               onPress={a.onPress}
               loading={a.loading}

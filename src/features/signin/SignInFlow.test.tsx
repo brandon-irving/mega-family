@@ -16,7 +16,8 @@ import { extractToken } from './inviteToken';
 
 const mockRedeem = jest.fn();
 let mockPreview: InvitePreview | undefined;
-jest.mock('convex/react', () => ({ useAction: () => mockRedeem }));
+const mockBegin = jest.fn((_args: { timezone: string }) => Promise.resolve({ familyId: 'f', threadId: 't' }));
+jest.mock('convex/react', () => ({ useAction: () => mockRedeem, useMutation: () => mockBegin }));
 jest.mock('@/data/useInvite', () => ({ useInvitePreview: () => mockPreview }));
 jest.mock('@/services/auth', () => ({ signOut: jest.fn(), useSignedInEmail: () => 'parent@example.com' }));
 jest.mock('expo-router', () => ({
@@ -209,8 +210,10 @@ describe('join or start a family', () => {
     await renderScreen(<StartRoute />);
     expect(screen.getByText('Let’s set up your family')).toBeTruthy();
     expect(screen.getByText('parent@example.com')).toBeTruthy();
+    // G5: Start a family begins the onboarding chat right here (no interim screen); the gate opens Chat.
     await act(async () => fireEvent.press(screen.getByLabelText('Start a family')));
-    expect(router.push).toHaveBeenCalledWith('/onboarding');
+    expect(mockBegin).toHaveBeenCalledWith({ timezone: Intl.DateTimeFormat().resolvedOptions().timeZone });
+    expect(router.push).not.toHaveBeenCalledWith('/onboarding');
     await act(async () => fireEvent.press(screen.getByLabelText('Join a family')));
     expect(router.push).toHaveBeenCalledWith('/invite');
     await act(async () => fireEvent.press(screen.getByLabelText('Use a different account')));

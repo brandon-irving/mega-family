@@ -39,8 +39,8 @@ export function AuthGate() {
       </Stack.Protected>
 
       <Stack.Protected guard={needsFamily}>
+        {/* G5: "Start a family" calls onboarding.begin here; the onboarding itself is the chat. */}
         <Stack.Screen name="start" />
-        <Stack.Screen name="onboarding" options={{ presentation: 'fullScreenModal' }} />
       </Stack.Protected>
 
       {/* Reachable right after an anonymous sign-in from Welcome, and also once signed in with no
@@ -64,6 +64,9 @@ export function AuthGate() {
         {/* G4 (Screen 14): family places, and a kid's blocked/changed searches for their parents. */}
         <Stack.Screen name="places" options={{ presentation: 'modal' }} />
         <Stack.Screen name="searches/[memberId]" options={{ presentation: 'modal' }} />
+        {/* G5 (Screen 16): Settings → Connected accounts, and a kid's Rules and limits for their parents. */}
+        <Stack.Screen name="accounts" options={{ presentation: 'modal' }} />
+        <Stack.Screen name="rules/[memberId]" options={{ presentation: 'modal' }} />
       </Stack.Protected>
     </Stack>
   );

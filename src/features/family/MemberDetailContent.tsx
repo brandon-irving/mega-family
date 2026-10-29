@@ -4,7 +4,7 @@
 import { Switch, View } from 'react-native';
 import type { Infer } from 'convex/values';
 import type { API } from '@shared/domain/api';
-import { G4_COPY } from '@shared/config/copy';
+import { G4_COPY, G5_UI_COPY } from '@shared/config/copy';
 import { Button } from '@/ui/Button';
 import { Card } from '@/ui/Card';
 import { MegaBadge } from '@/ui/MegaBadge';
@@ -27,9 +27,11 @@ export type MemberDetailContentProps = {
   onChangeKidControls: (patch: KidControlsPatch) => void;
   /** G4 (board SearchLog): a parent opens this kid's blocked/changed searches. */
   onOpenSearches?: () => void;
+  /** G5 (board ProfileRules): a parent opens this kid's Rules and limits page. */
+  onOpenRules?: () => void;
 };
 
-export function MemberDetailContent({ detail, onMessage, onVisitRoom, onChangeKidControls, onOpenSearches }: MemberDetailContentProps) {
+export function MemberDetailContent({ detail, onMessage, onVisitRoom, onChangeKidControls, onOpenSearches, onOpenRules }: MemberDetailContentProps) {
   const tokens = useTokens();
   const { member, mega, kidControls, canReadChat } = detail;
   const isKid = member.role === 'kid';
@@ -62,6 +64,7 @@ export function MemberDetailContent({ detail, onMessage, onVisitRoom, onChangeKi
           <Text variant="caption" color="muted" style={{ marginTop: tokens.spacing.sm }}>
             Quiet hours {kidControls.quietHours.start}–{kidControls.quietHours.end} · {kidControls.dailyMinutes ?? 0} min/day
           </Text>
+          {onOpenRules ? <Button label={G5_UI_COPY.rulesRow} variant="secondary" onPress={onOpenRules} style={{ marginTop: tokens.spacing.md }} /> : null}
           {onOpenSearches ? <Button label={G4_COPY.searchesButton} variant="secondary" onPress={onOpenSearches} style={{ marginTop: tokens.spacing.md }} /> : null}
         </Card>
       )}

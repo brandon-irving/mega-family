@@ -30,6 +30,7 @@ export default function MemberDetailRoute() {
         onVisitRoom={() => router.push(`/hq/${id}` as never)}
         onChangeKidControls={(patch) => setKidControls({ memberId: id, patch })}
         onOpenSearches={() => router.push(`/searches/${id}` as never)}
+        onOpenRules={() => router.push(`/rules/${id}` as never)}
       />
       {detail.canReadChat && detail.member.role === 'kid' && (
         <>
