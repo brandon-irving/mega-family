@@ -83,3 +83,14 @@ describe('Composer (G5 onboarding, board OnboardChat)', () => {
     expect(onSend).toHaveBeenCalledWith('call me Admin');
   });
 });
+
+describe('owner, Oct 29 (Images 26/28): the grown-up composer bar has no background of its own', () => {
+  test('the bar is transparent with no top border; the text field carries the fill so it reads over the thread', async () => {
+    await renderWithTheme(<Composer megaName="Teal" onSend={noop} onOpenTalk={noop} />);
+    const bar = styleOf(screen.getByTestId('composer-bar'));
+    expect(bar.backgroundColor).toBeUndefined();
+    expect(bar.borderTopWidth).toBeUndefined();
+    const field = styleOf(screen.getByPlaceholderText(/Teal/));
+    expect(field.backgroundColor).toBeDefined();
+  });
+});

@@ -103,7 +103,9 @@ export function Composer({ megaName, bigTalkButton = false, onSend, onOpenTalk, 
 
   const A = COMPOSER_SIZES.adult;
   return (
-    <View style={{ flexDirection: 'row', alignItems: 'center', gap: tokens.spacing.sm, padding: tokens.spacing.md, borderTopWidth: 1, borderTopColor: tokens.line, backgroundColor: tokens.surface }}>
+    // Owner, Oct 29: no bar background or top border; the thread shows through around the controls and the
+    // field carries the fill (Images 26/28).
+    <View testID="composer-bar" style={{ flexDirection: 'row', alignItems: 'center', gap: tokens.spacing.sm, padding: tokens.spacing.md }}>
       {onCamera && (
         <Pressable
           onPress={onCamera}
@@ -129,7 +131,7 @@ export function Composer({ megaName, bigTalkButton = false, onSend, onOpenTalk, 
         onChangeText={setText}
         placeholder={placeholder ?? copy(COMPOSER_COPY.adultPlaceholder)}
         placeholderTextColor={tokens.muted}
-        style={{ flex: 1, minWidth: 0, color: tokens.text, minHeight: tokens.touchTarget, paddingHorizontal: tokens.spacing.md, borderRadius: tokens.radii.pill, borderWidth: 1, borderColor: tokens.line }}
+        style={{ flex: 1, minWidth: 0, color: tokens.text, minHeight: tokens.touchTarget, paddingHorizontal: tokens.spacing.md, borderRadius: tokens.radii.pill, borderWidth: 1, borderColor: tokens.line, backgroundColor: tokens.surface }}
         accessibilityLabel={copy(COMPOSER_COPY.fieldLabel)}
         onSubmitEditing={send}
       />
