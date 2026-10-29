@@ -487,7 +487,7 @@ export const API = {
   widgets: {
     timeline: fn({ kind: 'query', day1: 'real', args: {}, returns: v.array(widgetEntry) }),
     // v0.18 (G8): the widget timeline the app writes into MegaNext/MegaTalk (CONTRACT §6). Any member, own data only.
-    next: fn({ kind: 'query', day1: 'stub', args: {}, returns: widgetTimeline }),
+    next: fn({ kind: 'query', day1: 'real', args: {}, returns: widgetTimeline }),
   },
   sharing: {
     get: fn({ kind: 'query', day1: 'real', args: {}, returns: v.union(v.object({ schedule: shareLevel, lists: shareLevel, hqActivity: shareLevel }), v.null()) }),
