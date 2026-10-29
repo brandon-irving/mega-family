@@ -3,7 +3,7 @@
 import { useMutation, usePaginatedQuery } from 'convex/react';
 import type { Id } from '@shared/domain/validators';
 import { api } from './api';
-import { kidControlsMine, type MyRules } from './pendingContract';
+import { kidControlsMine, kidNotifyCap, setKidNotifyCap, type MyRules } from './pendingContract';
 import { useQuery, useQueryState } from './useQuery';
 import { useStablePaginatedQuery } from './useStableQuery';
 
@@ -36,4 +36,15 @@ export function useSetKidControls() {
 export function useMyRules(enabled: boolean): MyRules | null | undefined {
   const state = useQueryState(kidControlsMine, enabled ? {} : 'skip');
   return state.status === 'ok' ? state.data : undefined;
+}
+
+/** A kid's daily buzz cap for their parent (`kidControls.notifyCap`, CONTRACT v0.17b pending): undefined until
+ * the backend can answer, so the Rules page shows no stepper it can't save. */
+export function useKidNotifyCap(memberId: Id<'members'>) {
+  const state = useQueryState(kidNotifyCap, { memberId });
+  return state.status === 'ok' && state.data ? state.data : undefined;
+}
+
+export function useSetKidNotifyCap() {
+  return useMutation(setKidNotifyCap);
 }

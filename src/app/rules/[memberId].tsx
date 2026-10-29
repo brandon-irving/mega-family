@@ -1,13 +1,13 @@
 // A kid's Rules and limits for their parents (canvas Screen 16, board ProfileRules), opened from the kid's
 // member page. `family.member` returns `kidControls` only to the kid's parents; anyone else gets the read-only
 // line instead of the page. Changes apply at once through `kidControls.set` (the server re-checks parenthood).
-// The kid's own read-only version (board ProfileRulesKid) is RulesContent with `editable={false}`; the contract
-// has no query a kid can read their own controls with yet, so it isn't routed (noted for the backend).
+// The kid's own read-only version (board ProfileRulesKid) is /mega-profile/rules. "Buzzes a day" shows once the
+// server reports the kid's cap (`kidControls.notifyCap`, CONTRACT v0.17b pending).
 import { router, useLocalSearchParams } from 'expo-router';
 import type { Id } from '@shared/domain/validators';
 import { G5_UI_COPY as U, KIDS_COPY } from '@shared/config/copy';
 import type { StickerId } from '@shared/config/looks';
-import { useFamilyMembers, useMemberDetail, useSetKidControls } from '@/data/useFamily';
+import { useFamilyMembers, useKidNotifyCap, useMemberDetail, useSetKidControls, useSetKidNotifyCap } from '@/data/useFamily';
 import { joinNames } from '@/features/holidays/HolidayCard';
 import { RulesContent } from '@/features/settings/RulesContent';
 import { AdultOnly } from '@/features/shell/RoleGate';
@@ -30,6 +30,8 @@ function RulesScreen() {
   const detail = useMemberDetail(id);
   const members = useFamilyMembers();
   const setKidControls = useSetKidControls();
+  const buzzCap = useKidNotifyCap(id);
+  const setBuzzCap = useSetKidNotifyCap();
 
   if (detail === undefined) return <MegaLoader />;
   const controls = detail?.kidControls;
@@ -45,6 +47,8 @@ function RulesScreen() {
           parents={parents}
           editable
           onPatch={(patch) => void setKidControls({ memberId: id, patch }).catch(() => null)}
+          buzzCap={buzzCap ? { value: buzzCap.dailyCap, min: buzzCap.min, max: buzzCap.max } : undefined}
+          onBuzzCap={(dailyCap) => void setBuzzCap({ memberId: id, dailyCap }).catch(() => null)}
         />
       ) : (
         <Text color="muted">{KIDS_COPY.notReady}</Text>

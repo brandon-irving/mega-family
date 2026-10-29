@@ -9,7 +9,7 @@
 import { View } from 'react-native';
 import type { Infer } from 'convex/values';
 import type { kidControlsDoc } from '@shared/domain/api';
-import { G5_UI_COPY as U, fillCopy } from '@shared/config/copy';
+import { G5_FIX_COPY, G5_UI_COPY as U, fillCopy } from '@shared/config/copy';
 import { SETTINGS_UI } from '@shared/config/settingsUi';
 import type { StickerId } from '@shared/config/looks';
 import { MegaBadge } from '@/ui/MegaBadge';
@@ -31,6 +31,8 @@ export function RulesContent({
   parents,
   editable,
   onPatch,
+  buzzCap,
+  onBuzzCap,
 }: {
   controls: KidControls;
   kidName: string;
@@ -39,6 +41,9 @@ export function RulesContent({
   parents: string;
   editable: boolean;
   onPatch: (patch: KidControlsPatch) => void;
+  /** The kid's daily buzz cap and its limits, once the server reports it (CONTRACT v0.17b); no row before. */
+  buzzCap?: { value: number; min: number; max: number };
+  onBuzzCap?: (n: number) => void;
 }) {
   const tokens = useTokens();
   const c = controls;
@@ -81,11 +86,25 @@ export function RulesContent({
               lessLabel={fillCopy(U.rulesFewer, { label: U.rulesTimeLimit })}
               moreLabel={fillCopy(U.rulesMore, { label: U.rulesTimeLimit })}
             />
+            {buzzCap && onBuzzCap ? (
+              <StepperRow
+                label={G5_FIX_COPY.buzzesTitle}
+                hint={fillCopy(G5_FIX_COPY.buzzesHint, { mega: mega?.name ?? 'MEGA', kid: kidName })}
+                value={fillCopy(G5_FIX_COPY.buzzesValue, { n: buzzCap.value })}
+                onLess={() => onBuzzCap(Math.max(buzzCap.min, buzzCap.value - 1))}
+                onMore={() => onBuzzCap(Math.min(buzzCap.max, buzzCap.value + 1))}
+                canLess={buzzCap.value > buzzCap.min}
+                canMore={buzzCap.value < buzzCap.max}
+                lessLabel={fillCopy(G5_FIX_COPY.buzzesFewer, { label: G5_FIX_COPY.buzzesTitle })}
+                moreLabel={fillCopy(G5_FIX_COPY.buzzesMore, { label: G5_FIX_COPY.buzzesTitle })}
+              />
+            ) : null}
           </>
         ) : (
           <>
             {lock(U.quietHours, quiet)}
             {lock(U.rulesTimeLimit, minutesText(minutes))}
+            {buzzCap ? lock(G5_FIX_COPY.buzzesTitle, fillCopy(G5_FIX_COPY.buzzesValue, { n: buzzCap.value })) : null}
           </>
         )}
       </SettingsSection>

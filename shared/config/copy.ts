@@ -934,7 +934,6 @@ export const G5_FIX_COPY = {
   // A kid's own rules (UX review finding 4; boards SettingsKid / ProfileRulesKid)
   kidReadChats: 'Your parents can read your chats',
   kidRulesHint: 'What your parents set',
-  kidRulesIntro: '{parents} set these. Ask them if something should change.',
   // HQ (UX review findings 6–7; board HQ)
   hubTalk: 'Talk to {name}',
   hubAbout: '{name} is your family’s MEGA. It keeps the shared calendar and lists, and passes messages between everyone’s MEGAs.',
@@ -943,4 +942,10 @@ export const G5_FIX_COPY = {
   decidedRule: 'Rule',
   decidedAi: 'MEGA (AI)',
   decidedYou: 'You',
+  // Rules: a kid's daily buzz cap (board ProfileRules "Buzzes a day")
+  buzzesTitle: 'Buzzes a day',
+  buzzesHint: 'The most times {mega} can buzz {kid} in a day',
+  buzzesValue: '{n} a day',
+  buzzesFewer: 'Fewer: {label}',
+  buzzesMore: 'More: {label}',
 } as const;

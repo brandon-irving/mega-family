@@ -3,7 +3,7 @@
 // kid's Family page (/rules/[memberId]). The data is `kidControls.mine` (CONTRACT v0.17b, pending): until the
 // backend has it, the page says the rules aren't ready instead of guessing.
 import { Redirect, router } from 'expo-router';
-import { G5_FIX_COPY, KIDS_COPY, G5_UI_COPY as U, fillCopy } from '@shared/config/copy';
+import { KIDS_COPY, G5_UI_COPY as U } from '@shared/config/copy';
 import type { StickerId } from '@shared/config/looks';
 import { useMyRules } from '@/data/useFamily';
 import { useViewer } from '@/data/useViewer';
@@ -26,7 +26,6 @@ export default function KidRulesRoute() {
     <Sheet title={U.rulesTitle} onClose={() => router.back()}>
       {mine ? (
         <>
-          <Text color="muted">{fillCopy(G5_FIX_COPY.kidRulesIntro, { parents })}</Text>
           <RulesContent
             controls={mine.controls}
             kidName={viewer.member.name}
@@ -34,6 +33,7 @@ export default function KidRulesRoute() {
             parents={parents}
             editable={false}
             onPatch={() => undefined}
+            buzzCap={mine.notifyDailyCap !== undefined ? { value: mine.notifyDailyCap, min: mine.notifyDailyCap, max: mine.notifyDailyCap } : undefined}
           />
         </>
       ) : (
