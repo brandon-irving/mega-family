@@ -178,6 +178,8 @@ export const TOUCH_TARGET = { normal: 44, big: 56 } as const;
 /** Closing sheets and modals (owner, Oct 28: "i am able to close all opened modals"). A bottom sheet closes
  * when dragged down past `swipeDistance` points or flicked faster than `swipeVelocity` (points/ms); the drag
  * only starts once it has moved `startSlop` points more down than sideways. */
+export const SHEET_LAYOUT = { maxHeight: '90%' } as const;
+
 export const SHEET_DISMISS = { swipeDistance: 80, swipeVelocity: 0.6, startSlop: 6 } as const;
 
 /** G2 polish fix: the 44pt floor (TOUCH_TARGET.normal) is the *visual* minimum — Apple HIG and Material

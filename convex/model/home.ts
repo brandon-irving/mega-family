@@ -1,6 +1,7 @@
 // Shared read logic for the home-screen functions (`today.get`, `family.comingUp`, `widgets.timeline`),
 // so "what's coming up" and "what am I allowed to see" are computed once, not three times.
 import type { Infer } from 'convex/values';
+import { BUTTON_SETS } from '../../shared/config/notifications';
 import { LIMITS } from '../../shared/config';
 import type { Viewer } from '../../shared/domain/api';
 import { listSummary } from '../../shared/domain/api';
@@ -9,6 +10,7 @@ import type { Doc } from '../_generated/dataModel';
 import type { MutationCtx, QueryCtx } from '../_generated/server';
 import { clock } from '../ports/clock';
 import { canSeeEvent, canSeeScoped } from './visibility';
+import { canSeeListItem } from './listAccess';
 
 type Ctx = QueryCtx | MutationCtx;
 type ListSummary = Infer<typeof listSummary>;
@@ -68,7 +70,8 @@ export async function visibleLists(ctx: Ctx, viewer: Viewer): Promise<ListSummar
       .query('listItems')
       .withIndex('by_family_list', (q) => q.eq('familyId', viewer.member.familyId).eq('listId', list._id))
       .collect();
-    out.push({ list, open: items.filter((i) => !i.checked).length, items });
+    const visibleItems = items.filter(item => canSeeListItem(viewer.member, item, list));
+    out.push({ list, open: visibleItems.filter((i) => !i.checked).length, items: visibleItems });
   }
   return out;
 }
@@ -80,7 +83,8 @@ export async function topStatementCandidate(ctx: Ctx, viewer: Viewer): Promise<D
     .query('candidates')
     .withIndex('by_family_status', (q) => q.eq('familyId', viewer.member.familyId).eq('status', 'delivered'))
     .collect();
-  const mine = rows.filter((c) => c.recipientId === viewer.member._id && c.delivery === 'statement');
+  const now = await clock.now(ctx, viewer.member.familyId);
+  const mine = rows.filter(c => c.recipientId === viewer.member._id && c.delivery === 'statement' && c.window.from <= now && c.window.to >= now && BUTTON_SETS[c.draft.buttons].length === 0 && (c.kind === 'tip' || c.kind === 'update'));
   if (mine.length === 0) return null;
   return mine.reduce((best, c) => ((c.score ?? 0) > (best.score ?? 0) ? c : best));
 }

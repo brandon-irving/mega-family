@@ -6,14 +6,14 @@ import { Text } from './Text';
 import { useTokens } from './theme';
 
 /** `presentation`: 'sheet' for a modal route (the default); 'tab' for a sheet-style screen in a tab's stack. */
-export type SheetProps = { title: string; onClose?: () => void; presentation?: Presentation; children: ReactNode };
+export type SheetProps = { title: string; onClose?: () => void; presentation?: Presentation; children: ReactNode; scroll?: boolean };
 
 /**
  * The inner content of a modal sheet screen (Today, MEGA profile, member detail, …). The screen
  * itself is pushed with `presentation: 'modal'` by the router; this just gives sheets a consistent
  * header and scroll body. Owner, Oct 28: always inside the safe areas (src/ui/Screen.tsx `Presentation`).
  */
-export function Sheet({ title, onClose, presentation = 'sheet', children }: SheetProps) {
+export function Sheet({ title, onClose, presentation = 'sheet', children, scroll = true }: SheetProps) {
   const tokens = useTokens();
   // Escape on web closes it too (a route modal: the navigator already handles Android back).
   useDismiss(onClose ?? noop, { enabled: !!onClose, androidBack: false });
@@ -34,7 +34,7 @@ export function Sheet({ title, onClose, presentation = 'sheet', children }: Shee
               borderBottomColor: tokens.line,
             }}
           >
-            <Text variant="title">{title}</Text>
+            <Text variant="label" style={{ flex: 1, fontSize: 18, lineHeight: 24 }} accessibilityRole="header">{title}</Text>
             {onClose && (
               <Pressable
                 onPress={onClose}
@@ -46,7 +46,7 @@ export function Sheet({ title, onClose, presentation = 'sheet', children }: Shee
               </Pressable>
             )}
           </View>
-          <ScrollView contentContainerStyle={{ padding: tokens.spacing.lg, gap: tokens.spacing.md }}>{children}</ScrollView>
+          {scroll ? <ScrollView contentInsetAdjustmentBehavior="never" keyboardDismissMode="on-drag" keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: tokens.spacing.lg, gap: tokens.spacing.md }}>{children}</ScrollView> : <View style={styles.fill}>{children}</View>}
         </View>
       </View>
     </SafeFrame>

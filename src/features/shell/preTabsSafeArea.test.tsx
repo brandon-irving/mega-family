@@ -21,7 +21,7 @@ jest.mock('@/services/auth', () => ({
   signOut: jest.fn(),
 }));
 jest.mock('@/services/AppleSignInButton', () => ({ AppleSignInButton: () => null }));
-jest.mock('expo-router', () => ({ router: { push: jest.fn(), back: jest.fn(), canGoBack: () => false }, Redirect: () => null }));
+jest.mock('expo-router', () => ({ useIsFocused: () => true, router: { push: jest.fn(), back: jest.fn(), canGoBack: () => false }, Redirect: () => null }));
 
 const METRICS = { frame: { x: 0, y: 0, width: 393, height: 852 }, insets: { top: 59, left: 0, right: 0, bottom: 34 } };
 const inset = (ui: React.ReactElement) => renderWithTheme(<SafeAreaProvider initialMetrics={METRICS}>{ui}</SafeAreaProvider>);

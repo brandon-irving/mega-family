@@ -8,7 +8,7 @@ import { G8_UI_COPY } from '@shared/config/copy';
 import { renderWithTheme } from '@/test/renderWithTheme';
 import WidgetsRoute from '@/app/widgets';
 
-jest.mock('expo-router', () => ({ router: { back: jest.fn() } }));
+jest.mock('expo-router', () => ({ router: { canGoBack: () => true, back: jest.fn() } }));
 
 const METRICS = { frame: { x: 0, y: 0, width: 390, height: 844 }, insets: { top: 47, left: 0, right: 0, bottom: 34 } };
 const renderSheet = () => renderWithTheme(<SafeAreaProvider initialMetrics={METRICS}><WidgetsRoute /></SafeAreaProvider>);

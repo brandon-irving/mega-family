@@ -10,7 +10,8 @@
 // types the code into a number field.
 import { useState } from 'react';
 import { ScrollView, StyleSheet, TextInput, View } from 'react-native';
-import { router, useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
+import { router } from '@/features/shell/navigation';
 import { useAction } from 'convex/react';
 import { ConvexError } from 'convex/values';
 import { errorCopyFor } from '@/data/errorCopy';
@@ -157,7 +158,7 @@ function ChangeMega({ mega, onBack, onSave }: { mega: InviteMega; onBack: () => 
   useDismiss(onBack);
   return (
     <View style={[styles.fill, { backgroundColor: tokens.bg }]} testID="join-change">
-      <ScrollView contentContainerStyle={{ padding: tokens.spacing.xl, paddingTop: tokens.spacing.xxl }} keyboardShouldPersistTaps="handled">
+      <ScrollView keyboardDismissMode="on-drag" contentContainerStyle={{ padding: tokens.spacing.xl, paddingTop: tokens.spacing.xxl }} keyboardShouldPersistTaps="handled">
         <BackButton onPress={onBack} />
         <Text variant="display" accessibilityRole="header" style={{ marginVertical: tokens.spacing.md }}>
           {C.changeTitle}

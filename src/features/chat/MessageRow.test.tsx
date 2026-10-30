@@ -1,11 +1,11 @@
-// Renders one message of every MessageBody type (CONTRACT §3). MEGA/system messages show a badge
-// with no bubble; the viewer's own text message is a bubble (PLAN §1).
-import { fireEvent, screen } from '@testing-library/react-native';
+// Renders each message body and preserves authorship without an assistant avatar gutter.
+import { fireEvent, screen, waitFor } from '@testing-library/react-native';
 import { renderWithTheme } from '@/test/renderWithTheme';
 import { FIXTURE_IDS, MESSAGES_BY_TYPE, SAMPLE_SAVE_CHIP, TEAL_INFO } from '@/test/fixtures';
 import { ThemeProvider } from '@/ui/theme';
 import { MessageRow } from './MessageRow';
 
+jest.mock('@/data/useQuery', () => ({ useQuery: () => 'https://example.test/photo.jpg' }));
 // G4: the search/weather/travel cards read the viewer's timezone and role (src/features/integrations).
 jest.mock('@/data/useViewer', () => ({ useViewer: () => ({ member: { role: 'adult' }, family: { timezone: 'America/New_York' } }) }));
 
@@ -36,12 +36,14 @@ describe('MessageRow', () => {
     expect(Object.assign({}, ...[bubble.props.style].flat()).maxWidth).toBe('100%');
   });
 
-  test('block: an unanswered block shows the MEGA badge and its prompt', async () => {
+  test('block: an unanswered block keeps the MEGA author and uses the available width', async () => {
     await renderWithTheme(
       <MessageRow message={MESSAGES_BY_TYPE.block} isMine={false} mega={TEAL_INFO} onAnswerBlock={noop} onReact={noop} onChangeMemoryScope={noop} onForgetMemory={noop} />,
     );
     expect(screen.getByText('Teal')).toBeTruthy();
     expect(screen.getByText('Who should I add first?')).toBeTruthy();
+    expect(Object.assign({}, ...[screen.getByTestId('message-column').props.style].flat())).toMatchObject({ flex: 1, maxWidth: '100%' });
+    expect(screen.queryByLabelText('Teal')).toBeNull();
   });
 
   test('answer: shows the collapsed answer label', async () => {
@@ -117,6 +119,29 @@ describe('MessageRow', () => {
       <MessageRow message={withChip} isMine mega={null} onAnswerBlock={noop} onReact={noop} onChangeMemoryScope={noop} onForgetMemory={noop} chipsReadOnly />,
     );
     expect(screen.getByLabelText('Saved, Family')).toBeTruthy(); // no "Tap to change" affordance in the label
+  });
+
+  test('an adult can save a finalized MEGA reply, recover from failure, and see success', async () => {
+    const reply = { ...MESSAGES_BY_TYPE.text, author: { kind: 'mega' as const, id: FIXTURE_IDS.teal } };
+    const onSaveIdea = jest.fn().mockRejectedValueOnce(new Error('offline')).mockResolvedValueOnce('idea-1');
+    await renderWithTheme(<MessageRow message={reply} isMine={false} mega={TEAL_INFO} onAnswerBlock={noop} onReact={noop} onChangeMemoryScope={noop} onForgetMemory={noop} onSaveIdea={onSaveIdea} />);
+    await fireEvent.press(screen.getByLabelText('Save idea'));
+    await waitFor(() => expect(screen.getByLabelText('Save idea')).toBeTruthy());
+    expect(onSaveIdea).toHaveBeenCalledTimes(1);
+    await fireEvent.press(screen.getByLabelText('Save idea'));
+    await waitFor(() => expect(screen.getByLabelText('Saved to Ideas').props.accessibilityState.disabled).toBe(true));
+    expect(onSaveIdea).toHaveBeenCalledTimes(2);
+  });
+
+  test('read-only transcripts cannot save a suggestion even if a callback is passed', async () => {
+    const reply = { ...MESSAGES_BY_TYPE.text, author: { kind: 'mega' as const, id: FIXTURE_IDS.teal } };
+    await renderWithTheme(<MessageRow message={reply} isMine={false} mega={TEAL_INFO} onAnswerBlock={noop} onReact={noop} onChangeMemoryScope={noop} onForgetMemory={noop} onSaveIdea={jest.fn()} chipsReadOnly />);
+    expect(screen.queryByLabelText('Save idea')).toBeNull();
+  });
+
+  test('member messages cannot be saved as MEGA ideas', async () => {
+    await renderWithTheme(<MessageRow message={MESSAGES_BY_TYPE.text} isMine mega={null} onAnswerBlock={noop} onReact={noop} onChangeMemoryScope={noop} onForgetMemory={noop} onSaveIdea={jest.fn()} />);
+    expect(screen.queryByLabelText('Save idea')).toBeNull();
   });
 
   // A MEGA reply still being written is an empty text message with a streamId; its words show in the chat

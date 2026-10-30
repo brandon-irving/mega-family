@@ -145,7 +145,8 @@ describe('Gift ideas with products (boards GiftsProducts / GiftsNoCatalog)', () 
 
   test('"Based on what’s shared" chips sit on one sideways-scrolling line (never wrap)', async () => {
     await renderWithTheme(<GiftsCardView megaName="Teal" forName="Twin 1" gifts={GIFTS_WITH_REFS} onAdd={noop} products={ok([PRODUCT_KIT])} />);
-    expect(screen.getByTestId('tag-list').props.horizontal).toBe(true);
+    expect(screen.getAllByTestId('tag-list')).toHaveLength(2);
+    for (const tags of screen.getAllByTestId('tag-list')) expect(tags.props.horizontal).toBe(true);
   });
 
   test('an idea on a price watch gets the "Watching the price" chip; others don’t', async () => {

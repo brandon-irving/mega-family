@@ -19,7 +19,7 @@ import { SettingsSection, StepperRow, SwitchRow, clockLabel, shiftClock } from '
 
 const sameAccent = (a: Accent, b: Accent) => (typeof a === 'string' || typeof b === 'string' ? a === b : a.hex.toLowerCase() === b.hex.toLowerCase());
 
-export function ThemeSheet({ open, onClose, theme, accent, megaName, megaHex, megaSticker, onTheme, onAccent }: { open: boolean; onClose: () => void; theme: ThemeName; accent: Accent; megaName: string; megaHex: string; megaSticker: StickerId; onTheme: (t: ThemeName) => void; onAccent: (a: Accent) => void }) {
+export function ThemeSheet({ open, onClose, theme, accent, megaName, megaHex, megaSticker, onTheme, onAccent, busy, error, saved }: { open: boolean; onClose: () => void; theme: ThemeName; accent: Accent; megaName: string; megaHex: string; megaSticker: StickerId; onTheme: (t: ThemeName) => void; onAccent: (a: Accent) => void } & SaveFeedbackProps) {
   const tokens = useTokens();
   const swatches: { accent: Accent; label: string; hex: string }[] = [
     { accent: 'theme', label: U.defaultAccent, hex: THEMES[theme].accent },
@@ -29,6 +29,7 @@ export function ThemeSheet({ open, onClose, theme, accent, megaName, megaHex, me
   ];
   return (
     <ModalSheet open={open} title={U.theme} closeLabel={U.close} onClose={onClose} testID="theme-sheet">
+      <SaveFeedback busy={busy} error={error} saved={saved} />
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: tokens.spacing.md, padding: tokens.spacing.md, borderRadius: tokens.radii.lg, borderWidth: 1, borderColor: tokens.line, backgroundColor: tokens.bg }} accessibilityLabel={U.previewLabel}>
         <MegaBadge hex={megaHex} sticker={megaSticker} size={36} accessibilityLabel={megaName} />
         <View style={{ flex: 1, paddingHorizontal: tokens.spacing.md, paddingVertical: tokens.spacing.sm, borderRadius: tokens.radii.lg, backgroundColor: tokens.accent }}>
@@ -44,9 +45,10 @@ export function ThemeSheet({ open, onClose, theme, accent, megaName, megaHex, me
           return (
             <Pressable
               key={t}
+              disabled={busy}
               onPress={() => onTheme(t)}
               accessibilityRole="radio"
-              accessibilityState={{ checked: on, selected: on }}
+              accessibilityState={{ checked: on, selected: on, disabled: !!busy }}
               accessibilityLabel={THEMES[t].label}
               style={{ flex: 1, height: 56, borderRadius: tokens.radii.lg, borderWidth: on ? 3 : 1, borderColor: on ? tokens.accent : tokens.line, backgroundColor: THEMES[t].bg, alignItems: 'center', justifyContent: 'center' }}
             >
@@ -61,9 +63,10 @@ export function ThemeSheet({ open, onClose, theme, accent, megaName, megaHex, me
         {U.accentColor.toUpperCase()}
       </Text>
       <Pressable
+        disabled={busy}
         onPress={() => onAccent('mega')}
         accessibilityRole="radio"
-        accessibilityState={{ checked: accent === 'mega', selected: accent === 'mega' }}
+        accessibilityState={{ checked: accent === 'mega', selected: accent === 'mega', disabled: !!busy }}
         accessibilityLabel={fillCopy(U.matchMega, { mega: megaName })}
         style={{ minHeight: 56, flexDirection: 'row', alignItems: 'center', gap: tokens.spacing.md, paddingHorizontal: tokens.spacing.md, borderRadius: tokens.radii.lg, borderWidth: accent === 'mega' ? 3 : 1, borderColor: accent === 'mega' ? tokens.accent : tokens.line }}
       >
@@ -81,9 +84,10 @@ export function ThemeSheet({ open, onClose, theme, accent, megaName, megaHex, me
           return (
             <Pressable
               key={s.label}
+              disabled={busy}
               onPress={() => onAccent(s.accent)}
               accessibilityRole="radio"
-              accessibilityState={{ checked: on, selected: on }}
+              accessibilityState={{ checked: on, selected: on, disabled: !!busy }}
               accessibilityLabel={s.label}
               style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: s.hex, borderWidth: 3, borderColor: on ? tokens.text : 'transparent' }}
             />
@@ -94,10 +98,11 @@ export function ThemeSheet({ open, onClose, theme, accent, megaName, megaHex, me
   );
 }
 
-export function WallpaperSheet({ open, onClose, wallpaper, megaHex, kid, onPick }: { open: boolean; onClose: () => void; wallpaper: Wallpaper; megaHex: string; kid: boolean; onPick: (id: (typeof WALLPAPER_PRESETS)[number]['id']) => void }) {
+export function WallpaperSheet({ open, onClose, wallpaper, megaHex, kid, onPick, busy, error, saved }: { open: boolean; onClose: () => void; wallpaper: Wallpaper; megaHex: string; kid: boolean; onPick: (id: (typeof WALLPAPER_PRESETS)[number]['id']) => void } & SaveFeedbackProps) {
   const tokens = useTokens();
   return (
     <ModalSheet open={open} title={U.wallpaper} closeLabel={U.close} onClose={onClose} testID="wallpaper-sheet">
+      <SaveFeedback busy={busy} error={error} saved={saved} />
       <Text color="muted">{U.wallpaperUsed}</Text>
       <Text variant="caption" weight="700" color="muted">
         {U.presets.toUpperCase()}
@@ -109,9 +114,10 @@ export function WallpaperSheet({ open, onClose, wallpaper, megaHex, kid, onPick 
           return (
             <Pressable
               key={p.id}
+              disabled={busy}
               onPress={() => onPick(p.id)}
               accessibilityRole="radio"
-              accessibilityState={{ checked: on, selected: on }}
+              accessibilityState={{ checked: on, selected: on, disabled: !!busy }}
               accessibilityLabel={p.label}
               style={{ flexBasis: '47%', flexGrow: 1, height: 112, borderRadius: tokens.radii.lg, overflow: 'hidden', borderWidth: on ? 3 : 1, borderColor: on ? tokens.accent : tokens.line }}
             >
@@ -130,26 +136,29 @@ export function WallpaperSheet({ open, onClose, wallpaper, megaHex, kid, onPick 
   );
 }
 
-export function NotifySheet({ open, onClose, notify, onChange }: { open: boolean; onClose: () => void; notify: Notify; onChange: (n: Notify) => void }) {
+export function NotifySheet({ open, onClose, notify, onChange, section, busy, error, saved }: { open: boolean; onClose: () => void; notify: Notify; onChange: (n: Notify) => void; section?: 'alerts' | 'quiet' | 'limit' } & SaveFeedbackProps) {
   const step = SETTINGS_UI.quietStepMinutes;
   const { min, max } = SETTINGS_UI.dailyCap;
   const set = (patch: Partial<Notify>) => onChange({ ...notify, ...patch });
   const quiet = (key: 'start' | 'end', d: number) => set({ quietHours: { ...notify.quietHours, [key]: shiftClock(notify.quietHours[key], d) } });
   return (
-    <ModalSheet open={open} title={U.notifySheet} closeLabel={U.close} onClose={onClose} testID="notify-sheet">
-      <Text color="muted">{U.notifyWakesBody}</Text>
+    <ModalSheet open={open} title={section === 'quiet' ? U.quietHours : section === 'limit' ? U.dailyLimit : U.notifySheet} closeLabel={U.close} onClose={onClose} testID="notify-sheet">
+      <SaveFeedback busy={busy} error={error} saved={saved} />
+      {(!section || section === 'alerts') ? <><Text color="muted">{U.notifyWakesBody}</Text>
       <SettingsSection title={U.wakesPhone}>
         {NOTIFICATION_KINDS.map((k) => (
           <SwitchRow
             key={k}
+            disabled={busy}
             label={U.kindLabels[k]}
             value={notify.loudKinds.includes(k)}
             onChange={(v) => set({ loudKinds: v ? [...notify.loudKinds, k] : notify.loudKinds.filter((x) => x !== k) })}
           />
         ))}
-      </SettingsSection>
-      <SettingsSection title={U.quietHours}>
+      </SettingsSection></> : null}
+      {(!section || section === 'quiet') ? <SettingsSection title={U.quietHours}>
         <StepperRow
+          canLess={!busy} canMore={!busy}
           label={U.quietFrom}
           value={clockLabel(notify.quietHours.start)}
           onLess={() => quiet('start', -step)}
@@ -158,6 +167,7 @@ export function NotifySheet({ open, onClose, notify, onChange }: { open: boolean
           moreLabel={fillCopy(U.later, { label: U.quietFrom })}
         />
         <StepperRow
+          canLess={!busy} canMore={!busy}
           label={U.quietUntil}
           value={clockLabel(notify.quietHours.end)}
           onLess={() => quiet('end', -step)}
@@ -165,19 +175,27 @@ export function NotifySheet({ open, onClose, notify, onChange }: { open: boolean
           lessLabel={fillCopy(U.earlier, { label: U.quietUntil })}
           moreLabel={fillCopy(U.later, { label: U.quietUntil })}
         />
-      </SettingsSection>
-      <SettingsSection>
+      </SettingsSection> : null}
+      {(!section || section === 'limit') ? <SettingsSection>
         <StepperRow
           label={U.dailyLimit}
           value={fillCopy(U.dailyLimitValue, { n: notify.dailyCap })}
           onLess={() => set({ dailyCap: Math.max(min, notify.dailyCap - 1) })}
           onMore={() => set({ dailyCap: Math.min(max, notify.dailyCap + 1) })}
-          canLess={notify.dailyCap > min}
-          canMore={notify.dailyCap < max}
+          canLess={!busy && notify.dailyCap > min}
+          canMore={!busy && notify.dailyCap < max}
           lessLabel={fillCopy(U.fewer, { label: U.dailyLimit })}
           moreLabel={fillCopy(U.more, { label: U.dailyLimit })}
         />
-      </SettingsSection>
+      </SettingsSection> : null}
     </ModalSheet>
   );
+}
+
+
+type SaveFeedbackProps = { busy?: boolean; error?: string | null; saved?: boolean };
+function SaveFeedback({ busy, error, saved }: SaveFeedbackProps) {
+  const tokens = useTokens();
+  if (error) return <Text style={{ color: tokens.danger }} accessibilityRole="alert">{error} Try again.</Text>;
+  return busy || saved ? <Text color="muted" variant="caption" accessibilityLiveRegion="polite">{busy ? 'Saving…' : 'Saved'}</Text> : null;
 }

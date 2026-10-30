@@ -4,6 +4,7 @@
 import type { ReactTestRendererJSON } from 'react-test-renderer';
 import { renderWithTheme } from '@/test/renderWithTheme';
 import { PixelArt } from './PixelArt';
+import { renderMega } from '@shared/sprite';
 
 const picture = { w: 2, h: 1, px: ['#000000', '#FFFFFF'] };
 
@@ -15,6 +16,15 @@ function nodes(n: Node | Node[] | null): Node[] {
 }
 
 describe('PixelArt accessibility props', () => {
+  test('a sprite keeps its size and accessible label with one drawing node per color', async () => {
+    const view = await renderWithTheme(<PixelArt picture={renderMega({ shell: '#2FB8B0', sticker: 'none' })} scale={2} accessibilityLabel="Teal" />);
+    const all = nodes(view.toJSON() as Node | Node[] | null);
+    const svg = all.find((n) => n.props.accessibilityLabel === 'Teal');
+    expect(svg?.props).toEqual(expect.objectContaining({ bbWidth: 64, bbHeight: 80, vbWidth: 32, vbHeight: 40, accessibilityRole: 'image' }));
+    expect(all.filter((n) => n.type === 'RNSVGPath')).toHaveLength(14);
+    expect(all.filter((n) => n.type === 'RNSVGRect')).toHaveLength(0);
+  });
+
   test('a decorative picture hides itself on a wrapping View, not on the Svg', async () => {
     const view = await renderWithTheme(<PixelArt picture={picture} decorative />);
     const all = nodes(view.toJSON() as Node | Node[] | null);

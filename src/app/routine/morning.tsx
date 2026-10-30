@@ -1,7 +1,7 @@
 // mega://routine/morning — the kid's morning routine, full screen (board KidsMorning), opened from the
 // routine card in their thread.
 import { useState } from 'react';
-import { router } from 'expo-router';
+import { router } from '@/features/shell/navigation';
 import { Pressable, View } from 'react-native';
 import { KIDS_COPY } from '@shared/config/copy';
 import { useCheckRoutineStep, useRoutineToday } from '@/data/useKids';

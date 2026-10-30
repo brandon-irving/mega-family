@@ -1,7 +1,7 @@
 // mega://widgets — how to add MEGA's widgets (G8). The widgets themselves live on the home and lock screens
 // (src/widgets/, kept in step by src/features/widgets/WidgetSync.tsx); they're iOS only, so the web says so.
 import { Platform } from 'react-native';
-import { router } from 'expo-router';
+import { router } from '@/features/shell/navigation';
 import { G8_UI_COPY } from '@shared/config/copy';
 import { Sheet } from '@/ui/Sheet';
 import { Text } from '@/ui/Text';

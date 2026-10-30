@@ -5,7 +5,7 @@
 // (the onboarding is the chat itself, canvas Screen 13). The card shows a spinner meanwhile, never a blank.
 import { useState, type ReactNode } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
-import { router } from 'expo-router';
+import { router } from '@/features/shell/navigation';
 import { useBeginOnboarding } from '@/data/useOnboarding';
 import { errorCopyFor } from '@/data/errorCopy';
 import { Arrow, DifferentAccount, Heading, SignInFrame } from '@/features/signin/parts';

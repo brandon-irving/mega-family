@@ -21,7 +21,7 @@
 //   `mpeg2ts`/`webm`, confirmed in the SDK 58 docs) has no linear-PCM/WAV container option — `MediaRecorder`
 //   just can't produce one. `canRecordWav()` reports this so the UI can show a clear, friendly message
 //   up front (talk.tsx) instead of recording something the server will always refuse.
-import { useCallback, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { Platform } from 'react-native';
 import { AudioModule, AudioQuality, IOSOutputFormat, RecordingPresets, setAudioModeAsync, useAudioRecorder, type RecordingOptions } from 'expo-audio';
 import { encodeWavPCM16 } from './wavEncoder';
@@ -35,7 +35,8 @@ export interface VoiceService {
    * `canRecordWav()` reports as unsupported. */
   start(): Promise<void>;
   /** Stops recording and returns the clip, or `null` if nothing was recorded. The returned `mimeType` is
-   * always `audio/wav` — web re-encodes to it after stopping; iOS records it directly. */
+   * always `audio/wav` — web re-encodes to it after stopping; iOS records it directly. A web clip remains
+   * available until the next start, cancel, or unmount. */
   stop(): Promise<RecordingHandle | null>;
   /** Stops and discards whatever was being recorded — no upload, no transcript. */
   cancel(): Promise<void>;
@@ -84,9 +85,12 @@ const WAV_RECORDING_OPTIONS: RecordingOptions = {
 export async function decodeResampleAndEncodeWav(fileBlob: Blob): Promise<Blob> {
   const AudioContextCtor = (window as unknown as { AudioContext?: typeof AudioContext; webkitAudioContext?: typeof AudioContext }).AudioContext ?? (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
   const decodeCtx = new AudioContextCtor();
-  const arrayBuffer = await fileBlob.arrayBuffer();
-  const decoded = await decodeCtx.decodeAudioData(arrayBuffer);
-  await decodeCtx.close().catch(() => {});
+  let decoded: AudioBuffer;
+  try {
+    decoded = await decodeCtx.decodeAudioData(await fileBlob.arrayBuffer());
+  } finally {
+    await decodeCtx.close().catch(() => {});
+  }
 
   const frameCount = Math.ceil(decoded.duration * TARGET_SAMPLE_RATE);
   const offline = new OfflineAudioContext(1, frameCount, TARGET_SAMPLE_RATE); // 1 channel: downmix to mono
@@ -94,17 +98,39 @@ export async function decodeResampleAndEncodeWav(fileBlob: Blob): Promise<Blob> 
   source.buffer = decoded;
   source.connect(offline.destination);
   source.start(0);
-  const resampled = await offline.startRendering();
-
-  const samples = resampled.getChannelData(0);
-  const wavBuffer = encodeWavPCM16(samples, TARGET_SAMPLE_RATE);
-  return new Blob([wavBuffer], { type: WAV_MIME_TYPE });
+  try {
+    const resampled = await offline.startRendering();
+    const samples = resampled.getChannelData(0);
+    const wavBuffer = encodeWavPCM16(samples, TARGET_SAMPLE_RATE);
+    return new Blob([wavBuffer], { type: WAV_MIME_TYPE });
+  } finally {
+    source.disconnect();
+    source.buffer = null;
+  }
 }
 
 export function useVoiceService(): VoiceService {
   const recorder = useAudioRecorder(Platform.OS === 'ios' ? WAV_RECORDING_OPTIONS : RecordingPresets.HIGH_QUALITY);
   const recordingRef = useRef(false);
   const startedAtRef = useRef(0);
+  const generationRef = useRef(0);
+  const startingRef = useRef<{ generation: number; promise: Promise<void> } | null>(null);
+  const wavUriRef = useRef<string | null>(null);
+
+  const releaseClip = useCallback(() => {
+    if (wavUriRef.current) URL.revokeObjectURL(wavUriRef.current);
+    wavUriRef.current = null;
+  }, []);
+
+  const discardRecording = useCallback(async () => {
+    try {
+      await recorder.stop();
+    } catch {
+      // Native useAudioRecorder may already have released the recorder during unmount.
+    } finally {
+      if (Platform.OS === 'web' && recorder.uri) URL.revokeObjectURL(recorder.uri);
+    }
+  }, [recorder]);
 
   const requestPermission = useCallback(async (): Promise<boolean> => {
     const existing = await AudioModule.getRecordingPermissionsAsync();
@@ -115,16 +141,43 @@ export function useVoiceService(): VoiceService {
 
   const start = useCallback(async (): Promise<void> => {
     if (!canRecordWav()) throw new Error(VOICE_UNSUPPORTED_MESSAGE);
-    const granted = await requestPermission();
-    if (!granted) throw new Error('Microphone permission denied');
-    await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
-    await recorder.prepareToRecordAsync();
-    recorder.record();
-    recordingRef.current = true;
-    startedAtRef.current = Date.now();
-  }, [recorder, requestPermission]);
+    const previousStart = startingRef.current;
+    if (previousStart?.generation === generationRef.current) return previousStart.promise;
+    if (recordingRef.current) return;
+    releaseClip();
+    const generation = ++generationRef.current;
+    const pending = (async () => {
+      // A cancelled preparation may still own the microphone. Finish its disposal before a new
+      // attempt (including React's effect replay) prepares the same recorder again.
+      if (previousStart) await previousStart.promise.catch(() => {});
+      if (generation !== generationRef.current) return;
+      const granted = await requestPermission();
+      if (generation !== generationRef.current) return;
+      if (!granted) throw new Error('Microphone permission denied');
+      await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
+      if (generation !== generationRef.current) return;
+      await recorder.prepareToRecordAsync();
+      if (generation !== generationRef.current) {
+        // Expo's web recorder acquires the microphone during prepare and releases it on the stop
+        // event. A prepared MediaRecorder must first be started so stop can deliver that event.
+        if (Platform.OS === 'web') recorder.record();
+        await discardRecording();
+        return;
+      }
+      recorder.record();
+      recordingRef.current = true;
+      startedAtRef.current = Date.now();
+    })();
+    startingRef.current = { generation, promise: pending };
+    try {
+      await pending;
+    } finally {
+      if (startingRef.current?.generation === generation) startingRef.current = null;
+    }
+  }, [discardRecording, recorder, releaseClip, requestPermission]);
 
   const stop = useCallback(async (): Promise<RecordingHandle | null> => {
+    const generation = ++generationRef.current;
     if (!recordingRef.current) return null;
     recordingRef.current = false;
     const durationMs = Date.now() - startedAtRef.current;
@@ -132,23 +185,33 @@ export function useVoiceService(): VoiceService {
     const uri = recorder.uri;
     if (!uri) return null;
 
-    if (Platform.OS !== 'web') return { uri, mimeType: WAV_MIME_TYPE, durationMs }; // iOS already recorded WAV
+    if (Platform.OS !== 'web') return generation === generationRef.current ? { uri, mimeType: WAV_MIME_TYPE, durationMs } : null; // iOS already recorded WAV
 
-    const recordedBlob = await (await fetch(uri)).blob();
+    let recordedBlob: Blob;
+    try {
+      if (generation !== generationRef.current) return null;
+      recordedBlob = await (await fetch(uri)).blob();
+    } finally {
+      // SDK 58's web recorder creates its own object URL without revoking it.
+      URL.revokeObjectURL(uri);
+    }
+    if (generation !== generationRef.current) return null;
     const wavBlob = await decodeResampleAndEncodeWav(recordedBlob);
+    if (generation !== generationRef.current) return null;
     const wavUri = URL.createObjectURL(wavBlob);
+    wavUriRef.current = wavUri;
     return { uri: wavUri, mimeType: WAV_MIME_TYPE, durationMs };
   }, [recorder]);
 
   const cancel = useCallback(async (): Promise<void> => {
+    generationRef.current += 1;
+    releaseClip();
     if (!recordingRef.current) return;
     recordingRef.current = false;
-    try {
-      await recorder.stop();
-    } catch {
-      // already stopped/unloaded — nothing to clean up
-    }
-  }, [recorder]);
+    await discardRecording();
+  }, [discardRecording, releaseClip]);
 
-  return { requestPermission, start, stop, cancel };
+  useEffect(() => () => { void cancel(); }, [cancel]);
+
+  return useMemo(() => ({ requestPermission, start, stop, cancel }), [requestPermission, start, stop, cancel]);
 }

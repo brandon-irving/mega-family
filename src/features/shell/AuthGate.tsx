@@ -55,6 +55,9 @@ export function AuthGate() {
       <Stack.Protected guard={inFamily}>
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="talk" options={{ presentation: 'fullScreenModal', animation: 'slide_from_bottom' }} />
+        <Stack.Screen name="family/calendar" options={{ presentation: 'modal' }} />
+        <Stack.Screen name="family/lists" options={{ presentation: 'modal' }} />
+        <Stack.Screen name="family/[memberId]" options={{ presentation: 'modal' }} />
         <Stack.Screen name="today" options={{ presentation: 'modal' }} />
         <Stack.Screen name="mega-profile" options={{ presentation: 'modal' }} />
         <Stack.Screen name="settings" options={{ presentation: 'modal' }} />

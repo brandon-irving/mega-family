@@ -66,6 +66,7 @@ export const MESSAGES_BY_TYPE: Record<MessageBody['type'], Infer<typeof messageD
   }),
   answer: baseMessage({ author: { kind: 'member', id: FIXTURE_IDS.admin }, body: { type: 'answer', blockMessageId: id('messages', 'q1'), label: 'Partner', value: { optionIds: ['a'] } } }),
   card: baseMessage({ body: { type: 'card', card: { kind: 'weather', summary: 'Clear, 68°F', at: Date.now() } } }),
+  file: baseMessage({ body: { type: 'file', storageId: id('_storage', '2'), name: 'Shopping.txt', mimeType: 'text/plain' } }),
   image: baseMessage({ body: { type: 'image', storageId: id('_storage', '1'), caption: 'Grocery receipt' } }),
   notice: baseMessage({ author: { kind: 'system' }, body: { type: 'notice', text: 'From a notification · 2m ago' } }),
 };

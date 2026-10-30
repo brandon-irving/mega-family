@@ -34,7 +34,7 @@ export type CalendarContentProps = {
   hubName?: string;
   clash?: CalendarClash | null;
   onSeeClash?: (clash: CalendarClash) => void;
-  /** G4 (board EventPlace): tapping an event the viewer may edit opens its place picker. */
+  /** Opens a focused detail view; editing the place is a separate, permitted action there. */
   onOpenEvent?: (event: EventDoc) => void;
   /** G4: saved place labels by id, so an event with a `placeId` shows its place's name. */
   placeLabels?: Record<string, string>;

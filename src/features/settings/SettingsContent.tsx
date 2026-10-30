@@ -34,7 +34,7 @@ export type SettingsContentProps = {
   on: {
     openTheme: () => void;
     openWallpaper: () => void;
-    openNotify: () => void;
+    openNotify: (section?: 'alerts' | 'quiet' | 'limit') => void;
     openMembers: () => void;
     openAccounts: () => void;
     openPlaces: () => void;
@@ -85,15 +85,15 @@ export function SettingsContent({ role, megaName, theme, accent, accentHex, wall
         </SettingsSection>
       ) : (
         <SettingsSection title={U.sectionNotifications}>
-          <LinkRow label={U.wakesPhone} hint={U.wakesPhoneHint} value={loudText(notify.loudKinds)} onPress={on.openNotify} />
-          <LinkRow label={U.quietHours} value={quiet} onPress={on.openNotify} />
-          <LinkRow label={U.dailyLimit} value={fillCopy(U.dailyLimitValue, { n: notify.dailyCap })} onPress={on.openNotify} />
+          <LinkRow label={U.wakesPhone} hint={U.wakesPhoneHint} value={loudText(notify.loudKinds)} onPress={() => on.openNotify('alerts')} />
+          <LinkRow label={U.quietHours} value={quiet} onPress={() => on.openNotify('quiet')} />
+          <LinkRow label={U.dailyLimit} value={fillCopy(U.dailyLimitValue, { n: notify.dailyCap })} onPress={() => on.openNotify('limit')} />
         </SettingsSection>
       )}
 
       {role === 'admin' ? (
         <SettingsSection title={U.sectionFamily} note={U.familyNote}>
-          <LinkRow label={U.members} value={memberCount !== undefined ? fillCopy(U.membersValue, { n: memberCount }) : undefined} onPress={on.openMembers} />
+          <LinkRow label={U.members} value={memberCount === 1 ? U.membersValueOne : memberCount !== undefined ? fillCopy(U.membersValue, { n: memberCount }) : undefined} onPress={on.openMembers} />
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: tokens.spacing.md, minHeight: 52, paddingHorizontal: tokens.spacing.lg, paddingVertical: tokens.spacing.sm }}>
             <View style={{ flex: 1, gap: 2 }}>
               <Text variant="label">{U.parentCode}</Text>

@@ -55,6 +55,7 @@ const FAMILY_OWNED_TABLES: readonly [TableNames, string][] = [
   ['reminders', 'by_family_member_due'],
   ['lists', 'by_family'],
   ['listItems', 'by_family_list'],
+  ['ideas', 'by_family_owner_at'],
   ['familyEvents', 'by_family_at'],
   ['candidates', 'by_family_dedupeKey'],
   ['notifications', 'by_family_recipient'],

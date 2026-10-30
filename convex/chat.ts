@@ -123,7 +123,7 @@ export const send = mutation({
     // readable text stream to caption, so that hung. Attachments and voice/talk now always fall through
     // to the normal agent-loop path below, which keeps the attachment and always starts a stream.
     const tomorrowAsk = KID_INTRO.rows.find((r) => r.id === 'tomorrow')!.ask;
-    const noAttachments = !args.attachments || args.attachments.length === 0;
+    const noAttachments = !args.attachments?.length && !args.files?.length;
     if (viewer.member.role === 'kid' && args.text === tomorrowAsk && args.via === 'text' && noAttachments && viewer.mega) {
       const today = localDate(now, viewer.family.timezone);
       const run = (await runFor(ctx, familyId, viewer.member._id, 'bedtime', today)) ?? (await runFor(ctx, familyId, viewer.member._id, 'morning', today));
@@ -146,6 +146,16 @@ export const send = mutation({
 
     for (const storageId of args.attachments ?? []) {
       await ctx.db.insert('messages', { familyId, threadId: thread._id, at: now, author: { kind: 'member', id: viewer.member._id }, via: args.via, body: { type: 'image', storageId }, chips: [] });
+    }
+
+    if ((args.files?.length ?? 0) > 4) fail('VALIDATION', 'Send up to four attachments at a time.');
+    for (const file of args.files ?? []) {
+      const metadata = await ctx.db.system.get('_storage', file.storageId);
+      if (!metadata || metadata.size > 10 * 1024 * 1024) fail('VALIDATION', 'Choose a file smaller than 10 MB.');
+      const mimeType = metadata.contentType ?? 'application/octet-stream';
+      const name = file.name.trim().slice(0, 200) || 'Attachment';
+      await ctx.db.insert('messages', { familyId, threadId: thread._id, at: now, author: { kind: 'member', id: viewer.member._id }, via: args.via,
+        body: mimeType.startsWith('image/') ? { type: 'image', storageId: file.storageId, caption: name } : { type: 'file', storageId: file.storageId, name, mimeType }, chips: [] });
     }
 
     const newMegaIds = new Set(thread.megaIds);

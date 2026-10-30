@@ -83,9 +83,6 @@ describe('kid MEGA profile', () => {
         statusLine=""
         onRename={jest.fn()}
         onOpenLookPersonality={jest.fn()}
-        onOpenNotifications={jest.fn()}
-        onOpenTheme={jest.fn()}
-        onOpenSettings={jest.fn()}
         onOpenRules={onOpenRules}
       />,
     );

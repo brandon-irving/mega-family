@@ -35,6 +35,10 @@ export default defineSchema({
   reminders: defineTable(T.reminders).index('by_family_member_due', ['familyId', 'forMemberId', 'dueAt']),
   lists: defineTable(T.lists).index('by_family', ['familyId']),
   listItems: defineTable(T.listItems).index('by_family_list', ['familyId', 'listId']),
+  ideas: defineTable(T.ideas)
+    .index('by_family_owner_at', ['familyId', 'ownerId', 'at'])
+    .index('by_family_owner_source', ['familyId', 'ownerId', 'sourceKey'])
+    .searchIndex('search_text', { searchField: 'searchText', filterFields: ['familyId', 'ownerId', 'category', 'saved', 'dismissed'] }),
 
   familyEvents: defineTable(T.familyEvents).index('by_family_at', ['familyId', 'at']),
   candidates: defineTable(T.candidates)
@@ -54,7 +58,7 @@ export default defineSchema({
   shareSuggestions: defineTable(T.shareSuggestions).index('by_family_owner_status', ['familyId', 'ownerId', 'status']),
   collisions: defineTable(T.collisions).index('by_family_dedupeKey', ['familyId', 'dedupeKey']).index('by_family_status', ['familyId', 'status']),
   proposals: defineTable(T.proposals).index('by_family_status', ['familyId', 'status']).index('by_family_collision', ['familyId', 'collisionId']),
-  giftIdeas: defineTable(T.giftIdeas).index('by_family_for', ['familyId', 'forMemberId']),
+  giftIdeas: defineTable(T.giftIdeas).index('by_family_for', ['familyId', 'forMemberId']).index('by_family_created', ['familyId', 'createdAt']),
   homeworkSheets: defineTable(T.homeworkSheets).index('by_family_creator', ['familyId', 'createdBy']),
   practiceSets: defineTable(T.practiceSets).index('by_family_for', ['familyId', 'forMemberId']).index('by_family_sheet', ['familyId', 'sheetId']),
   practiceAttempts: defineTable(T.practiceAttempts).index('by_family_set', ['familyId', 'setId']),

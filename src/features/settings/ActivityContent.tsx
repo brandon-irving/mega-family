@@ -5,7 +5,7 @@
 // and its short reason when the item carries `decidedBy` / `why` (CONTRACT v0.17b, pending on the backend);
 // an item without them shows no chip, never a guess. Never empty: with nothing yet, a line says what will show
 // up here.
-import { View } from 'react-native';
+import { FlatList, View } from 'react-native';
 import type { Infer } from 'convex/values';
 import type { activityItem, memoryDoc } from '@shared/domain/api';
 import { ACTIVITY } from '@shared/config/activity';
@@ -78,6 +78,8 @@ export function ActivityContent({
   now,
   timeZone,
   canLoadMore,
+  loadingMore,
+  forgetting,
   onLoadMore,
   onForget,
   onOpenMemories,
@@ -94,6 +96,8 @@ export function ActivityContent({
   now: number;
   timeZone: string;
   canLoadMore: boolean;
+  loadingMore?: boolean;
+  forgetting?: string | null;
   onLoadMore: () => void;
   onForget: (memoryId: MemoryDoc['_id']) => void;
   onOpenMemories: () => void;
@@ -110,40 +114,31 @@ export function ActivityContent({
     const f = filterOf(i.type);
     return f !== null && (filter === 'all' || f === filter);
   });
-  const days: { label: string; rows: ActivityItem[] }[] = [];
-  for (const item of shown) {
-    const label = dayLabel(item.at, now, timeZone);
-    const last = days.at(-1);
-    if (last?.label === label) last.rows.push(item);
-    else days.push({ label, rows: [item] });
-  }
   const time = (t: number) => new Date(t).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone });
   const showLearned = filter === 'all' || filter === 'learned';
 
   return (
-    <View style={{ gap: tokens.spacing.xl }} testID="activity-content">
-      <ChipLine chips={filters} selected={filter} onPress={(id) => onFilter(id as ActivityFilter)} />
-      {days.map((d) => (
-        <SettingsSection key={d.label} title={d.label}>
-          {d.rows.map((r, i) => {
-            const f = filterOf(r.type) ?? 'other';
-            return (
-              <View key={`${r.at}-${i}`} style={{ flexDirection: 'row', alignItems: 'center', gap: tokens.spacing.md, padding: tokens.spacing.lg }}>
-                <IconTile icon={GLYPH[f]} tone={f === 'calendar' ? 'household' : f === 'accounts' ? 'accent' : 'muted'} size={36} />
-                <View style={{ flex: 1, gap: tokens.spacing.xs }}>
-                  <Text>{r.summary}</Text>
-                  <DecidedChip decidedBy={r.decidedBy} why={r.why} who={who} />
-                </View>
-                <Text variant="caption" color="muted">
-                  {time(r.at)}
-                </Text>
-              </View>
-            );
-          })}
-        </SettingsSection>
-      ))}
-      {!showLearned && days.length === 0 ? <Text color="muted">{fillCopy(U.activityQuiet, { mega: megaName })}</Text> : null}
-      {canLoadMore && filter !== 'learned' ? <Button label={U.showMore} variant="secondary" onPress={onLoadMore} style={{ alignSelf: 'stretch' }} /> : null}
+    <FlatList keyboardDismissMode="on-drag" data={shown} keyExtractor={(item, index) => `${item.at}-${item.type}-${index}`} testID="activity-content" contentContainerStyle={{ padding: tokens.spacing.lg, gap: tokens.spacing.sm }}
+      ListHeaderComponent={<ChipLine chips={filters} selected={filter} onPress={(id) => onFilter(id as ActivityFilter)} />}
+      ListEmptyComponent={!showLearned ? <Text color="muted">{fillCopy(U.activityQuiet, { mega: megaName })}</Text> : undefined}
+      renderItem={({ item: r, index }) => {
+        const f = filterOf(r.type) ?? 'other';
+        const day = dayLabel(r.at, now, timeZone);
+        const startsDay = index === 0 || dayLabel(shown[index - 1].at, now, timeZone) !== day;
+        return <View style={{ gap: tokens.spacing.sm }}>
+          {startsDay ? <Text variant="caption" color="muted" weight="700" style={{ marginTop: tokens.spacing.md }}>{day.toUpperCase()}</Text> : null}
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: tokens.spacing.md, padding: tokens.spacing.md, backgroundColor: tokens.surface, borderRadius: tokens.radii.lg, borderWidth: 1, borderColor: tokens.line }}>
+            <IconTile icon={GLYPH[f]} tone={f === 'calendar' ? 'household' : f === 'accounts' ? 'accent' : 'muted'} size={36} />
+            <View style={{ flex: 1, gap: tokens.spacing.xs }}>
+              <Text>{r.summary}</Text>
+              <DecidedChip decidedBy={r.decidedBy} why={r.why} who={who} />
+            </View>
+            <Text variant="caption" color="muted">{time(r.at)}</Text>
+          </View>
+        </View>;
+      }}
+      ListFooterComponent={<View style={{ gap: tokens.spacing.lg, paddingTop: tokens.spacing.md }}>
+      {(canLoadMore || loadingMore) && filter !== 'learned' ? <Button label={U.showMore} variant="secondary" onPress={onLoadMore} loading={loadingMore} style={{ alignSelf: 'stretch' }} /> : null}
       {showLearned ? (
         <SettingsSection title={fillCopy(U.learnedTitle, { mega: megaName })} note={fillCopy(U.learnedFoot, { mega: megaName })}>
           {memories.length === 0 ? (
@@ -164,14 +159,15 @@ export function ActivityContent({
                     </Text>
                   ) : null}
                 </View>
-                {gone ? null : <Button label={U.forget} accessibilityLabel={fillCopy(U.forgetLabel, { label: m.text })} variant="secondary" pill onPress={() => onForget(m._id)} />}
+                {gone ? null : <Button label={U.forget} accessibilityLabel={fillCopy(U.forgetLabel, { label: m.text })} disabled={!!forgetting} loading={forgetting === m._id} variant="secondary" pill onPress={() => onForget(m._id)} />}
               </View>
             );
           })}
           <LinkRow label={fillCopy(U.everything, { mega: megaName })} hint={U.everythingHint} onPress={onOpenMemories} />
         </SettingsSection>
       ) : null}
-    </View>
+    </View>}
+    />
   );
 }
 

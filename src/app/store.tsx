@@ -1,6 +1,6 @@
 // mega://store — the kid's Store (Screen 11), opened from their room or from a Mega Bucks card. Kids only
 // (STORE_RULES.shoppers): an adult sees one line explaining that grown-ups' MEGAs wear anything for free.
-import { router } from 'expo-router';
+import { router } from '@/features/shell/navigation';
 import { View } from 'react-native';
 import { STORE_COPY } from '@shared/config/copy';
 import { useBuy, useStoreCatalog, useUpdateMyMega } from '@/data/useStore';

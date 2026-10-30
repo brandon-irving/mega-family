@@ -51,9 +51,11 @@ describe('MessageList row stability', () => {
   test("a row whose message hasn't changed does not re-render when another row's text updates", async () => {
     const streaming = MESSAGES_BY_TYPE.notice; // { type: 'notice', text: '...' } — simplest body to mutate
     const stable = MESSAGES_BY_TYPE.text;
+    const firstSave = jest.fn().mockResolvedValue('idea-1');
+    const latestSave = jest.fn().mockResolvedValue('idea-1');
 
     const { rerender } = await renderWithTheme(
-      <MessageList messages={[streaming, stable]} isMine={isMine} megaById={megaById} onAnswerBlock={noop} onReact={noop} onChangeMemoryScope={noop} onForgetMemory={noop} />,
+      <MessageList messages={[streaming, stable]} isMine={isMine} megaById={megaById} onAnswerBlock={noop} onReact={noop} onChangeMemoryScope={noop} onForgetMemory={noop} onSaveIdea={(id) => firstSave(id)} />,
     );
     expect(mockRenderCounts[streaming._id]).toBe(1);
     expect(mockRenderCounts[stable._id]).toBe(1);
@@ -64,13 +66,16 @@ describe('MessageList row stability', () => {
     await act(async () => {
       await rerender(
         <ThemeProvider initialRole="adult">
-          <MessageList messages={[streamingUpdated, stable]} isMine={isMine} megaById={megaById} onAnswerBlock={noop} onReact={noop} onChangeMemoryScope={noop} onForgetMemory={noop} />
+          <MessageList messages={[streamingUpdated, stable]} isMine={isMine} megaById={megaById} onAnswerBlock={noop} onReact={noop} onChangeMemoryScope={noop} onForgetMemory={noop} onSaveIdea={(id) => latestSave(id)} />
         </ThemeProvider>,
       );
     });
 
     expect(mockRenderCounts[streaming._id]).toBe(2); // the row that actually changed re-renders — expected
     expect(mockRenderCounts[stable._id]).toBe(1); // the untouched row must NOT re-render
+    await (mockLastProps[stable._id].onSaveIdea as () => Promise<unknown>)();
+    expect(latestSave).toHaveBeenCalledWith(stable._id);
+    expect(firstSave).not.toHaveBeenCalled();
   });
 });
 
@@ -117,6 +122,21 @@ describe('MessageList scroll-to-message highlight', () => {
     await act(async () => {
       jest.advanceTimersByTime(3000);
     });
+    expect(mockLastProps[target._id]?.highlighted).toBe(false);
+  });
+
+  test('incoming messages do not keep extending the highlight timer', async () => {
+    const target = MESSAGES_BY_TYPE.notice;
+    const { rerender } = await renderWithTheme(
+      <MessageList messages={[target]} isMine={isMine} megaById={megaById} scrollToMessageId={target._id} />,
+    );
+    await act(async () => jest.advanceTimersByTime(1500));
+    await rerender(
+      <ThemeProvider initialRole="adult">
+        <MessageList messages={[MESSAGES_BY_TYPE.text, target]} isMine={isMine} megaById={megaById} scrollToMessageId={target._id} />
+      </ThemeProvider>,
+    );
+    await act(async () => jest.advanceTimersByTime(1000));
     expect(mockLastProps[target._id]?.highlighted).toBe(false);
   });
 

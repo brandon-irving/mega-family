@@ -1,3 +1,4 @@
+import { resetNavigationGuard } from '@/features/shell/navigation';
 // G8 (CONTRACT v0.18, docs/gates/G8.md invariants 5 and 6; boards LoginScan, ScanDenied, ScanNotInvite,
 // ScanFound): the in-app QR scanner. expo-camera is mocked — the CameraView stand-in records its props so
 // a test can "scan" by calling onBarcodeScanned, and the permission hook is driven per test.
@@ -30,7 +31,7 @@ jest.mock('expo-camera', () => {
 });
 
 jest.mock('@/services/auth', () => ({ signOut: jest.fn(), useSignedInEmail: () => null }));
-jest.mock('expo-router', () => ({
+jest.mock('expo-router', () => ({ useIsFocused: () => true,
   router: { push: jest.fn(), replace: jest.fn(), back: jest.fn(), canGoBack: jest.fn(() => true), canDismiss: jest.fn(() => true), dismissAll: jest.fn() },
   Redirect: () => null,
 }));
@@ -72,6 +73,7 @@ const scan = (data: string) =>
   });
 
 beforeEach(() => {
+  resetNavigationGuard();
   mockPermission = { granted: true, canAskAgain: true, status: 'granted' };
   mockRequest.mockClear();
   mockCameraProps = {};

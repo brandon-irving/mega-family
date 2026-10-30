@@ -8,6 +8,7 @@ import { ICS_FAILURE_REASONS } from '../config/onboarding';
 import { notificationKind, personality, platform, reaction, relationship, scope, shareLevel, station, themeName, via } from './enums';
 import { holiday, product, productRef } from './integrationShapes';
 import { blockAnswer, spokenMention } from './messages';
+import { ideaCategory, ideaSort } from './ideas';
 import * as T from './tables';
 import { literals, withSystemFields } from './validators';
 
@@ -21,6 +22,8 @@ export const memoryDoc = withSystemFields('memories', T.memories);
 export const eventDoc = withSystemFields('events', T.events);
 export const listDoc = withSystemFields('lists', T.lists);
 export const listItemDoc = withSystemFields('listItems', T.listItems);
+export const ideaDoc = withSystemFields('ideas', T.ideas);
+export const ideaView = v.object({ ...ideaDoc.fields, audience: v.string() });
 export const notificationDoc = withSystemFields('notifications', T.notifications);
 export const requestDoc = withSystemFields('requests', T.requests);
 export const roomDoc = withSystemFields('rooms', T.rooms);
@@ -413,6 +416,7 @@ export const API = {
     members: fn({ kind: 'query', day1: 'real', args: {}, returns: v.array(memberCard) }),
     member: fn({ kind: 'query', day1: 'real', args: { memberId: v.id('members') }, returns: memberDetail }),
     kidThread: fn({ kind: 'query', day1: 'real', args: { memberId: v.id('members'), paginationOpts: paginationOptsValidator }, returns: paginationResultValidator(messageDoc) }),
+    nextEvent: fn({ kind: 'query', day1: 'real', args: {}, returns: v.union(eventDoc, v.null()) }),
     comingUp: fn({ kind: 'query', day1: 'real', args: {}, returns: v.array(eventDoc) }),
     // v0.17 (G5): admin only (onboarding family step; later Family → Add a family member). Creates the member (no
     // auth yet), the relationship from the admin, settings/sharing/profile (kid defaults for kids), and a MEGA
@@ -431,7 +435,7 @@ export const API = {
       kind: 'mutation',
       day1: 'real', // G2: runs the real agent loop (convex/agent/loop.ts), not a canned reply
 
-      args: { text: v.string(), mentions: v.optional(v.array(v.id('megas'))), via: v.union(v.literal('text'), v.literal('voice')), attachments: v.optional(v.array(v.id('_storage'))) },
+      args: { text: v.string(), mentions: v.optional(v.array(v.id('megas'))), via: v.union(v.literal('text'), v.literal('voice')), attachments: v.optional(v.array(v.id('_storage'))), files: v.optional(v.array(v.object({ storageId: v.id('_storage'), name: v.string(), mimeType: v.string() }))) },
       returns: v.object({ messageId: v.id('messages'), replyMessageId: v.id('messages'), streamId: v.string() }),
     }),
     streamBody: fn({
@@ -457,6 +461,7 @@ export const API = {
     start: fn({ kind: 'mutation', day1: 'real', args: {}, returns: v.object({ started: v.boolean() }) }),
   },
   files: {
+    messageUrl: fn({ kind: 'query', day1: 'real', args: { messageId: v.id('messages') }, returns: v.union(v.string(), v.null()) }),
     uploadUrl: fn({ kind: 'mutation', day1: 'real', args: {}, returns: v.string() }),
   },
   talk: {
@@ -542,9 +547,19 @@ export const API = {
   },
   lists: {
     all: fn({ kind: 'query', day1: 'real', args: {}, returns: v.array(listSummary) }),
+    create: fn({ kind: 'mutation', day1: 'real', args: { name: v.string(), scope: v.union(v.literal('personal'), v.literal('family'), v.literal('adults')) }, returns: v.id('lists') }),
     addItem: fn({ kind: 'mutation', day1: 'real', args: { listId: v.id('lists'), text: v.string() }, returns: v.id('listItems') }),
     check: fn({ kind: 'mutation', day1: 'real', args: { itemId: v.id('listItems'), checked: v.boolean() }, returns: v.null() }),
     remove: fn({ kind: 'mutation', day1: 'real', args: { itemId: v.id('listItems') }, returns: v.null() }),
+  },
+  ideas: {
+    list: fn({ kind: 'query', day1: 'real', args: { sort: v.optional(ideaSort), category: v.optional(ideaCategory), saved: v.optional(v.boolean()), search: v.optional(v.string()), paginationOpts: paginationOptsValidator }, returns: paginationResultValidator(ideaView) }),
+    get: fn({ kind: 'query', day1: 'real', args: { ideaId: v.id('ideas') }, returns: ideaView }),
+    saveMessage: fn({ kind: 'mutation', day1: 'real', args: { messageId: v.id('messages'), category: v.optional(ideaCategory) }, returns: v.id('ideas') }),
+    setSaved: fn({ kind: 'mutation', day1: 'real', args: { ideaId: v.id('ideas'), saved: v.boolean() }, returns: v.null() }),
+    dismiss: fn({ kind: 'mutation', day1: 'real', args: { ideaId: v.id('ideas') }, returns: v.null() }),
+    categorize: fn({ kind: 'mutation', day1: 'real', args: { ideaId: v.id('ideas'), category: ideaCategory }, returns: v.null() }),
+    refreshGifts: fn({ kind: 'mutation', day1: 'real', args: {}, returns: v.null() }),
   },
   requests: {
     // G3: real effects (PLAN.md -> Proactive engine step 6) — see convex/model/requestEffects.ts.

@@ -11,6 +11,7 @@ import { internal } from '../_generated/api';
 import type { Doc, Id } from '../_generated/dataModel';
 import type { MutationCtx, QueryCtx } from '../_generated/server';
 import { fail } from './errors';
+import { indexGiftIdeas } from './ideas';
 import { enqueueCardCandidate } from './proactive';
 import { scopeKey } from './scopes';
 
@@ -118,6 +119,7 @@ export async function deliverGiftCards(ctx: MutationCtx, set: Doc<'giftIdeas'>, 
   const { daysAway } = nextBirthday(set.date, localDate(now, family.timezone));
   const when = daysAway === 0 ? 'today' : daysAway === 1 ? 'tomorrow' : `in ${daysAway} days`;
   for (const adult of members.filter((m) => canSeeGiftsFor(m, set.forMemberId) && !!m.authId)) {
+    await indexGiftIdeas(ctx, set, adult);
     await enqueueCardCandidate(ctx, {
       familyId: set.familyId,
       recipientId: adult._id,

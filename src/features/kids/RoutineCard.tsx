@@ -3,7 +3,7 @@
 // household-layer events (the server builds the run; private events never feed it).
 // The card loads its run by id (`routines.run`, v0.13a), so a card from any day renders.
 import { useState } from 'react';
-import { router } from 'expo-router';
+import { router } from '@/features/shell/navigation';
 import type { Infer } from 'convex/values';
 import type { routineRunDoc } from '@shared/domain/api';
 import type { Id } from '@shared/domain/validators';

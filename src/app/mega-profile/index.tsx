@@ -1,17 +1,17 @@
 // MEGA profile sheet (PLAN §3), opened from the chat header badge.
-import { router } from 'expo-router';
+import { router } from '@/features/shell/navigation';
 import { useViewer } from '@/data/useViewer';
-import { useMegaStatus, useSetSharing, useSharing, useUpdateMega } from '@/data/useMega';
+import { useMegaStatus, useSharing, useUpdateMega } from '@/data/useMega';
 import { LoadingScreen } from '@/ui/LoadingScreen';
 import { Sheet } from '@/ui/Sheet';
 import { ProfileContent } from '@/features/profile/ProfileContent';
 import { PROFILE_COPY } from '@shared/config/copy';
+import { AppSettingsButton } from '@/features/shell/AppSettingsButton';
 
 export default function MegaProfileRoute() {
   const viewer = useViewer();
   const status = useMegaStatus(viewer?.mega?._id ?? null);
   const updateMega = useUpdateMega();
-  const setSharing = useSetSharing();
   const sharing = useSharing();
 
   if (viewer === undefined) return <LoadingScreen label="Opening profile…" />;
@@ -26,16 +26,11 @@ export default function MegaProfileRoute() {
         role={viewer.member.role}
         statusLine={status ? (status.busy ? status.label : 'Available') : ''}
         isAdmin={isAdmin}
-        // Notifications, quiet hours and the theme all live in Settings (G5).
-        onOpenNotifications={() => router.push('/settings' as never)}
-        onOpenTheme={() => router.push('/settings' as never)}
-        // G6 walkthrough fix (P2): a direct Settings row (sign out lives at the bottom of that screen),
-        // alongside — not instead of — the Theme/Notifications rows above, which keep their own behavior.
-        onOpenSettings={() => router.push('/settings' as never)}
+        settingsAction={<AppSettingsButton />}
         sharing={sharing ?? undefined}
         onRename={(name) => updateMega({ name })}
         onOpenLookPersonality={() => router.push('/mega-profile/look' as never)}
-        onChangeSharing={(patch) => setSharing(patch)}
+        onOpenSharing={() => router.push('/mega-profile/sharing' as never)}
         onOpenMemories={() => router.push('/mega-profile/memories' as never)}
         onOpenActivity={isAdmin ? () => router.push('/mega-profile/activity' as never) : undefined}
         onOpenRules={viewer.member.role === 'kid' ? () => router.push('/mega-profile/rules' as never) : undefined}

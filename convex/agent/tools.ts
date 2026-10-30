@@ -22,6 +22,11 @@ import { getOrCreateOwnThread } from '../model/threads';
 import { recall } from '../model/recall';
 import { parentOf } from '../model/viewer';
 import { clock } from '../ports/clock';
+import { putIdea } from '../model/ideas';
+import { sha256Hex } from '../model/random';
+import { canSeeListItem } from '../model/listAccess';
+import { GIFT_LIST_NAME } from '../../shared/config/copy';
+import { IDEA_CATEGORIES } from '../../shared/domain/ideas';
 import { isToolAllowedForRole } from './toolSpecs';
 
 type Caller = { familyId: Id<'families'>; memberId: Id<'members'>; role: Doc<'members'>['role']; megaId: Id<'megas'> | null; threadId: Id<'threads'>; tz: string };
@@ -262,6 +267,7 @@ async function toolListsAdd(ctx: any, caller: Caller, raw: Record<string, unknow
   const listName = str(raw.listName, 'listName');
   const text = str(raw.text, 'text');
   const list = await findOrCreateList(ctx, caller, listName);
+  if (list.name === GIFT_LIST_NAME && list.scope === 'adults') throw new Error('Add gifts through the Ideas gift card to preserve recipient privacy.');
   await ctx.db.insert('listItems', { familyId: caller.familyId, listId: list._id, text, checked: false, addedBy: caller.memberId, at: now });
   return `added "${text}" to ${list.name}`;
 }
@@ -275,7 +281,7 @@ async function toolListsCheck(ctx: any, caller: Caller, raw: Record<string, unkn
     .query('listItems')
     .withIndex('by_family_list', (q: any) => q.eq('familyId', caller.familyId).eq('listId', list._id))
     .collect();
-  const item = items.find((i: Doc<'listItems'>) => i.text.toLowerCase() === itemText.toLowerCase());
+  const item = items.find((i: Doc<'listItems'>) => canSeeListItem({ _id: caller.memberId, role: caller.role }, i, list) && i.text.toLowerCase() === itemText.toLowerCase());
   if (!item) return `couldn't find "${itemText}" on ${list.name}`;
   await ctx.db.patch(item._id, { checked });
   return `${checked ? 'checked off' : 'unchecked'} "${itemText}" on ${list.name}`;
@@ -289,7 +295,7 @@ async function toolListsRemove(ctx: any, caller: Caller, raw: Record<string, unk
     .query('listItems')
     .withIndex('by_family_list', (q: any) => q.eq('familyId', caller.familyId).eq('listId', list._id))
     .collect();
-  const item = items.find((i: Doc<'listItems'>) => i.text.toLowerCase() === itemText.toLowerCase());
+  const item = items.find((i: Doc<'listItems'>) => canSeeListItem({ _id: caller.memberId, role: caller.role }, i, list) && i.text.toLowerCase() === itemText.toLowerCase());
   if (!item) return `couldn't find "${itemText}" on ${list.name}`;
   await ctx.db.delete(item._id);
   return `removed "${itemText}" from ${list.name}`;
@@ -443,6 +449,18 @@ export async function dispatchTool(ctx: MutationCtx, args: DispatchToolArgs): Pr
 
   try {
     switch (args.name) {
+      case 'ideas_suggest': {
+        const thread = await ctx.db.get(caller.threadId);
+        if (caller.role === 'kid' || !thread || thread.familyId !== caller.familyId || thread.ownerId !== caller.memberId) throw new Error('This collection belongs to another member.');
+        const title = str(raw.title, 'title').trim();
+        const text = str(raw.text, 'text').trim();
+        if (title.length > 100 || text.length > 4000) throw new Error('Keep the title under 100 characters and the suggestion under 4000.');
+        const category = oneOf(raw.category, IDEA_CATEGORIES, 'category');
+        const message = await ctx.db.query('messages').withIndex('by_family_thread_at', q => q.eq('familyId', caller.familyId).eq('threadId', caller.threadId)).order('desc').first();
+        await putIdea(ctx, { familyId: caller.familyId, ownerId: caller.memberId, title, text, category,
+          source: { kind: 'suggestion', messageId: message?._id }, sourceKey: `suggestion:${await sha256Hex(`${title.toLowerCase()}\n${text.toLowerCase()}`)}`, saved: false, at: now });
+        return { ok: true, resultText: 'Added to their private Ideas collection; they can save or dismiss it.' };
+      }
       case 'recall':
         return { ok: true, resultText: await toolRecall(ctx, caller, raw) };
       case 'remember':

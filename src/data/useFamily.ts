@@ -49,3 +49,5 @@ export function useKidDailyCap(memberId: Id<'members'>) {
 export function useSetKidDailyCap() {
   return useMutation(api.kidControls.setDailyCap);
 }
+
+export function useNextFamilyEvent() { return useQuery(api.family.nextEvent, {}); }

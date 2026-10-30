@@ -15,6 +15,7 @@ export const AGENT_TOOL_NAMES = [
   'events_update',
   'events_cancel',
   'reminders_create',
+  'ideas_suggest',
   'lists_add',
   'lists_check',
   'lists_remove',
@@ -47,6 +48,14 @@ const jsonLocalDateTime = { type: 'string', description: 'Local date-time in the
 const jsonAllDay = { type: 'string', description: 'All-day date as "YYYY-MM-DD", in the family\'s timezone.' } as const;
 
 export const AGENT_TOOLS: Record<AgentToolName, ToolDef> = {
+  ideas_suggest: {
+    configTool: 'ideas', implemented: true,
+    spec: {
+      name: 'ideas_suggest',
+      description: 'Put one useful, concrete suggestion you are making into this adult’s private Ideas collection. Use for activities, meals, gifts, or other actionable suggestions worth returning to. Do not record greetings, status, facts about people, or instructions. This does not mark it Saved or share it with anyone.',
+      parameters: { type: 'object', properties: { title: { type: 'string', maxLength: 100 }, text: { type: 'string', maxLength: 4000 }, category: { type: 'string', enum: ['activities', 'meals', 'gifts', 'other'] } }, required: ['title', 'text', 'category'], additionalProperties: false },
+    },
+  },
   recall: {
     configTool: 'recall',
     implemented: true,

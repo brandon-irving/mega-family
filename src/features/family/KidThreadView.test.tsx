@@ -39,9 +39,9 @@ describe('KidThreadView loading and spacing', () => {
     expect(screen.getByText('Twin 1 hasn’t chatted with their MEGA yet.')).toBeTruthy();
   });
 
-  test('the newest message keeps clear of the tab bar (bottom padding on the inverted list)', async () => {
+  test('a modal transcript has no phantom tab-bar padding', async () => {
     await renderWithTheme(<KidThreadView messages={messages} megaById={megaById} kidName="Twin 1" />);
     const style = queryFlatListProps(screen.root).contentContainerStyle as { paddingTop?: number };
-    expect(style.paddingTop).toBeGreaterThanOrEqual(48);
+    expect(style.paddingTop).toBeLessThan(48);
   });
 });

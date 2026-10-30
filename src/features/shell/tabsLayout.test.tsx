@@ -63,6 +63,7 @@ const ROUTES = {
   '(tabs)/chat/index': ChatIndexStub,
   '(tabs)/chat/[messageId]': ChatMessageStub,
   '(tabs)/hq/index': HqIndexStub,
+  '(tabs)/ideas/index': () => <Text>IDEAS_INDEX</Text>,
   '(tabs)/family/index': FamilyIndexStub,
 };
 
@@ -75,6 +76,9 @@ describe('(tabs) web layout + chat Stack', () => {
   test('switching tabs (Chat -> HQ -> Family) renders each without throwing', async () => {
     await renderRouter(ROUTES, { initialUrl: '/chat' });
     expect(screen.getByText('CHAT_INDEX')).toBeTruthy();
+
+    await testRouter.push('/ideas');
+    expect(screen.getByText('IDEAS_INDEX')).toBeTruthy();
 
     await testRouter.push('/hq');
     expect(screen.getByText('HQ_INDEX')).toBeTruthy();

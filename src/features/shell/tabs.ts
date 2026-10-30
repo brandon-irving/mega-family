@@ -8,7 +8,8 @@ import type { Role } from '@shared/domain/enums';
  * and the composer below it would otherwise sit under iOS 26's floating tab bar. */
 export const TAB_META: Record<Tab, { route: string; label: string; sfSymbol: string; manualInsets?: boolean }> = {
   chat: { route: 'chat', label: 'Chat', sfSymbol: 'message.fill', manualInsets: true },
-  hq: { route: 'hq', label: 'HQ', sfSymbol: 'house.fill' },
+  ideas: { route: 'ideas', label: 'Ideas', sfSymbol: 'lightbulb.fill', manualInsets: true },
+  hq: { route: 'hq', label: 'HQ', sfSymbol: 'house.fill', manualInsets: true },
   family: { route: 'family', label: 'Family', sfSymbol: 'person.2.fill' },
 };
 

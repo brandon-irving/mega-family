@@ -1,3 +1,4 @@
+import { Glyph } from '@/features/integrations/glyphs';
 // Shared thread renderer for ChatThread and KidThreadView (PLAN §1 / §4) — the single place that owns
 // how a page of messages is laid out, so the two don't duplicate it (DRY). `chat.thread` / `family.kidThread`
 // both return pages newest-first (CONTRACT §4), so this renders them through an *inverted* FlatList:
@@ -7,8 +8,8 @@
 // index 0 (not appended), the list stays pinned there on its own; no scrollToEnd/ref bookkeeping needed.
 // "Load earlier" fetches the page *after* the oldest loaded message, which an inverted list draws at the
 // visual top, so it's the ListFooterComponent (not the header — that would render at the visual bottom).
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
-import { FlatList, View } from 'react-native';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactElement, type ReactNode } from 'react';
+import { FlatList, Pressable, View } from 'react-native';
 import type { Id } from '@shared/domain/validators';
 import type { BlockAnswer, SaveChip } from '@shared/domain/messages';
 import type { Reaction, Scope } from '@shared/domain/enums';
@@ -27,10 +28,10 @@ const noop = () => {};
  * which it always does here, since ChatRoute/ChatThread recreate their `onAnswerBlock`/`onReact`/…
  * callbacks on every render. Without this, `renderItem` would need a fresh `(answer) => onAnswerBlock(item._id,
  * answer)` closure per row on every render, which breaks MessageRow's `React.memo` bailout and re-renders
- * every mounted row each time a *single* row's text changes (e.g. one streamed token). Returns the *same*
- * bound function for a given id forever (bounded by the thread's size, which is finite per session), so a
- * row's own props stay referentially equal across renders where nothing about that row changed. */
-function useRowCallback<Arg>(latest: (id: string, arg: Arg) => void) {
+ * every mounted row each time a *single* row's text changes (e.g. one streamed token). Weak keys keep
+ * callbacks stable for unchanged message objects without retaining callbacks for deleted messages or
+ * a previously viewed kid's thread for the lifetime of this list. */
+function useRowCallback<Arg, Result = void>(latest: (id: string, arg: Arg) => Result) {
   const latestRef = useRef(latest);
   // Not a direct `latestRef.current = latest` during render — the React Compiler (app.config.ts) rejects
   // mutating a ref in the render phase outright. useLayoutEffect commits synchronously right after DOM
@@ -39,12 +40,12 @@ function useRowCallback<Arg>(latest: (id: string, arg: Arg) => void) {
   useLayoutEffect(() => {
     latestRef.current = latest;
   });
-  const cache = useRef(new Map<string, (arg: Arg) => void>());
-  return useCallback((id: string) => {
-    let bound = cache.current.get(id);
+  const cache = useRef(new WeakMap<MessageDoc, (arg: Arg) => Result>());
+  return useCallback((message: MessageDoc, id: string) => {
+    let bound = cache.current.get(message);
     if (!bound) {
       bound = (arg: Arg) => latestRef.current(id, arg);
-      cache.current.set(id, bound);
+      cache.current.set(message, bound);
     }
     return bound;
   }, []);
@@ -71,6 +72,7 @@ export type MessageListProps = {
   onLoadMore?: () => void;
   onAnswerBlock?: (messageId: Id<'messages'>, answer: BlockAnswer) => void;
   onReact?: (messageId: Id<'messages'>, reaction: Reaction | null) => void;
+  onSaveIdea?: (messageId: Id<'messages'>) => Promise<unknown>;
   onChangeMemoryScope?: (memoryId: Id<'memories'>, scope: Scope) => void;
   onForgetMemory?: (memoryId: Id<'memories'>) => void;
   onRespondRequest?: (requestId: string, accept: boolean) => void;
@@ -85,6 +87,8 @@ export type MessageListProps = {
   /** Rendered instead of `emptyLabel` when there are no messages (the chat screen's loading state while the
    * MEGA's starter is on its way; owner Oct 28: never an empty-state line in a chat). */
   emptyContent?: ReactNode;
+  /** The active reply belongs to the scrollable conversation, at the newest end of this inverted list. */
+  streamingReply?: ReactElement;
   /** Extra room under the newest message (the list is inverted, so it's the content's top padding), e.g. a
    * parent's read-only kid chat above the tab bar (G4 UX review, Oct 28). */
   endPadding?: number;
@@ -104,6 +108,7 @@ export type MessageListProps = {
 /** How long the "scrolled to from a notification" highlight stays before fading — long enough to be
  * seen after the scroll settles, short enough not to linger like a permanent marker. */
 const HIGHLIGHT_DURATION_MS = 2200;
+const MAX_SCROLL_RETRIES = 3;
 
 export function MessageList({
   messages,
@@ -112,6 +117,7 @@ export function MessageList({
   onLoadMore,
   onAnswerBlock = noop,
   onReact = noop,
+  onSaveIdea,
   onChangeMemoryScope = noop,
   onForgetMemory = noop,
   onRespondRequest,
@@ -120,12 +126,18 @@ export function MessageList({
   chipsReadOnly = false,
   emptyLabel = 'No messages yet.',
   emptyContent,
+  streamingReply,
   endPadding,
   scrollToMessageId,
   paginationExhausted = false,
 }: MessageListProps) {
   const tokens = useTokens();
   const listRef = useRef<FlatList<MessageDoc>>(null);
+  const [awayFromBottom, setAwayFromBottom] = useState(false);
+  const scrollRetry = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const scrollRetryAttempts = useRef(0);
+  const scrolledToMessageId = useRef<Id<'messages'> | null>(null);
+  const targetLoaded = !!scrollToMessageId && messages.some((message) => message._id === scrollToMessageId);
   // Only tracks when a highlight was *cleared* (by its own timeout) — whether a message is currently
   // highlighted is derived below, not stored, which is what lets a new `scrollToMessageId` light up
   // immediately without this effect calling setState synchronously on its own first run (the project's
@@ -145,6 +157,40 @@ export function MessageList({
   // is requested, or the same one is finally found.
   const [notFoundId, setNotFoundId] = useState<Id<'messages'> | null>(null);
 
+  useEffect(() => {
+    scrolledToMessageId.current = null;
+    scrollRetryAttempts.current = 0;
+    return () => {
+      if (scrollRetry.current !== null) clearTimeout(scrollRetry.current);
+    };
+  }, [scrollToMessageId]);
+
+  // A streamed update changes the messages array without changing the deep-link target. Keep the
+  // highlight timer independent of that array so incoming tokens cannot postpone it indefinitely.
+  useEffect(() => {
+    if (!scrollToMessageId || !targetLoaded) return;
+    const timer = setTimeout(() => setClearedHighlightId(scrollToMessageId), HIGHLIGHT_DURATION_MS);
+    return () => clearTimeout(timer);
+  }, [scrollToMessageId, targetLoaded]);
+
+  const scrollToCurrentTarget = useStableCallback(() => {
+    const index = messages.findIndex((message) => message._id === scrollToMessageId);
+    if (index !== -1) listRef.current?.scrollToIndex({ index, viewPosition: 0.5, animated: true });
+  });
+
+  const retryScroll = useCallback((info: { index: number; averageItemLength: number }) => {
+    if (scrollRetryAttempts.current >= MAX_SCROLL_RETRIES) return;
+    scrollRetryAttempts.current += 1;
+    if (scrollRetry.current !== null) clearTimeout(scrollRetry.current);
+    // Move the render window toward the target so the retry can actually measure it. Retrying the
+    // same out-of-window index alone can otherwise schedule work every 100 ms forever.
+    listRef.current?.scrollToOffset({ offset: info.averageItemLength * info.index, animated: false });
+    scrollRetry.current = setTimeout(() => {
+      scrollRetry.current = null;
+      scrollToCurrentTarget();
+    }, 100);
+  }, [scrollToCurrentTarget]);
+
   // CONTRACT §6: lands once the target message is actually in `messages` (it may still be loading on
   // the first render after a cold-start deep link) — re-runs if the id changes to a different message
   // (tapping a second notification while the first's highlight hasn't faded yet), or as more pages load
@@ -163,11 +209,12 @@ export function MessageList({
 
     const index = messages.findIndex((m) => m._id === scrollToMessageId);
     if (index !== -1) {
+      if (scrolledToMessageId.current === scrollToMessageId) return;
+      scrolledToMessageId.current = scrollToMessageId;
       // Clearing a *previously shown* not-found notice the instant this same target turns up after all
       // (e.g. it arrives through a live update rather than the load-more path below) — same "escape
       // hatch" the project already uses in src/app/(tabs)/family/calendar.tsx, justified the same way:
       // synchronizing UI state with this effect's own search outcome, not spawning new work off of it.
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setNotFoundId(null);
       try {
         listRef.current?.scrollToIndex({ index, viewPosition: 0.5, animated: true });
@@ -175,8 +222,7 @@ export function MessageList({
         // onScrollToIndexFailed (below) covers the "not measured yet" case; anything else shouldn't stop
         // the highlight itself from showing.
       }
-      const timer = setTimeout(() => setClearedHighlightId(scrollToMessageId), HIGHLIGHT_DURATION_MS);
-      return () => clearTimeout(timer);
+      return;
     }
 
     // Not found in the loaded page(s) yet. Keep paging — bounded, and stopping the instant pagination
@@ -198,12 +244,14 @@ export function MessageList({
 
   const getAnswerBlockCallback = useRowCallback<BlockAnswer>((id, answer) => onAnswerBlock(id as Id<'messages'>, answer));
   const getReactCallback = useRowCallback<Reaction | null>((id, reaction) => onReact(id as Id<'messages'>, reaction));
+  const getSaveIdeaCallback = useRowCallback<void, Promise<unknown>>((id) => onSaveIdea ? onSaveIdea(id as Id<'messages'>) : Promise.resolve());
   const getRespondRequestCallback = useRowCallback<boolean>((requestId, accept) => onRespondRequest?.(requestId, accept));
   const getAnswerNotificationCallback = useRowCallback<string>((notificationId, buttonId) => onAnswerNotification?.(notificationId, buttonId));
   // Neither of these closes over anything row-specific (memoryId/scope are already the callback's own
   // args, not derived from `item`) — one stable wrapper for the whole list, not one per row.
   const stableChangeMemoryScope = useStableCallback((memoryId: string, scope: Scope) => onChangeMemoryScope(memoryId as Id<'memories'>, scope));
   const stableForgetMemory = useStableCallback((memoryId: string) => onForgetMemory(memoryId as Id<'memories'>));
+  const canSaveIdea = !!onSaveIdea && !chipsReadOnly;
 
   // Stable across renders (useCallback, real deps) so FlatList/VirtualizedList's own per-cell memoization
   // isn't invalidated by a fresh `renderItem` identity every time MessageList re-renders for an unrelated
@@ -226,12 +274,13 @@ export function MessageList({
           message={item}
           isMine={mine}
           mega={mega}
-          onAnswerBlock={getAnswerBlockCallback(item._id)}
-          onReact={getReactCallback(item._id)}
+          onAnswerBlock={getAnswerBlockCallback(item, item._id)}
+          onReact={getReactCallback(item, item._id)}
+          onSaveIdea={canSaveIdea ? getSaveIdeaCallback(item, item._id) : undefined}
           onChangeMemoryScope={stableChangeMemoryScope}
           onForgetMemory={stableForgetMemory}
-          onRespondRequest={requestId ? getRespondRequestCallback(requestId) : undefined}
-          onAnswerNotification={notificationId ? getAnswerNotificationCallback(notificationId) : undefined}
+          onRespondRequest={requestId ? getRespondRequestCallback(item, requestId) : undefined}
+          onAnswerNotification={notificationId ? getAnswerNotificationCallback(item, notificationId) : undefined}
           notification={notificationId ? notificationsById?.[notificationId] : undefined}
           chipsReadOnly={chipsReadOnly}
           highlighted={item._id === highlightedId}
@@ -239,10 +288,10 @@ export function MessageList({
         />
       );
     },
-    [isMine, megaById, getAnswerBlockCallback, getReactCallback, stableChangeMemoryScope, stableForgetMemory, getRespondRequestCallback, getAnswerNotificationCallback, notificationsById, chipsReadOnly, highlightedId, scrollToMessageId],
+    [isMine, megaById, getAnswerBlockCallback, getReactCallback, canSaveIdea, getSaveIdeaCallback, stableChangeMemoryScope, stableForgetMemory, getRespondRequestCallback, getAnswerNotificationCallback, notificationsById, chipsReadOnly, highlightedId, scrollToMessageId],
   );
 
-  if (messages.length === 0) {
+  if (messages.length === 0 && !streamingReply) {
     if (emptyContent) return <>{emptyContent}</>;
     return (
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: tokens.spacing.xl }}>
@@ -253,21 +302,24 @@ export function MessageList({
 
   return (
     <View style={{ flex: 1 }}>
-      <FlatList
+      <FlatList keyboardDismissMode="on-drag"
         ref={listRef}
+        keyboardShouldPersistTaps="handled"
+        onScroll={({ nativeEvent }) => setAwayFromBottom(nativeEvent.contentOffset.y > 180)}
+        scrollEventThrottle={100}
         data={messages}
         inverted
         keyExtractor={(m) => m._id}
         contentContainerStyle={{ padding: tokens.spacing.lg, paddingTop: tokens.spacing.lg + (endPadding ?? 0) }}
+        ListHeaderComponent={streamingReply}
         ListFooterComponent={onLoadMore ? <Button label="Load earlier messages" variant="ghost" onPress={onLoadMore} /> : undefined}
         renderItem={renderItem}
         // No `getItemLayout` (messages have variable height), so a `scrollToIndex` call made before that
         // row has actually been measured can fail — RN's documented fallback is to retry once layout
         // catches up, rather than leaving the deep link looking like it silently did nothing.
-        onScrollToIndexFailed={(info) => {
-          setTimeout(() => listRef.current?.scrollToIndex({ index: info.index, viewPosition: 0.5, animated: true }), 100);
-        }}
+        onScrollToIndexFailed={retryScroll}
       />
+      {awayFromBottom ? <Pressable testID="jump-to-bottom" accessibilityRole="button" accessibilityLabel="Jump to latest message" onPress={() => listRef.current?.scrollToOffset({ offset: 0, animated: true })} style={{ position: 'absolute', bottom: tokens.spacing.md, right: tokens.spacing.lg, width: 44, height: 44, borderRadius: 22, backgroundColor: tokens.surface, borderWidth: 1, borderColor: tokens.line, alignItems: 'center', justifyContent: 'center' }}><Glyph name="down" size={24} color={tokens.accent} /></Pressable> : null}
       {/* G3 review fix (BLOCKER, deep link to an older message): shown instead of nothing once the
           target is never found (pagination exhausted or the page bound is hit) — a floating overlay, not
           part of the scrollable content, so it can't itself cause a layout jump in the list below it. */}

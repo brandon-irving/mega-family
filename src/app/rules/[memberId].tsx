@@ -3,7 +3,8 @@
 // line instead of the page. Changes apply at once through `kidControls.set` (the server re-checks parenthood).
 // The kid's own read-only version (board ProfileRulesKid) is /mega-profile/rules. "Buzzes a day" shows once the
 // server reports the kid's cap (`kidControls.notifyCap`, CONTRACT v0.17b pending).
-import { router, useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
+import { router } from '@/features/shell/navigation';
 import type { Id } from '@shared/domain/validators';
 import { G5_UI_COPY as U, KIDS_COPY } from '@shared/config/copy';
 import { LIMITS } from '@shared/config/limits';

@@ -74,7 +74,7 @@ export function ThreadCard({ from, fromColor, ai, aiLabel = 'AI', progress, titl
       </View>
       {progress && <ProgressDots dots={progress.dots} label={progress.label} />}
       <View style={{ gap: tokens.spacing.xs }}>
-        <Text variant={big ? 'headline' : 'title'} accessibilityRole="header">
+        <Text variant="title" style={{ fontSize: big ? tokens.type.title.fontSize : tokens.type.body.fontSize, lineHeight: big ? tokens.type.title.lineHeight : tokens.type.body.lineHeight }} accessibilityRole="header">
           {title}
         </Text>
         {body ? <Text color="muted">{body}</Text> : null}
@@ -276,7 +276,7 @@ export function TagList({ label, tags }: { label: string; tags: string[] }) {
       <Text variant="caption" weight="700" color="muted">
         {label.toUpperCase()}
       </Text>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6 }} testID="tag-list">
+      <ScrollView keyboardDismissMode="on-drag" horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6 }} testID="tag-list">
         {tags.map((t) => (
           <View key={t} style={{ flexShrink: 0, paddingHorizontal: 10, paddingVertical: 5, borderRadius: tokens.radii.md, backgroundColor: tokens.householdSurface, borderWidth: 1, borderColor: tokens.householdLine }}>
             <Text variant="caption" numberOfLines={1} style={{ color: tokens.householdText }}>

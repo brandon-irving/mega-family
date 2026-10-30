@@ -1,11 +1,15 @@
 // Small pieces the sign-in screens share (Screen 9 boards): the wordmark, the pill buttons, the back
 // button, the "Use a different account" link and the full-screen frame with the walking MEGAs.
-import type { ReactNode } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { type ReactNode, useEffect, useState } from 'react';
+import { Keyboard, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
+import { useIsFocused } from 'expo-router';
 import { SafeFrame, type Presentation } from '@/ui/Screen';
 import { Path, Svg } from 'react-native-svg';
 import { Ledge, WalkerStage, type Scene } from '@/features/walkers';
+import { useWalkerLayout } from '@/features/walkers/WalkerStage';
 import { NoContentRegistry } from '@/ui/contentRegistry';
+import { hiddenFromA11y } from '@/ui/a11y';
 import { signOut } from '@/services/auth';
 import { Button, type ButtonProps } from '@/ui/Button';
 import { Text } from '@/ui/Text';
@@ -16,17 +20,34 @@ import { CTA_SIZES, WORDMARK } from '@shared/config/theme';
 
 /** A sign-in screen: the Midnight background edge to edge, safe-area padding, and the walking MEGAs.
  * `presentation` (src/ui/Screen.tsx): 'full' for Welcome and Start, 'sheet' for the invite and join modals. */
-export function SignInFrame({ scene, busy, children, overlay, presentation = 'full', testID }: { scene: Scene; busy?: boolean; children: ReactNode; overlay?: ReactNode; presentation?: Presentation; testID?: string }) {
+export function SignInFrame({ scene, busy, children, overlay, active = true, social = false, presentation = 'full', testID }: { scene: Scene; busy?: boolean; children: ReactNode; overlay?: ReactNode; active?: boolean; social?: boolean; presentation?: Presentation; testID?: string }) {
   const tokens = useTokens();
+  const focused = useIsFocused();
+  const [keyboardVisible, setKeyboardVisible] = useState(false);
+  useEffect(() => {
+    const show = Keyboard.addListener('keyboardDidShow', () => setKeyboardVisible(true));
+    const hide = Keyboard.addListener('keyboardDidHide', () => setKeyboardVisible(false));
+    return () => { show.remove(); hide.remove(); };
+  }, []);
   return (
     <View style={[styles.fill, { backgroundColor: tokens.bg }]} testID={testID}>
-      <WalkerStage scene={scene} busy={busy} overlay={overlay}>
+      <WalkerStage scene={scene} busy={busy} overlay={overlay} active={active && focused && !keyboardVisible} social={social}>
+        <View style={styles.fill} {...hiddenFromA11y(!active)}>
         <SafeFrame presentation={presentation} testID={testID ? `${testID}-safe` : undefined}>
-          <View style={[styles.fill, { paddingHorizontal: tokens.spacing.xl, paddingBottom: tokens.spacing.lg }]}>{children}</View>
+          <KeyboardAvoidingView behavior="padding" style={styles.fill}>
+            <SignInScroll>{children}</SignInScroll>
+          </KeyboardAvoidingView>
         </SafeFrame>
+        </View>
       </WalkerStage>
     </View>
   );
+}
+
+function SignInScroll({ children }: { children: ReactNode }) {
+  const tokens = useTokens();
+  const measure = useWalkerLayout();
+  return <ScrollView keyboardDismissMode="on-drag" style={styles.fill} keyboardShouldPersistTaps="handled" onScroll={measure} onLayout={measure} scrollEventThrottle={32} contentContainerStyle={{ flexGrow: 1, paddingHorizontal: tokens.spacing.xl, paddingBottom: tokens.spacing.lg }}>{children}</ScrollView>;
 }
 
 /** "MEGA" in large letters (owner, Oct 27). The walking MEGAs stand on the tops of its capitals. */

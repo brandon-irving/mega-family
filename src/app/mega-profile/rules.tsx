@@ -2,7 +2,8 @@
 // locked "Set by a parent", in the MEGA profile's stack. Kids only — an adult changes a kid's rules from that
 // kid's Family page (/rules/[memberId]). The data is `kidControls.mine` (CONTRACT v0.17b): the kid's control
 // fields, buzzes a day and their parents' names; until it answers, the page says the rules aren't ready.
-import { Redirect, router } from 'expo-router';
+import { Redirect } from 'expo-router';
+import { router } from '@/features/shell/navigation';
 import { KIDS_COPY, G5_UI_COPY as U } from '@shared/config/copy';
 import { LIMITS } from '@shared/config/limits';
 import type { StickerId } from '@shared/config/looks';

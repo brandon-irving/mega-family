@@ -1,17 +1,20 @@
-// mega://talk — full-screen push-to-talk (PLAN "Talk mode"). Opens already listening. Owns the state
-// machine (features/talk/talkMachine), the recorder/speaker services and the chat.send/answerBlock
-// calls; TalkContent itself is pure presentation.
-import { useCallback, useEffect, useMemo, useReducer, useState } from 'react';
-import { router } from 'expo-router';
+import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
+import { AppState } from 'react-native';
+import type { SpokenMention } from '@shared/domain/messages';
+import { router } from '@/features/shell/navigation';
 import { useAnswerBlock, useChatThread, useSendMessage, useStreamBody } from '@/data/useChat';
 import { useUploadAndTranscribe } from '@/data/useTalk';
 import { errorCopyFor, streamStatusCopy } from '@/data/errorCopy';
 import { useViewer } from '@/data/useViewer';
 import { useVoiceService, VOICE_UNSUPPORTED_MESSAGE } from '@/services/voice';
 import { speaker } from '@/services/speaker';
+import { hasSeenTalkIntroduction, rememberTalkIntroduction } from '@/services/talkIntroduction';
 import { turnEnd, turnStart } from '@/services/talkFeedback';
 import { LoadingScreen } from '@/ui/LoadingScreen';
 import { Screen } from '@/ui/Screen';
+import { ModalSheet } from '@/ui/ModalSheet';
+import { Button } from '@/ui/Button';
+import { Text } from '@/ui/Text';
 import { megaInfo } from '@/features/shell/megaInfo';
 import { TalkContent } from '@/features/talk/TalkContent';
 import { initialTalkState, talkReducer } from '@/features/talk/talkMachine';
@@ -26,134 +29,144 @@ export default function TalkRoute() {
   const voice = useVoiceService();
   const [state, dispatch] = useReducer(talkReducer, initialTalkState);
   const [streamId, setStreamId] = useState<string | null>(null);
+  const [playing, setPlaying] = useState(false);
+  const [introduction, setIntroduction] = useState(false);
+  const [introReady, setIntroReady] = useState(false);
   const stream = useStreamBody(streamId);
+  const generation = useRef(0);
+  const recording = useRef(false);
+  const starting = useRef<Promise<void> | null>(null);
+  const playedStream = useRef<string | null>(null);
+  const awaitingBlock = useRef<Set<string> | null>(null);
 
-  // "If the latest MEGA message is an unanswered block, the transcript is sent as the block's answer"
-  // (G2 scope). `chat.thread` pages come back newest-first (CONTRACT §4), so index 0 is the latest.
   const latestUnansweredBlock = useMemo(() => {
     const latest = thread.results[0];
-    if (latest?.author.kind === 'mega' && latest.body.type === 'block' && !latest.body.answeredWith) {
-      return { messageId: latest._id, block: latest.body.block };
-    }
-    return null;
+    return latest?.author.kind === 'mega' && latest.body.type === 'block' && !latest.body.answeredWith
+      ? { messageId: latest._id, block: latest.body.block } : null;
   }, [thread.results]);
 
-  const beginRecording = useCallback(() => {
-    turnStart();
-    voice.start().catch((e) => {
-      // VOICE_UNSUPPORTED_MESSAGE (src/services/voice.ts canRecordWav()) never reaches a server — it's a
-      // local platform-capability check — so errorCopyFor's ConvexError-only translation would otherwise
-      // swallow it into a generic "something went wrong" instead of the specific, actionable message.
-      const friendly = e instanceof Error && e.message === VOICE_UNSUPPORTED_MESSAGE ? e.message : errorCopyFor(e);
-      dispatch({ type: 'transcribeFailed', error: friendly });
-    });
+  const cancel = useCallback(() => {
+    generation.current++;
+    recording.current = false;
+    awaitingBlock.current = null;
+    void voice.cancel();
+    speaker.stop();
+    setPlaying(false);
+    setStreamId(null);
+    dispatch({ type: 'cancel' });
   }, [voice]);
 
-  // Opens already listening (PLAN §8 widgets: "mega://talk ... opens already listening") — intentionally
-  // mount-only (not re-run when `beginRecording`'s identity changes on every render).
   useEffect(() => {
-    beginRecording();
-    dispatch({ type: 'holdStart' });
-    return () => {
-      voice.cancel();
-      speaker.stop();
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    const lifecycle = generation;
+    let active = true;
+    void hasSeenTalkIntroduction().then(seen => { if (active) { setIntroduction(!seen); setIntroReady(true); } });
+    const subscription = AppState.addEventListener('change', next => { if (next !== 'active') cancel(); });
+    return () => { active = false; subscription.remove(); lifecycle.current++; recording.current = false; void voice.cancel(); speaker.stop(); };
+  }, [cancel, voice]);
+
+  const playReply = useCallback((text: string) => {
+    const current = generation.current;
+    dispatch({ type: 'replyChunk', text });
+    speaker.speak(text, {
+      onStart: () => { if (current === generation.current) setPlaying(true); },
+      onDone: () => { if (current === generation.current) { setPlaying(false); dispatch({ type: 'replyDone' }); } },
+      onError: () => { if (current === generation.current) { setPlaying(false); dispatch({ type: 'replyFailed', error: 'Audio could not play. You can read the reply below and try again.' }); } },
+    });
   }, []);
 
-  // Streams the MEGA's reply as large captions (CONTRACT §4 `chat.streamBody`) while phase is "speaking".
   useEffect(() => {
-    if (!stream || state.phase !== 'speaking') return;
+    if (!stream || !streamId || state.phase !== 'speaking' || playedStream.current === streamId) return;
     if (stream.status === 'error' || stream.status === 'timeout') {
+      playedStream.current = streamId;
       dispatch({ type: 'replyFailed', error: streamStatusCopy(stream.status) });
-      return;
+    } else if (stream.status === 'done') {
+      playedStream.current = streamId;
+      playReply(stream.text);
+    } else dispatch({ type: 'replyChunk', text: stream.text });
+  }, [stream, streamId, state.phase, playReply]);
+
+  // Block answers have no stream id. Read their new reply from the existing live thread instead.
+  useEffect(() => {
+    if (!awaitingBlock.current || state.phase !== 'speaking') return;
+    const reply = thread.results.find(message => !awaitingBlock.current!.has(message._id) && message.author.kind === 'mega' && (message.body.type === 'text' || message.body.type === 'notice') && !!message.body.text.trim());
+    if (reply && (reply.body.type === 'text' || reply.body.type === 'notice')) {
+      awaitingBlock.current = null;
+      playReply(reply.body.text);
     }
-    dispatch({ type: 'replyChunk', text: stream.text });
-    if (stream.status === 'done') {
-      speaker.speak(stream.text);
-      dispatch({ type: 'replyDone' });
-    }
-  }, [stream, state.phase]);
+  }, [thread.results, state.phase, playReply]);
 
-  const onHoldStart = useCallback(() => {
-    if (state.phase === 'speaking') speaker.stop(); // "pressing while the MEGA talks interrupts it"
-    beginRecording();
-    dispatch({ type: 'holdStart' });
-  }, [state.phase, beginRecording]);
+  useEffect(() => {
+    if (state.phase !== 'speaking' || playing) return;
+    const timer = setTimeout(() => {
+      awaitingBlock.current = null;
+      speaker.stop();
+      dispatch({ type: 'replyFailed', error: 'The reply is taking longer than expected. Check Chat or try again.' });
+    }, 60_000);
+    return () => clearTimeout(timer);
+  }, [state.phase, playing]);
 
-  const onSlideLock = useCallback(() => dispatch({ type: 'lock' }), []);
-
-  const onRelease = useCallback(async () => {
-    turnEnd();
-    dispatch({ type: 'release' });
-    const clip = await voice.stop();
-    if (!clip) {
-      dispatch({ type: 'transcribeFailed', error: "I didn't catch that." });
-      return;
-    }
-    try {
-      const { text, mentions } = await uploadAndTranscribe(clip.uri, clip.mimeType);
-      if (!text.trim()) {
-        dispatch({ type: 'transcribeFailed', error: "I didn't catch that — try again?" });
-        return;
-      }
-      dispatch({ type: 'transcribed', text, mentions });
-    } catch (e) {
-      dispatch({ type: 'transcribeFailed', error: errorCopyFor(e) });
-    }
-  }, [uploadAndTranscribe, voice]);
-
-  const onRemoveMention = useCallback((index: number) => dispatch({ type: 'removeMention', index }), []);
-
-  const onSend = useCallback(async () => {
+  const sendTranscript = async (text: string, mentions: SpokenMention[], current: number) => {
     dispatch({ type: 'send' });
     try {
-      if (latestUnansweredBlock) {
-        const answer = mapVoiceBlockAnswer(latestUnansweredBlock.block, state.caption);
-        if (answer) {
-          await answerBlock(latestUnansweredBlock.messageId, answer, 'voice');
-          // chat.answerBlock doesn't return a streamId (CONTRACT §4) — see the G2 report's contract
-          // request — so the follow-up reply can't be streamed as captions here; it still lands in the
-          // thread normally, and talk mode returns to idle rather than showing an empty "speaking" state.
-          dispatch({ type: 'sent' });
-          dispatch({ type: 'replyDone' });
-          return;
-        }
+      const answer = latestUnansweredBlock && mapVoiceBlockAnswer(latestUnansweredBlock.block, text);
+      if (latestUnansweredBlock && answer) {
+        awaitingBlock.current = new Set(thread.results.map(message => message._id));
+        await answerBlock(latestUnansweredBlock.messageId, answer, 'voice');
+      } else {
+        const result = await sendMessage({ text, via: 'voice', mentions: mentions.map(mention => mention.megaId) });
+        if (current !== generation.current) return;
+        setStreamId(result.streamId);
       }
-      const result = await sendMessage({ text: state.caption, via: 'voice', mentions: state.mentions.map((m) => m.megaId) });
-      setStreamId(result.streamId);
-      dispatch({ type: 'sent' });
-    } catch (e) {
-      dispatch({ type: 'sendFailed', error: errorCopyFor(e) });
+      if (current === generation.current) dispatch({ type: 'sent' });
+    } catch (error) {
+      if (current === generation.current) { awaitingBlock.current = null; dispatch({ type: 'sendFailed', error: errorCopyFor(error) }); }
     }
-  }, [latestUnansweredBlock, state.caption, state.mentions, answerBlock, sendMessage]);
+  };
 
-  const onClose = useCallback(() => {
-    voice.cancel();
-    speaker.stop();
-    dispatch({ type: 'cancel' });
-    router.back();
-  }, [voice]);
+  const onHoldStart = () => {
+    if (!introReady || introduction || recording.current || (state.phase !== 'idle' && state.phase !== 'speaking')) return;
+    const current = ++generation.current;
+    speaker.stop(); setPlaying(false); setStreamId(null); awaitingBlock.current = null;
+    recording.current = true;
+    dispatch({ type: 'holdStart' });
+    starting.current = voice.start().then(() => { if (current === generation.current) turnStart(); }).catch(error => {
+      if (current !== generation.current) return;
+      recording.current = false;
+      dispatch({ type: 'transcribeFailed', error: error instanceof Error && error.message === VOICE_UNSUPPORTED_MESSAGE ? error.message : 'Microphone could not start. Allow microphone access in Settings and try again.' });
+    });
+  };
 
-  if (viewer === undefined) return <LoadingScreen label="Opening talk mode…" />;
-  if (!viewer?.mega) return <LoadingScreen label="No MEGA yet" />;
+  const onRelease = async () => {
+    if (!recording.current) return;
+    recording.current = false;
+    const current = generation.current;
+    dispatch({ type: 'release' });
+    try {
+      await starting.current;
+      if (current !== generation.current) return;
+      const clip = await voice.stop(); turnEnd();
+      if (current !== generation.current) return;
+      if (!clip) { dispatch({ type: 'transcribeFailed', error: 'Hold the button while you speak, then release.' }); return; }
+      const { text, mentions } = await uploadAndTranscribe(clip.uri, clip.mimeType);
+      if (current !== generation.current) return;
+      if (!text.trim()) { dispatch({ type: 'transcribeFailed', error: 'I didn’t catch that. Hold to try again.' }); return; }
+      dispatch({ type: 'transcribed', text, mentions });
+      await sendTranscript(text, mentions, current);
+    } catch (error) { if (current === generation.current) dispatch({ type: 'transcribeFailed', error: errorCopyFor(error) }); }
+  };
 
-  return (
-    <Screen padded={false}>
-    <TalkContent
-      mega={megaInfo(viewer.mega)}
-      phase={state.phase}
-      caption={state.caption}
-      mentions={state.mentions}
-      reply={state.reply}
-      error={state.error}
-      onHoldStart={onHoldStart}
-      onSlideLock={onSlideLock}
-      onRelease={onRelease}
-      onRemoveMention={onRemoveMention}
-      onSend={onSend}
-      onClose={onClose}
-    />
-    </Screen>
-  );
+  const closeIntro = () => { setIntroduction(false); void rememberTalkIntroduction(); };
+  if (!viewer?.mega) return <LoadingScreen label="Opening talk mode…" />;
+  return <Screen padded={false}>
+    <TalkContent mega={megaInfo(viewer.mega)} phase={state.phase} caption={state.caption} mentions={state.mentions} reply={state.reply} error={state.error} playing={playing}
+      onHoldStart={onHoldStart} onSlideLock={() => dispatch({ type: 'lock' })} onRelease={() => void onRelease()} onCancel={cancel}
+      onRemoveMention={index => dispatch({ type: 'removeMention', index })} onSend={() => void sendTranscript(state.caption, state.mentions, generation.current)}
+      onHelp={() => setIntroduction(true)} onClose={() => { cancel(); router.back(); }} />
+    <ModalSheet open={introduction} title="Talk like a walkie-talkie" closeLabel="Close talk instructions" onClose={closeIntro}>
+      <Text>Hold the microphone while you speak. Release it to send your words and hear MEGA’s reply.</Text>
+      <Text>Slide up while holding to keep recording hands-free, then tap to send. Hold again to interrupt a reply.</Text>
+      <Text>Your last words and MEGA’s reply stay here. The conversation also appears in Chat.</Text>
+      <Button label="Got it" onPress={closeIntro} />
+    </ModalSheet>
+  </Screen>;
 }

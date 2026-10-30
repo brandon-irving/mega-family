@@ -1,4 +1,4 @@
-// The chat composer (PLAN §1): `+` (attach), text field with `@` MEGA mentions, mic → opens talk mode.
+// A full-width text area and its actions share one surface. Only backed actions are exposed.
 // Kids (ROLES_CONFIG[role].talkButton) get the one bar every kid screen shares (canvas v33,
 // design/build/thread.html "Kid composer"; owner Oct 28):
 //   talk mode:   [ 🎙 Talk to Sunny ············· ] ( ⌨ )
@@ -7,12 +7,12 @@
 // tiny), and the field shrinks (flex 1, minWidth 0) so nothing runs past the screen edge.
 import { useState } from 'react';
 import { Pressable, TextInput, View } from 'react-native';
-import { Path, Rect, Svg, Circle } from 'react-native-svg';
+import { Path, Rect, Svg } from 'react-native-svg';
 import { fillCopy, COMPOSER_COPY } from '@shared/config/copy';
 import { COMPOSER_SIZES, readableOn } from '@shared/config/theme';
-import { Button } from '@/ui/Button';
 import { Text } from '@/ui/Text';
 import { useTokens } from '@/ui/theme';
+import { Glyph } from '@/features/integrations/glyphs';
 import { hiddenFromA11y } from '@/ui/a11y';
 
 export type ComposerProps = {
@@ -20,7 +20,6 @@ export type ComposerProps = {
   bigTalkButton?: boolean;
   onSend: (text: string) => void;
   onOpenTalk: () => void;
-  onAttach?: () => void;
   /** GD (board KidsSnap): adults get a camera button for "Snap homework" (opens mega://homework). */
   onCamera?: () => void;
   cameraLabel?: string;
@@ -28,9 +27,10 @@ export type ComposerProps = {
   placeholder?: string;
 };
 
-export function Composer({ megaName, bigTalkButton = false, onSend, onOpenTalk, onAttach, onCamera, cameraLabel = 'Take a photo', placeholder }: ComposerProps) {
+export function Composer({ megaName, bigTalkButton = false, onSend, onOpenTalk, onCamera, placeholder }: ComposerProps) {
   const [text, setText] = useState('');
   const [showKeyboard, setShowKeyboard] = useState(!bigTalkButton);
+  const [contentHeight, setContentHeight] = useState(0);
   const tokens = useTokens();
   const copy = (template: string) => fillCopy(template, { mega: megaName });
 
@@ -38,6 +38,7 @@ export function Composer({ megaName, bigTalkButton = false, onSend, onOpenTalk, 
     if (!text.trim()) return;
     onSend(text.trim());
     setText('');
+    setContentHeight(0);
   };
 
   // G2 polish fix: pad the tappable area past the visual size (tokens.hitSlop) instead of growing icons.
@@ -102,49 +103,29 @@ export function Composer({ megaName, bigTalkButton = false, onSend, onOpenTalk, 
   }
 
   const A = COMPOSER_SIZES.adult;
+  const hasText = !!text.trim();
+  const textAreaHeight = Math.max(tokens.touchTarget, Math.min(contentHeight, tokens.type.body.lineHeight * 5 + tokens.spacing.lg));
   return (
-    // Owner, Oct 29: no bar background or top border; the thread shows through around the controls and the
-    // field carries the fill (Images 26/28).
-    <View testID="composer-bar" style={{ flexDirection: 'row', alignItems: 'center', gap: tokens.spacing.sm, padding: tokens.spacing.md }}>
-      {onCamera && (
-        <Pressable
-          onPress={onCamera}
-          accessibilityRole="button"
-          accessibilityLabel={cameraLabel}
-          hitSlop={hitSlop}
-          style={{ width: tokens.touchTarget, height: tokens.touchTarget, borderRadius: tokens.touchTarget / 2, borderWidth: 1, borderColor: tokens.line, alignItems: 'center', justifyContent: 'center' }}
-        >
-          <CameraIcon size={A.toggleIcon} color={tokens.text} />
+    <View testID="composer-bar" style={{ paddingHorizontal: tokens.spacing.lg, paddingVertical: tokens.spacing.sm }}>
+      <View testID="composer-surface" style={{ borderRadius: tokens.radii.lg, borderWidth: 1, borderColor: tokens.line, backgroundColor: tokens.surface, flexDirection: 'row', alignItems: 'flex-end', paddingHorizontal: 4 }}>
+        {onCamera ? <Pressable onPress={onCamera} accessibilityRole="button" accessibilityLabel="Add attachment" style={{ width: tokens.touchTarget, height: tokens.touchTarget, alignItems: 'center', justifyContent: 'center' }}><Glyph name="plus" size={24} color={tokens.muted} /></Pressable> : null}
+        <TextInput
+          value={text}
+          onChangeText={setText}
+          placeholder={placeholder ?? copy(COMPOSER_COPY.adultPlaceholder)}
+          placeholderTextColor={tokens.muted}
+          style={{ flex: 1, minWidth: 0, height: textAreaHeight, color: tokens.text, fontSize: tokens.type.body.fontSize, lineHeight: tokens.type.body.lineHeight, paddingHorizontal: tokens.spacing.sm, paddingTop: tokens.spacing.sm, paddingBottom: tokens.spacing.sm, textAlignVertical: 'top' }}
+          accessibilityLabel={copy(COMPOSER_COPY.fieldLabel)}
+          onContentSizeChange={({ nativeEvent }) => setContentHeight(Math.ceil(nativeEvent.contentSize.height))}
+          multiline
+          submitBehavior="newline"
+          underlineColorAndroid="transparent"
+        />
+        <Pressable onPress={hasText ? send : onOpenTalk} accessibilityRole="button" accessibilityLabel={hasText ? COMPOSER_COPY.send : 'Talk'} style={{ width: tokens.touchTarget, height: tokens.touchTarget, alignItems: 'center', justifyContent: 'center' }}>
+          {hasText ? <SendIcon size={A.micIcon} color={tokens.accent} /> : <MicIcon size={A.micIcon} color={tokens.text} />}
         </Pressable>
-      )}
-      <Pressable
-        onPress={onAttach}
-        accessibilityRole="button"
-        accessibilityLabel="Attach"
-        hitSlop={hitSlop}
-        style={{ width: tokens.touchTarget, height: tokens.touchTarget, alignItems: 'center', justifyContent: 'center' }}
-      >
-        <Text variant="title">+</Text>
-      </Pressable>
-      <TextInput
-        value={text}
-        onChangeText={setText}
-        placeholder={placeholder ?? copy(COMPOSER_COPY.adultPlaceholder)}
-        placeholderTextColor={tokens.muted}
-        style={{ flex: 1, minWidth: 0, color: tokens.text, minHeight: tokens.touchTarget, paddingHorizontal: tokens.spacing.md, borderRadius: tokens.radii.pill, borderWidth: 1, borderColor: tokens.line, backgroundColor: tokens.surface }}
-        accessibilityLabel={copy(COMPOSER_COPY.fieldLabel)}
-        onSubmitEditing={send}
-      />
-      <Pressable
-        onPress={onOpenTalk}
-        accessibilityRole="button"
-        accessibilityLabel="Talk"
-        hitSlop={hitSlop}
-        style={{ width: tokens.touchTarget, height: tokens.touchTarget, alignItems: 'center', justifyContent: 'center' }}
-      >
-        <MicIcon size={A.micIcon} color={tokens.text} />
-      </Pressable>
-      {!!text && <Button label="Send" onPress={send} accessibilityLabel={COMPOSER_COPY.send} />}
+
+      </View>
     </View>
   );
 }
@@ -175,15 +156,6 @@ function SendIcon({ size, color }: IconProps) {
   return (
     <Svg {...iconA11y} width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round">
       <Path d="M5 12h13M13 6l6 6-6 6" />
-    </Svg>
-  );
-}
-
-function CameraIcon({ size, color }: IconProps) {
-  return (
-    <Svg {...iconA11y} width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-      <Path d="M4 8h3l2-3h6l2 3h3a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z" />
-      <Circle cx={12} cy={13.5} r={3.5} />
     </Svg>
   );
 }

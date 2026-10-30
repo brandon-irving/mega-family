@@ -39,3 +39,11 @@ Docs: https://docs.expo.dev/eas/index.md
 - If `ios/` and `android/` directories do not exist, they are generated (Continuous Native Generation). Never create or edit them by hand — configure native behavior in `app.json` and config plugins.
 - Expo Go only includes its bundled native modules. After adding a library with native code, the app needs a development build: `npx expo run:ios|android` locally, or `eas build --profile development`.
 - Prefer recommended Expo modules over third-party libraries, and check your available skills before adding dependencies. Docs: https://docs.expo.dev/versions/latest/index.md
+
+## Reuse and configuration
+
+- Before adding a component, hook, or helper, look for an existing implementation in `src/ui`, the relevant feature, and `shared`.
+- Reuse shared controls and behavior (modals, close buttons, navigation guards, action/error handling). Extract repeated feature UI when it has the same responsibility; keep genuinely different interactions separate.
+- Keep tunable limits, defaults, timings, and product copy in `shared/config`; use theme tokens for spacing, typography, colors, and touch targets.
+- Define domain choices once in `shared/domain` and derive validators/types and UI options from that definition. Share applicable query limits between frontend and backend.
+- Preserve behavior when refactoring. Verify the callers, including accessibility, dismissal, pagination, and async cleanup. Avoid abstractions or configuration entries that merely rename incidental implementation details.

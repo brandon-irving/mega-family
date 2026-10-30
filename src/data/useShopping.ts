@@ -38,9 +38,12 @@ export function useProducts(refs: ProductRef[]): ProductsState {
     let live = true;
     lookup({ refs: capped })
       .then((r: ProductsResult) => {
+        // Convex actions cannot be cancelled, but a departed card must not write into the next
+        // session's cache after sign-out clears it.
+        if (!live) return;
         const value: ProductsState = r.failure ? { status: 'failure', failure: r.failure } : { status: 'ok', products: r.products };
         if (!r.failure) rememberQuery(key, value);
-        if (live) setState({ key, value });
+        setState({ key, value });
       })
       .catch(() => {
         if (live) setState({ key, value: { status: 'failure', failure: 'refused' } });

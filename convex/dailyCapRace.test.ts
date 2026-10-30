@@ -70,6 +70,6 @@ describe('C1: the daily push cap is re-checked at the point of commitment, not j
 
     const notifications = await t.run((ctx) => ctx.db.query('notifications').withIndex('by_family_recipient', (q) => q.eq('familyId', familyId).eq('recipientId', members.admin)).collect());
     const ourNotifications = notifications.filter((n) => n.candidateId && candidateIds.includes(n.candidateId));
-    expect(ourNotifications).toHaveLength(1);
+    expect(ourNotifications).toHaveLength(2); // The demoted item remains answerable in Today, without a second push.
   });
 });

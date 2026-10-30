@@ -93,9 +93,9 @@ export const addToList = mutation({
       .withIndex('by_family_list', (q) => q.eq('familyId', familyId).eq('listId', list._id))
       .collect();
     const already = items.find((i) => i.text === text);
-    if (already) return already._id;
+    if (already) { await ctx.db.patch(already._id, { giftForMemberId: set.forMemberId }); return already._id; }
     const now = await clock.now(ctx, familyId);
-    const itemId = await ctx.db.insert('listItems', { familyId, listId: list._id, text, checked: false, addedBy: viewer.member._id, at: now });
+    const itemId = await ctx.db.insert('listItems', { familyId, listId: list._id, giftForMemberId: set.forMemberId, text, checked: false, addedBy: viewer.member._id, at: now });
     if (!set.addedToList.includes(args.index)) await ctx.db.patch(set._id, { addedToList: [...set.addedToList, args.index] });
     // G4b: watch the idea's products' prices (one live lookup for the baseline, then the price cron).
     if (idea.productRefs?.length) await ctx.scheduler.runAfter(0, internal.shopping.startWatches, { giftIdeasId: set._id, index: args.index, createdBy: viewer.member._id });

@@ -31,7 +31,9 @@ function summarizeBody(body: Doc<'messages'>['body']): string {
     case 'card':
       return `[${body.card.kind} card]`;
     case 'image':
-      return '[image attached]';
+      return '[image attached; contents are not available in this chat context]';
+    case 'file':
+      return `[file attached: ${body.name}; contents are not available in this chat context. Do not claim to have read it.]`;
     case 'notice':
       return body.text;
   }

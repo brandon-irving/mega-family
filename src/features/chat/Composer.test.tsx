@@ -25,7 +25,7 @@ describe('Composer (kid bar)', () => {
   });
 
   test('typing mode: a full-width 72pt field at 20px that shrinks to fit, a round mic to go back, nothing else on the bar', async () => {
-    await renderWithTheme(<Composer megaName="Sunny" bigTalkButton onSend={noop} onOpenTalk={noop} onAttach={noop} />, { role: 'kid' });
+    await renderWithTheme(<Composer megaName="Sunny" bigTalkButton onSend={noop} onOpenTalk={noop} />, { role: 'kid' });
     await fireEvent.press(screen.getByLabelText('Type instead'));
     const field = screen.getByLabelText('Message Sunny');
     expect(styleOf(field)).toMatchObject({ flex: 1, minWidth: 0, height: K.height, fontSize: K.fontSize });
@@ -49,22 +49,36 @@ describe('Composer (kid bar)', () => {
 });
 
 describe('Composer (adult bar)', () => {
-  test('keeps attach, the field and the mic', async () => {
-    await renderWithTheme(<Composer megaName="Teal" onSend={noop} onOpenTalk={noop} onAttach={noop} />);
-    expect(screen.getByLabelText('Attach')).toBeTruthy();
-    expect(screen.getByLabelText('Message Teal')).toBeTruthy();
+  test('contains only working actions and keeps the field full-width when Send replaces Talk', async () => {
+    const onSend = jest.fn();
+    const onTalk = jest.fn();
+    const onCamera = jest.fn();
+    await renderWithTheme(<Composer megaName="Teal" onSend={onSend} onOpenTalk={onTalk} onCamera={onCamera} cameraLabel="Snap homework" />);
+    expect(screen.queryByLabelText('Attach')).toBeNull();
+    await fireEvent.press(screen.getByLabelText('Talk'));
+    expect(onTalk).toHaveBeenCalledTimes(1);
+    await fireEvent.press(screen.getByLabelText('Add attachment'));
+    expect(onCamera).toHaveBeenCalledTimes(1);
+    const field = screen.getByLabelText('Message Teal');
+    expect(field.props.multiline).toBe(true);
+    expect(field.props.submitBehavior).toBe('newline');
+    const widthBeforeTyping = styleOf(field).width;
+    await fireEvent.changeText(field, '  A meal idea\nfor tomorrow  ');
+    expect(styleOf(screen.getByLabelText('Message Teal')).width).toBe(widthBeforeTyping);
+    expect(screen.queryByLabelText('Talk')).toBeNull();
+    await fireEvent.press(screen.getByLabelText('Send message'));
+    expect(onSend).toHaveBeenCalledWith('A meal idea\nfor tomorrow');
+    expect(screen.getByLabelText('Message Teal').props.value).toBe('');
     expect(screen.getByLabelText('Talk')).toBeTruthy();
   });
-});
 
-// GD UX review LOW: the adult placeholder "Message Teal… (@ to mention)" was cut off mid-word at 390pt.
-// A placeholder can't ellipsize on web, so it stays short enough to fit beside the buttons.
-describe('Composer (adult bar)', () => {
-  test('the placeholder is short and never cut off mid-word', async () => {
-    await renderWithTheme(<Composer megaName="Pebble" bigTalkButton={false} onSend={noop} onOpenTalk={noop} onAttach={noop} />, { role: 'adult' });
-    const field = screen.getByLabelText('Message Pebble');
-    expect(field.props.placeholder).toBe('Message Pebble…');
-    expect(field.props.numberOfLines ?? 1).toBe(1);
+  test('without a camera callback no camera or attach affordance is shown, and whitespace cannot send', async () => {
+    await renderWithTheme(<Composer megaName="Teal" onSend={noop} onOpenTalk={noop} />);
+    expect(screen.queryByLabelText('Take a photo')).toBeNull();
+    expect(screen.queryByLabelText('Attach')).toBeNull();
+    await fireEvent.changeText(screen.getByLabelText('Message Teal'), '   ');
+    expect(screen.queryByLabelText('Send message')).toBeNull();
+    expect(screen.getByLabelText('Talk')).toBeTruthy();
   });
 });
 
@@ -78,19 +92,18 @@ describe('Composer (G5 onboarding, board OnboardChat)', () => {
       fireEvent.changeText(field, 'call me Admin');
     });
     await act(async () => {
-      fireEvent(screen.getByLabelText('Message Teal'), 'submitEditing');
+      fireEvent.press(screen.getByLabelText('Send message'));
     });
     expect(onSend).toHaveBeenCalledWith('call me Admin');
   });
 });
 
 describe('owner, Oct 29 (Images 26/28): the grown-up composer bar has no background of its own', () => {
-  test('the bar is transparent with no top border; the text field carries the fill so it reads over the thread', async () => {
+  test('the bar stays transparent while the shared composer surface contains the field and actions', async () => {
     await renderWithTheme(<Composer megaName="Teal" onSend={noop} onOpenTalk={noop} />);
     const bar = styleOf(screen.getByTestId('composer-bar'));
     expect(bar.backgroundColor).toBeUndefined();
     expect(bar.borderTopWidth).toBeUndefined();
-    const field = styleOf(screen.getByPlaceholderText(/Teal/));
-    expect(field.backgroundColor).toBeDefined();
+    expect(styleOf(screen.getByTestId('composer-surface')).backgroundColor).toBeDefined();
   });
 });

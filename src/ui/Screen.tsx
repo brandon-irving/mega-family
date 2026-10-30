@@ -62,6 +62,7 @@ export function Screen({ children, scroll = false, padded = true, presentation =
   const capped = fullBleed ? null : { width: '100%' as const, maxWidth: tokens.layout.contentMaxWidth };
   const content = (
     <Container
+      {...(scroll ? { keyboardDismissMode: 'on-drag' as const, keyboardShouldPersistTaps: 'handled' as const } : {})}
       testID={testID ? `${testID}-content` : undefined}
       style={scroll ? [styles.fill, capped] : [styles.fill, capped, padded && { padding: tokens.spacing.lg }]}
       contentContainerStyle={scroll ? (padded ? { padding: tokens.spacing.lg } : undefined) : undefined}

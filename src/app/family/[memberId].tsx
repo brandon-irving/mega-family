@@ -1,6 +1,8 @@
 // Member detail sheet (PLAN §4): Message / Visit room / Kid controls / read kid chat, and for someone who
 // hasn't joined yet, their invite (QR code + link; G5 UX review).
-import { router, useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
+import { ScrollView, View } from 'react-native';
+import { router } from '@/features/shell/navigation';
 import type { Id } from '@shared/domain/validators';
 import { G5_FIX_COPY } from '@shared/config/copy';
 import { canReadKidThread } from '@shared/domain/family';
@@ -34,12 +36,11 @@ export default function MemberDetailRoute() {
   if (detail === undefined) return <LoadingScreen label="Loading member…" />;
   if (!detail) return <LoadingScreen label="Member not found" />;
 
-  return (
-    <Sheet presentation="tab" title={detail.member.name} onClose={() => router.back()}>
+  const profile = <>
       <MemberDetailContent
         detail={detail}
-        onMessage={() => router.push('/chat' as never)}
-        onVisitRoom={() => router.push(`/hq/${id}` as never)}
+        onMessage={() => router.toTab('/chat')}
+        onVisitRoom={() => router.toTab(`/hq/${id}` as never)}
         onChangeKidControls={(patch) => setKidControls({ memberId: id, patch })}
         onOpenSearches={() => router.push(`/searches/${id}` as never)}
         onOpenRules={() => router.push(`/rules/${id}` as never)}
@@ -52,14 +53,23 @@ export default function MemberDetailRoute() {
           <InvitePanel memberId={id} name={detail.member.name} />
         </>
       )}
-      {canReadThisKidThread && (
+  </>;
+  return (
+    <Sheet title={detail.member.name} onClose={() => router.back()} scroll={!canReadThisKidThread}>
+      {canReadThisKidThread ? (
         <>
-          <Text variant="label" color="muted" style={{ marginTop: tokens.spacing.md }}>
+          {/* Keep the virtualized chat outside the profile's ScrollView, with its own bounded viewport. */}
+          <ScrollView keyboardDismissMode="on-drag" keyboardShouldPersistTaps="handled" style={{ maxHeight: '50%', flexGrow: 0 }} contentContainerStyle={{ padding: tokens.spacing.lg, gap: tokens.spacing.md }}>
+            {profile}
+          </ScrollView>
+          <Text variant="label" color="muted" style={{ padding: tokens.spacing.lg, paddingBottom: tokens.spacing.sm }}>
             THEIR CHAT (READ-ONLY)
           </Text>
-          <KidThreadView messages={kidThread.results} megaById={megaById} loading={kidThread.status === 'LoadingFirstPage'} kidName={detail.member.name} />
+          <View testID="kid-thread-viewport" style={{ flex: 1 }}>
+            <KidThreadView messages={kidThread.results} megaById={megaById} loading={kidThread.status === 'LoadingFirstPage'} kidName={detail.member.name} />
+          </View>
         </>
-      )}
+      ) : profile}
     </Sheet>
   );
 }

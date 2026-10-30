@@ -12,6 +12,7 @@ import { addDays, localDate } from '../../shared/time';
 import type { Id } from '../_generated/dataModel';
 import type { MutationCtx } from '../_generated/server';
 import { giftFactLabel } from './gifts';
+import { indexGiftIdeas } from './ideas';
 import { eventPreview } from './layers';
 import { postCard } from './proactive';
 import { scopeKey } from './scopes';
@@ -237,6 +238,10 @@ export async function seedGd(
       : { label: giftFactLabel(twin.name, G.sharedFacts[f].text, G.sharedFacts[f].about.includes(gifts.for)), source: { kind: 'memory' as const, memoryId: factIds[f] } },
   );
   const giftIdeasId = await ctx.db.insert('giftIdeas', { familyId, forMemberId: twin._id, occasion: 'birthday', date: birthday, basedOn, ideas: gifts.ideas.map((i) => ({ ...i })), status: 'ready', createdAt: now, addedToList: [] });
-  for (const adult of ['admin', 'partner'] as const) await postCard(ctx, { familyId, recipientId: m[adult], card: { kind: 'gifts', giftIdeasId }, now });
+  const giftSet = (await ctx.db.get(giftIdeasId))!;
+  for (const adult of ['admin', 'partner'] as const) {
+    await postCard(ctx, { familyId, recipientId: m[adult], card: { kind: 'gifts', giftIdeasId }, now });
+    await indexGiftIdeas(ctx, giftSet, (await ctx.db.get(m[adult]))!);
+  }
 }
 

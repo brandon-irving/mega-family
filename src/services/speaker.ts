@@ -1,30 +1,26 @@
-// The Speaker port (PLAN "Talk mode": "a text-to-speech service gets added behind a Speaker port when
-// ready"). Feature code (talk.tsx) only ever calls `speaker`, never `expo-speech` directly. Gated by
-// `SPEAKER_CONFIG.enabled` (shared/config/speaker.ts, default off) — with it off this is a no-op, so
-// turning spoken replies on later is a config edit, not a code change.
 import * as Speech from 'expo-speech';
-import { SPEAKER_CONFIG } from '@shared/config/speaker';
+import { setAudioModeAsync } from 'expo-audio';
 
-export interface SpeakerService {
-  speak(text: string): void;
-  stop(): void;
-}
-
-class ExpoSpeaker implements SpeakerService {
-  speak(text: string): void {
-    if (!text.trim()) return;
-    Speech.stop();
-    Speech.speak(text);
-  }
-
-  stop(): void {
-    Speech.stop();
-  }
-}
-
-class NoopSpeaker implements SpeakerService {
-  speak(): void {}
-  stop(): void {}
-}
-
-export const speaker: SpeakerService = SPEAKER_CONFIG.enabled ? new ExpoSpeaker() : new NoopSpeaker();
+export type PlaybackCallbacks = { onStart?: () => void; onDone?: () => void; onError?: (error: unknown) => void };
+// A generation prevents a cancelled preparation from speaking after a new recording starts.
+let generation = 0;
+export const speaker = {
+  speak(text: string, callbacks: PlaybackCallbacks = {}) {
+    const current = ++generation;
+    const valid = () => current === generation;
+    void (async () => {
+      await Speech.stop();
+      if (!valid()) return;
+      await setAudioModeAsync({ allowsRecording: false, playsInSilentMode: true, shouldRouteThroughEarpiece: false, shouldPlayInBackground: false });
+      if (!valid()) return;
+      if (!text.trim()) { callbacks.onDone?.(); return; }
+      Speech.speak(text, {
+        useApplicationAudioSession: true,
+        onStart: () => { if (valid()) callbacks.onStart?.(); },
+        onDone: () => { if (valid()) callbacks.onDone?.(); },
+        onError: (error) => { if (valid()) callbacks.onError?.(error); },
+      });
+    })().catch(error => { if (valid()) callbacks.onError?.(error); });
+  },
+  stop() { generation++; void Speech.stop().catch(() => {}); },
+};

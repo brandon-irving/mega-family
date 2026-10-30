@@ -4,7 +4,7 @@
 // values, eased linearly between engine steps); React only re-renders a MEGA when its picture changes (a new
 // walk frame, a turn, a speech bubble), not every step.
 import { type ComponentRef, createContext, memo, type ReactNode, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
-import { Pressable, StyleSheet, View, type LayoutChangeEvent, type StyleProp, type ViewStyle } from 'react-native';
+import { AppState, Pressable, StyleSheet, View, type LayoutChangeEvent, type StyleProp, type ViewStyle } from 'react-native';
 import Animated, { Easing, useAnimatedStyle, useReducedMotion, useSharedValue, withTiming } from 'react-native-reanimated';
 import { MegaSprite } from '@/ui/MegaSprite';
 import { Text } from '@/ui/Text';
@@ -14,6 +14,7 @@ import { WALKER_CAST, WALKER_IDS, WALKER_MOTION as M, type WalkerId } from '@sha
 import { assignPlan, createWalker, lookAt, pokedLedges, pose, tapWalker, tickWalker, weightedLedges, type Ledges, type Pose, type Rect, type Scene, type Walker } from './engine';
 import { hiddenFromA11y } from '@/ui/a11y';
 import { ContentRegistryProvider, NoContentRegistry, type ContentRegistry } from '@/ui/contentRegistry';
+import { coordinatePoses, type Encounter } from './encounters';
 
 type ViewRef = ComponentRef<typeof View>;
 type Measurable = ViewRef | null;
@@ -30,6 +31,7 @@ type StageCtx = {
   lookAtLedge: (id: string) => void;
   dipped: ReadonlySet<string>;
   poked: ReadonlySet<string>;
+  measure?: () => void;
 };
 
 const Ctx = createContext<StageCtx | null>(null);
@@ -50,19 +52,34 @@ export type WalkerStageProps = {
   overlay?: ReactNode;
   /** Overrides the system setting (tests, previews). */
   reducedMotion?: boolean;
+  /** Suspend scene work while its route or primary content is hidden. */
+  active?: boolean;
+  /** Coordinate nearby characters and keep only one speech bubble on the stage. */
+  social?: boolean;
   style?: StyleProp<ViewStyle>;
   testID?: string;
 };
 
-export function WalkerStage({ scene, children, overlay, busy = false, reducedMotion, style, testID }: WalkerStageProps) {
+export function WalkerStage({ scene, children, overlay, busy = false, reducedMotion, active = true, social = false, style, testID }: WalkerStageProps) {
   const systemReduced = useReducedMotion();
   const reduced = reducedMotion ?? systemReduced;
+  const [foreground, setForeground] = useState(AppState.currentState !== 'background' && AppState.currentState !== 'inactive');
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (state) => setForeground(state === 'active'));
+    return () => subscription.remove();
+  }, []);
+  const running = active && foreground && !reduced;
   const stageRef = useRef<ViewRef>(null);
   const elements = useRef(new Map<string, { el: Measurable; opts: LedgeOpts }>());
   const ledges = useRef<Ledges>({});
   const obstacles = useRef<Record<string, Rect>>({});
   const walkers = useRef<Record<WalkerId, Walker>>(Object.fromEntries(WALKER_IDS.map((id) => [id, createWalker(id)])) as Record<WalkerId, Walker>);
   const listeners = useRef(new Map<WalkerId, (p: Pose) => void>());
+  // Scene time advances only while running. Returning from a form/background never fast-forwards hops.
+  const sceneTime = useRef(0);
+  const refresh = useRef<() => void>(() => {});
+  const encounter = useRef<Encounter>({ until: 0, cooldownUntil: 0, pair: null });
+  const reactionTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [dipped, setDipped] = useState<ReadonlySet<string>>(EMPTY);
   const [poked, setPoked] = useState<ReadonlySet<string>>(EMPTY);
   const busyRef = useRef(busy);
@@ -70,7 +87,7 @@ export function WalkerStage({ scene, children, overlay, busy = false, reducedMot
     busyRef.current = busy;
   }, [busy]);
 
-  const ctx = useCallback(() => ({ now: Date.now(), ledges: ledges.current, obstacles: obstacles.current, reduced }), [reduced]);
+  const ctx = useCallback(() => ({ now: sceneTime.current, ledges: ledges.current, obstacles: obstacles.current, reduced }), [reduced]);
 
   // Measure every ledge relative to the stage (window coordinates of both, subtracted: works the same on
   // native and web, and the sign-in screens never scroll).
@@ -84,6 +101,7 @@ export function WalkerStage({ scene, children, overlay, busy = false, reducedMot
           if (opts.ledge !== false) ledges.current[id] = { x: x - sx, y: y - sy + (opts.inset ?? 0), w, pressable: !!opts.pressable };
           const top = opts.contentTop ?? 0;
           if (opts.obstacle !== false && h - top > 0) obstacles.current[id] = { x: x - sx, y: y - sy + top, w, h: h - top };
+          refresh.current();
         });
       });
     });
@@ -103,31 +121,39 @@ export function WalkerStage({ scene, children, overlay, busy = false, reducedMot
   }, []);
   const lookAtLedge = useCallback((id: string) => {
     const l = ledges.current[id];
-    if (l) lookAt(Object.values(walkers.current), { x: l.x + l.w / 2, y: l.y + 1 }, Date.now());
+    if (l) lookAt(Object.values(walkers.current), { x: l.x + l.w / 2, y: l.y + 1 }, sceneTime.current);
+    refresh.current();
   }, []);
 
   // A new scene (or a reduced-motion change) restarts every MEGA's script.
   useEffect(() => {
     const c = ctx();
     for (const id of WALKER_IDS) assignPlan(walkers.current[id], scene[id], c);
+    encounter.current = { until: 0, cooldownUntil: 0, pair: null };
+    refresh.current();
   }, [scene, ctx]);
 
   useEffect(() => {
-    const step = () => {
+    const publish = (advance = false) => {
+      if (advance) sceneTime.current += M.tickMs;
       const c = ctx();
       const all = Object.values(walkers.current);
-      for (const m of all) tickWalker(m, c);
+      for (const m of all) if (advance || m.blocked) tickWalker(m, c);
       const d = weightedLedges(all, c.ledges);
       const p = pokedLedges(all);
       setDipped((prev) => (setKey(prev) === setKey(d) ? prev : d));
       setPoked((prev) => (setKey(prev) === setKey(p) ? prev : p));
       const sayHi = (id: WalkerId) => SIGNIN_COPY.sayHi(WALKER_CAST[id].name);
-      for (const m of all) listeners.current.get(m.id)?.(pose(m, { ...c, dipped: d, sayHi, busy: busyRef.current && m.id === 'teal' }));
+      const poses = all.map((m) => pose(m, { ...c, dipped: d, sayHi, busy: busyRef.current && m.id === 'teal' }));
+      const coordinated = coordinatePoses(all, poses, c, encounter.current, social && running);
+      for (const p of coordinated) listeners.current.get(p.id)?.(p);
     };
-    step();
-    const timer = setInterval(step, M.tickMs);
+    refresh.current = () => publish();
+    publish();
+    if (!running) return;
+    const timer = setInterval(() => publish(true), M.tickMs);
     return () => clearInterval(timer);
-  }, [ctx]);
+  }, [ctx, running, social]);
 
   const subscribe = useCallback((id: WalkerId, fn: (p: Pose) => void) => {
     listeners.current.set(id, fn);
@@ -135,9 +161,22 @@ export function WalkerStage({ scene, children, overlay, busy = false, reducedMot
       listeners.current.delete(id);
     };
   }, []);
-  const tap = useCallback((id: WalkerId) => tapWalker(walkers.current[id], Date.now()), []);
+  const tap = useCallback((id: WalkerId) => {
+    if (!active || !foreground) return;
+    // A new greeting replaces the previous one instead of stacking speech bubbles.
+    for (const m of Object.values(walkers.current)) m.react = null;
+    tapWalker(walkers.current[id], sceneTime.current);
+    refresh.current();
+    if (reactionTimer.current) clearTimeout(reactionTimer.current);
+    // Reduced motion has no tick loop. One finite timer clears its interactive greeting.
+    if (reduced) reactionTimer.current = setTimeout(() => {
+      walkers.current[id].react = null;
+      refresh.current();
+    }, M.react.ms);
+  }, [active, foreground, reduced]);
+  useEffect(() => () => { if (reactionTimer.current) clearTimeout(reactionTimer.current); }, []);
 
-  const value = useMemo<StageCtx>(() => ({ register, unregister, lookAtLedge, dipped, poked }), [register, unregister, lookAtLedge, dipped, poked]);
+  const value = useMemo<StageCtx>(() => ({ register, unregister, lookAtLedge, dipped, poked, measure: measureAll }), [register, unregister, lookAtLedge, dipped, poked, measureAll]);
   // Every Text, Button and pixel picture on the stage registers itself as content (src/ui/contentRegistry).
   const content = useMemo<ContentRegistry>(() => ({ register: (id, el) => register(id, el as Measurable, { ledge: false }), unregister }), [register, unregister]);
 
@@ -155,7 +194,7 @@ export function WalkerStage({ scene, children, overlay, busy = false, reducedMot
           {/* The walkers' own sprites and bubbles aren't content they must avoid. */}
           <NoContentRegistry>
             {WALKER_IDS.map((id) => (
-              <WalkerSprite key={id} id={id} reduced={reduced} subscribe={subscribe} onTap={tap} />
+              <WalkerSprite key={id} id={id} reduced={reduced} enabled={active && foreground} subscribe={subscribe} onTap={tap} />
             ))}
           </NoContentRegistry>
         </View>
@@ -165,12 +204,17 @@ export function WalkerStage({ scene, children, overlay, busy = false, reducedMot
   );
 }
 
+/** Scrolling/keyboard-aware containers use this to keep ledges in stage coordinates. */
+export function useWalkerLayout() {
+  return useContext(Ctx)?.measure;
+}
+
 type Picture = Omit<Pose, 'x' | 'y'>;
 const pictureKey = (p: Picture) => `${p.visible}|${p.covered}|${p.view}|${p.frame}|${p.expression}|${p.say}|${p.emote}|${p.top}`;
 
-type SpriteProps = { id: WalkerId; reduced: boolean; subscribe: (id: WalkerId, fn: (p: Pose) => void) => () => void; onTap: (id: WalkerId) => void };
+type SpriteProps = { id: WalkerId; reduced: boolean; enabled: boolean; subscribe: (id: WalkerId, fn: (p: Pose) => void) => () => void; onTap: (id: WalkerId) => void };
 
-const WalkerSprite = memo(function WalkerSprite({ id, reduced, subscribe, onTap }: SpriteProps) {
+const WalkerSprite = memo(function WalkerSprite({ id, reduced, enabled, subscribe, onTap }: SpriteProps) {
   const tokens = useTokens();
   const half = M.hitSize / 2;
   const x = useSharedValue(-M.hitSize * 2);
@@ -179,6 +223,7 @@ const WalkerSprite = memo(function WalkerSprite({ id, reduced, subscribe, onTap 
   const [pic, setPic] = useState<Picture | null>(null);
   const lastKey = useRef('');
   const lastPos = useRef({ x: -1e4, y: -1e4 });
+  const lastVisibility = useRef<Pick<Pose, 'visible' | 'covered'> | null>(null);
   useEffect(
     () =>
       subscribe(id, (p) => {
@@ -186,16 +231,20 @@ const WalkerSprite = memo(function WalkerSprite({ id, reduced, subscribe, onTap 
         const jump = Math.abs(p.x - lastPos.current.x) > 24 || Math.abs(p.y - lastPos.current.y) > 60;
         const nx = p.x - half;
         const ny = p.y - M.hitSize;
-        if (jump || reduced) {
-          x.value = nx;
-          y.value = ny;
-        } else {
-          x.value = withTiming(nx, { duration: M.tickMs, easing: Easing.linear });
-          y.value = withTiming(ny, { duration: M.tickMs, easing: Easing.linear });
+        // A stage ticks 25 times a second, including while a MEGA stands still or is hidden. Only
+        // schedule animations for changed targets; an existing animation can finish on its own.
+        if (p.x !== lastPos.current.x) {
+          x.value = jump || reduced ? nx : withTiming(nx, { duration: M.tickMs, easing: Easing.linear });
+        }
+        if (p.y !== lastPos.current.y) {
+          y.value = jump || reduced ? ny : withTiming(ny, { duration: M.tickMs, easing: Easing.linear });
         }
         lastPos.current = { x: p.x, y: p.y };
         // Covering content: gone at once, never fading over it (owner, Oct 28).
-        opacity.value = p.covered ? 0 : withTiming(p.visible ? 1 : 0, { duration: reduced ? 0 : 300 });
+        if (p.visible !== lastVisibility.current?.visible || p.covered !== lastVisibility.current?.covered) {
+          opacity.value = p.covered ? 0 : withTiming(p.visible ? 1 : 0, { duration: reduced ? 0 : 300 });
+          lastVisibility.current = { visible: p.visible, covered: p.covered };
+        }
         const { x: _x, y: _y, ...picture } = p;
         const key = pictureKey(picture);
         if (key !== lastKey.current) {
@@ -209,12 +258,12 @@ const WalkerSprite = memo(function WalkerSprite({ id, reduced, subscribe, onTap 
   const animated = useAnimatedStyle(() => ({ opacity: opacity.value, transform: [{ translateX: x.value }, { translateY: y.value }] }));
   const cast = WALKER_CAST[id];
   return (
-    <Animated.View pointerEvents={pic?.visible ? 'box-none' : 'none'} style={[styles.walker, { width: M.hitSize, height: M.hitSize, zIndex: pic?.top ? LAYER.top : LAYER.base }, animated]}>
+    <Animated.View pointerEvents={pic?.visible && enabled ? 'box-none' : 'none'} style={[styles.walker, { width: M.hitSize, height: M.hitSize, zIndex: pic?.top ? LAYER.top : LAYER.base }, animated]}>
       <Pressable
         onPress={() => onTap(id)}
         accessibilityRole="button"
         accessibilityLabel={SIGNIN_COPY.sayHiLabel(cast.name)}
-        {...hiddenFromA11y(!pic?.visible)}
+        {...hiddenFromA11y(!pic?.visible || !enabled)}
         style={styles.hit}
         testID={`walker-${id}`}
       >

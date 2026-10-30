@@ -34,7 +34,7 @@ const renderWelcome = (demoMode: boolean) =>
       <WelcomeRoute demoMode={demoMode} />
     </SafeAreaProvider>,
   );
-jest.mock('expo-router', () => ({ router: { push: jest.fn() } }));
+jest.mock('expo-router', () => ({ useIsFocused: () => true, router: { push: jest.fn() } }));
 
 describe('Welcome (Screen 9)', () => {
   afterEach(() => jest.clearAllMocks());
@@ -121,9 +121,10 @@ describe('Welcome (Screen 9)', () => {
     expect(await screen.findByText('Reset by email is coming soon. Ask your family admin for help.')).toBeTruthy();
   });
 
-  test('Hub stands in the middle of the brand block (no empty band above MEGA)', async () => {
+  test('the oversized static Hub is removed while small interactive walkers remain', async () => {
     await renderWelcome(false);
-    expect(screen.getByLabelText('Hub, your family’s MEGA')).toBeTruthy();
+    expect(screen.queryByLabelText('Hub, your family’s MEGA')).toBeNull();
+    expect(screen.getByTestId('walker-teal', { includeHiddenElements: true })).toBeTruthy();
   });
 
   // G4 UX review MEDIUM (Oct 28): the brand block filled all the space above the buttons and centered

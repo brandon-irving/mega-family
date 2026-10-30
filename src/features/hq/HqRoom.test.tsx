@@ -4,14 +4,15 @@
 // - UX finding 6: all MEGAs resting at the charger stacked onto the same few tiles.
 // - UX finding 7: tapping Hub (the family MEGA) opened a panel with only Close.
 // - UX finding 6: only the first three members got a room door; now every member's room is one tap away.
-import { act, fireEvent, screen } from '@testing-library/react-native';
+import { act, fireEvent, screen, within } from '@testing-library/react-native';
+import { Profiler } from 'react';
 import { G5_FIX_COPY, G5_UI_COPY as U, fillCopy } from '@shared/config/copy';
 import { renderWithTheme } from '@/test/renderWithTheme';
 import { ThemeProvider } from '@/ui/theme';
 import { HqRoom, targetTiles, type RoomDoor, type RoomMega } from './HqRoom';
 import { HQ_LAYOUT, isWalkable } from './hqLayout';
 
-jest.mock('react-native-reanimated', () => ({ ...jest.requireActual('react-native-reanimated'), useReducedMotion: () => false }));
+jest.mock('react-native-reanimated', () => ({ ...jest.requireActual('react-native-reanimated'), __esModule: true, useReducedMotion: () => false }));
 
 const mega = (id: string, over: Partial<RoomMega> = {}): RoomMega => ({ megaId: id, name: id, hex: '#2FB8B0', sticker: 'none', station: 'charger', label: 'Resting', busy: false, mine: false, ownerId: `m_${id}`, ...over });
 const SIX = ['teal', 'coral', 'zap', 'sunny', 'pebble', 'hub'].map((id) => mega(id));
@@ -41,6 +42,61 @@ describe('targetTiles', () => {
 });
 
 describe('HqRoom walker timer', () => {
+  test('a hidden room does no timer-driven React work', async () => {
+    jest.useFakeTimers();
+    const onRender = jest.fn();
+    try {
+      const view = await renderWithTheme(
+        <Profiler id="hq" onRender={onRender}>
+          <HqRoom active={false} {...props([mega('teal')])} />
+        </Profiler>,
+      );
+      onRender.mockClear();
+      for (let tick = 0; tick < 40; tick++) {
+        await act(async () => { jest.advanceTimersByTime(260); });
+      }
+      expect(onRender).not.toHaveBeenCalled();
+      await view.unmount();
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  test('walking stops on arrival and starts again when the destination changes', async () => {
+    jest.useFakeTimers();
+    const onRender = jest.fn();
+    const room = (station: RoomMega['station']) => (
+      <Profiler id="hq" onRender={onRender}>
+        <HqRoom {...props([mega('teal', { station, busy: true })])} />
+      </Profiler>
+    );
+    const advance = async (ticks: number) => {
+      for (let i = 0; i < ticks; i++) await act(async () => { jest.advanceTimersByTime(260); });
+    };
+    try {
+      const view = await renderWithTheme(room('desk'));
+      onRender.mockClear();
+      await advance(1);
+      expect(onRender).toHaveBeenCalled();
+      await advance(40);
+      onRender.mockClear();
+      await advance(10);
+      expect(onRender).not.toHaveBeenCalled();
+
+      await view.rerender(<ThemeProvider>{room('fridge')}</ThemeProvider>);
+      onRender.mockClear();
+      await advance(1);
+      expect(onRender).toHaveBeenCalled();
+      await advance(40);
+      onRender.mockClear();
+      await advance(10);
+      expect(onRender).not.toHaveBeenCalled();
+      await view.unmount();
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
   test('a re-render with the same MEGAs (new array) keeps the step timer running', async () => {
     jest.useFakeTimers();
     const setSpy = jest.spyOn(global, 'setInterval');
@@ -69,6 +125,24 @@ describe('HqRoom walker timer', () => {
 });
 
 describe('HqRoom panels and rooms', () => {
+  test('station details stay in the room, offer the supported action, and close without navigation', async () => {
+    const onPlaceAction = jest.fn();
+    await renderWithTheme(<HqRoom {...props([], { onPlaceAction, ideasAvailable: true })} />);
+    await fireEvent.press(screen.getByRole('button', { name: 'Bookshelf' }));
+    const panel = within(screen.getByTestId('hq-room')).getByTestId('hq-box');
+    await fireEvent.press(within(panel).getByRole('button', { name: 'Open ideas' }));
+    expect(onPlaceAction).toHaveBeenCalledWith('bookshelf');
+    await fireEvent.press(within(panel).getByRole('button', { name: U.close }));
+    expect(screen.queryByTestId('hq-box')).toBeNull();
+  });
+
+  test('the text alternative selects a station and returns to the room context', async () => {
+    await renderWithTheme(<HqRoom {...props([])} />);
+    await fireEvent.press(screen.getByRole('button', { name: 'Explore HQ' }));
+    await fireEvent.press(within(screen.getByTestId('hq-browse')).getByRole('button', { name: 'Calendar' }));
+    expect(screen.queryByTestId('hq-browse')).toBeNull();
+    expect(within(screen.getByTestId('hq-box')).getByRole('button', { name: U.openCalendar })).toBeTruthy();
+  });
   test('tapping Hub (no owner) offers Talk to Hub and says what Hub does — not a Close-only dead end', async () => {
     const onTalk = jest.fn();
     await renderWithTheme(<HqRoom {...props([mega('Hub', { ownerId: undefined })], { onTalk })} />);

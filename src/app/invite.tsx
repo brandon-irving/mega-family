@@ -5,7 +5,7 @@
 // scanner (G8 decision 6), the LoginInviteHelp board's "No link yet?" card with Hub. join/[token] redeems.
 import { useState } from 'react';
 import { Platform, Pressable, StyleSheet, TextInput, View } from 'react-native';
-import { router } from 'expo-router';
+import { router } from '@/features/shell/navigation';
 import { Glyph } from '@/features/integrations/glyphs';
 import { extractToken, pastedInvite } from '@/features/signin/inviteToken';
 import { BackButton, Heading, Pill, SignInFrame } from '@/features/signin/parts';

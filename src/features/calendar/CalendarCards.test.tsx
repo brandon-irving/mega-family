@@ -1,6 +1,6 @@
 // Screen 12 boards: the calendar's layers (Calendar / CalPartner), share suggestion (CalShare), clash
 // proposal (CalClash / CalClashDone) and gift ideas (CalGifts).
-import { fireEvent, screen } from '@testing-library/react-native';
+import { fireEvent, screen, within } from '@testing-library/react-native';
 import { renderWithTheme } from '@/test/renderWithTheme';
 import { CAL_MEMBERS, GIFTS_READY, IDS, PROPOSAL_PENDING, THURSDAY_EVENTS, WEEK_START } from '@/test/gdFixtures';
 import { CalendarContent } from '@/features/family/CalendarContent';
@@ -125,10 +125,29 @@ describe('GiftsCardView (board CalGifts)', () => {
     const onAdd = jest.fn();
     await renderWithTheme(<GiftsCardView megaName="Teal" forName="Twin 1" gifts={GIFTS_READY} onAdd={onAdd} />);
     expect(screen.getByText('Gift ideas for Twin 1')).toBeTruthy();
-    expect(screen.getByText('Twin 1 shared: loves dinosaurs')).toBeTruthy();
+    expect(within(screen.getByTestId('gift-idea-Dinosaur skeleton building set')).getByText('Twin 1 shared: loves dinosaurs')).toBeTruthy();
+    const fossil = within(screen.getByTestId('gift-idea-Dig-your-own fossil kit'));
+    expect(fossil.getByText('Twin 1 shared: loves dinosaurs')).toBeTruthy();
+    expect(fossil.queryByText('Family notes: into building sets')).toBeNull();
     expect(screen.getByLabelText('Added: Dig-your-own fossil kit')).toBeTruthy();
     await fireEvent.press(screen.getByLabelText('Add to list: Dinosaur skeleton building set'));
     expect(onAdd).toHaveBeenCalledWith(0);
     expect(screen.getByText('Only shared info is used. Private notes stay private.')).toBeTruthy();
   });
+});
+
+test('opens a non-first gift alone, then reveals the others without changing their action indexes', async () => {
+  const onAdd = jest.fn();
+  await renderWithTheme(<GiftsCardView megaName="Teal" forName="Twin 1" gifts={{ ...GIFTS_READY, addedToList: [] }} selectedIndex={1} onAdd={onAdd} watching={[1]} />);
+  expect(screen.getByText('Dig-your-own fossil kit')).toBeTruthy();
+  expect(screen.queryByText('Dinosaur skeleton building set')).toBeNull();
+  expect(screen.queryByText('Family notes: into building sets')).toBeNull();
+  expect(screen.getByText('Watching the price')).toBeTruthy();
+  await fireEvent.press(screen.getByLabelText('Add to list: Dig-your-own fossil kit'));
+  expect(onAdd).toHaveBeenLastCalledWith(1);
+  await fireEvent.press(screen.getByLabelText('Other gift ideas (1)'));
+  await fireEvent.press(screen.getByLabelText('Add to list: Dinosaur skeleton building set'));
+  expect(onAdd).toHaveBeenLastCalledWith(0);
+  await fireEvent.press(screen.getByLabelText('Hide other gift ideas'));
+  expect(screen.queryByText('Dinosaur skeleton building set')).toBeNull();
 });

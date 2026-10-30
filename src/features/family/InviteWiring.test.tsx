@@ -4,7 +4,7 @@ import { screen } from '@testing-library/react-native';
 import { G5_FIX_COPY } from '@shared/config/copy';
 import { renderWithTheme } from '@/test/renderWithTheme';
 import { Block } from '@/features/chat/Blocks';
-import MemberDetailRoute from '@/app/(tabs)/family/[memberId]';
+import MemberDetailRoute from '@/app/family/[memberId]';
 
 jest.mock('./InvitePanel', () => {
   // eslint-disable-next-line @typescript-eslint/no-require-imports

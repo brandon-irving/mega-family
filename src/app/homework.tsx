@@ -1,6 +1,7 @@
 // mega://homework — the parent's "Homework photo" sheet (board KidsSnap), opened from the chat's camera
 // button. Adults only: a kid who lands here is sent back (the server refuses `homework.submit` anyway).
-import { Redirect, router } from 'expo-router';
+import { Redirect } from 'expo-router';
+import { router } from '@/features/shell/navigation';
 import { useViewer } from '@/data/useViewer';
 import { HomeworkSnap } from '@/features/kids/HomeworkSnap';
 import { isAdultRole } from '@/features/shell/familyDirectory';

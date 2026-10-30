@@ -3,39 +3,52 @@
 import { Pressable, View } from 'react-native';
 import type { Infer } from 'convex/values';
 import type { API } from '@shared/domain/api';
-import { G4_COPY } from '@shared/config/copy';
 import { Card } from '@/ui/Card';
 import { MegaBadge } from '@/ui/MegaBadge';
 import { Text } from '@/ui/Text';
 import { useTokens } from '@/ui/theme';
 import { faceFor } from '@/features/shell/megaInfo';
+import { AppSettingsButton } from '@/features/shell/AppSettingsButton';
+import { Glyph, type GlyphName } from '@/features/integrations/glyphs';
 
 export type MemberCard = Infer<(typeof API)['family']['members']['returns']>[number];
 export type ComingUpEvent = Infer<(typeof API)['family']['comingUp']['returns']>[number];
 
 const ROLE_LABEL = { admin: 'Admin', adult: 'Adult', kid: 'Kid' } as const;
 
-export type FamilyContentProps = { members: MemberCard[]; comingUp: ComingUpEvent[]; onOpenMember: (memberId: string) => void; onOpenCalendar: () => void; onOpenPlaces?: () => void };
+export type FamilyContentProps = { members: MemberCard[]; comingUp: ComingUpEvent[]; onOpenMember: (memberId: string) => void; onOpenCalendar: () => void; onOpenPlaces?: () => void; onOpenLists?: () => void; nextEvent?: ComingUpEvent | null; onOpenIdeas?: () => void };
 
-export function FamilyContent({ members, comingUp, onOpenMember, onOpenCalendar, onOpenPlaces }: FamilyContentProps) {
+export function FamilyContent({ members, comingUp, onOpenMember, onOpenCalendar, onOpenPlaces, onOpenLists, nextEvent }: FamilyContentProps) {
   const tokens = useTokens();
-  const link = { minHeight: tokens.touchTarget, justifyContent: 'center' as const };
+  const shortcuts: { label: string; hint: string; icon: GlyphName; onPress?: () => void }[] = [
+    { label: 'Lists', hint: 'Keep things together', icon: 'check', onPress: onOpenLists },
+    { label: 'Places', hint: 'Your familiar places', icon: 'pin', onPress: onOpenPlaces },
+  ];
   return (
     <>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: tokens.spacing.md }}>
         <Text variant="headline">Family</Text>
-        <View style={{ flexDirection: 'row', gap: tokens.spacing.lg }}>
-          {onOpenPlaces ? (
-            <Pressable onPress={onOpenPlaces} accessibilityRole="button" accessibilityLabel="Open family places" style={link}>
-              <Text color="accent">{G4_COPY.placesTitle}</Text>
-            </Pressable>
-          ) : null}
-          <Pressable onPress={onOpenCalendar} accessibilityRole="button" accessibilityLabel="Open family calendar" style={link}>
-            <Text color="accent">Calendar</Text>
-          </Pressable>
-        </View>
+        <AppSettingsButton />
       </View>
-
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: tokens.spacing.sm, marginBottom: tokens.spacing.lg }}>
+        {shortcuts.filter((shortcut) => shortcut.onPress).map((shortcut) => (
+          <Pressable key={shortcut.label} onPress={shortcut.onPress} accessibilityRole="button" accessibilityLabel={`Open family ${shortcut.label.toLowerCase()}`} style={{ flexBasis: '47%', flexGrow: 1 }}>
+            <Card style={{ gap: tokens.spacing.xs, minHeight: 104 }}>
+              <Glyph name={shortcut.icon} color={tokens.accent} size={22} />
+              <Text variant="label">{shortcut.label}</Text>
+              <Text variant="caption" color="muted">{shortcut.hint}</Text>
+            </Card>
+          </Pressable>
+        ))}
+      </View>
+      <Pressable onPress={onOpenCalendar} accessibilityRole="button" accessibilityLabel="Open family calendar" style={{ marginBottom: tokens.spacing.lg }}>
+        <Card style={{ flexDirection: 'row', alignItems: 'center', gap: tokens.spacing.md }}>
+          <Glyph name="calendar" color={tokens.accent} size={24} />
+          <View style={{ flex: 1, gap: tokens.spacing.xs }}><Text variant="label">Calendar</Text><Text numberOfLines={2} color="muted">{nextEvent ? nextEvent.title : 'No upcoming events'}</Text>{nextEvent ? <Text variant="caption" color="muted">{new Date(nextEvent.start).toLocaleString([], { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</Text> : null}</View>
+          <Glyph name="chevron" color={tokens.muted} />
+        </Card>
+      </Pressable>
+      <Text variant="label" color="muted" style={{ marginBottom: tokens.spacing.sm }}>YOUR PEOPLE</Text>
       <View style={{ gap: tokens.spacing.sm, marginBottom: tokens.spacing.lg }}>
         {members.map((m) => (
           <Pressable key={m.member._id} onPress={() => onOpenMember(m.member._id)} accessibilityRole="button" accessibilityLabel={`${m.member.name}, ${ROLE_LABEL[m.member.role]}`}>
@@ -66,10 +79,10 @@ export function FamilyContent({ members, comingUp, onOpenMember, onOpenCalendar,
       ) : (
         <View style={{ gap: tokens.spacing.sm }}>
           {comingUp.map((e) => (
-            <Card key={e._id}>
+            <Pressable key={e._id} onPress={onOpenCalendar} accessibilityRole="button" accessibilityLabel={`Open calendar: ${e.title}`}><Card>
               <Text variant="label">{e.title}</Text>
               <Text color="muted">{new Date(e.start).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</Text>
-            </Card>
+            </Card></Pressable>
           ))}
         </View>
       )}

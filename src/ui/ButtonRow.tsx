@@ -22,6 +22,8 @@ export type ButtonRowButton = { id: string; label: string };
 export type ButtonRowProps = {
   buttons: readonly ButtonRowButton[];
   onPress: (buttonId: string) => void;
+  disabled?: boolean;
+  loadingButtonId?: string;
 };
 
 /** Splits buttons into display lines, in order: pairs when every label is short, else one per line. */
@@ -32,14 +34,14 @@ export function buttonLines<T extends ButtonRowButton>(buttons: readonly T[]): T
   return lines;
 }
 
-export function ButtonRow({ buttons, onPress }: ButtonRowProps) {
+export function ButtonRow({ buttons, onPress, disabled, loadingButtonId }: ButtonRowProps) {
   const tokens = useTokens();
   return (
     <View style={{ alignSelf: 'stretch', gap: tokens.spacing.sm }}>
       {buttonLines(buttons).map((line) => (
         <View key={line.map((b) => b.id).join('|')} testID="button-row-line" style={{ width: '100%', flexDirection: 'row', gap: tokens.spacing.sm }}>
           {line.map((b) => (
-            <Button key={b.id} label={b.label} variant="secondary" onPress={() => onPress(b.id)} size={tokens.buttonSize} style={{ flex: 1 }} />
+            <Button key={b.id} label={b.label} variant="secondary" disabled={disabled} loading={loadingButtonId === b.id} onPress={() => onPress(b.id)} size={tokens.buttonSize} style={{ flex: 1 }} />
           ))}
         </View>
       ))}

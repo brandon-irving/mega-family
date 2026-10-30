@@ -12,7 +12,6 @@
 // The loader's scene lives with the loader (src/features/walkers/MegaLoader.tsx).
 import { at, freeze, FOREVER, HIDE, hop, ON_TOP, type Scene, script, SHOW, wait, walk } from '@/features/walkers';
 import { SIGNIN_COPY } from '@shared/config/copy';
-import { WALKER_CAST } from '@shared/config/walkers';
 
 const BOARD = { margin: 24, width: 342 };
 /** A board x (0–390) as a fraction along a margin-to-margin ledge. */
@@ -24,28 +23,21 @@ export type SignInScreen = 'welcome' | 'welcomeSheet' | 'invite' | 'inviteLinked
 
 export const SIGNIN_SCENES: Record<SignInScreen, Scene> = {
   welcome: {
-    teal: script(
-      [
-        at('floor', OUT_L, 'right'), SHOW, walk(bx(96)), wait(2200, { happy: true, say: SIGNIN_COPY.sayHi(WALKER_CAST.teal.name) }), walk(bx(300)),
-        wait(900, { face: 'right' }), walk(OUT_R), at('make', OUT_R, 'left'), hop('make', bx(316)), wait(2600, { emote: '!', poke: 'make' }),
-        walk(bx(56)), wait(1300), hop('invite', OUT_L),
-      ],
-      0,
-    ),
-    violet: script(
-      [
-        HIDE, wait(2600), at('floor', OUT_R, 'left'), SHOW, walk(bx(268)), wait(700, { face: 'left' }), hop('head', bx(232)),
-        wait(2400, { happy: true, emote: '♪' }), walk(bx(104)), wait(1200, { emote: '…' }), hop('floor', bx(60)), walk(OUT_L), HIDE, wait(3000),
-      ],
-      2,
-    ),
-    coral: script(
-      [
-        HIDE, wait(5200), at('signin', OUT_R, 'left'), SHOW, walk(bx(336)), wait(2600, { face: 'left', emote: '!', poke: 'signinRow' }),
-        wait(1400, { happy: true }), walk(OUT_R), at('floor', OUT_R, 'left'), walk(bx(300)), wait(1800, { face: 'left', emote: '♪' }), walk(OUT_R), HIDE, wait(2000),
-      ],
-      2,
-    ),
+    teal: script([
+      at('head', 0.22, 'right'), SHOW, wait(700), walk(0.63), wait(1400, { happy: true }),
+      hop('make', 0.76), wait(1800, { emote: '!', poke: 'make' }), walk(0.24),
+      wait(1600, { happy: true }), hop('head', 0.22),
+    ], 2),
+    violet: script([
+      at('head', 0.78, 'left'), SHOW, wait(1100), walk(0.37), wait(1800, { emote: '♪' }),
+      walk(0.76), wait(1500), hop('make', 0.26), wait(1200), walk(0.70),
+      wait(1000, { happy: true }), hop('head', 0.78),
+    ], 2),
+    coral: script([
+      at('signin', 0.20, 'right'), SHOW, wait(1200, { happy: true }), walk(0.76),
+      wait(1600, { emote: '!', poke: 'signinRow' }), hop('invite', 0.72),
+      wait(1200), walk(0.28), wait(1800, { emote: '♪' }), hop('signin', 0.20),
+    ], 2),
   },
   // The sign-in (or demo) sheet is up: Teal hops onto it; anyone the sheet slid over stays hidden.
   welcomeSheet: {

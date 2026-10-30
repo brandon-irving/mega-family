@@ -2,9 +2,10 @@
 // storageId — the one upload path for talk-mode clips and homework photos.
 import type { Id } from '@shared/domain/validators';
 
-export async function uploadToStorage(uploadUrl: string, uri: string, mimeType: string): Promise<Id<'_storage'>> {
+export async function uploadToStorage(uploadUrl: string, uri: string, mimeType: string, maxBytes?: number): Promise<Id<'_storage'>> {
   // RN's fetch supports reading a local file:// URI (and a web blob: URI) into a Blob directly.
   const body = await (await fetch(uri)).blob();
+  if (maxBytes && body.size > maxBytes) throw new Error('File exceeds upload limit');
   const res = await fetch(uploadUrl, { method: 'POST', headers: { 'Content-Type': mimeType }, body });
   if (!res.ok) throw new Error(`Upload failed (${res.status})`);
   const { storageId } = (await res.json()) as { storageId: string };

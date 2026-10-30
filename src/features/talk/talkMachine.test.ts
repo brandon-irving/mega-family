@@ -29,7 +29,7 @@ describe('talkReducer', () => {
     expect(state.reply).toBe('Sure,');
 
     state = talkReducer(state, { type: 'replyDone' });
-    expect(state).toEqual(initialTalkState);
+    expect(state).toMatchObject({ phase: 'idle', caption: 'Ask Zap about homework', reply: 'Sure,' });
   });
 
   test('slide up to lock: recording -> locked, then tap (release) -> transcribing', () => {
@@ -51,10 +51,10 @@ describe('talkReducer', () => {
     expect(state.mentions).toEqual([{ ...MENTION, heard: 'Sunny' }]);
   });
 
-  test('interrupt: pressing while the MEGA is speaking starts a fresh recording and clears the reply', () => {
+  test('interrupt: pressing while the MEGA is speaking starts a fresh recording and keeps the last reply', () => {
     let state: TalkState = { ...initialTalkState, phase: 'speaking', reply: 'Here is the weather…' };
     state = talkReducer(state, { type: 'holdStart' });
-    expect(state).toEqual({ ...initialTalkState, phase: 'recording' });
+    expect(state).toEqual({ ...initialTalkState, phase: 'recording', reply: 'Here is the weather…' });
   });
 
   test('cancel from any phase returns to idle with no leftover caption/mentions/error', () => {
@@ -100,6 +100,7 @@ describe('talkReducer', () => {
     const state: TalkState = { ...initialTalkState, phase: 'speaking', reply: 'partial' };
     expect(talkReducer(state, { type: 'replyFailed', error: 'That took too long to come back.' })).toEqual({
       ...initialTalkState,
+      reply: 'partial',
       error: 'That took too long to come back.',
     });
   });

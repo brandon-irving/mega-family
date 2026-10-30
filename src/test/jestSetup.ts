@@ -16,3 +16,7 @@ require('@testing-library/react-native').configure({ asyncUtilTimeout: require('
 // without it, any component using its KeyboardAvoidingView (G4's ModalSheet) throws "doesn't seem to be linked".
 // eslint-disable-next-line @typescript-eslint/no-require-imports -- the library's own test mock
 jest.mock('react-native-keyboard-controller', () => require('react-native-keyboard-controller/jest'));
+
+// ModalSheet measures its own native window. Jest has no native inset event; use the library's mock.
+// eslint-disable-next-line @typescript-eslint/no-require-imports -- the library's own test mock
+jest.mock('react-native-safe-area-context', () => require('react-native-safe-area-context/jest/mock').default);

@@ -20,7 +20,7 @@ const mockBegin = jest.fn((_args: { timezone: string }) => Promise.resolve({ fam
 jest.mock('convex/react', () => ({ useAction: () => mockRedeem, useMutation: () => mockBegin }));
 jest.mock('@/data/useInvite', () => ({ useInvitePreview: () => mockPreview }));
 jest.mock('@/services/auth', () => ({ signOut: jest.fn(), useSignedInEmail: () => 'parent@example.com' }));
-jest.mock('expo-router', () => ({
+jest.mock('expo-router', () => ({ useIsFocused: () => true,
   router: { push: jest.fn(), replace: jest.fn(), back: jest.fn(), canGoBack: jest.fn(() => false) },
   useLocalSearchParams: () => ({ token: 'TOKEN123' }),
 }));

@@ -134,7 +134,7 @@ describe('proactive engine: reminder trigger -> draft+judge -> deliver', () => {
     expect(statement?.delivery).toBe('statement');
     expect(pushSender.sent).toHaveLength(0);
     const notifications = await t.run((ctx) => ctx.db.query('notifications').withIndex('by_family_recipient', (q) => q.eq('familyId', familyId).eq('recipientId', members.admin)).collect());
-    expect(notifications.some((n) => n.body === 'Could matter later')).toBe(false); // a statement never becomes a notifications row
+    expect(notifications.find(n => n.body === 'Could matter later')?.buttons.length).toBeGreaterThan(0); // a statement never becomes a notifications row
   });
 });
 

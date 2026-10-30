@@ -742,9 +742,21 @@ export async function deliverCandidateLogic(ctx: MutationCtx, candidateId: Id<'c
   const author = card ? await authorMegaFor(ctx, candidate, mega) : mega;
 
   if (delivery === 'statement') {
-    // today.get / widgets.timeline already read 'delivered' + delivery:'statement' candidates directly
-    // (convex/model/home.ts `topStatementCandidate`) — nothing else to create.
-    if (card) await postCard(ctx, { familyId: candidate.familyId, recipientId: candidate.recipientId, card, megaId: author._id, now });
+    const cardMessageId = card ? await postCard(ctx, { familyId: candidate.familyId, recipientId: candidate.recipientId, card, megaId: author._id, now }) : undefined;
+    if (BUTTON_SETS[candidate.draft.buttons].length > 0) {
+      const notificationId = await ctx.db.insert('notifications', {
+        familyId: candidate.familyId, recipientId: candidate.recipientId, candidateId: candidate._id,
+        kind: candidate.kind, loudness: cfg.loudness, title: candidate.draft.title || author.name,
+        body: sanitizeDraftText(candidate.draft.text, candidate.kind, DRAFT_SANITIZE.maxTextLength), megaId: author._id,
+        buttons: [...BUTTON_SETS[candidate.draft.buttons]], sentAt: now,
+        reminderId: candidate.source?.kind === 'reminder' ? candidate.source.reminderId : undefined,
+        requestId: candidate.source?.kind === 'request' ? candidate.source.requestId : undefined,
+        choreId: candidate.source?.kind === 'chore' ? (await ctx.db.get(candidate.source.claimId))?.choreId : undefined,
+        messageId: cardMessageId ?? undefined,
+      });
+      if (cardMessageId) await ctx.db.patch(cardMessageId, { fromNotificationId: notificationId });
+      if (candidate.source?.kind === 'request') await ctx.db.patch(candidate.source.requestId, { notificationId });
+    }
     await ctx.db.patch(candidate._id, { status: 'delivered', delivery: 'statement' });
     await bumpProfileCount(ctx, candidate.familyId, candidate.recipientId, candidate.kind, 'sent');
     return;

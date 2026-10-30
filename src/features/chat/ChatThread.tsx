@@ -3,7 +3,7 @@
 // callbacks, so it can be driven by usePaginatedQuery in the route or by fixtures in tests. Just wires
 // ChatThread's own callbacks into the shared MessageList renderer (see its docstring for *why* it's an
 // inverted FlatList) — "mine" here means the signed-in viewer's own authored messages.
-import { useCallback } from 'react';
+import { useCallback, type ReactElement } from 'react';
 import type { Id } from '@shared/domain/validators';
 import type { BlockAnswer, SaveChip } from '@shared/domain/messages';
 import type { Reaction, Role, Scope } from '@shared/domain/enums';
@@ -23,11 +23,13 @@ export type ChatThreadProps = {
   onLoadMore?: () => void;
   onAnswerBlock: (messageId: Id<'messages'>, answer: BlockAnswer) => void;
   onReact: (messageId: Id<'messages'>, reaction: Reaction | null) => void;
+  onSaveIdea?: (messageId: Id<'messages'>) => Promise<unknown>;
   onChangeMemoryScope: (memoryId: Id<'memories'>, scope: Scope) => void;
   onForgetMemory: (memoryId: Id<'memories'>) => void;
   onRespondRequest?: (requestId: string, accept: boolean) => void;
   onAnswerNotification?: (notificationId: string, buttonId: string) => void;
   notificationsById?: Record<string, NotificationDoc>;
+  streamingReply?: ReactElement;
   /** CONTRACT §6: a deep-link tap scrolls the thread to this message and briefly highlights it. */
   scrollToMessageId?: Id<'messages'>;
   /** G3 review fix (BLOCKER, deep link to an older message): true once pagination has no more pages —
@@ -44,11 +46,13 @@ export function ChatThread({
   onLoadMore,
   onAnswerBlock,
   onReact,
+  onSaveIdea,
   onChangeMemoryScope,
   onForgetMemory,
   onRespondRequest,
   onAnswerNotification,
   notificationsById,
+  streamingReply,
   scrollToMessageId,
   paginationExhausted,
 }: ChatThreadProps) {
@@ -63,11 +67,13 @@ export function ChatThread({
       onLoadMore={onLoadMore}
       onAnswerBlock={onAnswerBlock}
       onReact={onReact}
+      onSaveIdea={onSaveIdea}
       onChangeMemoryScope={onChangeMemoryScope}
       onForgetMemory={onForgetMemory}
       onRespondRequest={onRespondRequest}
       onAnswerNotification={onAnswerNotification}
       notificationsById={notificationsById}
+      streamingReply={streamingReply}
       chipsReadOnly={viewerRole === 'kid'}
       // Owner, Oct 28: never "No messages yet". An empty thread means the MEGA's starter (chat.start) is on
       // its way, so it's a loading state, not an empty state.

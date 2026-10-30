@@ -149,7 +149,7 @@ export function StoreScreenView({ megaName, balance, items, look, initialTab = '
         </View>
       )}
 
-      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: tokens.spacing.lg, flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
+      <ScrollView keyboardDismissMode="on-drag" style={{ flex: 1 }} contentContainerStyle={{ padding: tokens.spacing.lg, flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
         {tiles.map((t) => {
           const on = t.key === sel?.key;
           const wearing = isWearing(look, t);

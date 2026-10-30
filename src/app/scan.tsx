@@ -3,7 +3,8 @@
 // so this sends back to the invite screen. A good scan replaces this screen with the join route
 // (`/join/<token>` → preview → redeem), so Back from the invite goes to the invite screen, not the camera.
 import { Platform } from 'react-native';
-import { Redirect, router } from 'expo-router';
+import { Redirect } from 'expo-router';
+import { router } from '@/features/shell/navigation';
 import { InviteScannerBody, useInviteScan } from '@/features/signin/InviteScanner';
 import { SignInFrame } from '@/features/signin/parts';
 import { useDismiss } from '@/ui/dismiss';

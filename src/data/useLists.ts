@@ -8,6 +8,10 @@ export function useLists() {
   return useQuery(api.lists.all, {});
 }
 
+export function useCreateList() {
+  return useMutation(api.lists.create);
+}
+
 export function useAddListItem() {
   return useMutation(api.lists.addItem);
 }

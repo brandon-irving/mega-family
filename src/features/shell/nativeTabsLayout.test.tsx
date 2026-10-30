@@ -28,12 +28,13 @@ jest.mock('expo-router/native-tabs', () => {
   return { NativeTabs };
 });
 
-test('only the chat tab opts out of automatic content insets (its list is inverted)', async () => {
+test('fixed viewport tabs own their insets while the scrollable Family tab uses automatic insets', async () => {
   mockTriggers.length = 0;
   await render(<NativeLayout.default />);
   const byName = Object.fromEntries(mockTriggers.map((t) => [t.name as string, t]));
   expect(byName[TAB_META.chat.route].disableAutomaticContentInsets).toBe(true);
-  expect(byName[TAB_META.hq.route].disableAutomaticContentInsets).toBeFalsy();
+  expect(byName[TAB_META.ideas.route].disableAutomaticContentInsets).toBe(true);
+  expect(byName[TAB_META.hq.route].disableAutomaticContentInsets).toBe(true);
   expect(byName[TAB_META.family.route].disableAutomaticContentInsets).toBeFalsy();
 });
 

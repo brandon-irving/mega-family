@@ -1,31 +1,16 @@
-// Chat header (PLAN §1): the animated badge, the MEGA's name, a live status line from the same job
-// event that drives HQ, and a Today button with a count of things waiting on you.
-import { useEffect, useState } from 'react';
-import { Animated, Pressable, View } from 'react-native';
+// A compact identity link leaves room for Today and the shared Settings shortcut.
+import { Pressable, View } from 'react-native';
 import { readableOn } from '@shared/config/theme';
 import { MegaBadge } from '@/ui/MegaBadge';
 import { Text } from '@/ui/Text';
 import { useTokens } from '@/ui/theme';
 import type { MegaInfo } from '@/features/shell/megaInfo';
+import { AppSettingsButton } from '@/features/shell/AppSettingsButton';
 
-export type ChatHeaderProps = { mega: MegaInfo; statusLine: string; todayCount: number; onOpenProfile: () => void; onOpenToday: () => void };
+export type ChatHeaderProps = { mega: MegaInfo; todayCount: number; onOpenProfile: () => void; onOpenToday: () => void };
 
-export function ChatHeader({ mega, statusLine, todayCount, onOpenProfile, onOpenToday }: ChatHeaderProps) {
+export function ChatHeader({ mega, todayCount, onOpenProfile, onOpenToday }: ChatHeaderProps) {
   const tokens = useTokens();
-  // A lazy useState initializer (not useRef().current) keeps this Animated.Value stable across
-  // renders without reading a ref during render (react-hooks/refs).
-  const [pulse] = useState(() => new Animated.Value(1));
-
-  useEffect(() => {
-    const loop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(pulse, { toValue: 1.08, duration: tokens.durations.slow, useNativeDriver: true }),
-        Animated.timing(pulse, { toValue: 1, duration: tokens.durations.slow, useNativeDriver: true }),
-      ]),
-    );
-    loop.start();
-    return () => loop.stop();
-  }, [pulse, tokens.durations.slow]);
 
   return (
     <View
@@ -34,22 +19,16 @@ export function ChatHeader({ mega, statusLine, todayCount, onOpenProfile, onOpen
         alignItems: 'center',
         justifyContent: 'space-between',
         paddingHorizontal: tokens.spacing.lg,
-        paddingVertical: tokens.spacing.md,
+        paddingVertical: tokens.spacing.sm,
+        gap: tokens.spacing.sm,
         borderBottomWidth: 1,
         borderBottomColor: tokens.line,
         backgroundColor: tokens.surface,
       }}
     >
-      <Pressable onPress={onOpenProfile} accessibilityRole="button" accessibilityLabel={`Open ${mega.name}'s profile`} style={{ flexDirection: 'row', alignItems: 'center', gap: tokens.spacing.sm, flex: 1 }}>
-        <Animated.View style={{ transform: [{ scale: pulse }] }}>
-          <MegaBadge hex={mega.hex} sticker={mega.sticker} face={mega.face} size={40} accessibilityLabel={mega.name} />
-        </Animated.View>
-        <View style={{ flex: 1 }}>
-          <Text variant="title">{mega.name}</Text>
-          <Text variant="caption" color="muted" numberOfLines={1}>
-            {statusLine}
-          </Text>
-        </View>
+      <Pressable onPress={onOpenProfile} accessibilityRole="button" accessibilityLabel={`Open ${mega.name}'s profile`} style={{ flexDirection: 'row', alignItems: 'center', minHeight: tokens.touchTarget, gap: tokens.spacing.sm, flex: 1, minWidth: 0 }}>
+        <MegaBadge hex={mega.hex} sticker={mega.sticker} face={mega.face} size={32} accessibilityLabel={mega.name} />
+        <Text variant="label" numberOfLines={1} style={{ flexShrink: 1 }}>{mega.name}</Text>
       </Pressable>
       <Pressable
         onPress={onOpenToday}
@@ -75,6 +54,7 @@ export function ChatHeader({ mega, statusLine, todayCount, onOpenProfile, onOpen
           </View>
         )}
       </Pressable>
+      <AppSettingsButton />
     </View>
   );
 }

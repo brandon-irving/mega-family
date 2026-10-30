@@ -1,72 +1,50 @@
-// Owner, Oct 28: "Pressing the MEGA profile should open up the screen for customizing it and other profile
-// concerns". The profile (Profile board, design/build/Profile.template.html) leads with the MEGA itself
-// (look with its Store parts, name, status), then a Look & personality row, then the person's own concerns:
-// notifications and quiet hours, theme, and what the MEGA remembers (with forget). Kids customize only with
-// what they own and don't rename unless config allows it.
-import { fireEvent, screen } from '@testing-library/react-native';
+import { act, fireEvent, screen, waitFor } from '@testing-library/react-native';
 import { renderWithTheme } from '@/test/renderWithTheme';
-import { ROLES_CONFIG } from '@shared/config/roles';
 import { ProfileContent, type ProfileContentProps } from './ProfileContent';
 
 const MEGA = { _id: 'megas_teal', name: 'Teal', look: { hex: '#2FB8B0', sticker: 'star', antenna: 'star' }, personality: 'calm' } as unknown as ProfileContentProps['mega'];
+const props = (over: Partial<ProfileContentProps> = {}): ProfileContentProps => ({
+  mega: MEGA, role: 'adult', statusLine: 'Available', isAdmin: false,
+  sharing: { schedule: 'family', lists: 'me', hqActivity: 'partner' },
+  onRename: jest.fn(), onOpenLookPersonality: jest.fn(), onOpenMemories: jest.fn(), onOpenSharing: jest.fn(),
+  ...over,
+});
 
-function props(over: Partial<ProfileContentProps> = {}): ProfileContentProps {
-  return {
-    mega: MEGA,
-    role: 'adult',
-    statusLine: 'Available',
-    isAdmin: false,
-    onRename: jest.fn(),
-    onOpenLookPersonality: jest.fn(),
-    onOpenNotifications: jest.fn(),
-    onOpenTheme: jest.fn(),
-    onOpenSettings: jest.fn(),
-    onOpenMemories: jest.fn(),
-    ...over,
-  };
-}
+test('compact profile has focused destinations without duplicate global settings rows', async () => {
+  const p = props();
+  await renderWithTheme(<ProfileContent {...p} />);
+  await fireEvent.press(screen.getByLabelText('Look and personality'));
+  await fireEvent.press(screen.getByLabelText('Memories'));
+  await fireEvent.press(screen.getByLabelText('Privacy & sharing'));
+  expect(p.onOpenLookPersonality).toHaveBeenCalledTimes(1);
+  expect(p.onOpenMemories).toHaveBeenCalledTimes(1);
+  expect(p.onOpenSharing).toHaveBeenCalledTimes(1);
+  expect(screen.queryByText('Theme')).toBeNull();
+  expect(screen.queryByText('Notifications and quiet hours')).toBeNull();
+  expect(screen.queryByText('Only me')).toBeNull();
+});
 
-describe('MEGA profile', () => {
-  test('leads with the MEGA: its name, a rename control and the Look & personality row', async () => {
-    const p = props();
-    await renderWithTheme(<ProfileContent {...p} />);
-    expect(screen.getByText('Teal')).toBeTruthy();
-    expect(screen.getByLabelText('Rename Teal')).toBeTruthy();
-    await fireEvent.press(screen.getByLabelText('Look and personality'));
-    expect(p.onOpenLookPersonality).toHaveBeenCalled();
-  });
+test('a kid keeps customization and read-only rules without memory, rename or sharing controls', async () => {
+  const onOpenRules = jest.fn();
+  await renderWithTheme(<ProfileContent {...props({ role: 'kid', onOpenRules, onOpenActivity: jest.fn() })} />, { role: 'kid' });
+  expect(screen.queryByLabelText('Rename Teal')).toBeNull();
+  expect(screen.queryByLabelText('Memories')).toBeNull();
+  expect(screen.queryByLabelText('Privacy & sharing')).toBeNull();
+  expect(screen.queryByLabelText('Activity')).toBeNull();
+  expect(screen.getByLabelText('Look and personality')).toBeTruthy();
+  await fireEvent.press(screen.getByLabelText('Rules and limits'));
+  expect(onOpenRules).toHaveBeenCalledTimes(1);
+});
 
-  test('has the person’s own concerns: notifications and quiet hours, theme, and what it remembers', async () => {
-    const p = props();
-    await renderWithTheme(<ProfileContent {...p} />);
-    await fireEvent.press(screen.getByLabelText('Notifications and quiet hours'));
-    await fireEvent.press(screen.getByLabelText('Theme'));
-    await fireEvent.press(screen.getByLabelText('What Teal remembers'));
-    expect(p.onOpenNotifications).toHaveBeenCalled();
-    expect(p.onOpenTheme).toHaveBeenCalled();
-    expect(p.onOpenMemories).toHaveBeenCalled();
-  });
-
-  test('a kid: no rename (unless config allows) and no memory controls, but still the look and theme', async () => {
-    await renderWithTheme(<ProfileContent {...props({ role: 'kid' })} />, { role: 'kid' });
-    expect(screen.queryByLabelText('Rename Teal')).toBeNull();
-    expect(ROLES_CONFIG.kid.profile.rename).toBe(false);
-    expect(screen.queryByLabelText('What Teal remembers')).toBeNull();
-    expect(screen.getByLabelText('Look and personality')).toBeTruthy();
-    expect(screen.getByLabelText('Theme')).toBeTruthy();
-  });
-
-  // G6 walkthrough fix (P2): sign out was three taps deep (MEGA profile -> "Theme" row, which actually
-  // opens all of Settings -> scroll to the bottom). A direct Settings row gets there in one tap, and
-  // Theme/Notifications must keep working exactly as they did.
-  test('has a direct Settings row in "You", alongside (not instead of) Theme and Notifications', async () => {
-    const p = props();
-    await renderWithTheme(<ProfileContent {...p} />);
-    await fireEvent.press(screen.getByLabelText('Settings'));
-    await fireEvent.press(screen.getByLabelText('Notifications and quiet hours'));
-    await fireEvent.press(screen.getByLabelText('Theme'));
-    expect(p.onOpenSettings).toHaveBeenCalled();
-    expect(p.onOpenNotifications).toHaveBeenCalled();
-    expect(p.onOpenTheme).toHaveBeenCalled();
-  });
+test('failed rename preserves the entered name and allows retry', async () => {
+  const onRename = jest.fn().mockRejectedValueOnce(new Error('offline')).mockResolvedValue(undefined);
+  await renderWithTheme(<ProfileContent {...props({ onRename })} />);
+  await fireEvent.press(screen.getByLabelText('Rename Teal'));
+  await fireEvent.changeText(screen.getByLabelText('MEGA name'), 'Mint');
+  await act(async () => { await fireEvent.press(screen.getByText('Save')); });
+  expect(screen.getByLabelText('MEGA name').props.value).toBe('Mint');
+  expect(screen.getByRole('alert')).toBeTruthy();
+  await act(async () => { await fireEvent.press(screen.getByText('Save')); });
+  await waitFor(() => expect(screen.queryByLabelText('MEGA name')).toBeNull());
+  expect(onRename).toHaveBeenCalledTimes(2);
 });

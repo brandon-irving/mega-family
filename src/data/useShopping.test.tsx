@@ -1,7 +1,7 @@
 // `useProducts`: product details are read live (`shopping.products` action) and never stored. One call per ref
 // set, a refused call becomes a calm failure state, nothing is called for no refs, and a remount with the same
 // refs shows the last answer at once (in memory only; cleared on sign-out with the rest of queryMemory).
-import { renderHook, waitFor } from '@testing-library/react-native';
+import { act, renderHook, waitFor } from '@testing-library/react-native';
 import { SHOPPING } from '@shared/config/shopping';
 import { PRODUCT_KIT, PRODUCTS_NOT_SET_UP } from '@/test/g4bFixtures';
 import { clearQueryMemory } from './queryMemory';
@@ -59,9 +59,22 @@ test('a remount with the same refs shows the last answer at once', async () => {
   mockLookup.mockResolvedValue({ products: [PRODUCT_KIT] });
   const first = await renderHook(() => useProducts([REF]));
   await waitFor(() => expect(first.result.current.status).toBe('ok'));
-  first.unmount();
+  await first.unmount();
   const again = await renderHook(() => useProducts([REF]));
   expect(again.result.current).toEqual({ status: 'ok', products: [PRODUCT_KIT] });
+});
+
+test('a lookup that finishes after unmount cannot repopulate cleared session memory', async () => {
+  let resolveLookup!: (value: { products: (typeof PRODUCT_KIT)[] }) => void;
+  mockLookup.mockReturnValueOnce(new Promise((resolve) => { resolveLookup = resolve; }));
+  const first = await renderHook(() => useProducts([REF]));
+  await first.unmount();
+  clearQueryMemory();
+
+  await act(async () => resolveLookup({ products: [PRODUCT_KIT] }));
+  mockLookup.mockReturnValue(new Promise(() => {}));
+  const nextSession = await renderHook(() => useProducts([REF]));
+  expect(nextSession.result.current).toEqual({ status: 'loading' });
 });
 
 test('a ref with a variant matches only that variant', () => {

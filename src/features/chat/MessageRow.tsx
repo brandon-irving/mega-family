@@ -1,8 +1,9 @@
+import { FileAttachment } from './FileAttachment';
 // Renders one thread message of any MessageBody type (CONTRACT §3): text, block, answer, card,
-// image, notice. MEGA and system messages render without a bubble (a MegaBadge sits beside them,
-// PLAN §1); only the viewer's own messages are bubbles.
-import { memo } from 'react';
-import { Image, View } from 'react-native';
+// image, notice. Assistant replies use the full thread width with a text author label;
+// only the viewer's own messages are bubbles.
+import { memo, useState } from 'react';
+import { Pressable, View } from 'react-native';
 import Animated, { FadeIn, FadeInDown, FadeOut, LinearTransition, useReducedMotion } from 'react-native-reanimated';
 import type { Infer } from 'convex/values';
 import type { messageDoc } from '@shared/domain/api';
@@ -10,11 +11,11 @@ import type { BlockAnswer } from '@shared/domain/messages';
 import type { Reaction, Scope } from '@shared/domain/enums';
 import { readableOn } from '@shared/config/theme';
 import { Bubble } from '@/ui/Bubble';
-import { MegaBadge } from '@/ui/MegaBadge';
 import { Text } from '@/ui/Text';
 import { useTokens } from '@/ui/theme';
 import type { MegaInfo } from '@/features/shell/megaInfo';
 import type { NotificationDoc } from '@/data/useNotifications';
+import { errorCopyFor } from '@/data/errorCopy';
 import { AnsweredBlock, Block } from './Blocks';
 import { ResultCard } from './Cards';
 import { NotificationNotice } from './NotificationNotice';
@@ -29,6 +30,7 @@ export type MessageRowProps = {
   mega: MegaInfo | null;
   onAnswerBlock: (answer: BlockAnswer) => void;
   onReact: (reaction: Reaction | null) => void;
+  onSaveIdea?: () => Promise<unknown>;
   onChangeMemoryScope: (memoryId: string, scope: Scope) => void;
   onForgetMemory: (memoryId: string) => void;
   onRespondRequest?: (accept: boolean) => void;
@@ -55,6 +57,7 @@ export const MessageRow = memo(function MessageRow({
   isMine,
   mega,
   onAnswerBlock,
+  onSaveIdea,
   onChangeMemoryScope,
   onForgetMemory,
   onRespondRequest,
@@ -66,10 +69,13 @@ export const MessageRow = memo(function MessageRow({
 }: MessageRowProps) {
   const tokens = useTokens();
   const reducedMotion = useReducedMotion();
-  // Still being written: the chat screen's streaming line shows it (typing dots, then the words), so an
-  // empty row with a bare name under the badge never appears in the thread.
+  const [saveState, setSaveState] = useState<'ready' | 'saving' | 'saved'>('ready');
+  const [saveError, setSaveError] = useState<string | null>(null);
+  // The list's streaming reply shows the draft until its persisted message is ready.
   if (isMegaStillWriting(message)) return null;
-  const showBadge = message.author.kind === 'mega';
+  const isMega = message.author.kind === 'mega';
+  // Connected cards already identify their MEGA in their own heading.
+  const cardShowsAuthor = message.body.type === 'card' && !['event', 'reminder', 'list', 'request', 'notification'].includes(message.body.card.kind);
   const content = <Body message={message} isMine={isMine} mega={mega} onAnswerBlock={onAnswerBlock} onRespondRequest={onRespondRequest} onAnswerNotification={onAnswerNotification} notification={notification} />;
 
   return (
@@ -90,22 +96,46 @@ export const MessageRow = memo(function MessageRow({
           style={{ position: 'absolute', top: -tokens.spacing.xs, bottom: -tokens.spacing.xs, left: -tokens.spacing.sm, right: -tokens.spacing.sm, backgroundColor: tokens.accent, opacity: 0.16, borderRadius: tokens.radii.md }}
         />
       )}
-      <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: tokens.spacing.sm, justifyContent: isMine ? 'flex-end' : 'flex-start' }}>
-        {showBadge && mega && <MegaBadge hex={mega.hex} sticker={mega.sticker} face={mega.face} size={32} accessibilityLabel={mega.name} />}
+      <View style={{ flexDirection: 'row', alignItems: 'flex-end', justifyContent: isMine ? 'flex-end' : 'flex-start' }}>
         {/* The column, not the bubble, carries the width limit: a bubble's own percentage maxWidth resolved
             against a parent with no width, so long messages were clipped off the left edge on web and short
             ones ("Answered") wrapped mid-word (owner, Oct 28). */}
-        <View testID="message-column" style={{ flex: showBadge ? 1 : undefined, flexShrink: 1, maxWidth: '82%' }}>
-          {showBadge && mega && (
+        <View testID="message-column" style={{ flex: isMine ? undefined : 1, flexShrink: 1, maxWidth: isMine ? '82%' : '100%' }}>
+          {isMega && !cardShowsAuthor && (
             <Text variant="caption" color="muted" style={{ marginBottom: 2 }}>
-              {mega.name}
+              {mega?.name ?? 'MEGA'}
             </Text>
           )}
           {isMine && message.body.type === 'text' ? <Bubble mine>{content}</Bubble> : content}
         </View>
       </View>
+      {isMega && message.body.type === 'text' && message.body.text.trim() && onSaveIdea && !chipsReadOnly && (
+        <View style={{ alignItems: 'flex-start', marginTop: tokens.spacing.xs }}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={saveState === 'saved' ? 'Saved to Ideas' : saveState === 'saving' ? 'Saving idea' : 'Save idea'}
+            accessibilityState={{ disabled: saveState !== 'ready', busy: saveState === 'saving' }}
+            disabled={saveState !== 'ready'}
+            onPress={async () => {
+              setSaveState('saving');
+              setSaveError(null);
+              try {
+                await onSaveIdea();
+                setSaveState('saved');
+              } catch (error) {
+                setSaveState('ready');
+                setSaveError(errorCopyFor(error));
+              }
+            }}
+            style={({ pressed }) => ({ minHeight: tokens.touchTarget, justifyContent: 'center', paddingRight: tokens.spacing.md, opacity: pressed ? 0.6 : 1 })}
+          >
+            <Text variant="caption" color="muted">{saveState === 'saved' ? 'Saved to Ideas' : saveState === 'saving' ? 'Saving…' : 'Save idea'}</Text>
+          </Pressable>
+          {saveError && <Text variant="caption" color="muted" accessibilityLiveRegion="polite">{saveError}</Text>}
+        </View>
+      )}
       {message.chips.length > 0 && (
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: tokens.spacing.sm, marginTop: tokens.spacing.xs, marginLeft: showBadge ? 40 : 0 }}>
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: tokens.spacing.sm, marginTop: tokens.spacing.xs }}>
           {message.chips.map((chip) => (
             <SaveChip
               key={chip.memoryId}
@@ -168,7 +198,9 @@ function Body({
     case 'card':
       return <ResultCard card={body.card} onRespondRequest={onRespondRequest} onAnswerNotification={onAnswerNotification} notification={notification} megaName={mega?.name} />;
     case 'image':
-      return <Image source={{ uri: `/_storage/${body.storageId}` }} accessibilityLabel={body.caption ?? 'Shared photo'} style={{ width: 220, height: 220, borderRadius: 12 }} />;
+      return <FileAttachment messageId={message._id} photo name={body.caption ?? 'Shared photo'} />;
+    case 'file':
+      return <FileAttachment messageId={message._id} name={body.name} />;
     case 'notice':
       return (
         <Text variant="caption" color="muted" style={{ fontStyle: 'italic' }}>

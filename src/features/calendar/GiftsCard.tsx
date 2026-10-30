@@ -6,13 +6,14 @@
 // a product is stored); an idea with no products keeps its web link marked "no price checked" (never a guessed
 // price). Board gap: the "Watching the price" chip on an added idea isn't drawn on the boards; it follows the
 // card's chip style (a one-line pill under the idea's title).
+import { useState } from 'react';
 import { Pressable, View } from 'react-native';
 import type { Infer } from 'convex/values';
 import type { giftIdeasDoc } from '@shared/domain/api';
 import type { Id } from '@shared/domain/validators';
 import type { ProductRef } from '@shared/domain/integrationShapes';
 import { GIFTS } from '@shared/config/calendar';
-import { CALENDAR_COPY, G4B_COPY, G4B_UI_COPY, fillCopy } from '@shared/config/copy';
+import { CALENDAR_COPY, IDEAS_COPY, G4B_COPY, G4B_UI_COPY, fillCopy } from '@shared/config/copy';
 import { useAddGiftToList } from '@/data/useCalendarLayers';
 import { useGiftIdeasIfAny, usePriceWatches, useProducts, productMatches, type ProductsState } from '@/data/useShopping';
 import { useFamilyDirectory } from '@/features/shell/familyDirectory';
@@ -22,6 +23,7 @@ import { Glyph } from '@/features/integrations/glyphs';
 import { ProductRow, ProductRowSkeleton } from '@/features/shopping/ProductRow';
 import { domainOf, openLink } from '@/services/openLink';
 import { Text } from '@/ui/Text';
+import { Button } from '@/ui/Button';
 import { IdeaRow, TagList, ThreadCard } from '@/ui/ThreadCard';
 import { useTokens } from '@/ui/theme';
 
@@ -45,6 +47,7 @@ export function GiftsCardView({
   products = NONE,
   watching = [],
   onOpen = () => {},
+  selectedIndex,
 }: {
   megaName: string;
   forName: string;
@@ -57,8 +60,11 @@ export function GiftsCardView({
   /** Indexes of ideas with an active price watch. */
   watching?: number[];
   onOpen?: (url: string) => void;
+  /** Original gift index opened from Ideas; other gifts stay collapsed initially. */
+  selectedIndex?: number;
 }) {
   const tokens = useTokens();
+  const [showOthers, setShowOthers] = useState(false);
   const title = fillCopy(CALENDAR_COPY.giftsTitle, { name: forName });
   if (gifts.status === 'queued') return <ThreadCard from={megaName} title={title} body={CALENDAR_COPY.giftsQueued} />;
   if (gifts.status === 'failed') return <ThreadCard from={megaName} title={title} body={CALENDAR_COPY.giftsFailed} />;
@@ -68,19 +74,38 @@ export function GiftsCardView({
   const body = noCatalog || (!anyRefs && gifts.ideas.some((i) => !!i.url)) ? G4B_UI_COPY.giftsNoCatalog : undefined;
   // Store products on the card: the GiftsProducts footer (price alerts, never buys); otherwise the privacy footer.
   const withProducts = anyRefs && products.status !== 'failure';
-  return (
-    <ThreadCard from={fillCopy(G4B_UI_COPY.giftsFrom, { mega: megaName })} title={title} body={body} foot={withProducts ? G4B_UI_COPY.giftsProductsFoot : CALENDAR_COPY.giftsFoot} status={error ? { text: error, tone: 'warn' } : undefined}>
-      <TagList label={CALENDAR_COPY.giftsBasedOn} tags={gifts.basedOn.map((b) => b.label)} />
-      <View style={{ gap: tokens.spacing.sm }}>
-        {gifts.ideas.map((idea, i) => (
-          <IdeaBlock key={`${i}:${idea.title}`} idea={idea} done={gifts.addedToList.includes(i)} watching={watching.includes(i)} loading={busy === `add${i}`} products={products} onAdd={() => onAdd(i)} onOpen={onOpen} />
-        ))}
+  const focused = selectedIndex !== undefined && gifts.ideas[selectedIndex] !== undefined;
+  const renderIdea = (idea: Idea, i: number) => (
+    <IdeaBlock key={`${i}:${idea.title}`} idea={idea}
+      sources={[...new Set(idea.basedOn)].flatMap((index) => gifts.basedOn[index] ? [gifts.basedOn[index].label] : [])}
+      done={gifts.addedToList.includes(i)} watching={watching.includes(i)} loading={busy === `add${i}`}
+      products={products} onAdd={() => onAdd(i)} onOpen={onOpen} />
+  );
+  const foot = withProducts ? G4B_UI_COPY.giftsProductsFoot : CALENDAR_COPY.giftsFoot;
+  if (focused) {
+    return (
+      <View style={{ gap: tokens.spacing.md }}>
+        <Text variant="caption" color="muted">{title}</Text>
+        {body ? <Text variant="caption" color="muted">{body}</Text> : null}
+        {renderIdea(gifts.ideas[selectedIndex], selectedIndex)}
+        {error ? <Text style={{ color: tokens.danger }} accessibilityLiveRegion="polite">{error}</Text> : null}
+        <Text variant="caption" color="muted">{foot}</Text>
+        {gifts.ideas.length > 1 ? (
+          <Button label={showOthers ? IDEAS_COPY.hideOtherGifts : IDEAS_COPY.otherGifts(gifts.ideas.length - 1)}
+            variant="ghost" onPress={() => setShowOthers((shown) => !shown)} />
+        ) : null}
+        {showOthers ? <View style={{ gap: tokens.spacing.sm }}>{gifts.ideas.map((idea, i) => i === selectedIndex ? null : renderIdea(idea, i))}</View> : null}
       </View>
+    );
+  }
+  return (
+    <ThreadCard from={fillCopy(G4B_UI_COPY.giftsFrom, { mega: megaName })} title={title} body={body} foot={foot} status={error ? { text: error, tone: 'warn' } : undefined}>
+      <View style={{ gap: tokens.spacing.sm }}>{gifts.ideas.map(renderIdea)}</View>
     </ThreadCard>
   );
 }
 
-function IdeaBlock({ idea, done, watching, loading, products, onAdd, onOpen }: { idea: Idea; done: boolean; watching: boolean; loading: boolean; products: ProductsState; onAdd: () => void; onOpen: (url: string) => void }) {
+function IdeaBlock({ idea, sources, done, watching, loading, products, onAdd, onOpen }: { idea: Idea; sources: string[]; done: boolean; watching: boolean; loading: boolean; products: ProductsState; onAdd: () => void; onOpen: (url: string) => void }) {
   const tokens = useTokens();
   const refs = (idea.productRefs ?? []).slice(0, GIFTS.productsPerIdea);
   const found = products.status === 'ok' ? refs.map((r) => products.products.find((p) => productMatches(r, p))).filter((p) => p !== undefined) : [];
@@ -89,8 +114,9 @@ function IdeaBlock({ idea, done, watching, loading, products, onAdd, onOpen }: {
   const storePriced = refs.length > 0 && products.status !== 'failure';
   const showLink = !!idea.url && (refs.length === 0 || products.status === 'failure' || (products.status === 'ok' && found.length === 0));
   return (
-    <View style={{ borderRadius: tokens.radii.lg, backgroundColor: tokens.bg, borderWidth: 1, borderColor: tokens.line, padding: 10, gap: tokens.spacing.sm }}>
+    <View testID={`gift-idea-${idea.title}`} style={{ borderRadius: tokens.radii.lg, backgroundColor: tokens.bg, borderWidth: 1, borderColor: tokens.line, padding: 10, gap: tokens.spacing.sm }}>
       <IdeaRow bare title={idea.title} why={storePriced ? idea.why : [idea.why, idea.price].filter(Boolean).join(' · ')} actionLabel={done ? CALENDAR_COPY.giftsAdded : CALENDAR_COPY.giftsAdd} done={done} loading={loading} onPress={onAdd} />
+      <TagList label={CALENDAR_COPY.giftsBasedOn} tags={sources} />
       {watching ? <WatchingChip title={idea.title} /> : null}
       {refs.length > 0 && products.status === 'loading' ? refs.map((r) => <ProductRowSkeleton key={`${r.productId}:${r.variantId ?? ''}`} inset />) : null}
       {found.length > 0 ? (
@@ -153,7 +179,7 @@ function LinkRow({ url, title, onOpen }: { url: string; title: string; onOpen: (
   );
 }
 
-export function GiftsCard({ giftIdeasId, megaName }: { giftIdeasId: Id<'giftIdeas'>; megaName: string }) {
+export function GiftsCard({ giftIdeasId, megaName, selectedIndex }: { giftIdeasId: Id<'giftIdeas'>; megaName: string; selectedIndex?: number }) {
   const state = useGiftIdeasIfAny(giftIdeasId);
   const gifts = state.status === 'ok' ? state.data : null;
   const products = useProducts(gifts ? giftRefs(gifts) : NO_REFS);
@@ -168,6 +194,7 @@ export function GiftsCard({ giftIdeasId, megaName }: { giftIdeasId: Id<'giftIdea
       megaName={megaName}
       forName={dir.nameOf(gifts.forMemberId)}
       gifts={gifts}
+      selectedIndex={selectedIndex}
       busy={busy}
       error={error}
       onAdd={(index) => run(`add${index}`, () => add({ giftIdeasId, index }))}

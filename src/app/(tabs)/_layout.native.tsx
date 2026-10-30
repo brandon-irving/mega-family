@@ -1,5 +1,5 @@
 // Native tab bar (iOS/Android) — PLAN §Platforms. Tabs come from ROLES_CONFIG[role].tabs: kid sees
-// Chat · HQ, adult/admin see Chat · HQ · Family.
+// Chat · HQ, adult/admin see Chat · Ideas · HQ · Family.
 import { NativeTabs } from 'expo-router/native-tabs';
 import { useTheme } from '@/ui/theme';
 import { tabsForRole } from '@/features/shell/tabs';

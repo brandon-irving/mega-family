@@ -60,7 +60,7 @@ describe('every modal can be closed', () => {
     expect(swipeDismisses({ dy: -200, vy: -2 })).toBe(false);
   });
 
-  test('ModalSheet (the one sheet): ✕, scrim, back/Escape close it; the panel takes drags', async () => {
+  test('ModalSheet closes through its controls and header drag without capturing content scrolling', async () => {
     const onClose = jest.fn();
     await renderWithTheme(
       <ModalSheet open title="Change scope" closeLabel="Close" onClose={onClose} testID="sheet-x">
@@ -75,8 +75,16 @@ describe('every modal can be closed', () => {
     // Android back and Escape on web both arrive as the Modal's onRequestClose.
     await fireEvent(screen.getByText('Body'), 'requestClose');
     expect(onClose).toHaveBeenCalledTimes(3);
-    // The swipe-down responder is on the panel (its decision is tested above).
-    expect(typeof screen.getByTestId('sheet-x').props.onMoveShouldSetResponder).toBe('function');
+    // Only the header takes dismissal drags; scrolling the body must keep the sheet open.
+    expect(typeof screen.getByTestId('sheet-x-header').props.onMoveShouldSetResponder).toBe('function');
+    expect(screen.getByTestId('sheet-x').props.onMoveShouldSetResponder).toBeUndefined();
+    // Long content can use the full panel: the safe-area gap scrolls with the last action.
+    expect(StyleSheet.flatten(screen.getByTestId('sheet-x').props.style).paddingBottom).toBeUndefined();
+    const scroll = screen.getByTestId('sheet-x-scroll');
+    expect(scroll.props.contentInsetAdjustmentBehavior).toBe('never');
+    expect(scroll.props.automaticallyAdjustContentInsets).toBe(false);
+    expect(StyleSheet.flatten(scroll.props.style)).toMatchObject({ flexShrink: 1, minHeight: 0 });
+    expect(scroll.props.contentContainerStyle.paddingBottom).toBeGreaterThan(0);
   });
 
   test('the sign-in sheet (inline, over the walkers): ✕ and Escape close it', async () => {

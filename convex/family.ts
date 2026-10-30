@@ -6,6 +6,7 @@ import { pick } from './model/define';
 import { fail } from './model/errors';
 import { addFamilyMember } from './model/familyAdd';
 import { clock } from './ports/clock';
+import { canSeeEvent } from './model/visibility';
 import { upcomingEvents } from './model/home';
 import { megaStatusFor } from './model/megaStatus';
 import { requireAdmin, requireViewer, sameFamilyMember } from './model/viewer';
@@ -118,5 +119,18 @@ export const add = mutation({
     const now = await clock.now(ctx, viewer.member.familyId);
     const memberId = await addFamilyMember(ctx, viewer.member, args, now);
     return { memberId };
+  },
+});
+
+export const nextEvent = query({
+  ...pick(API.family.nextEvent),
+  handler: async ctx => {
+    const viewer = await requireViewer(ctx);
+    const now = await clock.now(ctx, viewer.member.familyId);
+    const events = ctx.db.query('events').withIndex('by_family_start', q => q.eq('familyId', viewer.member.familyId).gte('start', now));
+    for await (const event of events) {
+      if (!event.cancelled && canSeeEvent({ memberId: viewer.member._id, role: viewer.member.role }, event)) return event;
+    }
+    return null;
   },
 });

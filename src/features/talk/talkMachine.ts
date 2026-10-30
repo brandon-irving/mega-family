@@ -41,7 +41,7 @@ export function talkReducer(state: TalkState, action: TalkAction): TalkState {
       // From idle *or* while the MEGA is speaking (PLAN: "pressing while the MEGA talks interrupts
       // it") — either way a fresh turn starts recording. Anywhere else (already recording/locked/
       // transcribing/review/sending) a stray press is a no-op.
-      return state.phase === 'idle' || state.phase === 'speaking' ? { ...initialTalkState, phase: 'recording' } : state;
+      return state.phase === 'idle' || state.phase === 'speaking' ? { ...state, phase: 'recording', error: null } : state;
     case 'lock':
       return state.phase === 'recording' ? { ...state, phase: 'locked' } : state;
     case 'release':
@@ -51,7 +51,7 @@ export function talkReducer(state: TalkState, action: TalkAction): TalkState {
     case 'transcribeFailed':
       // Also from 'recording'/'locked': voice.start() itself can reject (e.g. a platform that can't record
       // the WAV the server requires) before `release` ever moves the phase to 'transcribing'.
-      return state.phase === 'transcribing' || state.phase === 'recording' || state.phase === 'locked' ? { ...initialTalkState, error: action.error } : state;
+      return state.phase === 'transcribing' || state.phase === 'recording' || state.phase === 'locked' ? { ...state, phase: 'idle', error: action.error } : state;
     case 'removeMention':
       return state.phase === 'review' ? { ...state, mentions: state.mentions.filter((_, i) => i !== action.index) } : state;
     case 'send':
@@ -63,9 +63,9 @@ export function talkReducer(state: TalkState, action: TalkAction): TalkState {
     case 'replyChunk':
       return state.phase === 'speaking' ? { ...state, reply: action.text } : state;
     case 'replyDone':
-      return state.phase === 'speaking' ? { ...initialTalkState } : state;
+      return state.phase === 'speaking' ? { ...state, phase: 'idle' } : state;
     case 'replyFailed':
-      return state.phase === 'speaking' ? { ...initialTalkState, error: action.error } : state;
+      return state.phase === 'speaking' ? { ...state, phase: 'idle', error: action.error } : state;
     case 'cancel':
       return { ...initialTalkState };
     default:

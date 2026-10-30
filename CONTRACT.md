@@ -117,8 +117,13 @@ Every row in a family-owned table has `familyId`, and every index starts with `f
 - index: `by_family_member_due`
 
 **lists**: `familyId`, `name`, `scope: Scope`, `ownerId?`
-**listItems**: `familyId`, `listId`, `text`, `checked: boolean`, `addedBy?`, `at`
+**listItems**: `familyId`, `listId`, `text`, `checked: boolean`, `addedBy?`, `at`, `giftForMemberId?`
 - indexes: lists `by_family`; listItems `by_family_list`
+- Gift copies retain `giftForMemberId`; the recipient and kids cannot read or modify the row through Lists, Today, agent context, or list tools. Legacy gift-list rows without provenance fail closed until matched to an unambiguous gift source.
+
+**ideas**: `familyId`, `ownerId`, `title`, `text`, `category: activities | meals | gifts | other`, `source: message { messageId } | suggestion { messageId? } | gift { giftIdeasId, index }`, `sourceKey`, `saved`, `dismissed`, `at`, `searchText`
+- indexes: `by_family_owner_at`, `by_family_owner_source`; `search_text` filters family/owner/category/saved/dismissed.
+- Adult-only, owner-bound collections. Chat saves require the caller's own thread. Automatic suggestions start unsaved; repeated suggestions never undo a save or dismissal. Saving does not share anything. Gift source access is rechecked on every read and mutation; never shown to kids or the recipient. Queries paginate, cap each page at 40 and database scans at 160 rows. Existing gift imports inspect at most 100 recent sets; new gift sets are indexed at delivery.
 
 ### Proactive and notifications
 **familyEvents** (the log): `familyId`, `at`, `type` (`said` · `calendar.changed` · `list.changed` · `reminder.due` · `weather.alert` · `notification.answered` · `clock.tick` · `job.changed`), `payload: any`, `processed: { memory, profiler, triggers }`
@@ -312,6 +317,7 @@ This section is mirrored exactly by `shared/domain/api.ts`; `tests/contract.test
 | `chat.react` | m | `{ messageId, reaction: Reaction \| null }` | `null` | real |
 | `chat.start` | m | `{}` (the caller's own thread) | `{ started: boolean }` | real (v0.13b: the MEGA's starter, once per thread) |
 | `files.uploadUrl` | m | — | `string` | real |
+| `files.messageUrl` | q | `{ messageId }` | `string` or `null`; owning thread access required | real |
 | `talk.transcribe` | a | `{ storageId }` | `{ text, mentions: SpokenMention[] }` (batch; realtime is decided by the day-1 smoke test) | real (G2: a real Transcriber call; throws `VALIDATION` if the upload isn't WAV — see changelog v0.8) |
 
 **Spoken MEGA names (added v0.2):**
@@ -329,6 +335,7 @@ This section is mirrored exactly by `shared/domain/api.ts`; `tests/contract.test
 | `widgets.timeline` | q | — | `WidgetEntry[]` (§6) | real |
 | `widgets.next` | q | — | `WidgetTimeline` (§6; v0.18, G8: what the home and lock screen widgets show, own data only) | real |
 | `family.comingUp` | q | — | `Event[]` (next 2 hours) | real |
+| `family.nextEvent` | q | — | First visible future `Event` or `null` | real |
 
 ### MEGA profile, memory and learnings
 | Function | Type | Args | Returns | Day 1 |
@@ -357,6 +364,14 @@ This section is mirrored exactly by `shared/domain/api.ts`; `tests/contract.test
 | `events.create` / `.update` / `.cancel` | m | event fields / `{ eventId, patch }` / `{ eventId }` | `id` / `null` / `null` | real |
 | `events.share` / `.unshare` | m | `{ eventId }` (v0.13; the event's owner only) | `null` (moves it between the owner's private layer and the household layer and writes a `shareActions` row) | real |
 | `lists.all` | q | — | `{ list, items }[]` | real |
+| `lists.create` | m | `{ name, scope: personal | family | adults }` (adults) | `id(lists)` | real |
+| `ideas.list` | q | `{ category?, saved?, search?, paginationOpts }` (adults, own collection) | paginated idea views with audience labels | real |
+| `ideas.get` | q | `{ ideaId }` (owner, source access rechecked) | idea view | real |
+| `ideas.saveMessage` | m | `{ messageId, category? }` (adult, own MEGA reply) | `id(ideas)` | real |
+| `ideas.setSaved` | m | `{ ideaId, saved }` (owner) | null | real |
+| `ideas.dismiss` | m | `{ ideaId }` (owner) | null | real |
+| `ideas.categorize` | m | `{ ideaId, category }` (owner; sourced gifts stay Gifts) | null | real |
+| `ideas.refreshGifts` | m | `{}` (adult; bounded import of eligible gifts) | null | real |
 | `lists.addItem` / `.check` / `.remove` | m | `{ listId, text }` / `{ itemId, checked }` / `{ itemId }` | `id` / `null` / `null` | real |
 | `requests.respond` | m | `{ requestId, accept: boolean }` | `null` | real (G3: real effects, idempotent) |
 
@@ -563,3 +578,10 @@ Members use generic labels: Admin (MEGA Teal), Partner (MEGA Coral), Twin 1 (MEG
 3. Parents can read a kid's chat (`family.kidThread`) but can't reply as the kid.
 4. Button sets stay placeholders. A set lives entirely in `shared/config/buttonSets` (ids, labels, which kind uses which set), so trying new ones is a config edit. The app registers notification categories from that config at startup, and answers are handled by button id.
 5. Toddler: no login; a care MEGA run by the parents; its memories are adults-scope.
+
+
+### UAT 1 additions (October 30, 2026)
+- `chat.send` accepts optional `files: { storageId, name, mimeType }[]` (maximum four, 10 MB each). Storage metadata determines the MIME type. Images render as images, other attachments as downloadable file rows. File contents are not yet included in the assistant's reasoning context.
+- `MessageBody` adds `{ type: 'file', storageId, name, mimeType }`.
+- `ideas.list` accepts optional `sort: 'newest' | 'oldest'`; ordering is applied before pagination. Text search keeps relevance ordering.
+- Today/widget informational statements must be within their candidate window, have no answer buttons, and be a tip or update. Newly delivered actionable statements create an in-app notification with answer buttons, without scheduling a push.

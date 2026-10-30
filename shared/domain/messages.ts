@@ -140,6 +140,7 @@ export const messageBody = v.union(
   v.object({ type: v.literal('block'), block: uiBlock, answeredWith: v.optional(blockAnswer) }),
   v.object({ type: v.literal('answer'), blockMessageId: v.id('messages'), label: v.string(), value: blockAnswer }),
   v.object({ type: v.literal('card'), card }),
+  v.object({ type: v.literal('file'), storageId: v.id('_storage'), name: v.string(), mimeType: v.string() }),
   v.object({ type: v.literal('image'), storageId: v.id('_storage'), caption: v.optional(v.string()) }),
   v.object({ type: v.literal('notice'), text: v.string() }),
 );

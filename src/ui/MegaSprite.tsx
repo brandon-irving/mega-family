@@ -1,6 +1,6 @@
 // The code-drawn MEGA sprite, everywhere: the badge (head on a white tile) in headers and messages,
 // and the full sprite in HQ, the profile sheet and the Store's try-on stage. Renders shared/sprite's pixel
-// picture through PixelArt (crisp SVG rects, one per horizontal run of equal color).
+// picture through PixelArt (crisp SVG paths, one per color).
 import { useMemo } from 'react';
 import type { ExpressionName, FrameName, View as SpriteView } from '@shared/sprite';
 import { renderMega } from '@shared/sprite';

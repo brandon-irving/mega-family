@@ -87,7 +87,7 @@ export function LockedRow({ label, locked, value, hint }: { label: string; locke
           </Text>
         </View>
       </View>
-      <Text color="muted">{value}</Text>
+      <Text color="muted" style={{ flexShrink: 1, maxWidth: '55%', textAlign: 'right' }}>{value}</Text>
     </View>
   );
 }
@@ -104,7 +104,7 @@ export function ValueRow({ label, hint, value }: { label: string; hint?: string;
           </Text>
         ) : null}
       </View>
-      <Text color="muted">{value}</Text>
+      <Text color="muted" style={{ flexShrink: 1, maxWidth: '55%', textAlign: 'right' }}>{value}</Text>
     </View>
   );
 }
@@ -194,7 +194,7 @@ export function SegmentRow<T extends string>({ label, options, value, onChange }
 export function ChipLine({ chips, onPress, selected }: { chips: { id: string; label: string }[]; onPress?: (id: string) => void; selected?: string }) {
   const tokens = useTokens();
   return (
-    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6 }} testID="chip-line">
+    <ScrollView keyboardDismissMode="on-drag" horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6 }} testID="chip-line">
       {chips.map((c) => {
         const on = c.id === selected;
         const body = (

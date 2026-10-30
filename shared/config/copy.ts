@@ -807,6 +807,7 @@ export const G5_UI_COPY = {
   setByParent: 'Set by a parent',
   members: 'Members and MEGAs',
   membersValue: '{n} people',
+  membersValueOne: '1 person',
   parentCode: 'Parent code',
   parentCodeHint: 'Kids need it to join',
   show: 'Show',
@@ -921,7 +922,7 @@ export const G5_UI_COPY = {
     calendar: 'The family calendar lives here.',
     fridge: 'Lists and groceries live here.',
     mailbox: 'MEGAs pass messages to each other here.',
-    bookshelf: 'Where MEGAs look things up.',
+    bookshelf: 'Where good ideas are kept.',
     charger: 'MEGAs rest here when they’re idle and at night.',
     rug: 'Kid games and activities happen here.',
     door: 'MEGAs head out here for errands.',
@@ -1038,4 +1039,30 @@ export const G8_UI_COPY = {
   // Homework camera (boards SnapStarting, SnapDenied, SnapFailed)
   snapOpenSettings: 'Open Settings',
   snapTryAgain: 'Try the camera again',
+} as const;
+
+/** Ideas library and gift-detail labels; behavior and query bounds live in config/ideas.ts. */
+export const IDEAS_COPY = {
+  title: 'Ideas', search: 'Search ideas', filterAndSort: 'Filter and sort ideas',
+  allCategories: 'All categories', allIdeas: 'All ideas', saved: 'Saved',
+  sortLabels: { newest: 'Newest first', oldest: 'Oldest first' },
+  mostRelevant: 'Most relevant', refreshing: 'Checking gift suggestions…', searching: 'Searching…',
+  refreshFailed: 'Gift suggestions could not refresh.', retryRefresh: 'Retry gift refresh',
+  loadingLabel: 'Loading ideas', loading: 'Loading ideas…',
+  noMatches: 'No matching ideas', emptyTitle: 'A place for good ideas',
+  noMatchesHint: 'Try another search or category, or look at all ideas.',
+  emptyHint: 'MEGA’s useful suggestions will appear here. You can also choose Save idea below a reply in Chat.',
+  clearFilters: 'Clear filters', openChat: 'Open Chat', loadMore: 'Load more ideas',
+  filtersTitle: 'Filter & sort', closeFilters: 'Close idea filters', show: 'Show', category: 'Category', sort: 'Sort',
+  relevanceHint: 'Search results are ordered by relevance. Clear your search to sort by date.',
+  showIdeas: 'Show ideas', resetFilters: 'Reset filters',
+  sources: { gift: 'Gift suggestion', message: 'From Chat', suggestion: 'MEGA suggestion' },
+  openIdea: (title: string) => `Open idea: ${title}`,
+  savedByYou: 'Saved by you', save: 'Save', saveTitle: (title: string) => `Save ${title}`,
+  unsaveTitle: (title: string) => `Remove ${title} from saved`,
+  viewIdea: 'View idea', viewTitle: (title: string) => `View ${title}`,
+  giftsTitle: 'Gift ideas', closeIdea: 'Close idea', saveIdea: 'Save idea', removeSaved: 'Remove from Saved',
+  openSource: 'Open source in Chat', moveCategory: (category: string) => `Move idea to ${category}`,
+  moving: 'Moving idea…', dismiss: 'Dismiss idea',
+  hideOtherGifts: 'Hide other gift ideas', otherGifts: (count: number) => `Other gift ideas (${count})`,
 } as const;

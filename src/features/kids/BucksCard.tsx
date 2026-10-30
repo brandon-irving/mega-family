@@ -6,7 +6,7 @@
 // The card loads its ledger row by id (`bucks.entry`, v0.13a), so older rows render too.
 import { useEffect, useState } from 'react';
 import { View } from 'react-native';
-import { router } from 'expo-router';
+import { router } from '@/features/shell/navigation';
 import Animated, { useAnimatedStyle, useReducedMotion, useSharedValue, withDelay, withRepeat, withSequence, withSpring, withTiming, ZoomIn } from 'react-native-reanimated';
 import type { Id } from '@shared/domain/validators';
 import { fillCopy, KIDS_COPY } from '@shared/config/copy';

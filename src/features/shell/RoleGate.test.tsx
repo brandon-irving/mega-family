@@ -7,6 +7,8 @@ import AccountsRoute from '@/app/accounts';
 import RulesRoute from '@/app/rules/[memberId]';
 import ActivityRoute from '@/app/mega-profile/activity';
 import SearchesRoute from '@/app/searches/[memberId]';
+import MemoriesRoute from '@/app/mega-profile/memories';
+import SharingRoute from '@/app/mega-profile/sharing';
 
 const mockRole = { current: 'kid' as 'kid' | 'adult' | 'admin' };
 jest.mock('expo-router', () => {
@@ -27,6 +29,8 @@ const ROUTES = [
   ['/rules/[memberId]', RulesRoute],
   ['/mega-profile/activity', ActivityRoute],
   ['/searches/[memberId]', SearchesRoute],
+  ['/mega-profile/memories', MemoriesRoute],
+  ['/mega-profile/sharing', SharingRoute],
 ] as const;
 
 describe('adult-only G5 routes', () => {

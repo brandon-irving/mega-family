@@ -1,7 +1,7 @@
 // Full family calendar (PLAN §4; GD Screen 12): week strip + day agenda, household and private layers,
 // color-coded by member, with Hub's clash banner for adults when a fix is waiting.
 import { useState } from 'react';
-import { router } from 'expo-router';
+import { router } from '@/features/shell/navigation';
 import { LINKS } from '@shared/domain/api';
 import { useCalendarRange, useFamilyMembers } from '@/data/useFamily';
 import { useHubName } from '@/data/useMega';
@@ -21,6 +21,7 @@ import { useRunAction } from '@/features/shell/useRunAction';
 import type { Id } from '@shared/domain/validators';
 import { CALENDAR_COPY } from '@shared/config/copy';
 import { formatLocalTime, formatLocalWeekday } from '@shared/time';
+import { EventDetailSheet } from '@/features/family/EventDetailSheet';
 
 export default function CalendarRoute() {
   // "This week" comes from the family's clock (`clock.get`; the demo clock is pinned to the seed week), never
@@ -45,6 +46,7 @@ export default function CalendarRoute() {
   const setEventPlace = useSetEventPlace();
   const placeAction = useRunAction();
   const [editing, setEditing] = useState<EventDoc | null>(null);
+  const [selected, setSelected] = useState<EventDoc | null>(null);
   const placeList = places.status === 'ok' ? places.data : [];
   const placeLabels = Object.fromEntries(placeList.map((p) => [p._id, p.label]));
   const tz = viewer?.family.timezone ?? 'UTC';
@@ -55,7 +57,7 @@ export default function CalendarRoute() {
   const clash: CalendarClash | null = open ? { eventIds: open.clashEventIds, line: open.proposal.title, messageId: open.proposal.messageId } : null;
 
   return (
-    <Sheet presentation="tab" title={new Date(weekStart).toLocaleDateString(undefined, { month: 'long', year: 'numeric' })} onClose={() => router.back()}>
+    <Sheet title={new Date(weekStart).toLocaleDateString(undefined, { month: 'long', year: 'numeric' })} onClose={() => router.back()}>
       <CalendarContent
         key={weekStart}
         weekStart={weekStart}
@@ -68,11 +70,12 @@ export default function CalendarRoute() {
         viewerId={viewer?.member._id}
         hubName={open?.mega.name ?? hubName}
         clash={clash}
-        onSeeClash={(c) => router.push(toPath(c.messageId ? LINKS.chatMessage(c.messageId) : LINKS.chat()) as never)}
-        onOpenEvent={adult ? (e) => setEditing(e) : undefined}
+        onSeeClash={(c) => router.toTab(toPath(c.messageId ? LINKS.chatMessage(c.messageId) : LINKS.chat()) as never)}
+        onOpenEvent={setSelected}
         placeLabels={placeLabels}
         holidays={holidays.status === 'ok' ? holidays.data : undefined}
       />
+      <EventDetailSheet event={selected} timeZone={tz} people={selected ? selected.who.map((id) => members.find((m) => m.member._id === id)?.member.name).filter((name): name is string => !!name) : []} placeLabel={selected?.placeId ? placeLabels[selected.placeId] : undefined} onClose={() => setSelected(null)} onEditPlace={adult && selected ? () => { setEditing(selected); setSelected(null); } : undefined} />
       <EventPlaceSheet
         open={editing !== null}
         event={{

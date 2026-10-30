@@ -3,8 +3,79 @@
 // ledges that were never measured again. A ledge must only unregister when it unmounts.
 import { renderWithTheme } from '@/test/renderWithTheme';
 import { ThemeProvider } from '@/ui/theme';
-import { fireEvent } from '@testing-library/react-native';
-import { Lane, Ledge, Obstacle, WalkerStageContext, type StageCtx } from './WalkerStage';
+import { act, fireEvent } from '@testing-library/react-native';
+import { withTiming } from 'react-native-reanimated';
+import { AppState, type AppStateStatus } from 'react-native';
+import { WALKER_MOTION } from '@shared/config/walkers';
+import { Lane, Ledge, Obstacle, WalkerStage, WalkerStageContext, type StageCtx } from './WalkerStage';
+import { SHOW, script } from './engine';
+
+jest.mock('react-native-reanimated', () => {
+  const actual = jest.requireActual('react-native-reanimated');
+  return { ...actual, __esModule: true, withTiming: jest.fn(actual.withTiming) };
+});
+
+test('the scene interval is suspended for a hidden route, reduced motion, and app background', async () => {
+  jest.useFakeTimers();
+  const interval = jest.spyOn(global, 'setInterval');
+  let change: ((state: AppStateStatus) => void) | undefined;
+  const remove = jest.fn();
+  const previousSubscribe = AppState.addEventListener;
+  AppState.addEventListener = jest.fn((event, listener) => { if (event === 'change') change = listener as (state: AppStateStatus) => void; return { remove }; });
+  try {
+    const view = await renderWithTheme(<WalkerStage scene={{}} active={false} reducedMotion={false}>{null}</WalkerStage>);
+    expect(interval.mock.calls.filter(([, ms]) => ms === WALKER_MOTION.tickMs)).toHaveLength(0);
+    await view.rerender(<ThemeProvider><WalkerStage scene={{}} reducedMotion>{null}</WalkerStage></ThemeProvider>);
+    expect(interval.mock.calls.filter(([, ms]) => ms === WALKER_MOTION.tickMs)).toHaveLength(0);
+    await view.rerender(<ThemeProvider><WalkerStage scene={{}} reducedMotion={false}>{null}</WalkerStage></ThemeProvider>);
+    expect(interval.mock.calls.filter(([, ms]) => ms === WALKER_MOTION.tickMs)).toHaveLength(1);
+    const cleared = jest.spyOn(global, 'clearInterval');
+    await act(async () => { change?.('background'); });
+    expect(cleared).toHaveBeenCalled();
+    interval.mockClear();
+    await act(async () => { jest.advanceTimersByTime(10000); });
+    expect(interval).not.toHaveBeenCalled();
+    await act(async () => { change?.('active'); });
+    expect(interval.mock.calls.filter(([, ms]) => ms === WALKER_MOTION.tickMs)).toHaveLength(1);
+    await view.unmount();
+    expect(remove).toHaveBeenCalled();
+    cleared.mockRestore();
+  } finally { AppState.addEventListener = previousSubscribe; interval.mockRestore(); jest.useRealTimers(); }
+});
+
+test('unchanged walkers do not restart position and opacity animations on every engine tick', async () => {
+  jest.useFakeTimers();
+  try {
+    const view = await renderWithTheme(<WalkerStage scene={{}} reducedMotion={false}>{null}</WalkerStage>);
+    jest.mocked(withTiming).mockClear();
+    await act(async () => { jest.advanceTimersByTime(WALKER_MOTION.tickMs * 10); });
+    expect(withTiming).not.toHaveBeenCalled();
+    await view.unmount();
+  } finally {
+    jest.useRealTimers();
+  }
+});
+
+test('a visibility change still fades once, then leaves the finished animation alone', async () => {
+  jest.useFakeTimers();
+  try {
+    const view = await renderWithTheme(<WalkerStage scene={{}} reducedMotion={false}>{null}</WalkerStage>);
+    jest.mocked(withTiming).mockClear();
+    await view.rerender(<ThemeProvider><WalkerStage scene={{ teal: script([SHOW]) }} reducedMotion={false}>{null}</WalkerStage></ThemeProvider>);
+    await act(async () => { jest.advanceTimersByTime(WALKER_MOTION.tickMs * 10); });
+    expect(withTiming).toHaveBeenCalledTimes(1);
+    expect(withTiming).toHaveBeenCalledWith(1, { duration: 300 });
+
+    jest.mocked(withTiming).mockClear();
+    await view.rerender(<ThemeProvider><WalkerStage scene={{}} reducedMotion={false}>{null}</WalkerStage></ThemeProvider>);
+    await act(async () => { jest.advanceTimersByTime(WALKER_MOTION.tickMs * 10); });
+    expect(withTiming).toHaveBeenCalledTimes(1);
+    expect(withTiming).toHaveBeenCalledWith(0, { duration: 300 });
+    await view.unmount();
+  } finally {
+    jest.useRealTimers();
+  }
+});
 
 function fakeStage(over: Partial<StageCtx> = {}): StageCtx {
   return { register: jest.fn(), unregister: jest.fn(), lookAtLedge: jest.fn(), dipped: new Set(), poked: new Set(), ...over };

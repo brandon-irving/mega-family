@@ -2,7 +2,8 @@
 // kid's member sheet. The switch is the kid control `tellsParents.blockedSearches`; the server returns rows
 // only while it's on (and FORBIDDEN otherwise), so the list loads only then.
 import { useState } from 'react';
-import { router, useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
+import { router } from '@/features/shell/navigation';
 import type { Id } from '@shared/domain/validators';
 import { G4_COPY, fillCopy } from '@shared/config/copy';
 import { errorCopyFor } from '@/data/errorCopy';

@@ -10,6 +10,11 @@ import { useTokens } from '@/ui/theme';
 
 /** SVG path data on a 24×24 grid (the boards' icons, stroke-only). */
 export const GLYPHS = {
+  mic: 'M9 6a3 3 0 0 1 6 0v6a3 3 0 0 1-6 0z M5 11v1a7 7 0 0 0 14 0v-1 M12 19v3 M8 22h8',
+  down: 'M6 9l6 6 6-6',
+  filter: 'M4 6h16M4 12h16M4 18h16 M8 3v6 M16 9v6 M10 15v6',
+  speaker: 'M4 9h4l5-5v16l-5-5H4z M17 8a6 6 0 0 1 0 8 M20 5a10 10 0 0 1 0 14',
+
   search: 'M11 4a7 7 0 1 0 0 14 7 7 0 0 0 0-14z M20 20l-4-4',
   car: 'M5 17h14 M6 17l1.5-6h9L18 17 M8 11l1-3h6l1 3 M8 19a1.5 1.5 0 1 0 0-.01 M16 19a1.5 1.5 0 1 0 0-.01',
   chevron: 'M9 6l6 6-6 6',

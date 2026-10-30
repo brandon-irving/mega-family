@@ -4,7 +4,7 @@
 // happened. "Add a schedule link" opens the same link field as the onboarding card, in a sheet. Every sheet
 // closes every way (ModalSheet); the page itself closes with ✕ or Escape (Sheet).
 import { useState } from 'react';
-import { router } from 'expo-router';
+import { router } from '@/features/shell/navigation';
 import { View } from 'react-native';
 import type { IntegrationView } from '@shared/domain/api';
 import { G5_COPY, G5_FIX_COPY, G5_UI_COPY as U, fillCopy } from '@shared/config/copy';

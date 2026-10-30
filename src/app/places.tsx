@@ -2,7 +2,7 @@
 // adults add, edit and remove (the add/edit bottom sheet). Opened from Family (adults) and the MEGA profile.
 // A modal page with a Close control in its safe-area header (Sheet), plus Android back / swipe-down.
 import { useState } from 'react';
-import { router } from 'expo-router';
+import { router } from '@/features/shell/navigation';
 import { G4_COPY } from '@shared/config/copy';
 import { PLACES } from '@shared/config/integrations';
 import { errorCopyFor } from '@/data/errorCopy';

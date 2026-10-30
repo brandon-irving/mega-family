@@ -7,6 +7,7 @@
 import { useEffect, useRef } from 'react';
 import { BackHandler, Platform, Pressable, type GestureResponderEvent, type GestureResponderHandlers } from 'react-native';
 import { useSharedValue, withTiming, type SharedValue } from 'react-native-reanimated';
+import { Path, Svg } from 'react-native-svg';
 import { MODAL_COPY } from '@shared/config/copy';
 import { SHEET_DISMISS } from '@shared/config/theme';
 import { hiddenFromA11y } from './a11y';
@@ -102,7 +103,7 @@ export function useSwipeDown(onClose: () => void): { handlers: GestureResponderH
 }
 
 /** The visible ✕ every overlay has (≥44pt, larger for kids through tokens.touchTarget). */
-export function CloseButton({ onPress, label = MODAL_COPY.close, testID }: { onPress: () => void; label?: string; testID?: string }) {
+export function CloseButton({ onPress, label = MODAL_COPY.close, testID, variant = 'plain' }: { onPress: () => void; label?: string; testID?: string; variant?: 'plain' | 'filled' }) {
   const tokens = useTokens();
   return (
     <Pressable
@@ -111,11 +112,13 @@ export function CloseButton({ onPress, label = MODAL_COPY.close, testID }: { onP
       accessibilityLabel={label}
       hitSlop={tokens.hitSlop}
       testID={testID}
-      style={{ width: tokens.touchTarget, height: tokens.touchTarget, alignItems: 'center', justifyContent: 'center' }}
+      style={{ width: tokens.touchTarget, height: tokens.touchTarget, alignItems: 'center', justifyContent: 'center', ...(variant === 'filled' ? { borderRadius: tokens.touchTarget / 2, backgroundColor: tokens.line } : {}) }}
     >
-      <Text variant="title" {...hiddenFromA11y()}>
-        ✕
-      </Text>
+      {variant === 'filled' ? (
+        <Svg {...hiddenFromA11y()} width={20} height={20} viewBox="0 0 24 24" fill="none">
+          <Path d="M6 6l12 12M18 6 6 18" stroke={tokens.text} strokeWidth={2.2} strokeLinecap="round" />
+        </Svg>
+      ) : <Text variant="title" {...hiddenFromA11y()}>✕</Text>}
     </Pressable>
   );
 }

@@ -67,7 +67,7 @@ export function KidRoomPanel({
           </Text>
           <Button label={STORE_COPY.done} variant="secondary" onPress={onDone} />
         </View>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10, paddingHorizontal: tokens.spacing.lg, paddingBottom: tokens.spacing.lg }}>
+        <ScrollView keyboardDismissMode="on-drag" horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10, paddingHorizontal: tokens.spacing.lg, paddingBottom: tokens.spacing.lg }}>
           {tray.map((k) => (
             <Pressable
               key={k.kind}

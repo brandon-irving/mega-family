@@ -1,7 +1,8 @@
 // Look & personality screen (PLAN §3; owner, Oct 28): color, sticker, the Store parts (antenna, eyes, eye
 // color) and personality, via megas.update. Kids pick only from what they own (the Store catalog's `owned`
 // items plus the free basics, src/features/profile/wardrobe.ts); the server checks the same rule.
-import { router } from 'expo-router';
+import { useEffect, useRef } from 'react';
+import { router } from '@/features/shell/navigation';
 import { useViewer } from '@/data/useViewer';
 import { useUpdateMega } from '@/data/useMega';
 import { useStoreCatalog } from '@/data/useStore';
@@ -12,6 +13,11 @@ import { wardrobeFor } from '@/features/profile/wardrobe';
 import { PROFILE_COPY } from '@shared/config/copy';
 
 export default function LookRoute() {
+  const mounted = useRef(true);
+  useEffect(() => {
+    mounted.current = true;
+    return () => { mounted.current = false; };
+  }, []);
   const viewer = useViewer();
   const updateMega = useUpdateMega();
   // Kids only (adults get FORBIDDEN from the Store and don't need it: their looks are all free).
@@ -31,7 +37,7 @@ export default function LookRoute() {
         wardrobe={wardrobeFor(role, owned, look)}
         onSave={async ({ hex, sticker, personality, antenna, eyes, eyeColor }) => {
           await updateMega({ look: { hex, sticker, antenna, eyes, eyeColor }, personality });
-          router.back();
+          if (mounted.current) router.back();
         }}
       />
     </Sheet>

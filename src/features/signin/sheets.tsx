@@ -1,13 +1,13 @@
 // The welcome screen's two sheets (Screen 9 boards LoginSheet / LoginCreate / LoginDemo): sign in (Apple,
 // Google, then email + password) and, in dev builds only, the demo accounts. They slide up over a scrim
 // inside the welcome screen (not a route) so the walking MEGAs can hop onto the sheet's top edge.
-import { type ReactNode, useEffect, useState } from 'react';
-import { Platform, Pressable, StyleSheet, TextInput, View } from 'react-native';
-import Animated, { FadeIn, FadeOut, SlideInDown, SlideOutDown, useAnimatedStyle } from 'react-native-reanimated';
+import { type ReactNode, useState } from 'react';
+import { Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
+import Animated, { FadeIn, FadeOut, SlideInDown, SlideOutDown, useAnimatedStyle, useReducedMotion } from 'react-native-reanimated';
 import { hiddenFromA11y } from '@/ui/a11y';
 import { CloseButton, useDismiss, useSwipeDown } from '@/ui/dismiss';
 import { useSafeAreaPadding } from '@/ui/Screen';
-import { Ledge } from '@/features/walkers';
 import { AppleSignInButton } from '@/services/AppleSignInButton';
 import { appleSignInOffIos } from '@/services/auth';
 import { MegaBadge } from '@/ui/MegaBadge';
@@ -28,30 +28,25 @@ export function BottomSheet({ open, ...rest }: { open: boolean; onClose: () => v
 function SheetPanel({ onClose, label, children }: { onClose: () => void; label: string; children: ReactNode }) {
   const tokens = useTokens();
   const bottomInset = Number(useSafeAreaPadding('full').padding.paddingBottom) || 0;
+  const topInset = Number(useSafeAreaPadding('full').padding.paddingTop) || 0;
+  const reduced = useReducedMotion();
   const ms = tokens.durations.slow;
   // Owner, Oct 28: every modal closes — the ✕, the scrim, a drag down, Android back and Escape on web.
   const { handlers, dragY } = useSwipeDown(onClose);
   useDismiss(onClose, { layer: 'overlay' });
   const dragged = useAnimatedStyle(() => ({ transform: [{ translateY: dragY.value }] }));
-  // The sheet's top only becomes a ledge once it has finished sliding up (measured in place, not mid-slide).
-  const [settled, setSettled] = useState(false);
-  useEffect(() => {
-    const t = setTimeout(() => setSettled(true), ms);
-    return () => clearTimeout(t);
-  }, [ms]);
-
   return (
     <View style={StyleSheet.absoluteFill}>
-      <Animated.View entering={FadeIn.duration(ms)} exiting={FadeOut.duration(ms)} style={[StyleSheet.absoluteFill, { backgroundColor: tokens.scrim }]}>
+      <Animated.View entering={reduced ? undefined : FadeIn.duration(ms)} exiting={reduced ? undefined : FadeOut.duration(ms)} style={[StyleSheet.absoluteFill, { backgroundColor: tokens.scrim }]}>
         {/* A tap target only: screen readers get the one ✕. */}
         <Pressable style={StyleSheet.absoluteFill} onPress={onClose} accessible={false} {...hiddenFromA11y()} />
       </Animated.View>
+      <KeyboardAvoidingView behavior="padding" pointerEvents="box-none" style={[styles.fill, { paddingTop: topInset + tokens.spacing.sm, justifyContent: 'flex-end' }]}>
       <Animated.View
-        entering={SlideInDown.duration(ms)}
-        exiting={SlideOutDown.duration(ms)}
+        entering={reduced ? undefined : SlideInDown.duration(ms)}
+        exiting={reduced ? undefined : SlideOutDown.duration(ms)}
         accessibilityViewIsModal
         accessibilityLabel={label}
-        {...handlers}
         style={[
           styles.sheet,
           {
@@ -61,21 +56,22 @@ function SheetPanel({ onClose, label, children }: { onClose: () => void; label: 
             borderTopRightRadius: tokens.radii.xl,
             paddingHorizontal: tokens.spacing.xl,
             paddingTop: tokens.spacing.sm,
-            paddingBottom: bottomInset + tokens.spacing.xl,
-            gap: tokens.spacing.md,
+            maxHeight: '100%',
           },
           dragged,
         ]}
       >
-        {settled ? <Ledge id="sheet" obstacle={false} style={[styles.ledgeMark, { left: tokens.spacing.xl, right: tokens.spacing.xl }]} /> : null}
-        <View style={[styles.grabberRow, { marginBottom: tokens.spacing.xs }]}>
+        <View {...handlers} style={[styles.grabberRow, { marginBottom: tokens.spacing.xs }]}>
           <View style={[styles.grabber, { backgroundColor: tokens.line }]} />
           <View style={styles.closeSpot}>
             <CloseButton onPress={onClose} label={SIGNIN_COPY.sheet.close} testID="sheet-close" />
           </View>
         </View>
-        {children}
+        <ScrollView keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" style={{ flexShrink: 1 }} contentContainerStyle={{ gap: tokens.spacing.md, paddingBottom: bottomInset + tokens.spacing.xl }} testID="signin-sheet-scroll">
+          {children}
+        </ScrollView>
       </Animated.View>
+      </KeyboardAvoidingView>
     </View>
   );
 }
@@ -276,8 +272,7 @@ export function DemoSheetBody({ busy, onPick }: { busy: string | null; onPick: (
 
 const styles = StyleSheet.create({
   fill: { flex: 1 },
-  sheet: { position: 'absolute', left: 0, right: 0, bottom: 0, borderTopWidth: 1 },
-  ledgeMark: { position: 'absolute', left: 0, right: 0, top: 0 },
+  sheet: { width: '100%', maxWidth: 560, alignSelf: 'center', borderTopWidth: 1 },
   grabber: { alignSelf: 'center', width: 36, height: 5, borderRadius: 3 },
   grabberRow: { alignItems: 'center', justifyContent: 'center', minHeight: 44 },
   closeSpot: { position: 'absolute', right: -12, top: 0 },

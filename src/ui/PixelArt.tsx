@@ -1,16 +1,17 @@
 // Any pixel picture from the shared engine (shared/sprite: the MEGA, the Mega Bucks coin, Store furniture)
-// as crisp SVG rects, one per horizontal run of equal color — the same approach MegaSprite has always used.
+// as crisp SVG paths, one per color, keeping hundreds of pixel runs out of the React/native view tree.
 import { useMemo } from 'react';
 import { View } from 'react-native';
-import { Rect, Svg } from 'react-native-svg';
-import { runs, type Picture } from '@shared/sprite';
+import { Path, Svg } from 'react-native-svg';
+import type { Picture } from '@shared/sprite';
 import { hiddenFromA11y } from './a11y';
 import { useContentRect } from './contentRegistry';
+import { pixelPaths } from './pixelPaths';
 
 export type PixelArtProps = { picture: Picture; scale?: number; accessibilityLabel?: string; decorative?: boolean };
 
 export function PixelArt({ picture, scale = 4, accessibilityLabel, decorative = false }: PixelArtProps) {
-  const rects = useMemo(() => runs(picture), [picture]);
+  const paths = useMemo(() => pixelPaths(picture), [picture]);
   // On a walker stage, pictures (Hub, a MEGA on an invite card) are content MEGAs never cover (Oct 28).
   const { ref: contentRef, onLayout: onContentLayout, active: onStage } = useContentRect();
   // The hide-from-screen-readers props live on a wrapping View: react-native-svg forwards unknown props to
@@ -23,8 +24,8 @@ export function PixelArt({ picture, scale = 4, accessibilityLabel, decorative = 
       accessibilityLabel={decorative ? undefined : accessibilityLabel}
       accessibilityRole={decorative ? undefined : 'image'}
     >
-      {rects.map((r, i) => (
-        <Rect key={i} x={r.x} y={r.y} width={r.w} height={1} fill={r.color} />
+      {paths.map(({ color, d }) => (
+        <Path key={color} d={d} fill={color} />
       ))}
     </Svg>
   );

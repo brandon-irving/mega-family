@@ -20,6 +20,7 @@ import {
   via,
 } from './enums';
 import { holiday, productRef } from './integrationShapes';
+import { ideaCategory, ideaSource } from './ideas';
 import { author, messageBody, saveChip } from './messages';
 import {
   ALERT_SEVERITIES,
@@ -286,7 +287,14 @@ export const reminders = {
 };
 
 export const lists = { familyId, name: v.string(), scope, ownerId: v.optional(memberId) };
-export const listItems = { familyId, listId: v.id('lists'), text: v.string(), checked: v.boolean(), addedBy: v.optional(memberId), at: v.number() };
+export const listItems = { familyId, listId: v.id('lists'), text: v.string(), checked: v.boolean(), addedBy: v.optional(memberId), at: v.number(), giftForMemberId: v.optional(memberId) };
+
+// Each adult has their own collection. A source's audience can never be broadened by saving it.
+export const ideas = {
+  familyId, ownerId: memberId, title: v.string(), text: v.string(), category: ideaCategory,
+  source: ideaSource, sourceKey: v.string(), saved: v.boolean(), dismissed: v.boolean(),
+  at: v.number(), searchText: v.string(),
+};
 
 // ---------- proactive and notifications ----------
 
@@ -998,6 +1006,7 @@ export const TABLES = {
   reminders,
   lists,
   listItems,
+  ideas,
   familyEvents,
   candidates,
   notifications,
