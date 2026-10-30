@@ -94,8 +94,15 @@ export async function requestPushRegistration(): Promise<PushRegistration | null
  * the documented way to get the value `push.register` actually expects. */
 export function subscribeToPushTokenChanges(onNewToken: (registration: PushRegistration) => void): EventSubscription | null {
   if (Platform.OS !== 'ios' && Platform.OS !== 'android') return null;
-  return Notifications.addPushTokenListener(() => {
-    void Notifications.getExpoPushTokenAsync({ projectId: IDENTITY.easProjectId })
+  // Owner device test, Oct 29 (iOS killed the app for memory ~40 s after launch): getExpoPushTokenAsync()
+  // fetches the device token itself, which fires this listener again — an endless loop the SDK 58 docs warn
+  // about. Hand it the token this event carries, and ignore an event for a token already handled.
+  let lastDeviceToken: string | null = null;
+  return Notifications.addPushTokenListener((devicePushToken) => {
+    const key = `${devicePushToken.type}:${String(devicePushToken.data)}`;
+    if (key === lastDeviceToken) return;
+    lastDeviceToken = key;
+    void Notifications.getExpoPushTokenAsync({ projectId: IDENTITY.easProjectId, devicePushToken })
       .then((fresh) => onNewToken({ token: fresh.data, platform: Platform.OS as PlatformEnum }))
       .catch(() => {});
   });
