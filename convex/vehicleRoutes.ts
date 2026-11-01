@@ -32,8 +32,10 @@ export const webhook = httpAction(async (ctx, request) => {
   }
   if (!(await provider.webhook.verify(raw, request.headers))) return new Response(null, { status: 401 });
   if (event.kind === 'state') {
-    const vehicleId = await ctx.runQuery(internal.vehicles.byProviderVehicle, { providerVehicleId: event.providerVehicleId, providerUserId: event.providerUserId });
-    if (vehicleId) await ctx.runMutation(internal.vehicles.storeState, { vehicleId, state: event.state, eventId: event.eventId, ...(event.sequence !== undefined ? { sequence: event.sequence } : {}) });
+    const linked = await ctx.runQuery(internal.vehicles.byProviderVehicle, { providerVehicleId: event.providerVehicleId, providerUserId: event.providerUserId });
+    // Re-read with the car's mode so simulator-only quirks apply (VEHICLES.simulatedTiresArePsi).
+    const parsed = linked?.simulated ? provider.webhook.parse(json, { simulated: true }) : event;
+    if (linked && parsed.kind === 'state') await ctx.runMutation(internal.vehicles.storeState, { vehicleId: linked.vehicleId, state: parsed.state, eventId: parsed.eventId, ...(parsed.sequence !== undefined ? { sequence: parsed.sequence } : {}) });
   }
   return new Response(JSON.stringify({ status: 'received' }), { status: 200, headers: JSON_HEADERS });
 });

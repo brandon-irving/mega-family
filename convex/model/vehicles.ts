@@ -81,6 +81,7 @@ export async function whereLabel(ctx: Ctx, familyId: Id<'families'>, location?: 
     if (!best || miles < best.miles) best = { label: p.label, miles };
   }
   if (!best) return '';
+  if (best.miles > VEHICLES.nearPlaceMaxMiles) return 'not near a saved place';
   return best.miles <= VEHICLES.atPlaceMiles ? `at ${best.label}` : `${Math.round(best.miles * 10) / 10} mi from ${best.label}`;
 }
 

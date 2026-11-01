@@ -76,6 +76,11 @@ export const VEHICLES = {
   },
   /** A saved family place counts as where the car is when it's within this distance. */
   atPlaceMiles: 0.25,
+  /** Beyond this from every saved place, readers see "not near a saved place" instead of a far-off distance. */
+  nearPlaceMaxMiles: 30,
+  /** Smartcar's Vehicle Simulator labels tire pressures `kPa` but sends psi numbers (32, 35; probed Oct 31). Real
+   * cars send real kPa (~220), so this applies to simulated cars only. */
+  simulatedTiresArePsi: true,
   /** An approval left unanswered this long can no longer run. */
   commandApprovalMinutes: 30,
 } as const;

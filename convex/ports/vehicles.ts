@@ -21,6 +21,12 @@ export interface VehicleConnection {
 export interface VehicleRef {
   providerVehicleId: string;
   providerUserId: string;
+  /** Lets the adapter apply simulator-only quirks (VEHICLES.simulatedTiresArePsi). */
+  mode?: 'live' | 'simulated';
+}
+
+export interface ParseOptions {
+  simulated?: boolean;
 }
 
 export type VehicleCommandInput =
@@ -48,6 +54,6 @@ export interface Vehicles {
     verify(rawBody: string, headers: Headers): Promise<boolean>;
     /** The body to answer a VERIFY challenge with, or null when the provider isn't configured. */
     answerChallenge(challenge: string): Promise<Record<string, string> | null>;
-    parse(json: unknown): VehicleWebhookEvent;
+    parse(json: unknown, opts?: ParseOptions): VehicleWebhookEvent;
   };
 }

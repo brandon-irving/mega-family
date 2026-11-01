@@ -14,7 +14,7 @@ import { VEHICLES } from '../../shared/config/vehicles';
 import type { TirePressures, VehicleState } from '../../shared/domain/vehicles';
 import { clock } from '../ports/clock';
 import type { IntegrationFailure, IntegrationResult } from '../ports/integrationResult';
-import type { VehicleCommandInput, VehicleConnection, VehicleRef, Vehicles, VehicleWebhookEvent } from '../ports/vehicles';
+import type { ParseOptions, VehicleCommandInput, VehicleConnection, VehicleRef, Vehicles, VehicleWebhookEvent } from '../ports/vehicles';
 
 const KM_TO_MI = 0.621371;
 const KPA_TO_PSI = 0.145038;
@@ -43,9 +43,9 @@ function percent(body: Raw): number | null {
   return round(body.unit === undefined && value <= 1 ? value * 100 : value);
 }
 
-function tires(body: Raw): TirePressures | null {
+function tires(body: Raw, simulated: boolean): TirePressures | null {
   const values = Array.isArray(body.values) ? body.values : [];
-  const unit = String(body.unit ?? 'kPa').toLowerCase();
+  const unit = simulated && VEHICLES.simulatedTiresArePsi ? 'psi' : String(body.unit ?? 'kPa').toLowerCase();
   const out: TirePressures = {};
   for (const raw of values) {
     const t = obj(raw);
@@ -59,7 +59,7 @@ function tires(body: Raw): TirePressures | null {
 }
 
 /** Signals → the normalized state. Unknown codes and errored signals are skipped, never guessed. */
-export function stateFromSignals(signals: RawSignal[], fallbackReadAt: number): VehicleState {
+export function stateFromSignals(signals: RawSignal[], fallbackReadAt: number, opts: ParseOptions = {}): VehicleState {
   const s = VEHICLES.signals;
   const state: Omit<VehicleState, 'readAt'> = {};
   let readAt = 0;
@@ -74,7 +74,7 @@ export function stateFromSignals(signals: RawSignal[], fallbackReadAt: number): 
       case s.fuelRange:
       case s.batteryRange: { const v = miles(body); if (v !== null) state.rangeMiles = v; break; }
       case s.odometer: { const v = miles(body); if (v !== null) state.odometerMiles = v; break; }
-      case s.tires: { const v = tires(body); if (v) state.tiresPsi = v; break; }
+      case s.tires: { const v = tires(body, !!opts.simulated); if (v) state.tiresPsi = v; break; }
       case s.isLocked: if (typeof body.value === 'boolean') state.isLocked = body.value; break;
       case s.isCharging: if (typeof body.value === 'boolean') state.isCharging = body.value; break;
       case s.location: {
@@ -248,7 +248,7 @@ export async function verifyHmacHex(secretValue: string, message: string, signat
   return crypto.subtle.verify('HMAC', await hmacKey(secretValue, ['verify']), bytes, new TextEncoder().encode(message));
 }
 
-export function parseWebhook(json: unknown): VehicleWebhookEvent {
+export function parseWebhook(json: unknown, opts: ParseOptions = {}): VehicleWebhookEvent {
   const b = obj(json);
   if (!b) return { kind: 'ignored', reason: 'not an object' };
   const eventId = str(b.eventId) ?? undefined;
@@ -264,7 +264,7 @@ export function parseWebhook(json: unknown): VehicleWebhookEvent {
   const meta = obj(b.meta);
   const deliveredAt = isoMs(meta?.deliveredAt) ?? 0;
   const sequence = num(meta?.sequence);
-  return { kind: 'state', eventId, ...(sequence !== null ? { sequence } : {}), providerVehicleId, providerUserId, state: stateFromSignals(webhookSignals(data?.signals), deliveredAt) };
+  return { kind: 'state', eventId, ...(sequence !== null ? { sequence } : {}), providerVehicleId, providerUserId, state: stateFromSignals(webhookSignals(data?.signals), deliveredAt, opts) };
 }
 
 export const smartcarVehicles: Vehicles = {
@@ -298,7 +298,7 @@ export const smartcarVehicles: Vehicles = {
     if (!res.ok) return res;
     const signals = restSignals(res.json);
     if (!signals.length) return { ok: false, failure: 'no_result', detail: 'no signals' };
-    return { ok: true, state: stateFromSignals(signals, clock.realNow()) };
+    return { ok: true, state: stateFromSignals(signals, clock.realNow(), { simulated: ref.mode === 'simulated' }) };
   },
 
   async command(ref: VehicleRef, input: VehicleCommandInput) {

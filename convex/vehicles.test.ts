@@ -44,6 +44,13 @@ describe('Smartcar adapter parsing', () => {
     expect(s).toEqual({ fuelPct: 12, rangeMiles: 62, odometerMiles: 621, tiresPsi: { frontLeft: 24.9, rearRight: 33.4 }, isLocked: false, location: { lat: 40.1, lng: -73.2 }, readAt: 5_000 });
   });
 
+  test("live fix: the simulator labels psi numbers 'kPa'; simulated cars read them as psi, real cars still convert", () => {
+    const tiresBody = { unit: 'kPa', values: [{ row: 0, column: 0, tirePressure: 32 }, { row: 1, column: 1, tirePressure: 220 }] };
+    const sig = [{ code: 'wheel-tires', body: tiresBody, ok: true }];
+    expect(stateFromSignals(sig, 1, { simulated: true }).tiresPsi).toEqual({ frontLeft: 32, rearRight: 220 });
+    expect(stateFromSignals(sig, 1).tiresPsi).toEqual({ frontLeft: 4.6, rearRight: 31.9 });
+  });
+
   test('webhook: VERIFY and VEHICLE_STATE payloads (v4)', () => {
     expect(parseWebhook({ eventId: 'e0', eventType: 'VERIFY', data: { challenge: 'abc' } })).toEqual({ kind: 'verify', challenge: 'abc' });
     const e = parseWebhook({
@@ -352,6 +359,15 @@ describe('webhook route', () => {
     expect(car?.state?.tiresPsi).toEqual({ frontLeft: 21 });
   });
 
+  test("live fix: a simulated car's 'kPa' tire numbers are psi in a webhook too", async () => {
+    const s = await setup();
+    await linkFake(s);
+    const body = state('e9', 9, 24);
+    (body.data.signals[0].body as { unit: string }).unit = 'kPa';
+    await post(s, body);
+    expect((await s.t.run((ctx) => ctx.db.query('vehicles').first()))?.state?.tiresPsi).toEqual({ frontLeft: 24 });
+  });
+
   test('a delivery for an unlinked car, or through a different grant, is acknowledged and dropped', async () => {
     const s = await setup();
     await linkFake(s);
@@ -381,6 +397,12 @@ describe('agent tools and MCP', () => {
     expect(r.resultText).toContain('Nothing happens until they tap Approve');
     expect(s.fake.calls.filter((c) => c.startsWith('command:'))).toEqual([]);
     expect((await s.t.run((ctx) => ctx.db.query('vehicleCommands').collect())).map((c) => c.status)).toEqual(['pending']);
+  });
+
+  test('live fix: a car far from every saved place is "not near a saved place", not thousands of miles from one', async () => {
+    const s = await setup();
+    const { whereLabel } = await import('./model/vehicles');
+    expect(await s.t.run((ctx) => whereLabel(ctx, s.familyId, { lat: 37.77, lng: -122.42 }))).toBe('not near a saved place');
   });
 
   test('stateSentence names the low tire', () => {

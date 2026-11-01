@@ -240,10 +240,10 @@ export const insertLinked = internalMutation({
 
 export const refInfo = internalQuery({
   args: { vehicleId: v.id('vehicles') },
-  returns: v.union(v.null(), v.object({ providerVehicleId: v.string(), providerUserId: v.string() })),
+  returns: v.union(v.null(), v.object({ providerVehicleId: v.string(), providerUserId: v.string(), mode: v.union(v.literal('live'), v.literal('simulated')) })),
   handler: async (ctx, { vehicleId }) => {
     const c = await ctx.db.get(vehicleId);
-    return c ? { providerVehicleId: c.providerVehicleId, providerUserId: c.providerUserId } : null;
+    return c ? { providerVehicleId: c.providerVehicleId, providerUserId: c.providerUserId, mode: c.mode } : null;
   },
 });
 
@@ -274,11 +274,11 @@ export async function refreshNow(ctx: ActionCtx, vehicleId: Id<'vehicles'>): Pro
 
 export const byProviderVehicle = internalQuery({
   args: { providerVehicleId: v.string(), providerUserId: v.string() },
-  returns: v.union(v.null(), v.id('vehicles')),
+  returns: v.union(v.null(), v.object({ vehicleId: v.id('vehicles'), simulated: v.boolean() })),
   handler: async (ctx, { providerVehicleId, providerUserId }) => {
     const row = await ctx.db.query('vehicles').withIndex('by_provider_vehicle', (q) => q.eq('provider', VEHICLES.provider).eq('providerVehicleId', providerVehicleId)).first();
     // The webhook's user must be the one the car was linked through, or the delivery is about someone else's grant.
-    return row && row.providerUserId === providerUserId ? row._id : null;
+    return row && row.providerUserId === providerUserId ? { vehicleId: row._id, simulated: row.mode === 'simulated' } : null;
   },
 });
 
