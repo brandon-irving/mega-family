@@ -6,7 +6,7 @@ import { VEHICLE_COPY, VEHICLES } from '../shared/config/vehicles';
 import { API } from '../shared/domain/api';
 import { vehicleCommandKind, vehicleSharing, vehicleState, type VehicleState } from '../shared/domain/vehicles';
 import { internal } from './_generated/api';
-import type { Doc, Id } from './_generated/dataModel';
+import type { Id } from './_generated/dataModel';
 import { action, internalAction, internalMutation, internalQuery, mutation, query, type ActionCtx } from './_generated/server';
 import { getVehicles } from './adapters/registry';
 import { pick } from './model/define';

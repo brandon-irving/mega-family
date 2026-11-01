@@ -26,7 +26,7 @@ function check(label: string, ok: boolean, detail = '') {
 }
 
 async function main() {
-  for (const name of Object.values(VEHICLES.env)) {
+  for (const name of [VEHICLES.env.clientId, VEHICLES.env.clientSecret, VEHICLES.env.managementToken]) {
     if (!process.env[name]) {
       console.error(`${name} is not set (run this through scripts/secrets.mjs)`);
       process.exit(2);
