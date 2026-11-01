@@ -17,6 +17,8 @@ import schema from '../../convex/schema';
 import { buildModules } from './convexModules';
 
 const WEEK = '2026-10-25';
+const makeBackend = () => convexTest(schema, buildModules());
+type TestBackend = ReturnType<typeof makeBackend>;
 const allowLiveCommands = process.argv.includes('--live-commands');
 let failures = 0;
 
@@ -37,10 +39,10 @@ async function main() {
   const conns = await smartcarVehicles.listConnections();
   check('token + list connections', conns.ok, conns.ok ? `${conns.connections.length} connected car(s)` : `${conns.failure} ${conns.detail ?? ''}`);
   if (!conns.ok) return;
-  const t = convexTest(schema, buildModules());
+  const t = makeBackend();
   __setVehiclesForTests(smartcarVehicles);
   await webhookChecks(t);
-  await connectLinkCheck(convexTest(schema, buildModules())); // its own backend: the seed's sample logins are unique per backend
+  await connectLinkCheck(makeBackend()); // its own backend: the seed's sample logins are unique per backend
   if (!conns.connections.length) {
     console.log('\nNo cars are connected to this Smartcar application yet. Create one in Dashboard → Simulator, then rerun for the car checks.');
     failures++;
@@ -87,7 +89,7 @@ async function main() {
 }
 
 /** MEGA's Connect link for a member: built with the real Application ID and accepted by Smartcar's Connect page. */
-async function connectLinkCheck(t: ReturnType<typeof convexTest>) {
+async function connectLinkCheck(t: TestBackend) {
   if (!process.env[VEHICLES.env.applicationId]) {
     console.log('SKIP  connect link (SMART_CAR_APPLICATION_ID not set)');
     return;
@@ -104,7 +106,7 @@ async function connectLinkCheck(t: ReturnType<typeof convexTest>) {
 const managementKey = () => process.env[VEHICLES.env.managementToken]!;
 
 /** Needs no car: the VERIFY answer with the real Management Token, and a forged signature is rejected. */
-async function webhookChecks(t: ReturnType<typeof convexTest>) {
+async function webhookChecks(t: TestBackend) {
   const challenge = await t.fetch(VEHICLES.webhookPath, { method: 'POST', body: JSON.stringify({ eventId: 'live-verify', eventType: 'VERIFY', data: { challenge: 'live-check' } }) });
   check('webhook VERIFY answer', challenge.status === 200 && (await challenge.json()).challenge === (await hmacHex(managementKey(), 'live-check')));
   const body = JSON.stringify({ eventId: 'forged', eventType: 'VEHICLE_STATE', data: { user: { id: 'u' }, vehicle: { id: 'v' }, signals: [] }, meta: {} });
@@ -113,7 +115,7 @@ async function webhookChecks(t: ReturnType<typeof convexTest>) {
 }
 
 /** After linking: a delivery signed with the real Management Token is stored and raises the low-tire alert. */
-async function signedDeliveryCheck(t: ReturnType<typeof convexTest>, car: { providerVehicleId: string; providerUserId: string }) {
+async function signedDeliveryCheck(t: TestBackend, car: { providerVehicleId: string; providerUserId: string }) {
   const body = JSON.stringify({
     eventId: 'live-state', eventType: 'VEHICLE_STATE',
     data: { user: { id: car.providerUserId }, vehicle: { id: car.providerVehicleId }, triggers: [], signals: [{ code: 'wheel-tires', body: { unit: 'psi', values: [{ row: 0, column: 0, tirePressure: 21 }] } }] },
