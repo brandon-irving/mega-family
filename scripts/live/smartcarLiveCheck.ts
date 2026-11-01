@@ -40,6 +40,7 @@ async function main() {
   const t = convexTest(schema, buildModules());
   __setVehiclesForTests(smartcarVehicles);
   await webhookChecks(t);
+  await connectLinkCheck(convexTest(schema, buildModules())); // its own backend: the seed's sample logins are unique per backend
   if (!conns.connections.length) {
     console.log('\nNo cars are connected to this Smartcar application yet. Create one in Dashboard → Simulator, then rerun for the car checks.');
     failures++;
@@ -83,6 +84,21 @@ async function main() {
   }
 
   await signedDeliveryCheck(t, car);
+}
+
+/** MEGA's Connect link for a member: built with the real Application ID and accepted by Smartcar's Connect page. */
+async function connectLinkCheck(t: ReturnType<typeof convexTest>) {
+  if (!process.env[VEHICLES.env.applicationId]) {
+    console.log('SKIP  connect link (SMART_CAR_APPLICATION_ID not set)');
+    return;
+  }
+  const { familyId } = await t.mutation(internal.seed.sampleFamily, { weekOf: WEEK });
+  const admin = await t.run(async (ctx) => (await ctx.db.query('members').withIndex('by_family', (q) => q.eq('familyId', familyId)).collect()).find((m) => m.role === 'admin')!);
+  const { url } = await t.withIdentity({ subject: admin.authId! }).action(api.vehicles.connectUrl, { mode: 'simulated' });
+  const res = await fetch(url, { redirect: 'manual' });
+  const where = res.headers.get('location') ?? '';
+  const rejected = res.status >= 400 || /error=/.test(where);
+  check('connect link accepted by Smartcar', !rejected, `HTTP ${res.status}${where ? ` → ${where.split('?')[0]}${/error=/.test(where) ? ` (${new URL(where, url).searchParams.get('error')}: ${new URL(where, url).searchParams.get('error_description')})` : ''}` : ''}`);
 }
 
 const managementKey = () => process.env[VEHICLES.env.managementToken]!;
