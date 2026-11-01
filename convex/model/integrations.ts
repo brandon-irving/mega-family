@@ -1,3 +1,4 @@
+import { maybeSuggestEventShare } from './layers';
 import { canConnectAccounts } from '../../shared/ageGroups';
 import { clock as permissionClock } from '../ports/clock';
 // G5 (CONTRACT v0.17): connected accounts — the shared logic behind `integrations.*`, `mail.*`, the OAuth
@@ -241,6 +242,11 @@ export async function applyExternalEvents(
         await ctx.db.patch(plan._id, { eventId: importedId, ownsEvent: false });
         await ctx.db.delete(mailEvent._id);
       }
+    }
+    if (integration.lastSyncAt !== undefined) {
+      const event = await ctx.db.get(importedId);
+      const family = await ctx.db.get(integration.familyId);
+      if (event && family) await maybeSuggestEventShare(ctx, event, family.timezone, await permissionClock.now(ctx, integration.familyId));
     }
     added++;
   }

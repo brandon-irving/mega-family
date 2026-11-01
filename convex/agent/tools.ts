@@ -1,4 +1,5 @@
-import { offerGoogleSetup } from '../model/googleSetup';
+import { recommendConnection } from '../model/connectionRecommendations';
+import { offerGoogleSetup, requestGoogleCheck } from '../model/googleSetup';
 import { ageGroupOf } from '../../shared/ageGroups';
 import { executeCreationTool } from '../model/creationTools';
 // Executes one tool call (PLAN.md → Chat tools; task brief: "Tool handlers get the viewer from the server,
@@ -19,7 +20,7 @@ import { decideLearning, type LearningOp } from '../model/learningPolicy';
 import { createRequestCandidate } from '../model/proactive';
 import { calendarChanged, eventEnd, patchEvent } from '../model/eventWrites';
 import { placeByLabel } from '../model/places';
-import { maybeSuggestEventShare } from '../model/layers';
+import { maybeSuggestEventShare, notifyParentsOfTeenEvent } from '../model/layers';
 import { canSeeEvent, canSeeScoped } from '../model/visibility';
 import { getOrCreateOwnThread } from '../model/threads';
 import { recall } from '../model/recall';
@@ -204,7 +205,7 @@ async function toolEventsCreate(ctx: any, caller: Caller, raw: Record<string, un
   // GD: a private event may get a "Share it with the household?" suggestion (to its owner only); a
   // household one re-runs Hub's clash check.
   if (scope === 'personal') await maybeSuggestEventShare(ctx, (await ctx.db.get(eventId))!, caller.tz, now);
-  else await calendarChanged(ctx, caller.familyId, now);
+  else { await calendarChanged(ctx, caller.familyId, now); await notifyParentsOfTeenEvent(ctx, (await ctx.db.get(eventId))!, now); }
   return scope === 'personal' ? `created event "${title}" on your private calendar (only you can see it)` : `created event "${title}"`;
 }
 
@@ -439,6 +440,7 @@ export interface DispatchToolArgs {
  * MEGA-to-MEGA request's "Yes" button runs through this SAME handler a chat tool call would (PLAN.md ->
  * Proactive engine step 6). */
 export async function dispatchTool(ctx: MutationCtx, args: DispatchToolArgs): Promise<{ ok: boolean; resultText: string }> {
+  if (args.replyMessageId && (await ctx.db.get(args.replyMessageId))?.stoppedAt !== undefined) return { ok: false, resultText: 'Response stopped by the owner.' };
   const member = await ctx.db.get(args.memberId);
   if (!member || member.familyId !== args.familyId) return { ok: false, resultText: 'caller is not a member of this family' };
   const teen = ageGroupOf(member, new Date(clock.realNow()).toISOString().slice(0,10)) === 'teen';
@@ -460,9 +462,16 @@ export async function dispatchTool(ctx: MutationCtx, args: DispatchToolArgs): Pr
 
   try {
     switch (args.name) {
+      case 'connections_recommend':
+        if (typeof raw.context !== 'string' || raw.context.length > 2000 || Object.keys(raw).some(k => k !== 'context')) throw new Error('Provide only the current context, up to 2000 characters.');
+        return { ok: true, resultText: await recommendConnection(ctx, member, raw.context, now) ? 'A context-based connection recommendation is in chat. The person chooses whether to explore setup. Continue helping without requiring it.' : 'No new eligible connection recommendation. It may already be connected, offered or declined, or not relevant/available. Do not repeat an offer or claim accounts cannot be connected.' };
+      case 'google_check':
+        if (Object.keys(raw).length) throw new Error('Google check takes no arguments.');
+        return { ok: true, resultText: await requestGoogleCheck(ctx, member, args.threadId) };
       case 'google_setup':
         if (Object.keys(raw).length) throw new Error('Google setup takes no arguments.');
         return { ok: true, resultText: await offerGoogleSetup(ctx, member, args.threadId, now) };
+      case 'mega_rename':
       case 'mega_draft_cancel':
       case 'mega_draft_get':
       case 'mega_draft_update':

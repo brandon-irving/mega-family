@@ -12,7 +12,7 @@ import type { Infer } from 'convex/values';
 import type { messageDoc } from '@shared/domain/api';
 import type { BlockAnswer } from '@shared/domain/messages';
 import type { Reaction, Scope } from '@shared/domain/enums';
-import { messageBubbleColors } from '@shared/config/theme';
+import { messageBubbleColors, USER_BUBBLE } from '@shared/config/theme';
 import { Bubble } from '@/ui/Bubble';
 import { Text } from '@/ui/Text';
 import { useTokens } from '@/ui/theme';
@@ -108,7 +108,7 @@ export const MessageRow = memo(function MessageRow({
             ones ("Answered") wrapped mid-word (owner, Oct 28). */}
         <View testID="message-column" style={{ flex: isMine ? undefined : 1, flexShrink: 1, maxWidth: message.body.type === 'text' || message.body.type === 'answer' ? CHAT_UX.bubbleMaxWidth : '100%' }}>
           {message.body.type === 'text' ? <Pressable accessibilityLabel={`${isMine ? 'You' : 'MEGA'}: ${messageText}. Hold for actions`} onLongPress={() => { setActionsOpen(true); setSelecting(false); setActionError(null); }}>
-            <Bubble mine={isMine}>{content}</Bubble>
+            <Bubble mine={isMine} accent={!isMine ? mega?.hex : undefined}>{content}</Bubble>
           </Pressable> : content}
           {message.reaction && <Text variant="caption" color="muted">{CHAT_UX.reactions.find(reaction => reaction.id === message.reaction)?.selected}</Text>}
         </View>
@@ -186,10 +186,11 @@ function Body({
   const tokens = useTokens();
   const body = message.body;
   // The own bubble background is darkened by the same shared palette helper.
-  const onAccentText = messageBubbleColors(tokens.accent).text;
+  const onAccentText = isMine ? USER_BUBBLE.text : messageBubbleColors(mega?.hex ?? tokens.accent).text;
+  const tinted = isMine || !!mega;
   switch (body.type) {
     case 'text':
-      return <Text style={isMine ? { color: onAccentText } : undefined}>{body.text}</Text>;
+      return <Text style={tinted ? { color: onAccentText } : undefined}>{body.text}</Text>;
     case 'block': {
       // Replace a completed card with its answer without an entrance or layout animation.
       return (
@@ -200,8 +201,8 @@ function Body({
     }
     case 'answer':
       return (
-        <Bubble mine={isMine}>
-          <Text style={isMine ? { color: onAccentText } : undefined}>{body.label}</Text>
+        <Bubble mine={isMine} accent={!isMine ? mega?.hex : undefined}>
+          <Text style={tinted ? { color: onAccentText } : undefined}>{body.label}</Text>
         </Bubble>
       );
     case 'card':

@@ -84,15 +84,15 @@ export function StoreScreenView({ megaName, balance, items, look, initialTab = '
   const shownPreview = sheet.kind === 'bought' && bought ? tryOn(look, bought.tile) : preview;
 
   const barButton = !bar ? null : bar.kind === 'wearing' ? (
-    <Button label={STORE_COPY.wearing} variant="secondary" disabled size={{ height: 56, fontSize: tokens.type.title.fontSize }} />
+    <Button label={STORE_COPY.wearing} variant="secondary" disabled size={tokens.buttonSize} />
   ) : bar.kind === 'inRoom' ? (
-    <Button label={STORE_COPY.inRoom} variant="secondary" disabled size={{ height: 56, fontSize: tokens.type.title.fontSize }} />
+    <Button label={STORE_COPY.inRoom} variant="secondary" disabled size={tokens.buttonSize} />
   ) : bar.kind === 'wear' ? (
-    <Button label={STORE_COPY.wearIt} variant="secondary" onPress={() => onWear(preview)} loading={busy} size={{ height: 56, fontSize: tokens.type.title.fontSize }} />
+    <Button label={STORE_COPY.wearIt} variant="secondary" onPress={() => onWear(preview)} loading={busy} size={tokens.buttonSize} />
   ) : bar.kind === 'short' ? (
-    <Button label={fillCopy(STORE_COPY.needMore, { n: bar.short })} variant="secondary" disabled size={{ height: 56, fontSize: tokens.type.title.fontSize }} />
+    <Button label={fillCopy(STORE_COPY.needMore, { n: bar.short })} variant="secondary" disabled size={tokens.buttonSize} />
   ) : (
-    <Button label={fillCopy(STORE_COPY.buyFor, { n: bar.price })} onPress={() => setSheet({ kind: 'confirm' })} size={{ height: 56, fontSize: tokens.type.title.fontSize }} />
+    <Button label={fillCopy(STORE_COPY.buyFor, { n: bar.price })} onPress={() => setSheet({ kind: 'confirm' })} size={tokens.buttonSize} />
   );
   const barNote = !bar ? null : bar.kind === 'short' ? STORE_COPY.needNote : bar.kind === 'buy' ? fillCopy(STORE_COPY.afterNote, { have: balance, left: bar.left }) : null;
 
@@ -214,7 +214,7 @@ export function StoreScreenView({ megaName, balance, items, look, initialTab = '
                   <Button
                     label={STORE_COPY.buyIt}
                     loading={busy}
-                    size={{ height: 56, fontSize: tokens.type.title.fontSize }}
+                    size={tokens.buttonSize}
                     onPress={async () => {
                       if (await onBuy(sel)) {
                         setBought({ tile: sel, name });
@@ -222,15 +222,15 @@ export function StoreScreenView({ megaName, balance, items, look, initialTab = '
                       }
                     }}
                   />
-                  <Button label={STORE_COPY.notNow} variant="secondary" disabled={busy} size={{ height: 56, fontSize: tokens.type.title.fontSize }} onPress={() => setSheet({ kind: 'none' })} />
+                  <Button label={STORE_COPY.notNow} variant="secondary" disabled={busy} size={tokens.buttonSize} onPress={() => setSheet({ kind: 'none' })} />
                 </>
               ) : sheet.furniture ? (
                 <>
-                  <Button label={STORE_COPY.decorateNow} size={{ height: 56, fontSize: tokens.type.title.fontSize }} onPress={onDecorate} />
-                  <Button label={STORE_COPY.keepShopping} variant="secondary" size={{ height: 56, fontSize: tokens.type.title.fontSize }} onPress={() => setSheet({ kind: 'none' })} />
+                  <Button label={STORE_COPY.decorateNow} size={tokens.buttonSize} onPress={onDecorate} />
+                  <Button label={STORE_COPY.keepShopping} variant="secondary" size={tokens.buttonSize} onPress={() => setSheet({ kind: 'none' })} />
                 </>
               ) : (
-                <Button label={STORE_COPY.done} variant="secondary" size={{ height: 56, fontSize: tokens.type.title.fontSize }} onPress={() => setSheet({ kind: 'none' })} />
+                <Button label={STORE_COPY.done} variant="secondary" size={tokens.buttonSize} onPress={() => setSheet({ kind: 'none' })} />
               )}
             </View>
             {error ? (

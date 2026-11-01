@@ -20,7 +20,7 @@ import { CTA_SIZES, WORDMARK } from '@shared/config/theme';
 
 /** A sign-in screen: the Midnight background edge to edge, safe-area padding, and the walking MEGAs.
  * `presentation` (src/ui/Screen.tsx): 'full' for Welcome and Start, 'sheet' for the invite and join modals. */
-export function SignInFrame({ scene, busy, children, overlay, active = true, social = false, presentation = 'full', testID }: { scene: Scene; busy?: boolean; children: ReactNode; overlay?: ReactNode; active?: boolean; social?: boolean; presentation?: Presentation; testID?: string }) {
+export function SignInFrame({ scene, busy, children, overlay, active = true, social = false, walkers = true, presentation = 'full', testID }: { scene: Scene; busy?: boolean; children: ReactNode; overlay?: ReactNode; active?: boolean; social?: boolean; walkers?: boolean; presentation?: Presentation; testID?: string }) {
   const tokens = useTokens();
   const focused = useIsFocused();
   const [keyboardVisible, setKeyboardVisible] = useState(false);
@@ -29,9 +29,7 @@ export function SignInFrame({ scene, busy, children, overlay, active = true, soc
     const hide = Keyboard.addListener('keyboardDidHide', () => setKeyboardVisible(false));
     return () => { show.remove(); hide.remove(); };
   }, []);
-  return (
-    <View style={[styles.fill, { backgroundColor: tokens.bg }]} testID={testID}>
-      <WalkerStage scene={scene} busy={busy} overlay={overlay} active={active && focused && !keyboardVisible} social={social}>
+  const content = (
         <View style={styles.fill} {...hiddenFromA11y(!active)}>
         <SafeFrame presentation={presentation} testID={testID ? `${testID}-safe` : undefined}>
           <KeyboardAvoidingView behavior="padding" style={styles.fill}>
@@ -39,9 +37,8 @@ export function SignInFrame({ scene, busy, children, overlay, active = true, soc
           </KeyboardAvoidingView>
         </SafeFrame>
         </View>
-      </WalkerStage>
-    </View>
   );
+  return <View style={[styles.fill, { backgroundColor: tokens.bg }]} testID={testID}>{walkers ? <WalkerStage scene={scene} busy={busy} overlay={overlay} active={active && focused && !keyboardVisible} social={social}>{content}</WalkerStage> : content}</View>;
 }
 
 function SignInScroll({ children }: { children: ReactNode }) {

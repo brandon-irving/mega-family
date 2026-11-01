@@ -1,3 +1,4 @@
+import { EventCard } from '@/features/calendar/EventCard';
 import { MailPlanCard } from '@/features/scheduling/MailPlanCard';
 // Renders every result Card kind (CONTRACT §3): event, reminder, list, search, weather, travel,
 // request and notification. Pure presentational — the "visibleTo" scope line is shared by the kinds
@@ -61,12 +62,7 @@ export function ResultCard({ card, onRespondRequest, onAnswerNotification, notif
 
   switch (card.kind) {
     case 'event':
-      return (
-        <Card>
-          <Text variant="label">Event saved</Text>
-          {visibleTo}
-        </Card>
-      );
+      return <EventCard eventId={card.eventId} />;
     case 'reminder':
       return (
         <Card>

@@ -2,6 +2,7 @@
 // personalities each with a sample line, via megas.update. The MEGA blinks here (no floating anim).
 import { useRef, useState } from 'react';
 import { Pressable, TextInput, View } from 'react-native';
+import { CHARACTER_EDITOR as EDITOR } from '@shared/config/characterEditor';
 import { COLORS, HEX_RE, PERSONALITIES } from '@shared/config/looks';
 import { STICKERS } from '@shared/config/ids';
 import type { Personality } from '@shared/domain/enums';
@@ -20,10 +21,12 @@ export type LookPersonalityValue = { hex: string; sticker: StickerId; personalit
 
 /** `wardrobe` (src/features/profile/wardrobe.ts): what this person may pick, including Store parts. Without it
  * (the join flow's "Change my MEGA") only the preset colors, any hex, the stickers and personality show. */
-export type LookPersonalityContentProps = { value: LookPersonalityValue; wardrobe?: Wardrobe; onSave: (value: LookPersonalityValue) => Promise<unknown> | void };
+export type LookPersonalityContentProps = { value: LookPersonalityValue; wardrobe?: Wardrobe; name?: string; characterMode?: boolean; saveLabel?: string; onSave: (value: LookPersonalityValue & { name?: string }) => Promise<unknown> | void };
 
-export function LookPersonalityContent({ value, wardrobe, onSave }: LookPersonalityContentProps) {
+export function LookPersonalityContent({ value, wardrobe, onSave, name: initialName, characterMode = false, saveLabel = 'Save' }: LookPersonalityContentProps) {
   const tokens = useTokens();
+  const [name, setName] = useState(initialName ?? '');
+  const [category, setCategory] = useState<string>('styles');
   const [busy, setBusy] = useState(false);
   const saving = useRef(false);
   const [error, setError] = useState<string | null>(null);
@@ -42,7 +45,7 @@ export function LookPersonalityContent({ value, wardrobe, onSave }: LookPersonal
     saving.current = true;
     setBusy(true);
     setError(null);
-    try { await onSave(wardrobe ? { hex, sticker, personality, antenna, eyes, eyeColor } : { hex, sticker, personality }); }
+    try { await onSave({ ...(wardrobe ? { hex, sticker, personality, antenna, eyes, eyeColor } : { hex, sticker, personality }), ...(initialName !== undefined ? { name: name.trim() } : {}) }); }
     catch (err) { setError(errorCopyFor(err)); }
     finally { saving.current = false; setBusy(false); }
   };
@@ -51,11 +54,32 @@ export function LookPersonalityContent({ value, wardrobe, onSave }: LookPersonal
     <>
       <View style={{ alignItems: 'center', padding: tokens.spacing.md, borderRadius: tokens.radii.xl, backgroundColor: tokens.surface, marginBottom: tokens.spacing.lg, gap: tokens.spacing.sm }}>
         <MegaSprite hex={hex} sticker={sticker} parts={{ antenna, eyes, eyeColor }} face={blink} scale={3} />
-        <Text variant="caption" color="muted">Make your MEGA feel like yours.</Text>
+        <Text variant="label">{name || 'Your MEGA'}</Text>
+        <Text variant="caption" color="muted">{characterMode ? EDITOR.hint : 'Make your MEGA feel like yours.'}</Text>
       </View>
 
-      <Card style={{ marginBottom: tokens.spacing.md }}>
-        <Text variant="label" style={{ marginBottom: tokens.spacing.sm }}>
+      {characterMode ? <>
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: tokens.spacing.sm, marginBottom: tokens.spacing.md }}>
+          {EDITOR.categories.filter(c => (c.id !== 'name' || initialName !== undefined) && (c.id !== 'extras' || wardrobe)).map(c => <Chip key={c.id} label={c.label} selected={category === c.id} onPress={() => setCategory(c.id)} />)}
+        </View>
+        {category === 'styles' ? <View style={{ gap: tokens.spacing.md, marginBottom: tokens.spacing.lg }}>
+          <Text color="muted">{EDITOR.styleHint}</Text>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: tokens.spacing.sm }}>
+            {Object.entries(PERSONALITIES).map(([key, p], index) => <Pressable key={key} disabled={busy} onPress={() => { setPersonality(key as Personality); const color = colors[index % colors.length] ?? hex; setHex(color); setCustomHex(color); setSticker(stickers[index % stickers.length] ?? sticker); }} accessibilityRole="radio" accessibilityLabel={`Try ${p.label} personality`} accessibilityState={{ checked: personality === key }} style={{ width: '47%', alignItems: 'center', gap: tokens.spacing.sm, padding: tokens.spacing.md, borderRadius: tokens.radii.lg, borderWidth: 2, borderColor: personality === key ? tokens.accent : tokens.line, backgroundColor: tokens.surface }}>
+              <MegaSprite hex={colors[index % colors.length] ?? hex} sticker={stickers[index % stickers.length] ?? sticker} face={p.face} scale={2} />
+              <Text variant="label">{p.label}</Text>
+              <Text variant="caption" color="muted">{p.sample}</Text>
+            </Pressable>)}
+          </View>
+        </View> : null}
+        {category === 'name' ? <Card style={{ marginBottom: tokens.spacing.md }}>
+          <Text variant="label">{EDITOR.nameLabel}</Text>
+          <TextInput value={name} onChangeText={setName} editable={!busy} maxLength={24} accessibilityLabel={EDITOR.nameLabel} style={{ color: tokens.text, borderWidth: 1, borderColor: tokens.line, borderRadius: tokens.radii.md, padding: tokens.spacing.md, minHeight: tokens.touchTarget, marginTop: tokens.spacing.sm }} />
+        </Card> : null}
+      </> : null}
+
+      {!characterMode || category === 'color' ? <Card style={{ marginBottom: tokens.spacing.md }}>
+        <Text variant="label"  style={{ marginBottom: tokens.spacing.sm }}>
           Color
         </Text>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: tokens.spacing.sm, marginBottom: tokens.spacing.sm }}>
@@ -86,10 +110,11 @@ export function LookPersonalityContent({ value, wardrobe, onSave }: LookPersonal
             {!HEX_RE.test(customHex) ? <Text variant="caption" style={{ color: tokens.danger }}>Use a six-digit color such as {COLORS.teal}, or choose a swatch.</Text> : null}
           </>
         ) : null}
-      </Card>
+      </Card> : null}
 
-      <Choices title="Sticker" options={stickers} selected={sticker} label={(s) => partLabel('sticker', s)} onPick={setSticker} disabled={busy} />
-      {wardrobe ? (
+      {characterMode && category === 'sticker' ? <View style={{ gap: tokens.spacing.sm, marginBottom: tokens.spacing.lg }}><Text color="muted">{EDITOR.stickerHint}</Text><View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: tokens.spacing.sm }}>{stickers.map(s => <Pressable key={s} onPress={() => setSticker(s)} disabled={busy} accessibilityRole="radio" accessibilityLabel={partLabel('sticker', s)} accessibilityState={{ checked: sticker === s }} style={{ padding: tokens.spacing.md, borderWidth: 2, borderColor: sticker === s ? tokens.accent : tokens.line, borderRadius: tokens.radii.lg, alignItems: 'center', minWidth: 85 }}><MegaSprite hex={hex} sticker={s} scale={1.5} /><Text variant="caption">{partLabel('sticker', s)}</Text></Pressable>)}</View></View> : null}
+      {!characterMode ? <Choices title="Sticker" options={stickers} selected={sticker} label={(s) => partLabel('sticker', s)} onPick={setSticker} disabled={busy} /> : null}
+      {wardrobe && (!characterMode || category === 'extras') ? (
         <>
           {/* Store parts (owner, Oct 28): kids see only what they own; adults see everything. */}
           <Choices title="Antenna" options={wardrobe.antennas} selected={antenna ?? 'classic'} label={(p) => partLabel('antenna', p)} onPick={setAntenna} disabled={busy} />
@@ -98,7 +123,7 @@ export function LookPersonalityContent({ value, wardrobe, onSave }: LookPersonal
         </>
       ) : null}
 
-      <Card style={{ marginBottom: tokens.spacing.lg }}>
+      {!characterMode || category === 'personality' ? <Card style={{ marginBottom: tokens.spacing.lg }}>
         <Text variant="label" style={{ marginBottom: tokens.spacing.sm }}>
           Personality
         </Text>
@@ -110,10 +135,10 @@ export function LookPersonalityContent({ value, wardrobe, onSave }: LookPersonal
             </Pressable>
           ))}
         </View>
-      </Card>
+      </Card> : null}
 
       {error ? <Text style={{ color: tokens.danger }} accessibilityRole="alert">{error}</Text> : null}
-      <Button label="Save" onPress={() => void save()} loading={busy} disabled={!HEX_RE.test(hex) || ((!wardrobe || wardrobe.customColor) && !HEX_RE.test(customHex))} />
+      <Button label={saveLabel} onPress={() => void save()} loading={busy} disabled={(initialName !== undefined && !name.trim()) || !HEX_RE.test(hex) || ((!wardrobe || wardrobe.customColor) && !HEX_RE.test(customHex))} />
     </>
   );
 }

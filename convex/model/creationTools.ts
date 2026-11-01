@@ -1,3 +1,4 @@
+import { renameOwnMega } from './renameMega';
 import type { Doc, Id } from '../_generated/dataModel';
 import type { MutationCtx } from '../_generated/server';
 import { activeDraft, draftSummary, reviewDraft, updateDraft, confirmDraft, cancelDraft } from './megaCreation';
@@ -10,7 +11,13 @@ export async function executeCreationTool(ctx: MutationCtx, member: Doc<'members
   if (member.role === 'kid') fail('FORBIDDEN');
   const thread = await ctx.db.get(threadId);
   if (!thread || thread.familyId !== member.familyId || thread.ownerId !== member._id) fail('FORBIDDEN');
-  if (name === 'mega_draft_cancel') { await cancelDraft(ctx, member, raw.draftId, now); return { text: 'Draft cancelled. No person or MEGA was created.' }; }
+  if (name === 'mega_rename') {
+    if (Object.keys(raw).some(key => key !== 'name')) fail('VALIDATION');
+    return { text: `Your MEGA is now named ${await renameOwnMega(ctx, member, raw.name)}.` };
+  }
+  if (name === 'mega_draft_cancel') {
+    if (raw.confirmed !== true) return { text: `${MEGA_CREATION.discardTitle} ${MEGA_CREATION.discardBody} Ask the person to choose Keep editing or Discard draft before calling again with confirmed=true.`, requiresConfirmation: true };
+    await cancelDraft(ctx, member, raw.draftId, now); return { text: 'Draft cancelled. No person or MEGA was created.' }; }
   if (name === 'mega_brief_review') return { text: await reviewOwnBrief(ctx, member, raw, now), ui: { kind: 'confirmation' } };
   if (name === 'mega_draft_confirm') {
     if (raw.confirmed !== true || typeof raw.draftId !== 'string' || !Number.isInteger(raw.revision)) fail('VALIDATION', 'Explicit confirmation and the reviewed revision are required.');

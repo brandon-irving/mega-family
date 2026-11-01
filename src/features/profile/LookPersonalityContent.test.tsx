@@ -31,3 +31,16 @@ describe('LookPersonalityContent with a wardrobe', () => {
     expect(screen.queryByText('Antenna')).toBeNull();
   });
 });
+
+
+test('workshop previews categories and saves name and appearance together only on Save', async () => {
+  const onSave = jest.fn();
+  await renderWithTheme(<LookPersonalityContent characterMode name="Teal" value={VALUE} onSave={onSave} />);
+  expect(screen.getByText('Meet the styles')).toBeTruthy();
+  await fireEvent.press(screen.getByText('Name'));
+  await fireEvent.changeText(screen.getByLabelText('MEGA name'), 'Ember');
+  await fireEvent.press(screen.getByText('Sticker'));
+  expect(onSave).not.toHaveBeenCalled();
+  await fireEvent.press(screen.getByText('Save'));
+  expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ name: 'Ember', sticker: 'bolt' }));
+});

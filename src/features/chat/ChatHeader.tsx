@@ -1,4 +1,6 @@
 // A compact identity link leaves room for Today and the shared Settings shortcut.
+import type { RefObject, ComponentRef } from 'react';
+import { CHAT_UX } from '@shared/config/chat';
 import { Pressable, View } from 'react-native';
 import { readableOn } from '@shared/config/theme';
 import { MegaBadge } from '@/ui/MegaBadge';
@@ -7,9 +9,9 @@ import { useTokens } from '@/ui/theme';
 import type { MegaInfo } from '@/features/shell/megaInfo';
 import { AppSettingsButton } from '@/features/shell/AppSettingsButton';
 
-export type ChatHeaderProps = { mega: MegaInfo; todayCount: number; onOpenProfile: () => void; onOpenToday: () => void };
+export type ChatHeaderProps = { avatarRef?: RefObject<ComponentRef<typeof View> | null>; onAvatarLayout?: () => void; mega: MegaInfo; todayCount: number; onOpenProfile: () => void; onOpenToday: () => void };
 
-export function ChatHeader({ mega, todayCount, onOpenProfile, onOpenToday }: ChatHeaderProps) {
+export function ChatHeader({ mega, todayCount, onOpenProfile, onOpenToday, avatarRef, onAvatarLayout }: ChatHeaderProps) {
   const tokens = useTokens();
 
   return (
@@ -27,7 +29,7 @@ export function ChatHeader({ mega, todayCount, onOpenProfile, onOpenToday }: Cha
       }}
     >
       <Pressable onPress={onOpenProfile} accessibilityRole="button" accessibilityLabel={`Open ${mega.name}'s profile`} style={{ flexDirection: 'row', alignItems: 'center', minHeight: tokens.touchTarget, gap: tokens.spacing.sm, flex: 1, minWidth: 0 }}>
-        <MegaBadge hex={mega.hex} sticker={mega.sticker} face={mega.face} size={32} accessibilityLabel={mega.name} />
+        <View ref={avatarRef} collapsable={false} onLayout={onAvatarLayout}><MegaBadge hex={mega.hex} sticker={mega.sticker} face={mega.face} size={CHAT_UX.entrance.badgeSize} accessibilityLabel={mega.name} /></View>
         <Text variant="label" numberOfLines={1} style={{ flexShrink: 1 }}>{mega.name}</Text>
       </Pressable>
       <Pressable

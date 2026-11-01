@@ -55,6 +55,8 @@ test('confirmed email blocks noon, lunch offers shared alternatives without leak
   const view = await s.view();
   expect(view.slots.find(x => x.start === at(12))?.available).toBe(false);
   expect(view.slots.find(x => x.start === at(13, 30))?.available).toBe(true);
+  expect(view.guidance).toContain('Admin is busy');
+  expect(view.guidance).toContain('1:30');
   expect(JSON.stringify(view)).not.toContain('Private business meeting');
   expect(JSON.stringify(view)).not.toContain('meeting-1');
   await s.finish();
@@ -75,6 +77,8 @@ test('permission is explicit, revocable, and unrelated private events never appe
   await s.share(); expect((await s.view()).slots[0].checked).toBe(true);
   await s.admin.mutation(api.scheduling.setPreferences, { enabled: true, autoCapture: true, availabilityFor: [] });
   expect((await s.view()).slots[0].checked).toBe(false);
+  expect((await s.view()).guidance).toContain('still need to check');
+  expect((await s.view()).guidance).not.toContain('is busy');
   await expect(s.admin.query(api.scheduling.get, { planId: await s.planId('partner') })).rejects.toThrow();
   await s.finish();
 });
@@ -275,5 +279,21 @@ test('a later Calendar import replaces the equivalent email copy without duplica
   expect(updated.eventId).not.toBe(original);
   expect(updated.ownsEvent).toBe(false);
   expect(await s.t.run(ctx => ctx.db.get(original))).toBeNull();
+  await s.finish();
+});
+
+test('email updates dedupe pushes and reuse the existing card; disabling recognition cancels pending delivery', async () => {
+  const s = await setup();
+  await s.ingest('admin', sample('confirmed'));
+  await s.ingest('admin', sample('confirmed'));
+  const id = await s.planId('admin');
+  const candidates = await s.t.run(ctx => ctx.db.query('candidates').collect());
+  const matches = candidates.filter(c => c.source?.kind === 'mailPlan' && c.source.planId === id);
+  expect(matches).toHaveLength(1);
+  const messages = await s.t.run(ctx => ctx.db.query('messages').collect());
+  expect(messages.filter(m => m.body.type === 'card' && m.body.card.kind === 'mailPlan' && m.body.card.planId === id)).toHaveLength(1);
+  const { candidateStillApplies } = await import('./model/proactive');
+  await s.admin.mutation(api.scheduling.setPreferences, { enabled: false, autoCapture: false, availabilityFor: [] });
+  expect(await s.t.run(ctx => candidateStillApplies(ctx, matches[0].source, s.members.admin))).toBe(false);
   await s.finish();
 });

@@ -10,8 +10,8 @@ import type { Role } from '../../shared/domain/enums';
 import type { ToolSpec } from '../ports/chatModel';
 
 export const AGENT_TOOL_NAMES = [
-  'mega_draft_cancel', 'mega_draft_get', 'mega_draft_update', 'mega_draft_review', 'mega_brief_review',
-  'google_setup',
+  'mega_rename', 'mega_draft_cancel', 'mega_draft_get', 'mega_draft_update', 'mega_draft_review', 'mega_brief_review',
+  'google_setup', 'google_check', 'connections_recommend',
   'recall',
   'remember',
   'events_create',
@@ -51,11 +51,20 @@ const jsonLocalDateTime = { type: 'string', description: 'Local date-time in the
 const jsonAllDay = { type: 'string', description: 'All-day date as "YYYY-MM-DD", in the family\'s timezone.' } as const;
 
 export const AGENT_TOOLS: Record<AgentToolName, ToolDef> = {
+  google_check: { configTool: 'show_ui', implemented: true, spec: {
+    name: 'google_check', description: 'Request a check of the current person’s connected Gmail Inbox and Calendar for relevant plans. Uses existing consent and processing, never changes permissions, never sends email. Returns queued/recent status, not completed scan results. Takes no arguments or account identifiers.',
+    parameters: { type: 'object', properties: {}, additionalProperties: false },
+  } },
+  connections_recommend: { configTool: 'show_ui', implemented: true, spec: {
+    name: 'connections_recommend',
+    description: 'Recommend an available connection for this person based on their actual conversation, accepted brief, or current task. The engine selects capabilities/providers, filters existing connections and eligibility, and remembers prior offers/declines. Only suggests; never connects or reads accounts. Do not name a provider yourself before checking this tool.',
+    parameters: { type: 'object', properties: { context: { type: 'string', maxLength: 2000 } }, required: ['context'], additionalProperties: false },
+  } },
   google_setup: { configTool: 'show_ui', implemented: true, spec: {
     name: 'google_setup', description: 'Show this person the Google setup card when they ask to connect Google, Gmail, email, or Calendar, or accept your suggestion to connect. Also use for reconnecting or changing Google permissions. Opens the existing unified consent UI; never connects or reads accounts itself. Takes no account identifiers or credentials. Returns a clear reason if unavailable.',
     parameters: { type: 'object', properties: {}, additionalProperties: false },
   } },
-  ...Object.fromEntries(CREATION_TOOLS.map(spec => [spec.name, { spec, configTool: 'mega_creation', implemented: true }])) as Record<'mega_draft_cancel' | 'mega_draft_get' | 'mega_draft_update' | 'mega_draft_review' | 'mega_brief_review', ToolDef>,
+  ...Object.fromEntries(CREATION_TOOLS.map(spec => [spec.name, { spec, configTool: 'mega_creation', implemented: true }])) as Record<'mega_rename' | 'mega_draft_cancel' | 'mega_draft_get' | 'mega_draft_update' | 'mega_draft_review' | 'mega_brief_review', ToolDef>,
   ideas_suggest: {
     configTool: 'ideas', implemented: true,
     spec: {

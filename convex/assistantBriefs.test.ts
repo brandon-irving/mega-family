@@ -5,15 +5,20 @@ import { convexTest } from 'convex-test';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { ASSISTANT_BRIEF as C } from '../shared/config/assistantBrief';
 import { api, internal } from './_generated/api';
-import { __setChatModelForTests } from './adapters/registry';
-import { makeFakeChatModel, textReply } from './adapters/fakeChatModel';
+import { __setChatModelForTests, __setGoogleOAuthForTests } from './adapters/registry';
+import { makeFakeChatModel, textReply, jsonReply } from './adapters/fakeChatModel';
 import { acceptedBriefContext } from './model/assistantBriefs';
 import schema from './schema';
+import { makeFakeGoogleOAuth } from './adapters/fakeGoogle';
 
 const modules = import.meta.glob('./**/*.ts');
 const proposed = { context: 'A busy parent', goal: 'Promote a children’s book', firstTask: 'Draft three book launch posts', proactive: 'Look for useful next steps' };
-beforeEach(() => vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval'] }));
-afterEach(() => { __setChatModelForTests(null); vi.useRealTimers(); });
+const suggestion = { prompt: 'I can draft three book-launch posts you can adapt. Shall I start?', task: proposed.firstTask, emailReason: '' };
+beforeEach(() => {
+  vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval'] });
+  __setChatModelForTests(makeFakeChatModel(req => req.schema?.name === 'brief_first_suggestion' ? jsonReply(suggestion) : textReply('Let’s work on that.')));
+});
+afterEach(() => { __setGoogleOAuthForTests(null); vi.unstubAllEnvs(); __setChatModelForTests(null); vi.useRealTimers(); });
 
 async function setup(join = true) {
   const t = convexTest(schema, modules);
@@ -33,7 +38,10 @@ async function setup(join = true) {
     const thread = await ctx.db.query('threads').withIndex('by_family_owner', q => q.eq('familyId', familyId).eq('ownerId', memberId)).unique();
     return thread ? ctx.db.query('messages').withIndex('by_family_thread_at', q => q.eq('familyId', familyId).eq('threadId', thread._id)).collect() : [];
   });
-  const answer = async (answer: { optionIds?: string[]; fields?: Record<string, string>; skipped?: true }) => owner.mutation(api.chat.answerBlock, { messageId: (await row())!.blockMessageId!, answer, via: 'text' });
+  const answer = async (answer: { optionIds?: string[]; fields?: Record<string, string>; skipped?: true }) => {
+    if ((await row())?.step === 'ready' && !(await row())?.blockMessageId) await t.finishAllScheduledFunctions(vi.runAllTimers);
+    return owner.mutation(api.chat.answerBlock, { messageId: (await row())!.blockMessageId!, answer, via: 'text' });
+  };
   const context = () => t.run(ctx => acceptedBriefContext(ctx, familyId, memberId));
   const modelContext = async () => {
     const viewer = (await owner.query(api.me.get, {}))!;
@@ -85,7 +93,11 @@ describe('assistant first-day brief', () => {
     const answer = messages.find(m => m.body.type === 'answer' && m.body.blockMessageId === id)!;
     expect(answer.at).toBeGreaterThan(original.at);
     expect(await s.context()).toContain(proposed.firstTask);
-    expect(await s.t.run(ctx => ctx.db.system.query('_scheduled_functions').collect())).toHaveLength(0);
+    const scheduled = await s.t.run(ctx => ctx.db.system.query('_scheduled_functions').collect());
+    expect(scheduled).toHaveLength(1);
+    expect(scheduled[0].name).toBe('briefKickoff:generate');
+    await s.t.finishAllScheduledFunctions(vi.runAllTimers);
+    expect((await s.row())?.kickoff).toEqual(suggestion);
   });
 
   test('private edits inform only the owner; creator sees original suggestions and cannot overwrite them', async () => {
@@ -121,6 +133,8 @@ describe('assistant first-day brief', () => {
     await s.answer({ optionIds: ['own'] });
     await s.owner.mutation(internal.megaCreation.execute, { name: 'mega_brief_review', argumentsJson: JSON.stringify({ brief: { goal: 'Organize my week' } }) });
     await s.answer({ optionIds: ['accept'] });
+    __setGoogleOAuthForTests(makeFakeGoogleOAuth());
+    vi.stubEnv('INTEGRATION_TOKEN_KEY', btoa('k'.repeat(32)).replace(/=+$/, ''));
     await s.answer({ optionIds: ['email'] });
     expect(await s.row()).toMatchObject({ status: 'accepted', step: 'done' });
     expect((await s.messages()).some(m => m.body.type === 'card' && m.body.card.kind === 'connect' && m.body.card.offer === 'gmail')).toBe(true);
@@ -132,9 +146,10 @@ describe('assistant first-day brief', () => {
     const calls: string[] = [];
     __setChatModelForTests(makeFakeChatModel(request => {
       calls.push(JSON.stringify(request));
-      return textReply('Here are three draft post ideas.');
+      return request.schema?.name === 'brief_first_suggestion' ? jsonReply(suggestion) : textReply('Here are three draft post ideas.');
     }));
     await s.answer({ optionIds: ['accept'] });
+    await s.t.finishAllScheduledFunctions(vi.runAllTimers);
     const id = (await s.row())!.blockMessageId!;
     const input = { messageId: id, answer: { optionIds: ['start'] }, via: 'text' as const };
     const first = await s.owner.mutation(api.chat.answerBlock, input);
@@ -178,4 +193,144 @@ describe('assistant first-day brief', () => {
     expect(stream.status).toBe('done');
     expect(stream.text).toBe(status === 'accepted' ? C.accepted : C.declined);
   });
+});
+
+test('a context-only brief produces a specific suggestion with no tools, without assuming a first task', async () => {
+  const s = await setup(false);
+  await s.admin.mutation(api.assistantBriefs.save, { memberId: s.memberId, brief: { context: 'Writing a children’s book and balancing family life', goal: '', firstTask: '', proactive: '' } });
+  await s.owner.action(api.invites.redeem, { token: s.url });
+  await s.owner.mutation(api.chat.start, {});
+  let calls = 0;
+  __setChatModelForTests(makeFakeChatModel(req => {
+    calls++;
+    expect(req.tools).toBeUndefined();
+    expect(req.schema?.name).toBe('brief_first_suggestion');
+    expect(req.messages[1].content).toContain('Writing a children’s book');
+    return jsonReply({ prompt: 'I can research three practical ways to reach parents with your book. Shall I?', task: 'Research three ways to reach parents with a children’s book.', emailReason: '' });
+  }));
+  await s.answer({ optionIds: ['accept'] });
+  await s.owner.mutation(api.chat.start, {});
+  await s.owner.mutation(api.chat.start, {});
+  await s.t.finishAllScheduledFunctions(vi.runAllTimers);
+  expect(calls).toBe(1);
+  expect((await s.row())?.kickoff?.prompt).toContain('three practical ways');
+  expect(JSON.stringify(await s.messages())).not.toContain('What should we do first?');
+  expect((await s.row())?.approved?.firstTask).toBe('');
+  expect((await s.row())?.step).toBe('ready');
+});
+
+test('typed acceptance of the suggestion continues the normal agent with the proposal as context', async () => {
+  const s = await setup();
+  await s.answer({ optionIds: ['accept'] });
+  await s.t.finishAllScheduledFunctions(vi.runAllTimers);
+  let received = '';
+  __setChatModelForTests(makeFakeChatModel(req => {
+    received += JSON.stringify(req);
+    return req.schema ? jsonReply({ operations: [] }) : textReply('Here are three posts to adapt for your book.');
+  }));
+  const sent = await s.owner.mutation(api.chat.send, { text: 'Yes, let’s do that', via: 'text' });
+  await s.t.finishAllScheduledFunctions(vi.runAllTimers);
+  expect((await s.row())?.step).toBe('done');
+  expect(received).toContain(suggestion.task);
+  expect(await s.context()).not.toContain('Previously offered first step');
+  expect(await s.owner.query(api.chat.streamBody, { streamId: sent.streamId })).toMatchObject({ status: 'done', text: 'Here are three posts to adapt for your book.' });
+});
+
+test('a user changing direction during generation prevents a late or duplicated proposal', async () => {
+  const s = await setup();
+  await s.answer({ optionIds: ['accept'] });
+  const row = (await s.row())!;
+  await s.owner.mutation(api.chat.send, { text: 'Actually, help me plan dinner instead', via: 'text' });
+  await s.t.mutation(internal.briefKickoff.finish, { briefId: row._id, revision: row.kickoffRevision!, proposal: suggestion });
+  expect((await s.row())?.kickoff).toBeUndefined();
+  expect((await s.row())?.step).toBe('done');
+  await s.t.finishAllScheduledFunctions(vi.runAllTimers);
+  expect((await s.row())?.kickoff).toBeUndefined();
+});
+
+test('model failure produces a useful fallback, and finishing twice does not duplicate it', async () => {
+  const s = await setup();
+  __setChatModelForTests(makeFakeChatModel(() => { throw new Error('offline'); }));
+  await s.answer({ optionIds: ['accept'] });
+  await s.t.finishAllScheduledFunctions(vi.runAllTimers);
+  const row = (await s.row())!;
+  expect(row.kickoff?.prompt).toContain(proposed.goal);
+  expect(row.kickoff?.task).toContain('do not send, schedule, share or connect');
+  const count = (await s.messages()).length;
+  await s.t.mutation(internal.briefKickoff.finish, { briefId: row._id, revision: row.kickoffRevision!, proposal: suggestion });
+  await s.owner.mutation(api.chat.start, {});
+  expect(await s.messages()).toHaveLength(count);
+});
+
+test('Google suggestion is contextual and optional; choosing it only opens setup', async () => {
+  const s = await setup();
+  __setGoogleOAuthForTests(makeFakeGoogleOAuth());
+  vi.stubEnv('INTEGRATION_TOKEN_KEY', btoa('k'.repeat(32)).replace(/=+$/, ''));
+  __setChatModelForTests(makeFakeChatModel(() => jsonReply({ ...suggestion, emailReason: 'Google can help find publicity invitations and fit outreach around your calendar.' })));
+  await s.answer({ optionIds: ['accept'] });
+  await s.t.finishAllScheduledFunctions(vi.runAllTimers);
+  expect((await s.row())?.kickoff?.emailReason).toContain('publicity');
+  await s.answer({ optionIds: ['email'] });
+  const integrations = await s.t.run(ctx => ctx.db.query('integrations').collect());
+  expect(integrations.filter(i => i.memberId === s.memberId)).toHaveLength(0);
+  expect((await s.messages()).some(m => m.body.type === 'card' && m.body.card.kind === 'connect')).toBe(true);
+});
+
+test('a declined first suggestion ends the setup without executing any task', async () => {
+  const s = await setup();
+  await s.answer({ optionIds: ['accept'] });
+  await s.t.finishAllScheduledFunctions(vi.runAllTimers);
+  let calls = 0;
+  __setChatModelForTests(makeFakeChatModel(() => { calls++; return textReply('unexpected'); }));
+  await s.answer({ optionIds: ['later'] });
+  await s.t.finishAllScheduledFunctions(vi.runAllTimers);
+  expect(calls).toBe(0);
+  expect((await s.row())?.step).toBe('done');
+});
+
+test('under-13 first suggestions never offer Google even if the model includes it', async () => {
+  const s = await setup();
+  await s.t.run(ctx => ctx.db.patch(s.memberId, { role: 'kid', ageGroup: 'child' }));
+  __setGoogleOAuthForTests(makeFakeGoogleOAuth());
+  vi.stubEnv('INTEGRATION_TOKEN_KEY', btoa('k'.repeat(32)).replace(/=+$/, ''));
+  __setChatModelForTests(makeFakeChatModel(req => {
+    expect(JSON.parse(req.messages[1].content).offerGoogle).toBe(false);
+    return jsonReply({ ...suggestion, emailReason: 'Connect Google for more help.' });
+  }));
+  await s.answer({ optionIds: ['accept'] });
+  await s.t.finishAllScheduledFunctions(vi.runAllTimers);
+  expect((await s.row())?.kickoff?.emailReason).toBe('');
+  const row = (await s.row())!;
+  const message = await s.t.run(ctx => ctx.db.get(row.blockMessageId!));
+  expect(JSON.stringify(message?.body)).not.toContain('Explore Google setup');
+});
+
+test('a private brief revision invalidates the older pending suggestion', async () => {
+  const s = await setup();
+  await s.answer({ optionIds: ['accept'] });
+  const old = (await s.row())!;
+  await s.owner.mutation(internal.megaCreation.execute, { name: 'mega_brief_review', argumentsJson: JSON.stringify({ brief: { goal: 'Plan my study time' } }) });
+  await s.t.mutation(internal.briefKickoff.finish, { briefId: old._id, revision: old.kickoffRevision!, proposal: suggestion });
+  expect((await s.row())?.kickoff).toBeUndefined();
+  expect((await s.row())?.step).toBe('review');
+  expect(JSON.stringify(await s.admin.query(api.assistantBriefs.forMember, { memberId: s.memberId }))).not.toContain('Plan my study time');
+});
+
+test('legacy ready menus upgrade once on return to chat', async () => {
+  const s = await setup();
+  const original = (await s.row())!.blockMessageId!;
+  await s.answer({ optionIds: ['accept'] });
+  const row = (await s.row())!;
+  await s.t.run(async ctx => {
+    await ctx.db.patch(row._id, { kickoffRevision: undefined, kickoff: undefined, blockMessageId: original });
+    const message = (await ctx.db.get(original))!;
+    if (message.body.type === 'block') await ctx.db.patch(original, { body: { ...message.body, answeredWith: undefined } });
+  });
+  await s.owner.mutation(api.chat.start, {});
+  await s.owner.mutation(api.chat.start, {});
+  await s.t.finishAllScheduledFunctions(vi.runAllTimers);
+  expect((await s.row())?.kickoff).toEqual(suggestion);
+  const count = (await s.messages()).length;
+  await s.owner.mutation(api.chat.start, {});
+  expect(await s.messages()).toHaveLength(count);
 });

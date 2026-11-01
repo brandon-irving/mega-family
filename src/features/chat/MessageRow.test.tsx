@@ -1,5 +1,5 @@
 import * as Clipboard from 'expo-clipboard';
-import { contrastRatio, messageBubbleColors } from '@shared/config/theme';
+import { contrastRatio, messageBubbleColors, USER_BUBBLE } from '@shared/config/theme';
 // Renders each message body and preserves authorship without an assistant avatar gutter.
 import { fireEvent, screen, waitFor } from '@testing-library/react-native';
 import { renderWithTheme } from '@/test/renderWithTheme';
@@ -111,8 +111,8 @@ describe('MessageRow', () => {
         <MessageRow message={answered} isMine={false} mega={TEAL_INFO} onAnswerBlock={onAnswerBlock} onReact={noop} onChangeMemoryScope={noop} onForgetMemory={noop} />
       </ThemeProvider>,
     );
-    expect(screen.queryByText('Who should I add first?')).toBeNull(); // the interactive block prompt is gone
-    expect(screen.getByLabelText('Answered: Partner')).toBeTruthy(); // collapsed into the plain answer line
+    expect(screen.getByText('Who should I add first?')).toBeTruthy(); // the interactive block prompt is gone
+    expect(screen.queryByLabelText('Answered: Partner')).toBeNull(); // collapsed into the plain answer line
   });
 
   test('a save chip under a message is read-only for a kid viewer', async () => {
@@ -199,4 +199,20 @@ test.each(['#2FB8B0', '#FFFFFF', '#FFFF00', '#000000', '#8E6CE0', '#F2766B'])('o
   const colors = messageBubbleColors(accent);
   expect(colors.text).toBe('#FFFFFF');
   expect(contrastRatio(colors.background, colors.text)).toBeGreaterThanOrEqual(4.5);
+});
+
+test('assistant text uses its own MEGA hue with readable text', async () => {
+  const colors = messageBubbleColors(TEAL_INFO.hex, 'assistant');
+  await renderWithTheme(<MessageRow message={{ ...MESSAGES_BY_TYPE.text, author: { kind: 'mega', id: FIXTURE_IDS.teal } }} isMine={false} mega={TEAL_INFO} onAnswerBlock={noop} onChangeMemoryScope={noop} onForgetMemory={noop} />);
+  const style = Object.assign({}, ...[screen.getByTestId('bubble').props.style].flat());
+  expect(style.backgroundColor).toBe(colors.background);
+  expect(contrastRatio(colors.background, colors.text)).toBeGreaterThanOrEqual(4.5);
+});
+
+test.each(['#FFFFFF', '#2FB8B0', '#F2766B'])('user bubbles keep the same dark palette with accent %s', async accent => {
+  await renderWithTheme(<ThemeProvider accent={{ hex: accent }}><MessageRow message={MESSAGES_BY_TYPE.text} isMine mega={null} onAnswerBlock={noop} onChangeMemoryScope={noop} onForgetMemory={noop} /></ThemeProvider>);
+  const style = Object.assign({}, ...[screen.getByTestId('bubble').props.style].flat());
+  expect(style.backgroundColor).toBe(USER_BUBBLE.background);
+  expect(USER_BUBBLE.text).toBe('#FFFFFF');
+  expect(contrastRatio(USER_BUBBLE.background, USER_BUBBLE.text)).toBeGreaterThanOrEqual(4.5);
 });

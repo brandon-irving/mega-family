@@ -1,3 +1,4 @@
+import { PersonAvatar } from '@/ui/PersonAvatar';
 import { ASSISTANT_BRIEF } from '@shared/config/assistantBrief';
 import { Button } from '@/ui/Button';
 // Family tab (PLAN §4, adults and admins only): members list with each MEGA's badge, role and what
@@ -58,14 +59,12 @@ export function FamilyContent({ members, comingUp, onOpenMember, onOpenCalendar,
               {m.mega ? (
                 <MegaBadge hex={m.mega.look.hex} sticker={m.mega.look.sticker} face={faceFor(m.mega.personality)} />
               ) : (
-                <View style={{ width: 44, height: 44, borderRadius: 11, backgroundColor: tokens.line, alignItems: 'center', justifyContent: 'center' }}>
-                  <Text color="muted">—</Text>
-                </View>
+                <PersonAvatar />
               )}
               <View style={{ flex: 1 }}>
                 <Text variant="label">{m.member.name}</Text>
                 <Text variant="caption" color="muted">
-                  {ROLE_LABEL[m.member.role]} · {!m.member.joinedAt ? 'Invite & QR code' : m.mega ? statusText(m.status) : 'No MEGA yet'}
+                  {ROLE_LABEL[m.member.role]} · {!m.mega ? 'Family context · No MEGA' : !m.member.joinedAt ? 'Invite & QR code' : statusText(m.status)}
                 </Text>
               </View>
             </Card>

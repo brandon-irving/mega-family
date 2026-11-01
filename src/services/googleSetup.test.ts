@@ -19,3 +19,10 @@ test('native scheduling setup uses a single sign-in for Gmail, Calendar, holds a
  expect(googleConnectCode).toHaveBeenCalledWith({serverAuthCode:'test-code',want:['gmail','googleCalendar']});
  expect(googleStart).not.toHaveBeenCalled();
 });
+
+test('cleanup authorization explicitly requests Gmail modification in addition to existing scopes', async () => {
+ jest.replaceProperty(Platform,'OS','ios');
+ const googleConnectCode=jest.fn().mockResolvedValue({status:'connected'});
+ await connectGoogle(['gmail','googleCalendar'],{googleStart:jest.fn(),googleConnectCode,loadGoogle:async()=>googleSdk} as never,true,true);
+ expect(GoogleSignin.configure).toHaveBeenLastCalledWith(expect.objectContaining({scopes: expect.arrayContaining(['https://www.googleapis.com/auth/gmail.modify', SCHEDULING.scopes.calendar])}));
+});

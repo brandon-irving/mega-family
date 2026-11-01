@@ -27,7 +27,7 @@ The UI queues the configured email only after a preview and Send confirmation. T
 1. Sign in normally as the presenter; open Settings → Demo Console → Start onboarding demo. This parks your original family and starts a new isolated family using the real onboarding conversation.
 2. Introduce yourself as Brandon. Customize your MEGA. Ask it to create Lovie and Maya (16), with Maya as your daughter and Lovie as your partner. Brief Lovie’s assistant: she is new to AI, works, and is promoting a children’s book. Avoid a long interview.
 3. Alternatively use Prepare Mom and Maya for rehearsal. This creates missing profiles and a proposed brief, but does not pretend they accepted or connected accounts.
-4. Open Lovie’s invitation from the console, accept it, and review the brief in her actual chat. The demo bar returns to Dad. Joined profiles can be revisited without signing out.
+4. Open Lovie’s invitation from the console, accept it, and review the brief in her actual chat. Accept the brief and wait for her MEGA’s specific first-step suggestion (for example, practical book-publicity ideas). Accept it by button or by typing “Yes, let’s do that”; verify useful research/planning/draft output. Google setup may be offered with a relevant reason, but is not required for that first task. The demo bar returns to Dad. Joined profiles can be revisited without signing out.
 5. Dad approves Maya’s teen account connections from her Family profile. Open Maya’s invitation and complete the actual teen join flow, using parent code **11111**. This fixed code applies only to the presenter’s single-device child/teen invitation in an active demo, regardless of the child’s name; normal invitations retain their real family code. Maya completes her own Google consent.
 6. Connect the exact configured Gmail/Calendar for each profile. Turn on recognition and optional automatic capture. Enable holds/drafts when demonstrating them. Each member explicitly selects who may check availability. For the call, Dad must share availability with Mom. No setting is silently granted by the demo console.
 7. Back as Dad, inspect readiness. Every stage previews its exact recipient, subject and body. Dates use a future weekday, America/New_York, fixed at run creation. All subjects start `MEGA_TEST [run-id]`.
@@ -76,3 +76,48 @@ Brandon, Lovie, and Maya are default rehearsal names, not required profile names
 From each person's chat, open the Google connection card. Review Email & scheduling once, choose recognition and optional automatic capture, keep Calendar holds & reply drafts selected for the full scheduling demo, and select Private or Family coordination. Continue to Google once for both Gmail and Calendar. Existing complete grants do not need another sign-in. Teens can request approval from this screen; the parent answers in their own chat before the teen continues.
 
 Newly previewed emails include the configured Orlando, Florida location. The publicity email explicitly suggests the recipient is based there; the meeting/pickup emails identify venues only. MEGA asks the recipient before remembering their inferred base privately. Existing queued emails retain their confirmed snapshots. Send a new previewed publicity email to exercise this addition; no full reset is needed, and no test emails are automatically sent by deployment.
+
+### Creation and first-meet UAT
+1. Start a MEGA draft in chat. Tap the compact draft banner → Open MEGA workshop to preview name, personality, color, and stickers. Saving updates only the draft.
+2. Review to finalize. Continue chatting instead: the old card collapses, while the banner keeps the draft available. Review again and explicitly Finalize MEGA.
+3. Open the invite: the selected MEGA walks in and introduces itself. Change my MEGA opens the same workshop before joining.
+4. After joining, use the MEGA icon → Personalize my MEGA. Personalization is no longer a persistent chat prompt.
+
+### First-chat entrance check
+Restart the demo from onboarding (not just the email scenario), then open each profile’s chat: its own MEGA walks in, waves, and becomes the top-left logo before the greeting appears. Revisit or reload the same chat: no repeat entrance. The Open chat button skips the sequence; reduced-motion settings use a short fade. Existing conversations are never replayed. Check headings on Chat, HQ, Ideas, Family, Settings, and invitation screens with normal and enlarged system text.
+
+### Context-based connection recommendations
+The shared connection catalog ranks missing capabilities against the current task, conversation, or brief. Google is the first available adapter. New providers add catalog capabilities and a setup adapter; onboarding and chat use the same engine. The agent can call `connections_recommend` with relevant context.
+
+A fresh admin receives an optional suggestion after introduction. Creation asks the admin whether the recipient may be offered a connection; this grants no account access. After the recipient approves their brief, their own recommendation explains the benefit and opens the existing permission review only if accepted. Under-13 profiles are excluded; teen setup retains parental approval checks. Pending and declined suggestions are not repeated, and fully connected capabilities are excluded. Manual connection setup remains available.
+
+UAT: introduce a fresh admin, decline the connection, and verify it is not offered again. Create an adult MEGA with a book-promotion brief, approve offering a connection, then accept the brief as that person: check the explanation and separate permission review. Answer a choice card and verify its original question remains above your answer.
+
+### Animation previews and revised chat entrance
+Settings → Demo → Open Demo Console → Animation previews replays the production first-chat entrance, walking frames, or greeting wave with the current MEGA. Replay is local only and does not reset onboarding or modify entrance history. Closing the preview cancels its timers.
+The first-chat entrance now uses the normal background: walk in, wave, pause with “Hi, I’m NAME!”, then float into the header and reveal chat. Spotlight removed; no Skip control. Reduced motion keeps the short fade.
+
+### Everyday chat/family UAT
+Check the empty composer is one row (+, placeholder, mic), grows for wrapped text, resets on clearing/sending, and dismisses the keyboard on send. Check each MEGA’s message hue and a teen’s text-first chat. A fresh admin can introduce “I’m Brandon and you’re Mega” and see both names persist; an existing adult can ask to rename their MEGA without a draft. In Family, choose Add without a MEGA, supply name/age group/relationship, and check the family-context entry has no assistant or invitation.
+
+## Phase 5 coordination checks
+
+The same scenario now exercises conversational conflict explanations and email-plan push alerts. Teen account-approval requests notify parents. Newly captured teen events ask the teen about sharing; only shared events notify actual parents. Follow [the coordination device checks](family-coordination.md#repeatable-device-uat). No additional demo/reset service is introduced. Visual refinements remain deferred.
+
+## Email marked sent but not received
+
+Gmail can place repetitive synthetic emails in Spam. MEGA watches Inbox; `sent` means the sender accepted the message, not that the recipient's Inbox received it. In the intended recipient test account, search `in:spam subject:MEGA_TEST` and mark the latest intended attempt Not spam. Incremental sync includes messages newly given the Inbox label, so recovery does not require a resend.
+
+For read-only diagnosis, `demoConsole:inspectDelivery` accepts `{ runId, stage, attempt }` and checks folder labels for that exact queued email using the run recipient's existing connection. It is internal and demo-gated, returns no email body or credential, and does not move or send mail.
+
+### Clear MEGA_TEST emails and calendar events
+
+The admin can authorize all three fixed test accounts from Demo Console using the **Authorize [email]** controls. Permission status updates beside each persona. Google asks for each account separately; no MEGA profile switching is needed. Choosing a different Google email is rejected before storing the grant. Teen connection approval in Family remains required. Alternatively, each demo profile can open Google setup (Email and Scheduling) and choose **Authorize demo cleanup**. This explicitly requests Gmail modification and Calendar write permission through Google. It is separate from ordinary connection setup and does not delete anything. Teen connection approval is still required. Each of the three configured test accounts must grant access.
+
+The admin then chooses **Clear MEGA_TEST emails & events** in Demo Console and confirms. Cleanup preflights all three grants, verifies the actual Gmail identity against the configured test address, moves individually verified MEGA_TEST-subject messages to Trash (including Sent and Spam), and deletes matching events from primary calendars plus exact, ownership-marked holds/drafts tracked by this family's demo runs. It does not empty Trash or delete unrelated emails/events. Other calendars are not scanned. An operation that fails partway reports its counts and can be retried.
+
+Cleanup pauses delivery and rejects incoming messages for those runs. Choose **Restart story · keep connections** afterward to resume with a new run. The old per-run **Cleanup Google artifacts** remains available for narrow cleanup without clearing emails. No production account setup requests the new Gmail permission automatically.
+
+### Console tabs
+
+The fixed tab bar separates People (profiles, invitations, Google authorization), Emails (scenario previews and sending), Reset (cleanup and restarts), Motion (animation previews), and Logs (recording/export). Only the selected section is mounted; switching tabs starts its content at the top.

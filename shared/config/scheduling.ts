@@ -44,3 +44,17 @@ export const GOOGLE_SETUP = {
     { key: 'custom', title: 'Choose people', detail: 'Choose who can check your availability.' },
   ],
 } as const;
+
+/** Deterministic explanations only use availability the viewer may check. */
+export const COORDINATION_COPY = {
+  emailTitle: 'A plan from your email',
+  emailBody: 'I found a scheduling update. Open our chat to review it.',
+  parentTitle: 'A shared calendar update',
+  parentBody: (name: string) => `${name} shared a calendar event. Open it to see whether you need to plan around it.`,
+  approvalTitle: 'Account connection request',
+  approvalBody: 'Open our chat to review an account connection request.',
+  unknown: (names: string[]) => `I still need to check availability for ${names.join(', ')} before recommending a shared time.`,
+  conflict: (names: string[], when: string) => `${names.join(' and ')} ${names.length === 1 ? 'is' : 'are'} busy at ${when}, based on shared availability.`,
+  available: (when: string) => `${when} works with the calendars I could check. Would you like to hold it?`,
+  noSlots: 'I couldn’t find a time that works for everyone among these options. Let’s try another day.',
+} as const;

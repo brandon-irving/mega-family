@@ -7,7 +7,7 @@ import { CHAT_UX } from '@shared/config/chat';
 // Sizes are config (COMPOSER_SIZES), icons are drawn SVG (no emoji or icon-font glyphs, which rendered
 // tiny), and the field shrinks (flex 1, minWidth 0) so nothing runs past the screen edge.
 import { useEffect, useRef, useState, type ComponentRef } from 'react';
-import { Pressable, TextInput, View } from 'react-native';
+import { Keyboard, Pressable, TextInput, View } from 'react-native';
 import { Path, Rect, Svg } from 'react-native-svg';
 import { fillCopy, COMPOSER_COPY } from '@shared/config/copy';
 import { COMPOSER_SIZES, readableOn } from '@shared/config/theme';
@@ -19,6 +19,9 @@ import { hiddenFromA11y } from '@/ui/a11y';
 
 export type ComposerProps = {
   megaName: string;
+  responding?: boolean;
+  stopping?: boolean;
+  onStop?: () => void;
   replyTo?: string | null;
   onCancelReply?: () => void;
   bigTalkButton?: boolean;
@@ -31,12 +34,11 @@ export type ComposerProps = {
   placeholder?: string;
 };
 
-export function Composer({ megaName, bigTalkButton = false, onSend, onOpenTalk, onCamera, placeholder, replyTo, onCancelReply }: ComposerProps) {
+export function Composer({ responding = false, stopping = false, onStop, megaName, bigTalkButton = false, onSend, onOpenTalk, onCamera, placeholder, replyTo, onCancelReply }: ComposerProps) {
   const fieldRef = useRef<ComponentRef<typeof TextInput>>(null);
   useEffect(() => { if (replyTo) fieldRef.current?.focus(); }, [replyTo]);
   const [text, setText] = useState('');
   const [showKeyboard, setShowKeyboard] = useState(!bigTalkButton);
-  const [contentHeight, setContentHeight] = useState(0);
   const tokens = useTokens();
   const copy = (template: string) => fillCopy(template, { mega: megaName });
 
@@ -44,7 +46,7 @@ export function Composer({ megaName, bigTalkButton = false, onSend, onOpenTalk, 
     if (!text.trim()) return;
     onSend(text.trim());
     setText('');
-    setContentHeight(0);
+    Keyboard.dismiss();
   };
 
   // G2 polish fix: pad the tappable area past the visual size (tokens.hitSlop) instead of growing icons.
@@ -55,7 +57,7 @@ export function Composer({ megaName, bigTalkButton = false, onSend, onOpenTalk, 
     const round = { width: K.height, height: K.height, borderRadius: K.height / 2, alignItems: 'center' as const, justifyContent: 'center' as const };
     const onAccent = readableOn(tokens.accent);
     const bar = { flexDirection: 'row' as const, alignItems: 'center' as const, gap: tokens.spacing.md, paddingHorizontal: tokens.spacing.lg, paddingVertical: tokens.spacing.sm };
-    if (!showKeyboard) {
+    if (!showKeyboard && !responding) {
       return (
         <View style={bar}>
           <Pressable
@@ -85,11 +87,15 @@ export function Composer({ megaName, bigTalkButton = false, onSend, onOpenTalk, 
 
   const A = COMPOSER_SIZES.adult;
   const hasText = !!text.trim();
-  const textAreaHeight = Math.max(tokens.touchTarget, Math.min(contentHeight, tokens.type.body.lineHeight * CHAT_UX.maxComposerLines + tokens.spacing.lg));
+  // Let Fabric measure multiline content intrinsically. Fixing height from onContentSizeChange
+  // creates a layout feedback loop on iOS; toggling scrolling also shifts its native caret offset.
+  const maxTextAreaHeight = Math.max(tokens.touchTarget, tokens.type.body.lineHeight * CHAT_UX.maxComposerLines + tokens.spacing.sm * 2);
   return (
     <View testID="composer-bar" style={{ paddingHorizontal: tokens.spacing.lg, paddingVertical: tokens.spacing.sm }}>
-      <View testID="composer-surface" style={{ borderRadius: tokens.radii.lg, borderWidth: 1, borderColor: tokens.line, backgroundColor: tokens.surface, paddingHorizontal: tokens.spacing.sm, paddingTop: tokens.spacing.xs }}>
+      <View testID="composer-surface" style={{ borderRadius: tokens.radii.lg, borderWidth: 1, borderColor: tokens.line, backgroundColor: tokens.surface, paddingHorizontal: tokens.spacing.sm, paddingVertical: tokens.spacing.xs }}>
         {replyTo && <View style={{ flexDirection: 'row', alignItems: 'center', padding: tokens.spacing.sm, borderLeftWidth: 2, borderLeftColor: tokens.accent }}><Text variant="caption" color="muted" numberOfLines={2} style={{ flex: 1 }}>{replyTo}</Text><Button label={CHAT_UX.actions.cancelReply} variant="ghost" onPress={onCancelReply ?? (() => {})} /></View>}
+        <View testID="composer-row" style={{ flexDirection: 'row', alignItems: 'flex-end' }}>
+        {onCamera ? <Pressable onPress={onCamera} accessibilityRole="button" accessibilityLabel="Add attachment" style={{ width: tokens.touchTarget, height: tokens.touchTarget, alignItems: 'center', justifyContent: 'center' }}><Glyph name="plus" size={24} color={tokens.muted} /></Pressable> : null}
         <TextInput
           ref={fieldRef}
           autoFocus={bigTalkButton}
@@ -97,19 +103,15 @@ export function Composer({ megaName, bigTalkButton = false, onSend, onOpenTalk, 
           onChangeText={setText}
           placeholder={placeholder ?? copy(bigTalkButton ? COMPOSER_COPY.kidPlaceholder : COMPOSER_COPY.adultPlaceholder)}
           placeholderTextColor={tokens.muted}
-          style={{ minWidth: 0, height: textAreaHeight, color: tokens.text, fontSize: tokens.type.body.fontSize, lineHeight: tokens.type.body.lineHeight, paddingHorizontal: tokens.spacing.sm, paddingTop: tokens.spacing.sm, paddingBottom: tokens.spacing.sm, textAlignVertical: 'top' }}
+          style={{ flex: 1, minWidth: 0, minHeight: tokens.touchTarget, maxHeight: maxTextAreaHeight, color: tokens.text, fontSize: tokens.type.body.fontSize, lineHeight: tokens.type.body.lineHeight, paddingHorizontal: tokens.spacing.sm, paddingTop: tokens.spacing.sm, paddingBottom: tokens.spacing.sm, textAlignVertical: 'top' }}
           accessibilityLabel={copy(COMPOSER_COPY.fieldLabel)}
-          onContentSizeChange={({ nativeEvent }) => setContentHeight(Math.ceil(nativeEvent.contentSize.height))}
           multiline
-          scrollEnabled={contentHeight > textAreaHeight}
+          scrollEnabled
           submitBehavior="newline"
           underlineColorAndroid="transparent"
         />
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-        {onCamera ? <Pressable onPress={onCamera} accessibilityRole="button" accessibilityLabel="Add attachment" style={{ width: tokens.touchTarget, height: tokens.touchTarget, alignItems: 'center', justifyContent: 'center' }}><Glyph name="plus" size={24} color={tokens.muted} /></Pressable> : null}
-        <View style={{ flex: 1 }} />
-        <Pressable onPress={hasText ? send : bigTalkButton ? () => setShowKeyboard(false) : onOpenTalk} accessibilityRole="button" accessibilityLabel={hasText ? COMPOSER_COPY.send : bigTalkButton ? COMPOSER_COPY.talkInstead : 'Talk'} style={{ width: tokens.touchTarget, height: tokens.touchTarget, alignItems: 'center', justifyContent: 'center' }}>
-          {hasText ? <SendIcon size={A.micIcon} color={tokens.accent} /> : <MicIcon size={A.micIcon} color={tokens.text} />}
+        <Pressable disabled={responding && (stopping || !onStop)} onPress={responding ? onStop : hasText ? send : bigTalkButton ? () => setShowKeyboard(false) : onOpenTalk} accessibilityRole="button" accessibilityLabel={responding ? stopping ? CHAT_UX.stopping : CHAT_UX.stopResponse : hasText ? COMPOSER_COPY.send : bigTalkButton ? COMPOSER_COPY.talkInstead : 'Talk'} style={{ width: tokens.touchTarget, height: tokens.touchTarget, alignItems: 'center', justifyContent: 'center' }}>
+          {responding ? <Svg {...iconA11y} width={A.micIcon} height={A.micIcon} viewBox="0 0 24 24"><Rect x={5} y={5} width={14} height={14} rx={2} fill={tokens.text} /></Svg> : hasText ? <SendIcon size={A.micIcon} color={tokens.accent} /> : <MicIcon size={A.micIcon} color={tokens.text} />}
         </Pressable>
         </View>
       </View>

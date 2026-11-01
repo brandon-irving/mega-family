@@ -1,3 +1,5 @@
+import { ageGroupOf } from '@shared/ageGroups';
+import { ChatEntrance } from '@/features/chat/ChatEntrance';
 import { CHAT_UX } from '@shared/config/chat';
 import { DemoSessionBar } from '@/features/settings/DemoSessionBar';
 import { LiveMegaDraft } from '@/features/chat/LiveMegaDraft';
@@ -15,7 +17,7 @@ import { CHAT_COPY, G5_COPY } from '@shared/config/copy';
 import { LINKS } from '@shared/domain/api';
 import { useViewer } from '@/data/useViewer';
 import { useOnboardingState } from '@/data/useOnboarding';
-import { useAnswerBlock, useChatThread, useReactToMessage, useSendMessage, useStartChat, useStreamBody } from '@/data/useChat';
+import { useStopResponse, useAnswerBlock, useChatThread, useReactToMessage, useSendMessage, useStartChat, useStreamBody } from '@/data/useChat';
 import { pendingMegaStreamId } from '@/features/chat/pendingStream';
 import { useToday, useAnswerNotification } from '@/data/useToday';
 import { useNotificationsFor } from '@/data/useNotifications';
@@ -49,6 +51,10 @@ export default function ChatRoute() {
   const megaById = useMegaDirectory();
   const onboarding = useOnboardingState();
   const sendMessage = useSendMessage();
+  const stopResponse = useStopResponse();
+  const [sending, setSending] = useState(false);
+  const [stopping, setStopping] = useState(false);
+  const [stopError, setStopError] = useState<string | null>(null);
   const answerBlock = useAnswerBlock();
   const react = useReactToMessage();
   const changeMemoryScope = useChangeMemoryScope();
@@ -99,7 +105,7 @@ export default function ChatRoute() {
 
   const onSend = useCallback(
     async (text: string) => {
-      setSendError(null);
+      setSendError(null); setSending(true); setStopError(null);
       try {
         const result = await sendMessage({ text, via: 'text' });
         setPendingStreamId(result.streamId);
@@ -108,7 +114,7 @@ export default function ChatRoute() {
         // rolls that back on its own once the mutation throws, so there's nothing to undo here beyond
         // surfacing the friendly line + a retry.
         setSendError({ line: errorCopyFor(e), retryText: text });
-      }
+      } finally { setSending(false); }
     },
     [sendMessage],
   );
@@ -128,6 +134,16 @@ export default function ChatRoute() {
   const streamFailed = stream?.status === 'error' || stream?.status === 'timeout';
   const showStreamingReply = (writingStreamId ?? pendingStreamId) !== null && stream !== undefined && stream.status !== 'done' && !streamFailed;
 
+  const activeStreamId = writingStreamId ?? pendingStreamId;
+  const responding = sending || (!!activeStreamId && stream?.status !== 'done' && !streamFailed);
+  const stop = async () => {
+    if (!activeStreamId || stopping) return;
+    setStopping(true); setStopError(null);
+    try { await stopResponse({ streamId: activeStreamId }); }
+    catch (error) { setStopError(errorCopyFor(error)); }
+    finally { setStopping(false); }
+  };
+
   const mega = useMemo(() => (viewer?.mega ? megaInfo(viewer.mega) : null), [viewer]);
 
   if (viewer === undefined || thread.status === 'LoadingFirstPage') return <MegaLoader text={CHAT_COPY.opening} testID="chat-loading" />;
@@ -139,7 +155,7 @@ export default function ChatRoute() {
     );
   }
 
-  const bigTalkButton = ROLES_CONFIG[viewer.member.role].talkButton;
+  const bigTalkButton = ROLES_CONFIG[viewer.member.role].talkButton && ageGroupOf(viewer.member, new Date().toISOString().slice(0, 10)) === 'child';
   const todayCount = today?.waitingOnYou.length ?? 0;
 
   return (
@@ -152,7 +168,8 @@ export default function ChatRoute() {
       <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding">
         <Screen padded={false} presentation="tab">
           <DemoSessionBar />
-          <ChatHeader
+          <ChatEntrance hasHistory={thread.results.some(message => message.author.kind === 'member')} key={viewer.member._id} memberId={viewer.member._id} mega={mega}>{({ avatarRef, onAvatarLayout }) => <>
+          <ChatHeader avatarRef={avatarRef} onAvatarLayout={onAvatarLayout}
             mega={mega}
             todayCount={todayCount}
             onOpenProfile={() => router.push('/mega-profile' as never)}
@@ -174,7 +191,7 @@ export default function ChatRoute() {
               onForgetMemory={(memoryId) => forgetMemory({ memoryId })}
               onAnswerNotification={(notificationId, buttonId) => answerNotification({ notificationId: notificationId as Id<'notifications'>, buttonId, via: 'block' })}
               notificationsById={notificationsById}
-              streamingReply={showStreamingReply && stream ? <StreamingReply megaName={mega.name} text={stream.text} /> : undefined}
+              streamingReply={showStreamingReply && stream ? <StreamingReply megaHex={mega.hex} megaName={mega.name} text={stream.text} /> : undefined}
               scrollToMessageId={messageId as Id<'messages'> | undefined}
             />
           </View>
@@ -182,8 +199,9 @@ export default function ChatRoute() {
               the friendly line, no retry button. */}
           {streamFailed && <RetryBanner label={streamStatusCopy(stream!.status as 'error' | 'timeout')} reducedMotion={reducedMotion} />}
           {sendError && <RetryBanner label={sendError.line} onRetry={onRetrySend} reducedMotion={reducedMotion} />}
-          <LiveMegaDraft offerPersonalize={viewer.member.role === 'admin' && !!onboarding && thread.results.length < 12} />
-          <Composer
+          <LiveMegaDraft />
+          {stopError && <Text accessibilityRole="alert">{stopError}</Text>}
+          <Composer responding={responding} stopping={stopping} onStop={!sending && activeStreamId ? () => void stop() : undefined}
             megaName={mega.name}
             bigTalkButton={bigTalkButton}
             replyTo={replyTo}
@@ -196,6 +214,7 @@ export default function ChatRoute() {
             placeholder={onboarding?.step === 'name' ? G5_COPY.namePlaceholder : undefined}
           />
           {attachments.sheets}
+          </>}</ChatEntrance>
         </Screen>
       </KeyboardAvoidingView>
     </TabBottomInset>

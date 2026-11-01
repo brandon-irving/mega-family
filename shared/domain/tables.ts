@@ -194,7 +194,7 @@ export const settings = {
 
 // v0.13b (additive): `startedAt` — when `chat.start` handled this thread's first open (wrote the MEGA's
 // starter, or found the member already talking), so a starter is written at most once per thread.
-export const threads = { familyId, ownerId: memberId, megaIds: v.array(v.id('megas')), lastAt: v.number(), startedAt: v.optional(v.number()) };
+export const threads = { familyId, ownerId: memberId, megaIds: v.array(v.id('megas')), lastAt: v.number(), startedAt: v.optional(v.number()), entranceSeenAt: v.optional(v.number()) };
 
 export const messages = {
   familyId,
@@ -204,12 +204,13 @@ export const messages = {
   via,
   body: messageBody,
   streamId: v.optional(v.string()),
+  stoppedAt: v.optional(v.number()),
   chips: v.array(saveChip),
   reaction: v.optional(reaction),
   fromNotificationId: v.optional(v.id('notifications')),
   /** v0.17b (G5 review C3): a block answered by rule, never by an agent turn (the onboarding family step, a
    * profiler check question). A repeat or stale answer to one is a no-op. */
-  ruleBlock: v.optional(v.union(v.literal('onboarding'), v.literal('profiler'), v.literal('brief'), v.literal('creation'), v.literal('connectionApproval'), v.literal('mailLocation'))),
+  ruleBlock: v.optional(v.union(v.literal('onboarding'), v.literal('profiler'), v.literal('brief'), v.literal('creation'), v.literal('connectionApproval'), v.literal('mailLocation'), v.literal('connectionSuggestion'))),
   saveableIdea: v.optional(v.boolean()),
 };
 
@@ -335,6 +336,9 @@ export type Button = Infer<typeof button>;
  * step can re-check "does this still apply" (e.g. a reminder already marked done) and the answer-effects
  * dispatcher (convex/model/notificationEffects.ts) knows which real row a button tap should act on. */
 export const candidateSource = v.union(
+  v.object({ kind: v.literal('mailPlan'), planId: v.id('mailPlans'), revision: v.number() }),
+  v.object({ kind: v.literal('teenCalendar'), eventId: v.id('events'), start: v.number() }),
+  v.object({ kind: v.literal('connectionApproval'), memberId, messageId: v.id('messages'), requestedAt: v.number() }),
   v.object({ kind: v.literal('reminder'), reminderId: v.id('reminders') }),
   v.object({ kind: v.literal('request'), requestId: v.id('requests') }),
   v.object({ kind: v.literal('checkin'), memberId }),
@@ -772,6 +776,7 @@ export const oauthStates = {
   familyId,
   memberId,
   nonceHash: v.string(),
+  expectedEmail: v.optional(v.string()),
   want: v.array(googleProduct),
   createdAt: v.number(),
   expiresAt: v.number(),
@@ -811,6 +816,8 @@ export const megaDrafts = {
 };
 
 export const assistantBriefs = {
+  kickoffRevision: v.optional(v.number()),
+  kickoff: v.optional(v.object({ prompt: v.string(), task: v.string(), emailReason: v.string() })),
   familyId,
   memberId,
   creatorId: memberId,
@@ -1044,7 +1051,16 @@ export const mailContextSuggestions = {
   messageId: v.optional(v.id('messages')),
 };
 
+export const connectionSuggestions = {
+  familyId, ownerId: memberId, subjectId: memberId,
+  providerId: v.string(), reason: v.string(),
+  mode: v.union(v.literal('own'), v.literal('creator')),
+  status: v.union(v.literal('pending'), v.literal('accepted'), v.literal('declined')),
+  messageId: v.id('messages'), createdAt: v.number(), updatedAt: v.number(),
+};
+
 export const TABLES = {
+  connectionSuggestions,
   mailContextSuggestions,
   demoRuns, schedulingPreferences, mailPlans,
   demoProfiles,

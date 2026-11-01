@@ -9,6 +9,7 @@ _Last updated: Oct 31._
 ## Current demo UAT
 
 - **Phase 1 — complete, owner approved Oct 31:** unified Google setup from chat and Settings, teen account-connection approval, and creation-time age/parental permission questions. The owner confirmed the first phase is complete after testing.
+- **Phase 2 — owner UAT approved (Oct 31):** accepted briefs produce a specific first-step proposal; typed/button acceptance continues through the agent, optional Google setup has a contextual explanation, and location confirmation remains explicit. No task runs merely from accepting a brief.
 - **Deferred UX follow-up:** simplify “Let MEGA help with your week.” See [the setup UAT note](docs/email-scheduling.md#pending-uat-follow-up). This is not a blocker for phase 1 acceptance.
 - Smartcar is a proposed follow-on after the core demo; not implemented or included in this acceptance.
 
@@ -137,3 +138,34 @@ Owner approved **$5 total for live model checks until G6**; ≈3 cents used. The
 - **Convex mutations are atomic:** a counter written in a mutation that then throws is rolled back, which is why `invites.redeem` is an action (lockout counter).
 - **Never trust model-supplied labels for privacy:** memory saves go through an independent classifier + keyword backstop (`convex/model/concernGate.ts`).
 - The agent context must state the family's local "now"; tool time args are local `YYYY-MM-DDTHH:MM` strings converted in code.
+
+### Phase 3 — creation and first meet (owner UAT approved)
+Compact draft banner persists; unfinished finalize cards retire on further conversation. Shared MEGA workshop exposes personality, name, colors, and sticker previews from the draft, invite, and profile. Profile icon → Personalize my MEGA replaces the standing chat action. Invitations show the selected MEGA walking into a reserved lane with introduction bubbles; no unrelated background cast flashes. No new native dependencies.
+
+Owner confirmed phase 3, including the walking introduction and greeting wave. Next planned phase: everyday chat and family polish (composer growth, keyboard dismissal on send, MEGA-colored bubbles, conversational naming, teen chat parity, and family members without assigned MEGAs).
+
+### Phase 4 typography and first-chat entrance — owner UAT approved
+Shared heading tokens are smaller; modal headers and button labels use theme sizing instead of local overrides. First chat hides preloaded greetings during a finite walk, wave, and morph into the measured top-left avatar, followed by a brief typing cue. Completion is stored on the private thread; returning conversations skip the entrance, new demo threads reset it. Reduced motion uses a short fade. Open chat skips immediately; backgrounding cancels animation work. Other phase 4 chat/family items remain separate follow-up work.
+
+### Connection recommendations — implemented, UAT pending
+Provider-independent capability ranking with Google as the first adapter; shared onboarding, creator permission, recipient brief, and agent-tool entry points. Declines and pending offers are remembered privately. Choice-card questions remain visible after answers.
+
+### First-chat spotlight and draft discard confirmation — UAT pending
+Confirmation uses a static MEGA portrait. The first chat alone plays a bounded black-stage spotlight, walk, wave, and dock into the avatar, then typing. No skip control; reduced motion uses a fade and unresolved layout fails open. Cancel draft opens a confirmation sheet with Keep editing and Discard draft.
+
+### Animation previews and revised chat entrance
+Settings → Demo → Open Demo Console → Animation previews replays the production first-chat entrance, walking frames, or greeting wave with the current MEGA. Replay is local only and does not reset onboarding or modify entrance history. Closing the preview cancels its timers.
+The first-chat entrance now uses the normal background: walk in, wave, pause with “Hi, I’m NAME!”, then float into the header and reveal chat. Spotlight removed; no Skip control. Reduced motion keeps the short fade.
+
+### Phase 4 everyday chat and family polish — implemented, UAT pending
+Compact inline composer with wrapped-text growth and keyboard dismissal on send; MEGA-colored readable message/stream bubbles; teen adult-sized text-first chat with kid permissions intact; explicit conversational MEGA naming; Family → Add person → Add without a MEGA records age group and relationship without an invitation or assistant. Existing creation remains available as the alternate choice.
+
+### Chat stop and identity polish — UAT pending
+Fixed dark/white user bubble palette; neutral person portraits in family lists and profiles without a MEGA. The composer uses an icon-only stop control during replies (accessible label only), preserving the next draft. Stop is cooperative: late reply chunks and future steps are blocked; in-flight API requests and completed effects are not undone.
+
+### Phase 5 — proactive family coordination (implemented, device UAT pending)
+Owner prioritized functionality and deferred further visual refinement. Scheduling cards explain permitted busy/free availability and recommend an available slot; private event titles never enter these explanations. New email-plan revisions and teen connection-approval requests enter the existing push pipeline with deduplication, quiet hours, caps, and generic lock-screen previews; taps reuse their existing chat card/block. Superseded, disabled, answered, cancelled, or unshared sources are checked again before delivery.
+
+New future teen calendar events ask the teen whether to share; an initial calendar import does not prompt for its entire history. Only explicitly shared events notify actual parents, through a live event card. Availability sharing alone never discloses private event details. See [phase 5 behavior and UAT](docs/family-coordination.md). No new native dependencies.
+
+Phase 5 validation: 1,112 backend tests passed, followed by 55 targeted checks after live event-card work; all 908 UI tests passed. Lint, typecheck, and diff whitespace checks passed. Deployed to the existing colorless-ibis-289 development backend. Real iPhone push delivery/tap UAT remains pending.

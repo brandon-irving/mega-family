@@ -111,3 +111,6 @@ export const GOOGLE_CALENDAR = {
 
 /** Capability grounding shared by first-contact and ordinary chat. */
 export const GOOGLE_ASSISTANT_PROMPT = 'MEGA supports connecting Google Gmail and Google Calendar through the app’s unified Google setup. This can recognize plans from email, sync calendars, and enable reviewed calendar holds and reply drafts. Never say you cannot connect Google or ask the person to manually copy their email/calendar because you lack that capability. Do not claim you have connected or read anything until it has actually happened. The person must choose their own permissions and consent through Google; parents can approve teens to begin setup without receiving inbox access.';
+
+/** Completion feedback for explicit chat checks; background syncs remain quiet. */
+export const GOOGLE_CHECK = { pollMs: 2000, maxPolls: 90 } as const;

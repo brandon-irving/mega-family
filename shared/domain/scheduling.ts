@@ -24,7 +24,7 @@ export const mailPlans = {
 export const planView = v.object({
   id: v.id('mailPlans'), title: v.string(), status: planStatus, revision: v.number(), timezone: v.string(),
   slots: v.array(v.object({ ...timeSlot.fields, available: v.boolean(), checked: v.boolean(), alternative: v.boolean() })),
-  participantNames: v.array(v.string()), unavailableNames: v.array(v.string()), missing: v.array(v.string()), durationAssumed: v.boolean(),
+  guidance: v.optional(v.string()), participantNames: v.array(v.string()), unavailableNames: v.array(v.string()), missing: v.array(v.string()), durationAssumed: v.boolean(),
   selected: v.optional(timeSlot), eventId: v.optional(v.id('events')), canUndo: v.boolean(), sourceUrl: v.string(),
   calendarOperation: v.optional(operationStatus), draftOperation: v.optional(operationStatus),
   canWriteCalendar: v.boolean(), canWriteDraft: v.boolean(), replyText: v.optional(v.string()), sourceLabel: v.string(),

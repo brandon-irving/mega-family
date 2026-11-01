@@ -155,7 +155,8 @@ describe('join: adult invite', () => {
     await renderScreen(<JoinRoute />);
     await act(async () => fireEvent.press(screen.getByText('Change my MEGA')));
     expect(screen.getByText('Make it yours')).toBeTruthy();
-    await act(async () => fireEvent.changeText(screen.getByLabelText('Name'), 'Ember'));
+    await act(async () => fireEvent.press(screen.getByText('Name')));
+    await act(async () => fireEvent.changeText(screen.getByLabelText('MEGA name'), 'Ember'));
     await act(async () => fireEvent.press(screen.getByText('Save')));
     expect(screen.getByText('Ember')).toBeTruthy();
     await act(async () => fireEvent.press(screen.getByText('Looks good, join')));

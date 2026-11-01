@@ -1,3 +1,4 @@
+import type { UIBlock } from '@shared/domain/messages';
 // Renders every UIBlock kind (CONTRACT §3) and checks each one shows its prompt and answers correctly.
 // @testing-library/react-native 13+: render() and fireEvent are async.
 import { fireEvent, screen } from '@testing-library/react-native';
@@ -49,11 +50,12 @@ describe('Block', () => {
 });
 
 describe('AnsweredBlock / summarizeAnswer', () => {
-  test('collapses a choice answer into its option labels', async () => {
+  test('preserves the question after a choice is answered', async () => {
     const answer = { optionIds: ['daughter'] };
     expect(summarizeAnswer(BLOCKS_BY_KIND.choice, answer)).toBe('Daughter');
     await renderWithTheme(<AnsweredBlock block={BLOCKS_BY_KIND.choice} answer={answer} />);
-    expect(screen.getByText('Daughter')).toBeTruthy();
+    expect(screen.getByText((BLOCKS_BY_KIND.choice as Extract<UIBlock, { kind: 'choice' }>).prompt)).toBeTruthy();
+    expect(screen.queryByText('Daughter')).toBeNull();
   });
 
   test('shows "Skipped" for a skipped fields block', () => {
@@ -89,7 +91,7 @@ test('conversational creation shows a look preview and confirmation, with no inl
   const onAnswer = jest.fn();
   await renderWithTheme(<Block block={BLOCKS_BY_KIND.megaDraft} onAnswer={onAnswer} conversationOnly />);
   expect(screen.getByLabelText('MEGA')).toBeTruthy();
-  await fireEvent.press(screen.getByRole('button', { name: 'Confirm MEGA' }));
+  await fireEvent.press(screen.getByRole('button', { name: 'Finalize MEGA' }));
   expect(onAnswer).toHaveBeenCalledWith({ value: 'confirm' });
 });
 
@@ -97,4 +99,18 @@ test('legacy input blocks become a question answered in the composer', async () 
   await renderWithTheme(<Block block={BLOCKS_BY_KIND.fields} onAnswer={jest.fn()} conversationOnly />);
   expect(screen.getByText('Reply using the chat box below.')).toBeTruthy();
   expect(screen.queryByRole('button', { name: 'Save' })).toBeNull();
+});
+
+test('draft cancellation requires confirmation and Keep editing preserves it', async () => {
+  const onAnswer = jest.fn();
+  await renderWithTheme(<Block block={BLOCKS_BY_KIND.megaDraft} onAnswer={onAnswer} />);
+  await fireEvent.press(screen.getByText('Cancel draft'));
+  expect(screen.getByText('Discard this MEGA draft?')).toBeTruthy();
+  expect(onAnswer).not.toHaveBeenCalled();
+  await fireEvent.press(screen.getByText('Keep editing'));
+  expect(onAnswer).not.toHaveBeenCalled();
+  await fireEvent.press(screen.getByText('Cancel draft'));
+  await fireEvent.press(screen.getByText('Discard draft'));
+  expect(onAnswer).toHaveBeenCalledTimes(1);
+  expect(onAnswer).toHaveBeenCalledWith({ value: 'cancel' });
 });

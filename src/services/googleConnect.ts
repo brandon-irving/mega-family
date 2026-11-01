@@ -1,3 +1,4 @@
+import { DEMO_CLEANUP } from '@shared/config/demo';
 import { SCHEDULING } from '@shared/config/scheduling';
 // G5 (CONTRACT v0.17, docs/gates/G5.md decision 1): connecting Gmail / Google Calendar is its own Google grant,
 // separate from signing in (the account MEGA reads can differ from the one you sign in with). Two paths, one
@@ -30,7 +31,9 @@ export function scopesFor(want: GoogleProduct[]): string[] {
   return want.map((w) => GOOGLE.scopes[w]);
 }
 
-type Deps = Pick<AccountActions, 'googleStart' | 'googleConnectCode'> & {
+type Deps = {
+  googleStart: (...args: Parameters<AccountActions['googleStart']>) => ReturnType<AccountActions['googleStart']>;
+  googleConnectCode: (...args: Parameters<AccountActions['googleConnectCode']>) => ReturnType<AccountActions['googleConnectCode']>;
   assertCanConnect?: () => void;
   /** Web navigation (injected in tests). */
   navigate?: (url: string) => void;
@@ -38,10 +41,10 @@ type Deps = Pick<AccountActions, 'googleStart' | 'googleConnectCode'> & {
   loadGoogle?: () => Promise<typeof import('@react-native-google-signin/google-signin')>;
 };
 
-export async function connectGoogle(want: GoogleProduct[], deps: Deps, scheduling = false): Promise<GoogleConnectResult> {
+export async function connectGoogle(want: GoogleProduct[], deps: Deps, scheduling = false, demoCleanup = false): Promise<GoogleConnectResult> {
   deps.assertCanConnect?.();
   if (Platform.OS === 'web') {
-    const { authUrl } = await deps.googleStart({ want, ...(scheduling ? { scheduling: true } : {}) });
+    const { authUrl } = await deps.googleStart({ want, ...(scheduling ? { scheduling: true } : {}), ...(demoCleanup ? { demoCleanup: true } : {}) });
     if (!isGoogleConsentUrl(authUrl)) return 'failed';
     (deps.navigate ?? ((url: string) => window.location.assign(url)))(authUrl);
     return 'redirecting';
@@ -53,7 +56,7 @@ export async function connectGoogle(want: GoogleProduct[], deps: Deps, schedulin
     iosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID,
     offlineAccess: true,
     forceCodeForRefreshToken: true,
-    scopes: [...scopesFor(want), ...(scheduling ? Object.values(SCHEDULING.scopes) : [])],
+    scopes: [...scopesFor(want), ...(scheduling ? Object.values(SCHEDULING.scopes) : []), ...(demoCleanup ? [DEMO_CLEANUP.gmailScope] : [])],
   });
   try {
     await GoogleSignin.signOut().catch(() => null);

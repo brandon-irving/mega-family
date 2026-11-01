@@ -1,3 +1,4 @@
+import { PersonAvatar } from '@/ui/PersonAvatar';
 import { ageGroupOf, AGE_GROUP_LABELS } from '@shared/ageGroups';
 import { AgeGroupControls } from './AgeGroupControls';
 // Member detail sheet (PLAN §4): Message / Visit room / Kid controls (parents only) / read kid chat
@@ -41,7 +42,7 @@ export function MemberDetailContent({ detail, onMessage, onVisitRoom, onChangeKi
   return (
     <>
       <View style={{ alignItems: 'center', gap: tokens.spacing.sm, marginBottom: tokens.spacing.lg }}>
-        {mega && <MegaBadge hex={mega.look.hex} sticker={mega.look.sticker} face={faceFor(mega.personality)} size={64} />}
+        {mega ? <MegaBadge hex={mega.look.hex} sticker={mega.look.sticker} face={faceFor(mega.personality)} size={64} /> : <PersonAvatar size={64} />}
         <Text variant="title">{member.name}</Text><Text color="muted">{AGE_GROUP_LABELS[ageGroupOf(member, new Date().toISOString().slice(0,10))]}</Text>
         {detail.relationshipToViewer && (
           <Text color="muted" style={{ textTransform: 'capitalize' }}>

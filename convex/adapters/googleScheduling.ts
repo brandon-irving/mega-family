@@ -1,7 +1,7 @@
 import { GMAIL, GOOGLE_CALENDAR, GOOGLE } from '../../shared/config/google';
 import type { MailScheduling, WriteResult } from '../ports/mailScheduling';
 
-async function request(url: string, token: string, method: string, body?: unknown): Promise<{ status: number; data: Record<string, unknown> }> {
+export async function request(url: string, token: string, method: string, body?: unknown): Promise<{ status: number; data: Record<string, unknown> }> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), GOOGLE.timeoutMs);
   try {

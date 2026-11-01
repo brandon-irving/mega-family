@@ -2,6 +2,7 @@
 import { fireEvent, screen } from '@testing-library/react-native';
 import { renderWithTheme } from '@/test/renderWithTheme';
 import { CARDS_BY_KIND, NOTIFICATION_FIXTURE, NOTIFICATION_HELD_FIXTURE } from '@/test/fixtures';
+import { EventCard } from '@/features/calendar/EventCard';
 import { ResultCard } from './Cards';
 
 // G4: the search/weather/travel cards read the viewer's timezone and role (src/features/integrations).
@@ -9,11 +10,12 @@ jest.mock('@/data/useViewer', () => ({ useViewer: () => ({ member: { role: 'adul
 // The travel card's buttons call `travel.answer` (v0.15a); these render tests have no Convex client.
 jest.mock('@/data/useIntegrations', () => ({ useTravelAnswer: () => jest.fn() }));
 
+jest.mock('@/features/calendar/EventCard', () => ({ EventCard: jest.fn(() => null) }));
+
 describe('ResultCard', () => {
-  test('event card shows its visibility', async () => {
+  test('event card delegates to the live calendar card', async () => {
     await renderWithTheme(<ResultCard card={CARDS_BY_KIND.event} />);
-    expect(screen.getByText('Event saved')).toBeTruthy();
-    expect(screen.getByText('Visible to Family')).toBeTruthy();
+    expect(jest.mocked(EventCard).mock.calls.at(-1)?.[0]).toEqual({ eventId: (CARDS_BY_KIND.event as { eventId: string }).eventId });
   });
 
   test('reminder card', async () => {

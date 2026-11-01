@@ -1,3 +1,4 @@
+import { ModalSheet } from '@/ui/ModalSheet';
 import { MegaDraftPreview } from './MegaDraftPreview';
 import { MEGA_CREATION as C } from '@shared/config/megaCreation';
 import { FieldsForm } from '@/ui/FieldsForm';
@@ -56,6 +57,8 @@ export function Block({ block, onAnswer, conversationOnly = false }: BlockProps)
 export function AnsweredBlock({ block, answer }: { block: UIBlock; answer: BlockAnswer }) {
   const tokens = useTokens();
   const label = summarizeAnswer(block, answer);
+  // The member's answer has its own message. Keep the MEGA's question in this row.
+  if (block.kind === 'choice') return <Text variant="body">{block.prompt}</Text>;
   return (
     <Text variant="body" style={{ color: tokens.muted, fontStyle: 'italic' }} accessibilityLabel={`Answered: ${label}`}>
       {label}
@@ -307,6 +310,7 @@ function ConfirmBlock({ block, onAnswer }: { block: Extract<UIBlock, { kind: 'co
 
 function MegaDraftBlock({ block, onAnswer }: { block: Extract<UIBlock, { kind: 'megaDraft' }>; onAnswer: (answer: BlockAnswer) => void }) {
   const tokens = useTokens();
+  const [confirmDiscard, setConfirmDiscard] = useState(false);
   const data = block.data;
   return <Card style={{ gap: tokens.spacing.sm }}>
     <Text variant="label">{block.prompt}</Text>
@@ -314,6 +318,11 @@ function MegaDraftBlock({ block, onAnswer }: { block: Extract<UIBlock, { kind: '
     <Text variant="caption" color="muted">{C.appearance}</Text>
     <Button label={C.confirm} onPress={() => onAnswer({ value: 'confirm' })} />
     <Button label={C.change} variant="secondary" onPress={() => onAnswer({ value: 'change' })} />
-    <Button label={C.cancel} variant="ghost" onPress={() => onAnswer({ value: 'cancel' })} />
+    <Button label={C.cancel} variant="ghost" onPress={() => setConfirmDiscard(true)} />
+    {confirmDiscard && <ModalSheet open title={C.discardTitle} closeLabel={C.keepEditing} onClose={() => setConfirmDiscard(false)}>
+      <Text>{C.discardBody}</Text>
+      <Button label={C.keepEditing} onPress={() => setConfirmDiscard(false)} />
+      <Button label={C.discard} variant="secondary" onPress={() => { setConfirmDiscard(false); onAnswer({ value: 'cancel' }); }} />
+    </ModalSheet>}
   </Card>;
 }

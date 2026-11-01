@@ -1,3 +1,4 @@
+import { recommendConnection } from './connectionRecommendations';
 import { migrateCreation } from './megaCreation';
 import { getOrCreateOwnThread } from './threads';
 import { MEGA_CREATION } from '../../shared/config/megaCreation';
@@ -250,6 +251,7 @@ export async function afterName(ctx: MutationCtx, member: Doc<'members'>, now: n
   if (row) {
     await ctx.db.patch(row._id, { step: 'done', finishedAt: now });
     if (askAboutOwner) await say(ctx, row, text(G5_COPY.meetAdmin), now);
+    await recommendConnection(ctx, member, '', now + 1, { allowBaseline: true });
   }
 }
 

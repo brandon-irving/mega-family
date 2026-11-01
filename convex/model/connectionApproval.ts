@@ -1,3 +1,5 @@
+import { COORDINATION_COPY } from '../../shared/config/scheduling';
+import { enqueueCardCandidate } from './proactive';
 import { ageGroupOf } from '../../shared/ageGroups';
 import type { BlockAnswer } from '../../shared/domain/messages';
 import type { Doc, Id } from '../_generated/dataModel';
@@ -26,6 +28,13 @@ export async function requestConnectionApproval(ctx: MutationCtx, member: Doc<'m
   }
   if (!messageIds.length) fail('VALIDATION', 'A parent needs a MEGA before they can receive this request.');
   await ctx.db.patch(member._id, { connectionRequest: { at: now, status: 'pending', messageIds } });
+  for (const messageId of messageIds) {
+    const message = await ctx.db.get(messageId);
+    const thread = message ? await ctx.db.get(message.threadId) : null;
+    if (thread) await enqueueCardCandidate(ctx, { familyId: member.familyId, recipientId: thread.ownerId, kind: 'update',
+      dedupeKey: `connectionApproval:${messageId}`, title: COORDINATION_COPY.approvalTitle, text: COORDINATION_COPY.approvalBody,
+      source: { kind: 'connectionApproval', memberId: member._id, messageId, requestedAt: now }, now });
+  }
   await postOwnMegaMessage(ctx, member.familyId, member._id, { type: 'text', text: 'I asked your parent to approve account connections. Once they approve, open Connect Google here to continue.' }, now);
 }
 

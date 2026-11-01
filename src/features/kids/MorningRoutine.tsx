@@ -109,9 +109,9 @@ export function MorningRoutineView({
         <Text variant="display">{finished ? KIDS_COPY.morningFinishedTitle : step?.label}</Text>
         {!finished && step?.detail ? <Text color="muted">{step.detail}</Text> : null}
         {finished ? (
-          <Button label={KIDS_COPY.morningStartOver} variant="secondary" onPress={onStartOver} size={{ height: 64, fontSize: tokens.type.title.fontSize }} />
+          <Button label={KIDS_COPY.morningStartOver} variant="secondary" onPress={onStartOver} size={tokens.buttonSize} />
         ) : (
-          <Button label={KIDS_COPY.morningDoneButton} onPress={tapDone} size={{ height: 64, fontSize: tokens.type.headline.fontSize }} />
+          <Button label={KIDS_COPY.morningDoneButton} onPress={tapDone} size={tokens.buttonSize} />
         )}
       </View>
       <View accessibilityRole="list" accessibilityLabel="Morning steps" style={{ flexDirection: 'row', gap: tokens.spacing.sm }}>

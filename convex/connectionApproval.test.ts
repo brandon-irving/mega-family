@@ -21,11 +21,21 @@ test('teen asks once; parent explicitly approves; no Google access or sharing is
  expect(child?.connectionRequest?.status).toBe('pending');
  const messages=await t.run(ctx=>ctx.db.query('messages').filter(q=>q.eq(q.field('ruleBlock'),'connectionApproval')).collect());
  expect(messages.length).toBe(child!.connectionRequest!.messageIds.length);
+ const alerts=(await t.run(ctx=>ctx.db.query('candidates').collect())).filter(c=>c.source?.kind==='connectionApproval');
+ expect(alerts).toHaveLength(messages.length);
+ for (const alert of alerts) {
+   const {candidateStillApplies}=await import('./model/proactive');
+   expect(await t.run(ctx=>candidateStillApplies(ctx,alert.source,alert.recipientId))).toBe(true);
+ }
  const parent=(await admin.query(api.me.get,{}))!;
  const message=await t.run(async ctx=>{for(const m of messages){if((await ctx.db.get(m.threadId))?.ownerId===parent.member._id)return m;}return null;});
  const args={messageId:message!._id,answer:{optionIds:['approve']},via:'text' as const};
  await admin.mutation(api.chat.answerBlock,args); await admin.mutation(api.chat.answerBlock,args);
  expect((await t.run(ctx=>ctx.db.get(kid._id)))?.connectionsApprovedBy).toBe(parent.member._id);
+ for (const alert of alerts) {
+   const {candidateStillApplies}=await import('./model/proactive');
+   expect(await t.run(ctx=>candidateStillApplies(ctx,alert.source,alert.recipientId))).toBe(false);
+ }
  expect(await t.run(ctx=>ctx.db.query('integrationSecrets').collect())).toHaveLength(0);
  expect(await t.run(ctx=>ctx.db.query('schedulingPreferences').collect())).toHaveLength(0);
 });

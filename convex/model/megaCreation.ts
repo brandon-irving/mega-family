@@ -1,3 +1,4 @@
+import { recommendConnection } from './connectionRecommendations';
 import { ageGroupFromBrief, ageGroupOf, AGE_GROUP_LABELS } from '../../shared/ageGroups';
 import { ASSISTANT_BRIEF } from '../../shared/config/assistantBrief';
 import { MEGA_CREATION as C } from '../../shared/config/megaCreation';
@@ -221,6 +222,7 @@ export async function confirmDraft(ctx: MutationCtx, member: Doc<'members'>, dra
   if (review?.body.type === 'block') await ctx.db.patch(review._id, { body: { ...review.body, answeredWith: { value: 'Confirmed' } } });
   await postOwnMegaMessage(ctx, member.familyId, member._id, { type: 'text', text: d.target === 'self' ? C.created : C.inviteReady }, now, { ruleBlock: 'creation' });
   if (d.target !== 'self') await postOwnMegaMessage(ctx, member.familyId, member._id, { type: 'block', block: { kind: 'invite', memberId: person._id } }, now);
+  if (d.target !== 'self') await recommendConnection(ctx, member, Object.values(d.brief ?? {}).join(' '), now + 1, { subject: (await ctx.db.get(person._id))!, allowBaseline: true });
   return person._id;
 }
 
@@ -242,4 +244,12 @@ export async function cancelDraft(ctx: MutationCtx, member: Doc<'members'>, id: 
   if (row.status === 'created') fail('VALIDATION', 'This MEGA has already been created.');
   await invalidateReview(ctx, row);
   await ctx.db.patch(row._id, { status: 'cancelled', updatedAt: now, reviewMessageId: undefined });
+}
+
+
+/** An unfinished finalize card is temporary; further conversation keeps only the mini draft banner. */
+export async function resumeDraftConversation(ctx: MutationCtx, row: Draft, now: number) {
+  if (row.status !== 'review') return;
+  await invalidateReview(ctx, row);
+  await ctx.db.patch(row._id, { status: 'draft', reviewMessageId: undefined, revision: row.revision + 1, updatedAt: now });
 }

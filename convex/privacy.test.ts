@@ -167,6 +167,12 @@ async function loadFamily(t: ReturnType<typeof convexTest>, key: 'A' | 'B', fami
   const runId = await t.run(ctx => ctx.db.insert('demoRuns', { familyId, ownerAuthId: `sample:${key}`, adminId: members.admin, key: `privacy-${key}`, date: '2026-11-02', createdAt: 1, active: false, jobs: [] }));
   docs.demoRuns = [(await t.run(ctx => ctx.db.get(runId))) as unknown as AnyDoc];
   ids.add(runId);
+  const draftId = await t.run(async ctx => {
+    const threadId = (docs.threads!.find(row => row.ownerId === members.admin)!._id) as Id<'threads'>;
+    return ctx.db.insert('megaDrafts', { familyId, creatorId: members.admin, threadId, data: { target: 'self', megaName: 'Teal', hex: '#2FB8B0', sticker: 'star', personality: 'cheerful' }, status: 'draft', revision: 1, updatedAt: 1 });
+  });
+  docs.megaDrafts = [(await t.run(ctx => ctx.db.get(draftId))) as unknown as AnyDoc];
+  ids.add(draftId);
   return { key, familyId, members, docs, ids };
 }
 

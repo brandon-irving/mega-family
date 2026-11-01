@@ -47,3 +47,9 @@ test('draft preview is reviewed before creating anything and never offers send',
   await fireEvent.press(screen.getAllByRole('button', { name: C.draft }).at(-1)!);
   expect(on.onDraft).toHaveBeenCalledTimes(1);
 });
+
+test('MEGA explains the conflict and alternative alongside the time choices', async () => {
+  const guidance = 'Brandon is busy at noon, based on shared availability. 1:30 PM works with the calendars I could check.';
+  await renderWithTheme(<MailPlanCardView plan={{ ...plan, guidance }} busy={null} error={null} {...actions()} />);
+  expect(screen.getByText(guidance)).toBeTruthy();
+});

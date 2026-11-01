@@ -8,6 +8,7 @@
  * @module
  */
 
+import type * as adapters_demoCleanup from "../adapters/demoCleanup.js";
 import type * as adapters_expoPushSender from "../adapters/expoPushSender.js";
 import type * as adapters_fakeChatModel from "../adapters/fakeChatModel.js";
 import type * as adapters_fakeDirections from "../adapters/fakeDirections.js";
@@ -48,6 +49,7 @@ import type * as agent_tools from "../agent/tools.js";
 import type * as agent_writer from "../agent/writer.js";
 import type * as assistantBriefs from "../assistantBriefs.js";
 import type * as auth from "../auth.js";
+import type * as briefKickoff from "../briefKickoff.js";
 import type * as bucks from "../bucks.js";
 import type * as calendar from "../calendar.js";
 import type * as chat from "../chat.js";
@@ -56,6 +58,7 @@ import type * as clashes from "../clashes.js";
 import type * as clock from "../clock.js";
 import type * as crons from "../crons.js";
 import type * as demo from "../demo.js";
+import type * as demoCleanup from "../demoCleanup.js";
 import type * as demoConsole from "../demoConsole.js";
 import type * as evals from "../evals.js";
 import type * as events from "../events.js";
@@ -63,6 +66,7 @@ import type * as family from "../family.js";
 import type * as files from "../files.js";
 import type * as gifts from "../gifts.js";
 import type * as gmailPush from "../gmailPush.js";
+import type * as googleChecks from "../googleChecks.js";
 import type * as holidays from "../holidays.js";
 import type * as homework from "../homework.js";
 import type * as hq from "../hq.js";
@@ -89,6 +93,7 @@ import type * as model_chores from "../model/chores.js";
 import type * as model_clashes from "../model/clashes.js";
 import type * as model_concernGate from "../model/concernGate.js";
 import type * as model_connectionApproval from "../model/connectionApproval.js";
+import type * as model_connectionRecommendations from "../model/connectionRecommendations.js";
 import type * as model_creationMcp from "../model/creationMcp.js";
 import type * as model_creationTools from "../model/creationTools.js";
 import type * as model_define from "../model/define.js";
@@ -130,6 +135,7 @@ import type * as model_proposals from "../model/proposals.js";
 import type * as model_pushAnswerToken from "../model/pushAnswerToken.js";
 import type * as model_random from "../model/random.js";
 import type * as model_recall from "../model/recall.js";
+import type * as model_renameMega from "../model/renameMega.js";
 import type * as model_requestEffects from "../model/requestEffects.js";
 import type * as model_routines from "../model/routines.js";
 import type * as model_scheduling from "../model/scheduling.js";
@@ -203,6 +209,7 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  "adapters/demoCleanup": typeof adapters_demoCleanup;
   "adapters/expoPushSender": typeof adapters_expoPushSender;
   "adapters/fakeChatModel": typeof adapters_fakeChatModel;
   "adapters/fakeDirections": typeof adapters_fakeDirections;
@@ -243,6 +250,7 @@ declare const fullApi: ApiFromModules<{
   "agent/writer": typeof agent_writer;
   assistantBriefs: typeof assistantBriefs;
   auth: typeof auth;
+  briefKickoff: typeof briefKickoff;
   bucks: typeof bucks;
   calendar: typeof calendar;
   chat: typeof chat;
@@ -251,6 +259,7 @@ declare const fullApi: ApiFromModules<{
   clock: typeof clock;
   crons: typeof crons;
   demo: typeof demo;
+  demoCleanup: typeof demoCleanup;
   demoConsole: typeof demoConsole;
   evals: typeof evals;
   events: typeof events;
@@ -258,6 +267,7 @@ declare const fullApi: ApiFromModules<{
   files: typeof files;
   gifts: typeof gifts;
   gmailPush: typeof gmailPush;
+  googleChecks: typeof googleChecks;
   holidays: typeof holidays;
   homework: typeof homework;
   hq: typeof hq;
@@ -284,6 +294,7 @@ declare const fullApi: ApiFromModules<{
   "model/clashes": typeof model_clashes;
   "model/concernGate": typeof model_concernGate;
   "model/connectionApproval": typeof model_connectionApproval;
+  "model/connectionRecommendations": typeof model_connectionRecommendations;
   "model/creationMcp": typeof model_creationMcp;
   "model/creationTools": typeof model_creationTools;
   "model/define": typeof model_define;
@@ -325,6 +336,7 @@ declare const fullApi: ApiFromModules<{
   "model/pushAnswerToken": typeof model_pushAnswerToken;
   "model/random": typeof model_random;
   "model/recall": typeof model_recall;
+  "model/renameMega": typeof model_renameMega;
   "model/requestEffects": typeof model_requestEffects;
   "model/routines": typeof model_routines;
   "model/scheduling": typeof model_scheduling;

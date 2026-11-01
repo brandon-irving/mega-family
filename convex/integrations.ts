@@ -1,3 +1,5 @@
+import { DEMO_CLEANUP } from '../shared/config/demo';
+import { demoGate } from './model/demoConsole';
 import { connectorAllowed } from './model/integrations';
 import { SCHEDULING } from '../shared/config/scheduling';
 // CONTRACT §4 `integrations.*` (G5, v0.17): connected accounts — Gmail and Google Calendar (one Google grant per
@@ -90,9 +92,10 @@ export const offer = query({
 
 export const googleStart = mutation({
   ...pick(API.integrations.googleStart),
-  handler: async (ctx, { want, loginHint, scheduling }) => {
+  handler: async (ctx, { want, loginHint, scheduling, demoCleanup }) => {
     const viewer = await requireViewer(ctx);
     requireConnector(viewer.member);
+    if (demoCleanup) demoGate();
     const products = [...new Set(want)];
     if (!products.length) fail('VALIDATION', 'nothing to connect');
     const redirectUri = googleRedirectUri();
@@ -100,7 +103,7 @@ export const googleStart = mutation({
     const { token: nonce, hash } = await randomToken();
     const now = clock.realNow(); // Google's consent screen runs in real time, whatever the demo clock says
     await ctx.db.insert('oauthStates', { familyId: viewer.member.familyId, memberId: viewer.member._id, nonceHash: hash, want: products, createdAt: now, expiresAt: now + GOOGLE.stateTtlMinutes * 60_000 });
-    const scopes = [...GOOGLE.identityScopes, ...products.map((p) => GOOGLE.scopes[p]), ...(scheduling ? Object.values(SCHEDULING.scopes) : [])];
+    const scopes = [...GOOGLE.identityScopes, ...products.map((p) => GOOGLE.scopes[p]), ...(scheduling ? Object.values(SCHEDULING.scopes) : []), ...(demoCleanup ? [DEMO_CLEANUP.gmailScope] : [])];
     return { authUrl: getGoogleOAuth().authUrl({ scopes, state: nonce, redirectUri, loginHint: loginHint?.slice(0, 200) }) };
   },
 });
@@ -129,7 +132,7 @@ export const requireMemberCheck = internalQuery({
 /** Exchanges a Google code and stores the grant for `familyId`/`memberId` (the web callback and iOS share it). */
 export async function exchangeAndStore(
   ctx: { runMutation: import('./_generated/server').ActionCtx['runMutation'] },
-  p: { familyId: Id<'families'>; memberId: Id<'members'>; want: ('gmail' | 'googleCalendar')[]; code: string; redirectUri: string },
+  p: { familyId: Id<'families'>; memberId: Id<'members'>; want: ('gmail' | 'googleCalendar')[]; code: string; redirectUri: string; expectedEmail?: string },
 ): Promise<SyncOutcome> {
   const r = await getGoogleOAuth().exchangeCode({ code: p.code, redirectUri: p.redirectUri });
   if (!r.ok || !r.tokens.refreshToken) {
@@ -137,6 +140,7 @@ export async function exchangeAndStore(
     await ctx.runMutation(internal.integrations.setFailures, { familyId: p.familyId, memberId: p.memberId, want: p.want, failure });
     return { status: 'error', failure };
   }
+  if (p.expectedEmail && r.tokens.email?.toLowerCase() !== p.expectedEmail.toLowerCase()) fail('VALIDATION', `Choose ${p.expectedEmail} in Google. No connection was changed.`);
   const now = clock.realNow();
   const { connected } = await ctx.runMutation(internal.integrations.storeGrant, {
     familyId: p.familyId,
@@ -332,7 +336,7 @@ export const syncNow = action({
 /** The callback's state check: unknown, expired or already used → null (and a used one stays used). */
 export const consumeState = internalMutation({
   args: { nonceHash: v.string() },
-  returns: v.union(v.null(), v.object({ familyId: v.id('families'), memberId: v.id('members'), want: googleProducts })),
+  returns: v.union(v.null(), v.object({ familyId: v.id('families'), memberId: v.id('members'), want: googleProducts, expectedEmail: v.optional(v.string()) })),
   handler: async (ctx, { nonceHash }) => {
     const row = await ctx.db
       .query('oauthStates')
@@ -344,7 +348,7 @@ export const consumeState = internalMutation({
     if (row.expiresAt < now) return null;
     const member = await ctx.db.get(row.memberId);
     if (!member || member.familyId !== row.familyId || !connectorAllowed(member)) return null;
-    return { familyId: row.familyId, memberId: row.memberId, want: row.want };
+    return { familyId: row.familyId, memberId: row.memberId, want: row.want, ...(row.expectedEmail ? { expectedEmail: row.expectedEmail } : {}) };
   },
 });
 

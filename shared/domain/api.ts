@@ -447,11 +447,13 @@ export const API = {
       kind: 'mutation',
       day1: 'real',
       adminOnly: true,
-      args: { name: v.string(), role: v.union(v.literal('adult'), v.literal('kid')), relationship, mega: v.optional(T.inviteMega), birthday: v.optional(v.string()) },
+      args: { name: v.string(), role: v.union(v.literal('adult'), v.literal('kid')), relationship, mega: v.optional(T.inviteMega), ageGroup: v.optional(v.union(v.literal('child'), v.literal('teen'), v.literal('adult'))), birthday: v.optional(v.string()) },
       returns: v.object({ memberId: v.id('members') }),
     }),
   },
   chat: {
+    entrance: fn({ kind: 'query', day1: 'real', args: { profileKey: v.id('members') }, returns: v.object({ pending: v.boolean() }) }),
+    finishEntrance: fn({ kind: 'mutation', day1: 'real', args: { profileKey: v.id('members') }, returns: v.null() }),
     thread: fn({ kind: 'query', day1: 'real', args: { paginationOpts: paginationOptsValidator, profileKey: v.optional(v.id('members')) }, returns: paginationResultValidator(messageDoc) }),
     send: fn({
       kind: 'mutation',
@@ -460,6 +462,7 @@ export const API = {
       args: { text: v.string(), mentions: v.optional(v.array(v.id('megas'))), via: v.union(v.literal('text'), v.literal('voice')), attachments: v.optional(v.array(v.id('_storage'))), files: v.optional(v.array(v.object({ storageId: v.id('_storage'), name: v.string(), mimeType: v.string() }))) },
       returns: v.object({ messageId: v.id('messages'), replyMessageId: v.id('messages'), streamId: v.string() }),
     }),
+    stop: fn({ kind: 'mutation', day1: 'real', args: { streamId: v.string() }, returns: v.null() }),
     streamBody: fn({
       kind: 'query',
       day1: 'real',
@@ -538,6 +541,7 @@ export const API = {
     dailyCap: fn({ kind: 'query', day1: 'real', args: { memberId: v.id('members') }, returns: v.object({ dailyCap: v.number() }) }),
   },
   calendar: {
+    event: fn({ kind: 'query', day1: 'real', args: { eventId: v.id('events') }, returns: v.object({ event: eventDoc, timezone: v.string(), ownerName: v.optional(v.string()) }) }),
     range: fn({ kind: 'query', day1: 'real', args: { from: v.number(), to: v.number() }, returns: v.array(eventDoc) }),
   },
   events: {
@@ -632,9 +636,15 @@ export const API = {
     jump: fn({ kind: 'mutation', day1: 'real', adminOnly: true, args: { to: v.number() }, returns: v.null() }),
   },
   megaCreation: {
+    updateAppearance: fn({ kind: 'mutation', day1: 'real', args: { draftId: v.id('megaDrafts'), revision: v.number(), megaName: v.string(), hex: v.string(), sticker: T.megas.look.fields.sticker, personality }, returns: v.null() }),
+    review: fn({ kind: 'mutation', day1: 'real', args: { draftId: v.id('megaDrafts'), revision: v.number() }, returns: v.null() }),
     personalize: fn({ kind: 'mutation', day1: 'real', args: {}, returns: v.null() }),
-    current: fn({ kind: 'query', day1: 'real', args: {}, returns: v.union(v.null(), v.object({ data: T.megaDrafts.data, revision: v.number(), status: v.union(v.literal('draft'), v.literal('review')) })) }),
+    current: fn({ kind: 'query', day1: 'real', args: {}, returns: v.union(v.null(), v.object({ draftId: v.id('megaDrafts'), data: T.megaDrafts.data, revision: v.number(), status: v.union(v.literal('draft'), v.literal('review')) })) }),
   },
+  demoCleanup: {
+    authorizeStart: fn({ kind: 'mutation', day1: 'real', adminOnly: true, args: { runId: v.id('demoRuns'), persona: v.string() }, returns: v.object({ authUrl: v.string() }) }),
+    authorizeCode: fn({ kind: 'action', day1: 'real', adminOnly: true, args: { runId: v.id('demoRuns'), persona: v.string(), serverAuthCode: v.string() }, returns: v.object({ status: T.integrationStatus }) }),
+    clear: fn({ kind: 'action', day1: 'real', adminOnly: true, args: { runId: v.id('demoRuns') }, returns: v.string() }) },
   demoConsole: {
     abandon: fn({ kind: 'mutation', day1: 'real', adminOnly: true, args: { runId: v.id('demoRuns'), stage: demoStage, expectedAttempt: v.number() }, returns: v.null() }),
     cleanup: fn({ kind: 'action', day1: 'real', adminOnly: true, args: { runId: v.id('demoRuns') }, returns: v.null() }),
@@ -883,7 +893,7 @@ export const API = {
     // app to open. The callback (`GET {CONVEX_SITE_URL}/google/oauth/callback`, an HTTP route) exchanges the
     // code, stores the grant, connects the integrations, posts the connected line, and redirects to
     // SITE_URL + GOOGLE.returnPath. `not_configured` (VALIDATION) when GOOGLE env isn't set.
-    googleStart: fn({ kind: 'mutation', day1: 'real', args: { want: v.array(T.googleProduct), loginHint: v.optional(v.string()), scheduling: v.optional(v.boolean()) }, returns: v.object({ authUrl: v.string() }) }),
+    googleStart: fn({ kind: 'mutation', day1: 'real', args: { want: v.array(T.googleProduct), loginHint: v.optional(v.string()), scheduling: v.optional(v.boolean()), demoCleanup: v.optional(v.boolean()) }, returns: v.object({ authUrl: v.string() }) }),
     // iOS: the `serverAuthCode` from @react-native-google-signin (offlineAccess, the read-only scopes) is
     // exchanged on the server (web client id + secret). Same effects as the callback.
     googleConnectCode: fn({ kind: 'action', day1: 'real', args: { serverAuthCode: v.string(), want: v.array(T.googleProduct) }, returns: v.object({ status: T.integrationStatus, failure: v.optional(T.integrationFailure) }) }),

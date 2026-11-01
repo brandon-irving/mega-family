@@ -51,3 +51,5 @@ export function useSetKidDailyCap() {
 }
 
 export function useNextFamilyEvent() { return useQuery(api.family.nextEvent, {}); }
+
+export function useAddFamilyMember() { return useMutation(api.family.add); }

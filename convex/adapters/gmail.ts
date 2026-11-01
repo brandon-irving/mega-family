@@ -139,15 +139,20 @@ export const gmailMailSource: MailSource = {
     for (let page = 0; ; page++) {
       if (page >= GMAIL.historyMaxPages) return { ok: true, stale: true };
       const r = await googleGet(
-        withQuery(`${GMAIL.baseUrl}/history`, { startHistoryId, historyTypes: 'messageAdded', labelId: GMAIL.labelId, maxResults: Math.min(GMAIL.historyMaxResults, 500), pageToken }),
+        withQuery(`${GMAIL.baseUrl}/history`, { startHistoryId, historyTypes: ['messageAdded', 'labelAdded'], labelId: GMAIL.labelId, maxResults: Math.min(GMAIL.historyMaxResults, 500), pageToken }),
         accessToken,
       );
       if (!r.ok) {
         if (r.status === 404) return { ok: true, stale: true };
         return { ok: false, failure: r.failure, detail: r.detail };
       }
-      const j = r.json as { history?: { messagesAdded?: { message?: { id?: string; labelIds?: string[] } }[] }[]; historyId?: string; nextPageToken?: string };
-      for (const h of j.history ?? []) for (const added of h.messagesAdded ?? []) if (added.message?.id && !ids.includes(added.message.id)) ids.push(added.message.id);
+      const j = r.json as { history?: { messagesAdded?: { message?: { id?: string; labelIds?: string[] } }[]; labelsAdded?: { message?: { id?: string }; labelIds?: string[] }[] }[]; historyId?: string; nextPageToken?: string };
+      for (const h of j.history ?? []) {
+        const arrivals = (h.messagesAdded ?? []).filter(a => !a.message?.labelIds || a.message.labelIds.includes(GMAIL.labelId));
+        // Recover messages moved out of Spam/archive into Inbox without sending another email.
+        const movedToInbox = (h.labelsAdded ?? []).filter(a => a.labelIds?.includes(GMAIL.labelId));
+        for (const added of [...arrivals, ...movedToInbox]) if (added.message?.id && !ids.includes(added.message.id)) ids.push(added.message.id);
+      }
       if (ids.length > max) return { ok: true, stale: true };
       if (j.historyId) historyId = String(j.historyId);
       pageToken = j.nextPageToken;

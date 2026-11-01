@@ -1,3 +1,6 @@
+import { ageGroupOf } from '../../shared/ageGroups';
+import { canSeeEvent, eventOwnerId } from './visibility';
+import { parentOf } from './viewer';
 import { acceptedBriefContext } from './assistantBriefs';
 // The proactive engine's actual logic (PLAN.md -> Proactive engine: "trigger -> candidate (dedupeKey) ->
 // draft -> judge -> timing -> deliver"). `convex/proactive.ts` is the thin registered-function layer; every
@@ -364,9 +367,11 @@ export function parseDraftJudgeResult(text: string | null, fallbackKind: Notific
  * `push`/`statement` at a specific `deliverAt` that already accounts for quiet hours and the window. */
 export async function decideDeliveryTiming(
   ctx: Ctx,
-  params: { familyId: Id<'families'>; recipient: Doc<'members'>; tz: string; kind: NotificationKind; score: number; window: { from: number; to: number }; now: number; forcedDelivery?: Delivery },
+  params: { familyId: Id<'families'>; recipient: Doc<'members'>; tz: string; kind: NotificationKind; score: number; window: { from: number; to: number }; now: number; forcedDelivery?: Delivery; source?: CandidateSource },
 ): Promise<{ delivery: Delivery; deliverAt?: number }> {
-  const delivery = judgedDelivery(params.kind, params.score, params.recipient.role, params.forcedDelivery);
+  // Teen-owned scheduling and explicit share questions are useful even though general kid tips stay off.
+  const teenUpdate = params.kind === 'update' && ['mailPlan', 'shareSuggestion'].includes(params.source?.kind ?? '') && ageGroupOf(params.recipient, new Date(clock.realNow()).toISOString().slice(0, 10)) === 'teen';
+  const delivery = judgedDelivery(params.kind, params.score, teenUpdate ? 'adult' : params.recipient.role, params.forcedDelivery);
   if (delivery === 'drop') return { delivery };
   return timeDelivery(ctx, params, delivery);
 }
@@ -413,6 +418,25 @@ async function timeDelivery(
 /** PLAN.md -> Proactive engine step 5: "at fire time, check again that it still applies." */
 export async function candidateStillApplies(ctx: Ctx, source: CandidateSource | undefined, recipientId?: Id<'members'>): Promise<boolean> {
   if (!source) return true;
+  if (source.kind === 'mailPlan') {
+    const plan = await ctx.db.get(source.planId);
+    if (!plan || plan.ownerId !== recipientId || plan.revision !== source.revision || plan.status === 'dismissed') return false;
+    const pref = await ctx.db.query('schedulingPreferences').withIndex('by_family_member', q => q.eq('familyId', plan.familyId).eq('memberId', plan.ownerId)).unique();
+    const integration = await ctx.db.get(plan.integrationId);
+    return !!pref?.enabled && !!integration && integration.status === 'connected';
+  }
+  if (source.kind === 'connectionApproval') {
+    const child = await ctx.db.get(source.memberId);
+    const parent = recipientId ? await ctx.db.get(recipientId) : null;
+    return !!child && !!parent && parent.familyId === child.familyId && parent.role !== 'kid' && child.connectionRequest?.status === 'pending' && child.connectionRequest.at === source.requestedAt && child.connectionRequest.messageIds.includes(source.messageId) && (await parentOf(ctx, child.familyId, parent._id)).includes(child._id);
+  }
+  if (source.kind === 'teenCalendar') {
+    const event = await ctx.db.get(source.eventId);
+    const parent = recipientId ? await ctx.db.get(recipientId) : null;
+    const ownerId = event ? eventOwnerId(event) : undefined;
+    const owner = ownerId ? await ctx.db.get(ownerId) : null;
+    return !!event && !!parent && !!owner && parent.familyId === event.familyId && parent.role !== 'kid' && !event.cancelled && event.start === source.start && event.start > await clock.now(ctx, event.familyId) && ageGroupOf(owner, new Date(clock.realNow()).toISOString().slice(0, 10)) === 'teen' && canSeeEvent({ memberId: parent._id, role: parent.role }, event) && (await parentOf(ctx, event.familyId, parent._id)).includes(owner._id);
+  }
   switch (source.kind) {
     case 'reminder': {
       const r = await ctx.db.get(source.reminderId);
@@ -501,6 +525,8 @@ export type ThreadCard = Extract<Doc<'messages'>['body'], { type: 'card' }>['car
 
 export function cardForSource(source: CandidateSource | undefined): ThreadCard | null {
   switch (source?.kind) {
+    case 'mailPlan': return { kind: 'mailPlan', planId: source.planId };
+    case 'teenCalendar': return { kind: 'event', eventId: source.eventId, visibleTo: 'family' };
     case 'chore':
       return { kind: 'chore', claimId: source.claimId };
     case 'routine':
@@ -525,7 +551,7 @@ export function cardForSource(source: CandidateSource | undefined): ThreadCard |
 }
 
 export function isCardSource(source: CandidateSource | undefined): boolean {
-  return cardForSource(source) !== null;
+  return source?.kind === 'connectionApproval' || cardForSource(source) !== null;
 }
 
 /** GD: queues one card-backed push. The card's content was already produced (by a model call or a
@@ -587,6 +613,12 @@ export async function postCard(
   ctx: MutationCtx,
   params: { familyId: Id<'families'>; recipientId: Id<'members'>; card: ThreadCard; megaId?: Id<'megas'>; now: number; fromNotificationId?: Id<'notifications'> },
 ): Promise<Id<'messages'> | null> {
+  // A plan already has a live card. Push points to that same card instead of duplicating it.
+  if (params.card.kind === 'mailPlan') {
+    const plan = await ctx.db.get(params.card.planId);
+    const existing = plan?.messageId ? await ctx.db.get(plan.messageId) : null;
+    if (plan?.ownerId === params.recipientId && plan.familyId === params.familyId && existing) return existing._id;
+  }
   const ownMega = await ctx.db
     .query('megas')
     .withIndex('by_family_owner', (q) => q.eq('familyId', params.familyId).eq('ownerId', params.recipientId))
@@ -636,6 +668,7 @@ export function androidChannelFor(kind: NotificationKind): string {
  * trigger (`sourceKind === 'mattersTo'`) — a tip/update the member's OWN MEGA originated (e.g. a daily
  * check-in) still shows in full on the lock screen. */
 function pushBodyFor(notification: { kind: NotificationKind; body: string }, megaName: string, sourceKind: CandidateSource['kind'] | undefined): string {
+  if (sourceKind === 'mailPlan' || sourceKind === 'teenCalendar' || sourceKind === 'connectionApproval') return genericPushBody(megaName);
   const mode = PUSH_BODY_REDACTION[notification.kind];
   if (mode === 'genericIfMattersTo' && sourceKind === 'mattersTo') return genericPushBody(megaName);
   return notification.body;
@@ -744,9 +777,10 @@ export async function deliverCandidateLogic(ctx: MutationCtx, candidateId: Id<'c
   // G4b: a UV / air tip carries its own `weather` card (built from the cache now), like a card source.
   const card = cardForSource(candidate.source) ?? (await weatherTipCard(ctx, candidate));
   const author = card ? await authorMegaFor(ctx, candidate, mega) : mega;
+  const linkedMessageId = candidate.source?.kind === 'connectionApproval' ? candidate.source.messageId : undefined;
 
   if (delivery === 'statement') {
-    const cardMessageId = card ? await postCard(ctx, { familyId: candidate.familyId, recipientId: candidate.recipientId, card, megaId: author._id, now }) : undefined;
+    const cardMessageId = linkedMessageId ?? (card ? await postCard(ctx, { familyId: candidate.familyId, recipientId: candidate.recipientId, card, megaId: author._id, now }) : undefined);
     if (BUTTON_SETS[candidate.draft.buttons].length > 0) {
       const notificationId = await ctx.db.insert('notifications', {
         familyId: candidate.familyId, recipientId: candidate.recipientId, candidateId: candidate._id,
@@ -766,8 +800,8 @@ export async function deliverCandidateLogic(ctx: MutationCtx, candidateId: Id<'c
     return;
   }
 
-  if (card) {
-    const cardMessageId = await postCard(ctx, { familyId: candidate.familyId, recipientId: candidate.recipientId, card, megaId: author._id, now });
+  if (card || linkedMessageId) {
+    const cardMessageId = linkedMessageId ?? (card ? await postCard(ctx, { familyId: candidate.familyId, recipientId: candidate.recipientId, card, megaId: author._id, now }) : null);
     const cardNotificationId = await ctx.db.insert('notifications', {
       familyId: candidate.familyId,
       recipientId: candidate.recipientId,
@@ -862,6 +896,7 @@ export async function finalizeCandidateLogic(
     window: candidate.window,
     now,
     forcedDelivery: params.forcedDelivery,
+    source: candidate.source,
   });
 
   if (delivery === 'drop' || deliverAt === undefined) {

@@ -3,6 +3,10 @@
 // own `events.share` and `shareSuggestions.answer(share: true)` — both check the caller IS the owner first.
 // No model output, trigger, rule or other member reaches it. Every move writes a `shareActions` row in the
 // same mutation. Suggestions (`suggestShare`) never change anything by themselves.
+import { ageGroupOf } from '../../shared/ageGroups';
+import { COORDINATION_COPY } from '../../shared/config/scheduling';
+import { clock } from '../ports/clock';
+import { canSeeEvent } from './visibility';
 import { CLASH, SHARE_TO_SCOPE } from '../../shared/config/calendar';
 import { GD_PUSH_COPY, fillCopy } from '../../shared/config/copy';
 import { shareSuggestionDedupeKey } from '../../shared/config/proactive';
@@ -34,6 +38,7 @@ export async function shareItem(ctx: MutationCtx, params: { familyId: Id<'famili
     if (eventOwnerId(event) !== params.ownerId) fail('FORBIDDEN', 'only its owner can share it');
     await ctx.db.patch(event._id, { scope: SHARE_TO_SCOPE, ownerId: params.ownerId });
     await ctx.db.insert('shareActions', { familyId: params.familyId, ownerId: params.ownerId, item: params.item, action: 'share', fromScope: event.scope, toScope: SHARE_TO_SCOPE, at: params.now, suggestionId: params.suggestionId });
+    await notifyParentsOfTeenEvent(ctx, { ...event, scope: SHARE_TO_SCOPE, ownerId: params.ownerId }, params.now);
     return;
   }
   const memory = await ctx.db.get(params.item.memoryId);
@@ -121,6 +126,28 @@ export async function maybeSuggestEventShare(ctx: MutationCtx, event: Doc<'event
   const overlaps = nearby.some(
     (e) => e._id !== event._id && !e.cancelled && layerOf(e) === 'household' && e.start < end && (e.end ?? e.start) > event.start && (e.end ?? e.start) - e.start >= CLASH.minOverlapMinutes * 60_000,
   );
-  if (!overlaps) return;
-  await suggestShare(ctx, { familyId: event.familyId, ownerId, item: { kind: 'event', eventId: event._id }, preview: eventPreview(event, tz), decidedBy: 'rule:privateOverlapsHousehold', now });
+  const owner = await ctx.db.get(ownerId);
+  const teenEvent = !!owner && ageGroupOf(owner, new Date(clock.realNow()).toISOString().slice(0, 10)) === 'teen' && event.start > now;
+  if (!overlaps && !teenEvent) return;
+  if (teenEvent) {
+    // Re-syncing or editing an event must not ask again after a decision.
+    const prior = await ctx.db.query('shareSuggestions').withIndex('by_family_owner_status', q => q.eq('familyId', event.familyId).eq('ownerId', ownerId)).collect();
+    if (prior.some(s => s.item.kind === 'event' && s.item.eventId === event._id)) return;
+  }
+  await suggestShare(ctx, { familyId: event.familyId, ownerId, item: { kind: 'event', eventId: event._id }, preview: eventPreview(event, tz), decidedBy: teenEvent ? 'rule:teenCalendarShare' : 'rule:privateOverlapsHousehold', now });
+}
+
+/** Only shared future events go to actual parents. Availability grants do not disclose event details. */
+export async function notifyParentsOfTeenEvent(ctx: MutationCtx, event: Doc<'events'>, now: number): Promise<void> {
+  const ownerId = eventOwnerId(event);
+  const owner = ownerId ? await ctx.db.get(ownerId) : null;
+  if (!owner || event.cancelled || event.start <= now || ageGroupOf(owner, new Date(clock.realNow()).toISOString().slice(0, 10)) !== 'teen') return;
+  const relations = await ctx.db.query('relationships').withIndex('by_family_from', q => q.eq('familyId', event.familyId)).collect();
+  for (const parentId of new Set(relations.filter(r => r.kind === 'parent' && r.to === owner._id).map(r => r.from))) {
+    const parent = await ctx.db.get(parentId);
+    if (!parent || parent.role === 'kid' || !canSeeEvent({ memberId: parentId, role: parent.role }, event)) continue;
+    await enqueueCardCandidate(ctx, { familyId: event.familyId, recipientId: parentId, kind: 'update',
+      dedupeKey: `teenCalendar:${event._id}:${event.start}:${parentId}`, title: COORDINATION_COPY.parentTitle,
+      text: COORDINATION_COPY.parentBody(owner.name), source: { kind: 'teenCalendar', eventId: event._id, start: event.start }, now });
+  }
 }

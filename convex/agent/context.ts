@@ -1,3 +1,4 @@
+import { googleConnectionContext } from '../model/googleSetup';
 import { activeDraft } from '../model/megaCreation';
 import { briefFor } from '../model/assistantBriefs';
 import { acceptedBriefContext } from '../model/assistantBriefs';
@@ -57,6 +58,7 @@ export const buildContext = internalQuery({
     mega: v.union(v.object({ name: v.string(), personality: v.string() }), v.null()),
     profileCard: v.string(),
     creationContext: v.string(),
+    connectionContext: v.string(),
     pinnedFacts: v.array(v.string()),
     searchHits: v.array(v.string()),
     upcomingEvents: v.array(v.string()),
@@ -137,6 +139,7 @@ export const buildContext = internalQuery({
       mega,
       profileCard,
       creationContext,
+      connectionContext: JSON.stringify(await googleConnectionContext(ctx, member)),
       pinnedFacts: facts,
       searchHits: hits.map((h) => h.text),
       upcomingEvents: events.map(eventLine),

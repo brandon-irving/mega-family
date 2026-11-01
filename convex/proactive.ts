@@ -14,6 +14,7 @@ import { isConcernCategory, logDroppedConcern } from './model/concernGate';
 import {
   buildDraftJudgePrompt,
   buildPushMessages,
+  candidateStillApplies,
   deliverCandidateLogic,
   finalizeCandidateLogic,
   loadDraftContextFor,
@@ -237,6 +238,7 @@ export const loadPushContext = internalQuery({
     // S5/UX4: which trigger produced this (if any), for the lock-screen redaction + grouping decisions
     // `buildPushMessages` makes — a legacy/hand-seeded notification with no candidate just gets neither.
     const candidate = notification.candidateId ? await ctx.db.get(notification.candidateId) : null;
+    if (candidate?.source && ['mailPlan', 'teenCalendar', 'connectionApproval'].includes(candidate.source.kind) && !await candidateStillApplies(ctx, candidate.source, notification.recipientId)) return null;
     return {
       notification,
       megaName: mega.name,

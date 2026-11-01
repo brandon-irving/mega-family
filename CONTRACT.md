@@ -105,7 +105,7 @@ Every row in a family-owned table has `familyId`, and every index starts with `f
 **settings**: `familyId`, `memberId`, `theme: ThemeName`, `accent: "theme" | "mega" | { hex: string }`, `wallpaper: { kind: "preset", id } | { kind: "photo", storageId } | { kind: "generated", imageId } | null`, `notify: { loudKinds: NotificationKind[], quietHours, dailyCap: number }`, `pushTokens: { token, platform: Platform }[]`
 
 ### Chat
-**threads**: `familyId`, `ownerId: id(members)` (one private thread per member to start), `megaIds: id(megas)[]` (the owner's MEGA plus any @'d), `lastAt`, `startedAt?` (v0.13b: when `chat.start` handled the first open)
+**threads**: `familyId`, `ownerId: id(members)` (one private thread per member to start), `megaIds: id(megas)[]` (the owner's MEGA plus any @'d), `lastAt`, `entranceSeenAt?` (first-meet presentation completed; fresh demo threads reset it), `startedAt?` (v0.13b: when `chat.start` handled the first open)
 
 **messages**: `familyId`, `threadId`, `at`, `author: { kind: "member", id } | { kind: "mega", id } | { kind: "system" }`, `via: Via`, `body: MessageBody` (§3), `streamId?: string` (while the reply is streaming), `chips: SaveChip[]`, `reaction?: Reaction`, `fromNotificationId?`
 - index: `by_family_thread_at`
@@ -240,6 +240,8 @@ Every row in a family-owned table has `familyId`, and every index starts with `f
 
 **megaDrafts**: Private conversational MEGA drafts, scoped by `familyId`, `creatorId`, and `threadId`. Stores accumulated person/brief/appearance data, revision, draft/review/created/cancelled state, current review message and created member ID. Confirmation must match the reviewed revision and is idempotent. No member or invitation is created while gathering information. Index: `by_family_creator`.
 
+**connectionSuggestions**: Private connection recommendations with familyId, ownerId, subjectId, providerId, reason, creator/own mode, pending/accepted/declined status, messageId, and timestamps. Creator acceptance only permits a proactive suggestion; the recipient alone consents to setup. Indexed by owner/subject, subject, and message within the family.
+
 **assistantBriefs**: `familyId`, `memberId`, `creatorId`, `proposed: { context, goal, firstTask, proactive }`, `approved?` (same shape), `status: "pending" | "accepted" | "declined"`, `step: "review" | "edit" | "fresh" | "ready" | "done"`, `blockMessageId?`, `helpRequested?`, `createdAt`, `updatedAt`. Indexed by family/member. `pendingRevision?` holds a recipient-authored revision awaiting acceptance. Creator reads only their original proposal and status; recipient edits remain private. Only accepted content informs the owner’s agent and proactive wording. No scheduled work or access grant is created by acceptance.
 
 **schedulingPreferences**: `familyId`, `memberId`, `enabled`, `autoCapture`, `availabilityFor: id(members)[]`. Owner-only, adult opt-in. Availability permission exposes only slot checks, never private event details or authority to book another person's calendar.
@@ -340,9 +342,12 @@ The creator’s family onboarding adds a skippable `brief` sub-step between deta
 ### Chat and talk
 | Function | Type | Args | Returns | Day 1 |
 |---|---|---|---|---|
+| `chat.entrance` | q | `{ profileKey }` | `{ pending }`; own fresh chat only, bounded history check | real |
+| `chat.finishEntrance` | m | `{ profileKey }` | null; idempotent own-chat presentation acknowledgement | real |
 | `chat.thread` | q | `{ paginationOpts }` | page of `Message` (newest first) | real |
 | `chat.send` | m | `{ text, mentions?: id(megas)[], via: "text" \| "voice", attachments?: storageId[] }` | `{ messageId, replyMessageId, streamId }` | real (G2: runs the agent loop) |
 | `chat.streamBody` | q | `{ streamId }` | `{ text, status }` | real (component) |
+| `chat.stop` | m | `{ streamId }` | `null` | real (owner-only, idempotent cooperative stop) |
 | `chat.answerBlock` | m | `{ messageId, answer: BlockAnswer, via: Via }` | `{ answerMessageId, streamId?: string }` (v0.8: `streamId` of the MEGA's follow-up reply, when there is one) | real (G2: feeds the answer back into the agent loop) |
 | `chat.react` | m | `{ messageId, reaction: Reaction \| null }` | `null` | real |
 | `chat.start` | m | `{}` (the caller's own thread) | `{ started: boolean }` | real (v0.13b: the MEGA's starter, once per thread) |
@@ -390,6 +395,7 @@ The creator’s family onboarding adds a skippable `brief` sub-step between deta
 | `kidControls.setDailyCap` | m | `{ memberId, dailyCap }` (v0.17b; the kid's parents; `LIMITS.push.kidDailyCapRange`) | `null` | real |
 | `kidControls.dailyCap` | q | `{ memberId }` (v0.17b reconcile; the kid's parents, else FORBIDDEN) | `{ dailyCap }` (the range is `LIMITS.push.kidDailyCapRange`) | real |
 | `family.kidThread` | q | `{ memberId, paginationOpts }` (only if `parentsCanReadChat`) | page of `Message` | real |
+| `calendar.event` | q | `{ eventId }` | `{ event, timezone, ownerName? }` | real (visibility checked on every read) |
 | `calendar.range` | q | `{ from, to }` | `Event[]` | real |
 | `events.create` / `.update` / `.cancel` | m | event fields / `{ eventId, patch }` / `{ eventId }` | `id` / `null` / `null` | real |
 | `events.share` / `.unshare` | m | `{ eventId }` (v0.13; the event's owner only) | `null` (moves it between the owner's private layer and the household layer and writes a `shareActions` row) | real |
@@ -426,7 +432,9 @@ The creator’s family onboarding adds a skippable `brief` sub-step between deta
 |---|---|---|---|---|
 | `clock.get` | q | — | `{ now, mode }` | real |
 | `clock.jump` | m | `{ to: number }` (admin, demo flag on) | `null` (fires due jobs through the same code) | real |
-| `megaCreation.current` | q | `{}` | own active draft `{ data, revision, status }` or null | real |
+| `megaCreation.current` | q | `{}` | own active draft `{ draftId, data, revision, status }` or null | real |
+| `megaCreation.updateAppearance` | m | `{ draftId, revision, megaName, hex, sticker, personality }` | null; creator-owned revision-checked edit using chat validation | real |
+| `megaCreation.review` | m | `{ draftId, revision }` | null; posts finalize card after age/permission checks | real |
 | `megaCreation.personalize` | m | `{}` | null; opens own draft without replacing another draft | real |
 | `demo.testInvite` | m | `{ token, expectedMemberId }` | null; parks sandbox admin to open actual invite | real |
 | `demo.switchTester` | m | `{ memberId?, expectedMemberId: id or null }` | null; returns to sandbox admin or a previously redeemed test member | real |
@@ -677,3 +685,19 @@ The client stores bounded per-run conversation snapshots and app interaction eve
 
 
 Unified Google setup: chat and account entry points share Email & scheduling. Read permissions for Gmail and Calendar are requested together, with reviewed optional holds/drafts permissions. Sharing presets apply only availability visibility to the listed members, never email contents, event details, or future members. Partial Google grants remain partial. Members may carry `connectionRequest {at,status,messageIds}`; `messages.ruleBlock` also supports `connectionApproval` and `mailLocation` for owner-authorized, replay-safe answers. Parent approval does not itself grant OAuth or sharing. Scheduling preferences may record `desiredWrites` to preserve the user's setup choice separately from actual granted capabilities.
+
+
+### Proactive brief handoff (phase 2)
+The private assistant-brief record optionally stores `kickoffRevision` and `kickoff {prompt,task,emailReason}`. Accepting a brief queues a bounded, tool-free proposal action. A revision/state check rejects stale and duplicate results. The proposal is a suggestion, not an accepted fact or permission. Only a subsequent owner response starts work through the existing chat agent; no public API shape changes. Pending suggestions are abandoned when the owner continues in chat. Legacy ready menus upgrade on return. The creator's brief query does not expose these private fields.
+
+### Everyday chat and family polish (Nov 1)
+`family.add` accepts optional `ageGroup` (child/teen/adult), consistent with role. Omitting `mega` creates family context only: no assistant or invitation. `mega_rename` is an owner-only creation-tool operation that renames an existing adult/admin MEGA without creating a draft. First-contact extraction distinguishes the member name from an explicitly stated assistant name. Teen typography and text-first composer use adult sizing; role-based server permissions remain unchanged.
+
+### Response stopping (Nov 1)
+`chat.stop({streamId})` is owner-only and idempotent. `messages.stoppedAt` marks cooperative cancellation; stream reads finish with the retained partial text and a stopped notice. Late chunks/finalization are ignored and future agent steps and tool mutations are gated. Already-running provider requests may complete and incur usage; completed effects are not rolled back.
+
+### Proactive coordination (Nov 1)
+
+`PlanView.guidance?: string` is a live, owner-only availability explanation. It contains permitted member busy/free information, never another member's event title. Internal candidate sources add `mailPlan { planId, revision }`, `teenCalendar { eventId, start }`, and `connectionApproval { memberId, messageId, requestedAt }`. They use the existing update pipeline and generic lock-screen copy. Email plan and approval pushes reuse existing message IDs; delivery and send recheck source authorization and state. Teen-owned mail plans and share suggestions are narrowly eligible for updates without enabling general child tips.
+
+Future teen private events can suggest sharing once. First external-calendar import remains quiet; subsequent new events and email captures can suggest. Explicit sharing queues parent event cards only for relationship-linked parents with visibility; availability grants alone are insufficient. `calendar.event` provides live, visibility-checked card details; unshared events become unavailable to former viewers. No new public mutations, automatic sharing, bookings, or email sending.

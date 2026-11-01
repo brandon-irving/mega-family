@@ -46,3 +46,13 @@ export const DEMO_SCENARIO = {
 } as const;
 export type DemoStage = typeof DEMO_SCENARIO.stages[number]['key'];
 export type DemoPersona = typeof DEMO_SCENARIO.personas[number]['key'];
+
+export const DEMO_CLEANUP = { gmailScope: "https://www.googleapis.com/auth/gmail.modify", maxItems: 500, label: "Clear MEGA_TEST emails & events" } as const;
+
+export const DEMO_CONSOLE_TABS = [
+  { id: 'people', label: 'People' },
+  { id: 'emails', label: 'Emails' },
+  { id: 'reset', label: 'Reset' },
+  { id: 'animations', label: 'Motion' },
+  { id: 'logs', label: 'Logs' },
+] as const;

@@ -1,14 +1,16 @@
 import { connectorAllowed } from './integrations';
 import { schedulingReply } from '../../shared/scheduling';
-import { SCHEDULING } from '../../shared/config/scheduling';
+import { COORDINATION_COPY, SCHEDULING } from '../../shared/config/scheduling';
 import type { EmailPlan, PlanView, TimeSlot } from '../../shared/domain/scheduling';
-import { localDate, zonedInstant } from '../../shared/time';
+import { formatLocalDateTime, localDate, zonedInstant } from '../../shared/time';
 import type { Doc, Id } from '../_generated/dataModel';
 import type { MutationCtx, QueryCtx } from '../_generated/server';
 import { internal } from '../_generated/api';
 import { clock } from '../ports/clock';
 import { fail } from './errors';
 import { memberIntegrations, statusOf } from './integrations';
+import { enqueueCardCandidate } from './proactive';
+import { maybeSuggestEventShare } from './layers';
 import { postOwnMegaMessage } from './threads';
 
 type Ctx = QueryCtx | MutationCtx;
@@ -72,9 +74,14 @@ export async function buildPlanView(ctx: Ctx, p: Doc<'mailPlans'>): Promise<Plan
   const available = (s: TimeSlot) => checked && s.start > now && !checks.some(c => c.busy.some(b => overlaps(s, b)));
   const shown = slots.map(s => ({ ...s, checked, available: available(s), alternative: false }));
   if (!shown.some(s => s.available)) shown.push(...alternatives.filter(available).slice(0, SCHEDULING.alternativeCount).map(s => ({ ...s, checked, available: true, alternative: true })));
+  const unavailableNames = p.participantIds.flatMap((id, i) => checks[i].checked ? [] : [validPeople.find(m => m._id === id)?.name ?? 'A participant']);
+  const conflict = shown.find(s => s.checked && !s.available && s.start > now);
+  const busyNames = conflict ? p.participantIds.flatMap((id, i) => checks[i].checked && checks[i].busy.some(b => overlaps(conflict, b)) ? [id === p.ownerId ? 'Your calendar' : validPeople.find(m => m._id === id)?.name ?? 'A participant'] : []) : [];
+  const next = shown.find(s => s.available);
+  const guidance = ['proposed', 'review'].includes(p.status) ? unavailableNames.length ? COORDINATION_COPY.unknown(unavailableNames) : p.missing.length ? 'I need a few details confirmed before checking these times.' : [busyNames.length && conflict ? COORDINATION_COPY.conflict(busyNames, formatLocalDateTime(conflict.start, tz)) : '', next ? COORDINATION_COPY.available(formatLocalDateTime(next.start, tz)) : COORDINATION_COPY.noSlots].filter(Boolean).join(' ') : undefined;
   const integration = await ctx.db.get(p.integrationId);
   return { id: p._id, title: p.title, status: p.status, revision: p.revision, timezone: tz, slots: shown,
-    participantNames: validPeople.map(m => m.name), unavailableNames: p.participantIds.flatMap((id, i) => checks[i].checked ? [] : [validPeople.find(m => m._id === id)?.name ?? 'A participant']),
+    guidance, participantNames: validPeople.map(m => m.name), unavailableNames,
     missing: p.missing, durationAssumed: p.durationAssumed, selected: p.selected, eventId: p.eventId,
     canUndo: !!p.ownsEvent && !!p.eventId && !p.calendarExternalId,
     sourceUrl: `https://mail.google.com/mail/?authuser=${encodeURIComponent(integration?.label ?? '')}#all/${encodeURIComponent(p.sourceMessageId)}`,
@@ -137,5 +144,13 @@ export async function recordEmailPlans(ctx: MutationCtx, integration: Doc<'integ
     const messageId = await postOwnMegaMessage(ctx, integration.familyId, owner, { type: 'card', card: { kind: 'mailPlan', planId: id } }, now);
     if (messageId) await ctx.db.patch(id, { messageId });
   }
+  if (eventId && !previous?.eventId) {
+    const event = await ctx.db.get(eventId);
+    const family = await ctx.db.get(integration.familyId);
+    if (event && family) await maybeSuggestEventShare(ctx, event, family.timezone, now);
+  }
+  await enqueueCardCandidate(ctx, { familyId: integration.familyId, recipientId: owner, kind: 'update',
+    dedupeKey: `mailPlan:${id}:${fields.revision}`, title: COORDINATION_COPY.emailTitle, text: COORDINATION_COPY.emailBody,
+    source: { kind: 'mailPlan', planId: id, revision: fields.revision }, now });
   await ctx.scheduler.runAfter(0, internal.scheduling.refreshInternal, { planId: id });
 }

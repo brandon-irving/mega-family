@@ -12,6 +12,7 @@ import { defineSchema, defineTable } from 'convex/server';
 import * as T from '../shared/domain/tables';
 
 export default defineSchema({
+  connectionSuggestions: defineTable(T.connectionSuggestions).index('by_owner_subject', ['familyId', 'ownerId', 'subjectId']).index('by_subject', ['familyId', 'subjectId']).index('by_message', ['familyId', 'messageId']),
   mailContextSuggestions: defineTable(T.mailContextSuggestions).index('by_owner', ['familyId', 'ownerId']).index('by_message', ['messageId']),
   schedulingPreferences: defineTable(T.schedulingPreferences).index('by_family_member', ['familyId', 'memberId']),
   mailPlans: defineTable(T.mailPlans).index('by_owner', ['familyId', 'ownerId']).index('by_thread', ['integrationId', 'threadId']).index('by_family', ['familyId']),

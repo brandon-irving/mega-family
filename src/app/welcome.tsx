@@ -81,7 +81,7 @@ function WelcomeBody({ onMake, onSignIn, onInvite, inviteBusy }: { onMake: () =>
         {/* Space for three small characters on the letters, without a static hero above them. */}
         <View style={{ height: 88 }} />
         <Wordmark />
-        <Text color="muted" style={[styles.center, { fontSize: tokens.type.title.fontSize - 2, lineHeight: tokens.type.title.lineHeight, marginTop: tokens.spacing.lg }]}>
+        <Text variant="body" color="muted" style={[styles.center, { marginTop: tokens.spacing.lg }]}>
           {IDENTITY.tagline}
         </Text>
       </View>

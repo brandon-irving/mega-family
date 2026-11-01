@@ -121,7 +121,9 @@ test('cancelled drafts never create a MEGA, and stale confirmation cannot revive
   const s = await setup(); const count = await s.count();
   const d = await s.call('mega_draft_update', mother);
   await s.call('mega_draft_review', { draftId: d.draftId });
-  await s.call('mega_draft_cancel', { draftId: d.draftId });
+  expect(await s.call('mega_draft_cancel', { draftId: d.draftId })).toMatchObject({ requiresConfirmation: true });
+  expect(await s.draft()).not.toBeNull();
+  await s.call('mega_draft_cancel', { draftId: d.draftId, confirmed: true });
   expect(await s.draft()).toBeNull();
   await expect(s.call('mega_draft_confirm', { draftId: d.draftId, revision: d.revision, confirmed: true })).rejects.toThrow();
   expect(await s.count()).toBe(count);
@@ -216,4 +218,53 @@ test('an admin who is not the teen’s parent cannot authorize connections in cr
   const s = await setup();
   const d = await s.call('mega_draft_update', { ...mother, name: 'Anela', role: 'kid', relationship: 'other', ageGroup: 'teen', accountConnections: 'allow' });
   await expect(s.call('mega_draft_review', { draftId: d.draftId })).rejects.toThrow(/parent must/);
+});
+
+
+test('visual draft edits preserve context, reject stale and other-person edits, and require explicit review', async () => {
+  const s = await setup();
+  const d = await s.call('mega_draft_update', mother);
+  const args = { draftId: d.draftId, revision: d.revision, megaName: 'Ember', hex: '#F2766B', sticker: 'heart' as const, personality: 'cheerful' as const };
+  await expect(s.t.withIdentity({ subject: 'sample:partner' }).mutation(api.megaCreation.updateAppearance, args)).rejects.toThrow();
+  await s.admin.mutation(api.megaCreation.updateAppearance, args);
+  const updated = (await s.draft())!;
+  expect(updated.data).toMatchObject({ name: 'Lovie', megaName: 'Ember' });
+  expect(updated.status).toBe('draft');
+  await expect(s.admin.mutation(api.megaCreation.updateAppearance, args)).rejects.toThrow(/draft changed/);
+  await s.admin.mutation(api.megaCreation.review, { draftId: updated._id, revision: updated.revision });
+  expect((await s.draft())!.status).toBe('review');
+});
+
+test('continuing chat retires the finalize card but preserves the draft', async () => {
+  const s = await setup();
+  const d = await s.call('mega_draft_update', mother);
+  await s.call('mega_draft_review', { draftId: d.draftId });
+  const reviewed = (await s.draft())!;
+  await s.admin.mutation(api.chat.send, { text: 'She also loves gardening', via: 'text' });
+  const draft = (await s.draft())!;
+  expect(draft.status).toBe('draft');
+  expect(draft.data.name).toBe('Lovie');
+  const message = await s.t.run(ctx => ctx.db.get(reviewed.reviewMessageId!));
+  expect(message!.body).toMatchObject({ answeredWith: { value: 'Updated in chat' } });
+});
+
+test('conversational renaming changes only the existing owner MEGA without a draft', async () => {
+  const s = await setup();
+  const before = await s.t.run(ctx => ctx.db.query('megas').collect());
+  await s.call('mega_rename', { name: 'Mega' });
+  const after = await s.t.run(ctx => ctx.db.query('megas').collect());
+  expect(after).toHaveLength(before.length);
+  expect(after.find(m => m.ownerId === s.members.admin)?.name).toBe('Mega');
+  expect(after.filter(m => m.ownerId !== s.members.admin)).toEqual(before.filter(m => m.ownerId !== s.members.admin));
+  expect(await s.draft()).toBeNull();
+  await expect(s.call('mega_rename', { name: ' ' })).rejects.toThrow();
+});
+test('a context-only teen member has no assistant, invite or account connection', async () => {
+  const s = await setup();
+  const result = await s.admin.mutation(api.family.add, { name: 'Maya', role: 'kid', ageGroup: 'teen', relationship: 'daughter' });
+  const member = await s.t.run(ctx => ctx.db.get(result.memberId));
+  expect(member).toMatchObject({ hasMega: false, ageGroup: 'teen', role: 'kid' });
+  expect(await s.t.run(ctx => ctx.db.query('megas').withIndex('by_family_owner', q => q.eq('familyId', s.familyId).eq('ownerId', result.memberId)).first())).toBeNull();
+  expect(await s.t.run(ctx => ctx.db.query('invites').collect())).toEqual([]);
+  await expect(s.admin.mutation(api.family.add, { name: 'Minor', role: 'adult', ageGroup: 'teen', relationship: 'daughter' })).rejects.toThrow();
 });

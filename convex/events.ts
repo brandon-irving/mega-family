@@ -9,7 +9,7 @@ import { mutation, type MutationCtx } from './_generated/server';
 import { pick } from './model/define';
 import { fail } from './model/errors';
 import { calendarChanged, eventEnd, patchEvent } from './model/eventWrites';
-import { maybeSuggestEventShare, shareItem, unshareEvent } from './model/layers';
+import { maybeSuggestEventShare, notifyParentsOfTeenEvent, shareItem, unshareEvent } from './model/layers';
 import { requireFamilyPlace } from './model/places';
 import { requireViewer, sameFamilyMember } from './model/viewer';
 import { canSeeEvent } from './model/visibility';
@@ -39,7 +39,7 @@ export const create = mutation({
     });
     const event = (await ctx.db.get(eventId))!;
     if (args.scope === 'personal') await maybeSuggestEventShare(ctx, event, viewer.family.timezone, now);
-    else await calendarChanged(ctx, viewer.member.familyId, now);
+    else { await calendarChanged(ctx, viewer.member.familyId, now); await notifyParentsOfTeenEvent(ctx, event, now); }
     return eventId;
   },
 });

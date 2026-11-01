@@ -1,0 +1,27 @@
+export const CHARACTER_EDITOR = {
+  title: 'MEGA workshop',
+  hint: 'A little personality. A look that feels like yours.',
+  categories: [
+    { id: 'styles', label: 'Meet the styles' },
+    { id: 'name', label: 'Name' },
+    { id: 'color', label: 'Color' },
+    { id: 'sticker', label: 'Sticker' },
+    { id: 'personality', label: 'Personality' },
+    { id: 'extras', label: 'Accessories' },
+  ],
+  styleHint: 'Try a personality, then explore colors and stickers. Everything here is a preview until you save.',
+  stickerHint: 'A tiny detail that makes your MEGA recognizable.',
+  nameLabel: 'MEGA name',
+  saveDraft: 'Save to draft',
+  draftHint: 'Your draft stays here while you keep chatting. Review it when you’re ready to finalize.',
+  introduction: {
+    durationMs: 1400,
+    frameMs: 140,
+    distance: 90,
+    waveFrameMs: 180,
+    waveFrames: 6,
+    greeting: (name: string) => `Hi, I’m ${name}, your personal AI assistant.`,
+    invitation: (inviter: string) => `${inviter} made a starting MEGA for you. You can change my name, look, and personality before we meet in chat.`,
+    child: 'We can think things through together, get creative, and make a plan for your day.',
+  },
+} as const;

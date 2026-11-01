@@ -28,6 +28,7 @@ export function MailPlanCardView({ plan, busy, error, onHold, onDraft, onRefresh
     <View style={{ gap: tokens.spacing.md }}>
       <Text variant="label">{plan.title}</Text>
       <Text color="muted">{C.status[plan.status]}{plan.status === 'confirmed' && plan.eventId ? ' · On your calendar' : ''}</Text>
+      {plan.guidance && choosing ? <Text>{plan.guidance}</Text> : null}
       {plan.selected ? <Text>{describe(plan.selected)}</Text> : null}
       {plan.participantNames.length > 1 ? <Text variant="caption" color="muted">Checking: {plan.participantNames.join(', ')}</Text> : null}
       {plan.missing.map((s, i) => <Text key={i} color="muted">{s}</Text>)}

@@ -106,3 +106,24 @@ test('renamed demo people drive previews and queued emails without duplicate reh
  expect(job?.recipient).toBe(C.personas[2].email);
  expect(await t.mutation(internal.demoConsole.noteMail,{familyId:viewer.family._id,subject:job!.subject,messageId:'anela-pickup'})).toBe(true);
 });
+
+test('bulk cleanup preflights every test account before pausing runs and rejects non-admins', async () => {
+ const {t,admin,run}=await setup();
+ await expect(admin.mutation(internal.demoCleanup.targets,{runId:run.runId})).rejects.toThrow('Authorize demo cleanup');
+ expect((await t.run(ctx=>ctx.db.get(run.runId)))?.cleanupPaused).toBeUndefined();
+ await expect(t.withIdentity({subject:'sample:partner'}).mutation(internal.demoCleanup.targets,{runId:run.runId})).rejects.toThrow();
+ vi.stubEnv('DEMO_MODE','false');
+ await expect(admin.mutation(internal.demoCleanup.targets,{runId:run.runId})).rejects.toThrow();
+});
+
+test('admin authorization targets configured personas without switching profile and preserves teen approval', async () => {
+ const {t,admin,run,viewer}=await setup();
+ await admin.mutation(api.demoConsole.prepare,{runId:run.runId});
+ const target=await admin.query(internal.demoCleanup.authorizationTargetQuery,{runId:run.runId,persona:'mom'});
+ expect(target.expectedEmail).toBe(C.personas.find(p=>p.key==='mom')!.email);
+ expect(target.memberId).not.toBe(viewer.member._id);
+ expect((await admin.query(api.me.get,{}))!.member._id).toBe(viewer.member._id);
+ await expect(admin.query(internal.demoCleanup.authorizationTargetQuery,{runId:run.runId,persona:'daughter'})).rejects.toThrow('Approve');
+ await expect(admin.query(internal.demoCleanup.authorizationTargetQuery,{runId:run.runId,persona:'unknown'})).rejects.toThrow();
+ await expect(t.withIdentity({subject:'sample:partner'}).query(internal.demoCleanup.authorizationTargetQuery,{runId:run.runId,persona:'mom'})).rejects.toThrow();
+});

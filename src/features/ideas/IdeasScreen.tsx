@@ -182,7 +182,7 @@ export const IdeaCard = memo(function IdeaCard({ idea, onOpen, onSetSaved }: { i
     <View style={{ borderWidth: 1, borderColor: tokens.line, backgroundColor: tokens.surface, borderRadius: tokens.radii.lg, padding: tokens.spacing.lg, gap: tokens.spacing.sm }}>
       <Pressable onPress={() => onOpen(idea._id)} accessibilityRole="button" accessibilityLabel={COPY.openIdea(idea.title)} style={{ gap: tokens.spacing.sm }}>
         <Text variant="caption" color="muted">{IDEA_CATEGORY_LABELS[idea.category]} · {sourceLabel(idea)}</Text>
-        <Text variant="label" style={{ fontSize: tokens.type.body.fontSize, lineHeight: tokens.type.body.lineHeight }} numberOfLines={2}>{idea.title}</Text>
+        <Text variant="body" weight="600" numberOfLines={2}>{idea.title}</Text>
         <Text color="muted" numberOfLines={3}>{idea.text}</Text>
       </Pressable>
       <Text variant="caption" color="muted">{idea.audience}</Text>

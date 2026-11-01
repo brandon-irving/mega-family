@@ -34,7 +34,7 @@ export function Sheet({ title, onClose, presentation = 'sheet', children, scroll
               borderBottomColor: tokens.line,
             }}
           >
-            <Text variant="label" style={{ flex: 1, fontSize: 18, lineHeight: 24 }} accessibilityRole="header">{title}</Text>
+            <Text variant="title" style={{ flex: 1 }} accessibilityRole="header">{title}</Text>
             {onClose && (
               <Pressable
                 onPress={onClose}

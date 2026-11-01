@@ -120,7 +120,7 @@ Measure actual email arrival to card appearance. Gmail push is usually fast but 
 - Automatic capture creates a private MEGA event. Only an explicitly approved hold writes to Google Calendar. Reply drafts are a separate explicit action.
 - Google availability uses the primary calendar and a complete refreshed 60-day import. Missing, stale, failed, or truncated data is not treated as free time. Other family members must explicitly allow checking.
 - Matching an already imported event uses exact normalized title and timing; semantically similar but differently titled events may still require manual review.
-- The app updates through its existing live data subscriptions. A new operating-system push alert for these plan cards is not part of this change.
+- The app updates through its existing live data subscriptions. Each new plan revision queues an operating-system push through the existing notification system, subject to quiet hours and caps, pointing to the existing chat card. See [family coordination](family-coordination.md).
 - Gmail/Calendar processing runs on the backend, including when the app is closed. A phone need not poll continuously or run background animation loops.
 - Duplicate mailbox notifications coalesce. Duplicate source messages do not duplicate plans. Stable Google event IDs make hold retries safe. An uncertain draft save is not automatically retried; inspect Gmail first.
 - These instructions target the development deployment. A production deployment needs its own endpoint, audience, subscription, and environment configuration.
@@ -140,3 +140,9 @@ The synthetic emails include Orlando, Florida context. Only explicit recipient h
 ## Pending UAT follow-up
 
 - **2026-10-31 — Google setup usability:** The owner finds the “Let MEGA help with your week” screen insufficiently user-friendly. Revisit its wording, choice hierarchy, and explanation of permissions/sharing so a nontechnical family member can confidently complete setup. Keep the unified Google authorization flow. This is a recorded follow-up, not an implemented redesign; defer changes while the owner continues testing the first task.
+
+### Connection awareness in chat
+
+Every agent turn includes the current owner’s Gmail/Calendar status, last sync/failure, recognition and automatic-capture settings. It excludes credentials and other members’ connection data. Connected accounts do not require repeat consent. `google_setup` avoids another setup card when both products are connected; `google_check` requests the existing owner-only sync flow and reports queued/recent status honestly. New findings arrive through normal processing; a queued check must never be described as an empty inbox or a completed scan. Existing sharing and capture consent is preserved.
+
+Explicit chat checks now show a status message that updates on completion: new findings, no new items, incomplete processing, connection failure, or timeout. Repeated completion callbacks are idempotent. Routine background syncs do not produce these status messages.

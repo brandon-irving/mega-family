@@ -9,7 +9,7 @@ import type { BlockAnswer } from '@shared/domain/messages';
 import type { Via } from '@shared/domain/enums';
 import type { messageDoc, viewer as viewerValidator } from '@shared/domain/api';
 import { api } from './api';
-import { useQuery } from './useQuery';
+import { useQuery, useQueryState } from './useQuery';
 import { useStablePaginatedQuery } from './useStableQuery';
 import { useViewer } from './useViewer';
 
@@ -82,3 +82,13 @@ export function useAnswerBlock() {
 export function useReactToMessage() {
   return useMutation(api.chat.react);
 }
+
+
+export function useChatEntrance(memberId: Id<'members'>) {
+  return useQueryState(api.chat.entrance, { profileKey: memberId });
+}
+export function useFinishChatEntrance() {
+  return useMutation(api.chat.finishEntrance);
+}
+
+export function useStopResponse() { return useMutation(api.chat.stop); }

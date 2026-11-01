@@ -7,3 +7,6 @@ export function useMegaDraft() {
 }
 
 export const usePersonalizeMega = () => useMutation(api.megaCreation.personalize);
+
+export const useUpdateDraftAppearance = () => useMutation(api.megaCreation.updateAppearance);
+export const useReviewMegaDraft = () => useMutation(api.megaCreation.review);

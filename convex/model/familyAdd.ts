@@ -84,6 +84,7 @@ export async function addFamilyMember(
   const name = args.name.trim();
   if (!name || name.length > ONBOARDING.nameMaxLength) fail('VALIDATION', 'name');
   if (args.birthday !== undefined && !/^\d{4}-\d{2}-\d{2}$/.test(args.birthday)) fail('VALIDATION', 'birthday');
+  if (args.ageGroup && (args.role === 'adult') !== (args.ageGroup === 'adult')) fail('VALIDATION', 'Age group must match the member’s protected role.');
   const familyId = admin.familyId;
   if (await familyIsFull(ctx, familyId)) fail('VALIDATION', 'family is full');
 

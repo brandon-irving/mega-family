@@ -1,12 +1,13 @@
 import { v } from 'convex/values';
 import { API } from '../shared/domain/api';
 import { pick } from './model/define';
-import { activeDraft, updateDraft } from './model/megaCreation';
+import { activeDraft, updateDraft, reviewDraft } from './model/megaCreation';
 import { tryViewer } from './model/viewer';
 import { query, mutation, internalMutation } from './_generated/server';
 import { requireViewer } from './model/viewer';
 import { getOrCreateOwnThread } from './model/threads';
 import { executeCreationTool } from './model/creationTools';
+import { fail } from './model/errors';
 import { clock } from './ports/clock';
 import { CREATION_TOOLS, MCP_CONFIRM_TOOL } from './agent/creationToolSpecs';
 
@@ -33,7 +34,7 @@ export const current = query({
     const viewer = await tryViewer(ctx);
     if (!viewer || viewer.member.role === 'kid') return null;
     const row = await activeDraft(ctx, viewer.member);
-    return row && (row.status === 'draft' || row.status === 'review') ? { data: row.data, revision: row.revision, status: row.status } : null;
+    return row && (row.status === 'draft' || row.status === 'review') ? { draftId: row._id, data: row.data, revision: row.revision, status: row.status } : null;
   },
 });
 
@@ -46,6 +47,31 @@ export const personalize = mutation({
     const now = await clock.now(ctx, viewer.member.familyId);
     const thread = await getOrCreateOwnThread(ctx, viewer.member.familyId, viewer.member._id, viewer.mega?._id ?? null, now);
     await updateDraft(ctx, viewer.member, thread._id, { target: 'self' }, now);
+    return null;
+  },
+});
+
+
+// Visual editing uses the same draft validation as chat/MCP; revision checks prevent lost updates.
+export const updateAppearance = mutation({
+  ...pick(API.megaCreation.updateAppearance),
+  handler: async (ctx, args) => {
+    const viewer = await requireViewer(ctx);
+    if (viewer.member.role === 'kid') fail('FORBIDDEN');
+    const row = await activeDraft(ctx, viewer.member);
+    if (!row || row._id !== args.draftId || row.revision !== args.revision) fail('VALIDATION', 'The draft changed. Reopen it to edit the latest version.');
+    await updateDraft(ctx, viewer.member, row.threadId, args, await clock.now(ctx, viewer.member.familyId));
+    return null;
+  },
+});
+export const review = mutation({
+  ...pick(API.megaCreation.review),
+  handler: async (ctx, args) => {
+    const viewer = await requireViewer(ctx);
+    if (viewer.member.role === 'kid') fail('FORBIDDEN');
+    const row = await activeDraft(ctx, viewer.member);
+    if (!row || row._id !== args.draftId || row.revision !== args.revision) fail('VALIDATION', 'The draft changed. Reopen the latest draft.');
+    await reviewDraft(ctx, viewer.member, args, await clock.now(ctx, viewer.member.familyId));
     return null;
   },
 });

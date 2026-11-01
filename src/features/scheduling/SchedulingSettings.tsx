@@ -78,6 +78,10 @@ export function SchedulingSetup({ preferences: p }: { preferences: Preferences }
     </View>
     <Text color="muted">{needsGoogle ? 'Next, Google will ask for Gmail and Calendar access together. You choose which permissions to grant.' : 'Google is already connected for these choices. No sign-in needed.'}</Text>
     <Button label={needsGoogle ? connected ? U.update : U.connect : 'Save choices'} loading={!!busy} disabled={!!busy} onPress={() => void save()} />
+    {process.env.EXPO_PUBLIC_DEMO_MODE === 'true' ? <Card><Text variant="label">Demo cleanup permission</Text><Text color="muted">Authorize moving MEGA_TEST emails to Trash and deleting test calendar events from this account. This grants Gmail modification access; cleanup only runs when confirmed in the admin Demo Console.</Text><Button label="Authorize demo cleanup" variant="secondary" disabled={!!busy} onPress={() => void run('cleanup-permission', async () => {
+      const result = await connectGoogle(['gmail', 'googleCalendar'], accounts, true, true);
+      setNotice(result === 'connected' ? 'Google returned. The admin can now try demo cleanup.' : result === 'redirecting' ? '' : 'Cleanup authorization was not completed.');
+    })} /></Card> : null}
     {notice ? <Text accessibilityLiveRegion="polite">{notice}</Text> : null}
     {error ? <Text accessibilityRole="alert">{error}</Text> : null}
   </View>;

@@ -1,3 +1,4 @@
+import { renameOwnMega } from './model/renameMega';
 // CONTRACT §4 "MEGA profile, memory and learnings": `megas.status` / `.mine` / `.update` / `.activity`.
 import { v } from 'convex/values';
 import { ACTIVITY } from '../shared/config/activity';
@@ -71,13 +72,13 @@ export const update = mutation({
   handler: async (ctx, args) => {
     const viewer = await requireViewer(ctx);
     if (!viewer.mega) fail('NOT_FOUND');
-    if (args.name !== undefined && viewer.member.role === 'kid') fail('FORBIDDEN', "kids can't rename their MEGA");
+    if (args.name !== undefined) await renameOwnMega(ctx, viewer.member, args.name);
     // GD (invariant 6): a kid wears only look parts they own (free, bought, or already worn); adults are free.
     if (args.look && viewer.member.role === 'kid') {
       await assertKidMayWear(ctx, viewer.member, viewer.mega, args.look);
       await keepStartingItems(ctx, viewer.member, wornItemIds(viewer.mega.look), await clock.now(ctx, viewer.member.familyId));
     }
-    const patch = Object.fromEntries(Object.entries(args).filter(([, v]) => v !== undefined));
+    const patch = Object.fromEntries(Object.entries(args).filter(([key, v]) => key !== 'name' && v !== undefined));
     await ctx.db.patch(viewer.mega._id, patch);
     return null;
   },
