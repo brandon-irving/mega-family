@@ -26,7 +26,7 @@ import { NET_TOOL_NAMES, UNTRUSTED_RESULT_TOOLS } from './netTools';
 import { toolsForRole } from './toolSpecs';
 
 /** Tools that only read (or only show something) — the ones still allowed after a search result entered the turn. */
-const READ_ONLY_AFTER_SEARCH = new Set(['recall', 'web_search', 'weather', 'travel_time', 'shop_search', 'show_ui', 'google_setup']);
+const READ_ONLY_AFTER_SEARCH = new Set(['recall', 'web_search', 'weather', 'travel_time', 'shop_search', 'show_ui', 'google_setup', 'vehicle_status']);
 
 type ContextData = {
   now: string;

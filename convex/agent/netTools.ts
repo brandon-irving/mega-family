@@ -20,9 +20,12 @@ import { canSeeEvent } from '../model/visibility';
 import { buildWeatherView, weatherSentence } from '../model/weather';
 import { clock } from '../ports/clock';
 import { isToolAllowedForRole } from './toolSpecs';
+import { VEHICLE_COPY, VEHICLES } from '../../shared/config/vehicles';
+import { stateSentence, vehicleByName, whereLabel } from '../model/vehicles';
+import { refreshNow } from '../vehicles';
 
 const MIN = 60_000;
-export const NET_TOOL_NAMES = new Set(['web_search', 'weather', 'travel_time', 'shop_search']);
+export const NET_TOOL_NAMES = new Set(['web_search', 'weather', 'travel_time', 'shop_search', 'vehicle_status', 'vehicle_command']);
 /** Tools whose results are untrusted outside data: after one, the rest of the turn is read-only (G4/G4b). */
 export const UNTRUSTED_RESULT_TOOLS = new Set(['web_search', 'shop_search']);
 const SHOP_QUERY_MAX = 200;
@@ -266,6 +269,59 @@ async function shopTool(ctx: ActionCtx, a: { familyId: Id<'families'>; memberId:
   };
 }
 
+// ---------- vehicles (Vehicles addendum) ----------
+
+export const vehicleTarget = internalQuery({
+  args: { memberId: v.id('members'), car: v.optional(v.string()) },
+  returns: v.union(v.null(), v.object({ vehicleId: v.id('vehicles'), nickname: v.string(), fresh: v.boolean() })),
+  handler: async (ctx, { memberId, car }) => {
+    const member = await ctx.db.get(memberId);
+    if (!member) return null;
+    const vehicle = await vehicleByName(ctx, member, car);
+    if (!vehicle) return null;
+    const fresh = !!vehicle.state && clock.realNow() - vehicle.state.readAt < VEHICLES.freshForMinutes * MIN;
+    return { vehicleId: vehicle._id, nickname: vehicle.nickname, fresh };
+  },
+});
+
+export const vehicleSentence = internalQuery({
+  args: { vehicleId: v.id('vehicles') },
+  returns: v.union(v.null(), v.string()),
+  handler: async (ctx, { vehicleId }) => {
+    const vehicle = await ctx.db.get(vehicleId);
+    if (!vehicle?.state) return null;
+    return stateSentence(vehicle.nickname, vehicle.state, await whereLabel(ctx, vehicle.familyId, vehicle.state.location));
+  },
+});
+
+export async function vehicleStatusTool(ctx: ActionCtx, a: { familyId: Id<'families'>; memberId: Id<'members'> }, raw: Record<string, unknown>): Promise<string> {
+  const target = await ctx.runQuery(internal.agent.netTools.vehicleTarget, { memberId: a.memberId, car: typeof raw.car === 'string' ? raw.car : undefined });
+  if (!target) return VEHICLE_COPY.noCar;
+  let stale = false;
+  if (!target.fresh) {
+    const r = await refreshNow(ctx, target.vehicleId);
+    if (!r.ok) {
+      if (r.failure === 'not_configured') return VEHICLE_COPY.notConfigured;
+      stale = true;
+    }
+  }
+  const sentence = await ctx.runQuery(internal.agent.netTools.vehicleSentence, { vehicleId: target.vehicleId });
+  if (!sentence) return VEHICLE_COPY.unavailable;
+  return `Car reading (use only these numbers${stale ? '; the car did not answer just now, so this is the last reading' : ''}): ${sentence}`;
+}
+
+export async function vehicleCommandTool(ctx: ActionCtx, a: { familyId: Id<'families'>; memberId: Id<'members'> }, raw: Record<string, unknown>): Promise<{ ok: boolean; resultText: string }> {
+  const command = raw.command;
+  if (command !== 'lock' && command !== 'unlock' && command !== 'set_destination') return { ok: false, resultText: 'command must be lock, unlock or set_destination' };
+  const r = await ctx.runMutation(internal.vehicles.requestCommandFor, {
+    memberId: a.memberId,
+    command,
+    ...(typeof raw.car === 'string' ? { vehicleName: raw.car } : {}),
+    ...(typeof raw.place === 'string' ? { placeLabel: raw.place } : {}),
+  });
+  return { ok: r.ok, resultText: r.text };
+}
+
 // ---------- dispatcher ----------
 
 export const run = internalAction({
@@ -291,6 +347,10 @@ export const run = internalAction({
         return { ok: true, resultText: await travelTool(ctx, who, raw) };
       case 'shop_search':
         return shopTool(ctx, who, raw);
+      case 'vehicle_status':
+        return { ok: true, resultText: await vehicleStatusTool(ctx, who, raw) };
+      case 'vehicle_command':
+        return vehicleCommandTool(ctx, who, raw);
       default:
         return { ok: false, resultText: `unknown tool "${args.name}"` };
     }

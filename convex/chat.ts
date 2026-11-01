@@ -1,5 +1,6 @@
 import { answerMailLocation } from './model/mailContext';
 import { answerConnectionApproval } from './model/connectionApproval';
+import { answerVehicleCommand } from './model/vehicles';
 import { activeDraft, migrateCreation, answerCreation, confirmDraft } from './model/megaCreation';
 import { isCreationConfirmation, MEGA_CREATION } from '../shared/config/megaCreation';
 import { answerBrief, answerBriefText, briefFor, startBrief } from './model/assistantBriefs';
@@ -287,6 +288,7 @@ export const answerBlock = mutation({
     // not by an agent turn.
     if (await answerMailLocation(ctx, viewer.member, message, args.answer, now)) return { answerMessageId };
     if (await answerConnectionApproval(ctx, viewer.member, message, args.answer, now)) return { answerMessageId };
+    if (await answerVehicleCommand(ctx, viewer.member, message, args.answer, now)) return { answerMessageId };
     if (await answerCreation(ctx, viewer.member, message, args.answer, now)) return { answerMessageId };
     if (await answerFamilyBlock(ctx, viewer.member, message, args.answer, now)) return { answerMessageId };
     const briefAnswer = await answerBrief(ctx, viewer.member, message, args.answer, now);

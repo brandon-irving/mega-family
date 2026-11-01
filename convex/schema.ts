@@ -77,6 +77,9 @@ export default defineSchema({
 
   // G4 (CONTRACT v0.15)
   places: defineTable(T.places).index('by_family_kind', ['familyId', 'kind']),
+  // Vehicles addendum (pending approval)
+  vehicles: defineTable(T.vehicles).index('by_family', ['familyId']).index('by_provider_vehicle', ['provider', 'providerVehicleId']),
+  vehicleCommands: defineTable(T.vehicleCommands).index('by_message', ['messageId']).index('by_family_vehicle', ['familyId', 'vehicleId']),
   weatherCache: defineTable(T.weatherCache).index('by_family_place_kind', ['familyId', 'placeId', 'kind']),
   travelChecks: defineTable(T.travelChecks).index('by_family_event_checked', ['familyId', 'eventId', 'checkedAt']),
   searchLog: defineTable(T.searchLog).index('by_family_member_at', ['familyId', 'memberId', 'at']),

@@ -35,6 +35,9 @@ import { googleCalendarSource } from './googleCalendar';
 import { googleOAuth } from './googleOAuth';
 import { icsHttpFetcher } from './icsHttp';
 import { shopifyCatalog } from './shopifyCatalog';
+import { smartcarVehicles } from './smartcar';
+import { defaultFakeVehicles } from './fakeVehicles';
+import type { Vehicles } from '../ports/vehicles';
 import type { ChatModel } from '../ports/chatModel';
 import type { Directions } from '../ports/directions';
 import type { EmailSender } from '../ports/emailSender';
@@ -217,3 +220,14 @@ let schedulingOverride: MailScheduling | null = null;
 const disabledScheduling: MailScheduling = { watch: async () => null, hold: async () => ({ ok: false, uncertain: false }), draft: async () => ({ ok: false, uncertain: false }) };
 export function getMailScheduling(): MailScheduling { return schedulingOverride ?? (wantsRealAdapters() ? googleScheduling : disabledScheduling); }
 export function __setMailSchedulingForTests(value: MailScheduling | null) { schedulingOverride = value; }
+
+// Vehicles addendum: connected cars (Smartcar). Same `wantsRealAdapters()` flag: tests and fake deployments never
+// reach Smartcar by accident.
+let vehiclesOverride: Vehicles | null = null;
+export function getVehicles(): Vehicles {
+  if (vehiclesOverride) return vehiclesOverride;
+  return wantsRealAdapters() ? smartcarVehicles : defaultFakeVehicles;
+}
+export function __setVehiclesForTests(adapter: Vehicles | null): void {
+  vehiclesOverride = adapter;
+}
