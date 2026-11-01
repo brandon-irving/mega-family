@@ -14,9 +14,10 @@
 // read-only lookup, the counter bump and the actual redeem into three internal functions — called from a
 // thin action — is the documented pattern for "commit a side effect even though the overall call fails."
 import { type Infer, v } from 'convex/values';
+import { DEMO, DEMO_SCENARIO } from '../shared/config/demo';
 import { LIMITS } from '../shared/config';
 import { API, LINKS, type InvitePreview } from '../shared/domain/api';
-import { inviteTokenFrom } from '../shared/inviteToken';
+import { inviteByToken } from './model/inviteLookup';
 import * as T from '../shared/domain/tables';
 import { internal } from './_generated/api';
 import type { Doc, Id } from './_generated/dataModel';
@@ -45,7 +46,7 @@ export const create = mutation({
     const isAdmin = viewer.member.role === 'admin';
     const isParent = viewer.isParentOf.includes(member._id);
     if (!isAdmin && !isParent) fail('FORBIDDEN');
-    if (member.authId) fail('VALIDATION', 'already joined');
+    if (member.authId || member.joinedAt !== undefined) fail('VALIDATION', 'already joined');
 
     const mega = args.mega ? checkedMega(args.mega) : await defaultInviteMega(ctx, member);
     const { token, hash } = await randomToken();
@@ -66,7 +67,7 @@ export const forMember = query({
     const viewer = await requireViewer(ctx);
     const member = await sameFamilyMember(ctx, viewer.member.familyId, args.memberId);
     if (viewer.member.role !== 'admin' && !viewer.isParentOf.includes(member._id)) fail('FORBIDDEN');
-    if (member.authId) return { status: 'joined' as const };
+    if (member.authId || member.joinedAt !== undefined) return { status: 'joined' as const };
     const latest = await ctx.db
       .query('invites')
       .withIndex('by_family_member', (q) => q.eq('familyId', viewer.member.familyId).eq('memberId', member._id))
@@ -80,15 +81,6 @@ export const forMember = query({
   },
 });
 
-/** `token` may be the bare code or the full join link (a scanned QR or a pasted link). */
-async function inviteByToken(ctx: QueryCtx, token: string): Promise<Doc<'invites'> | null> {
-  const hash = await sha256Hex(inviteTokenFrom(token));
-  return ctx.db
-    .query('invites')
-    .withIndex('by_tokenHash', (q) => q.eq('tokenHash', hash))
-    .unique();
-}
-
 /** Screen 9 redesign (v0.14): the invite card, readable before the caller is anyone's member (the token is
  * the credential). Names and MEGA looks only — never an id, the parent code or the token hash. */
 export const preview = query({
@@ -98,7 +90,7 @@ export const preview = query({
     if (!invite || invite.redeemedAt) return { status: 'invalid' };
     const member = await ctx.db.get(invite.memberId);
     const family = member ? await ctx.db.get(member.familyId) : null;
-    if (!member || !family || member.authId) return { status: 'invalid' };
+    if (!member || !family || member.authId || member.joinedAt !== undefined) return { status: 'invalid' };
 
     const inviterId = invite.invitedBy ?? family.adminId;
     const inviter = inviterId ? await ctx.db.get(inviterId) : null;
@@ -113,7 +105,7 @@ export const preview = query({
       .collect();
     const familyCards = [];
     for (const m of members) {
-      if (!m.authId) continue;
+      if (!m.authId && m.joinedAt === undefined) continue;
       const mega = await ownMega(ctx, m.familyId, m._id);
       if (mega) familyCards.push({ name: m.name, hex: mega.look.hex, sticker: mega.look.sticker });
     }
@@ -155,14 +147,23 @@ export const prepareRedeem = internalQuery({
 
     const invite = await inviteByToken(ctx, args.token);
     if (!invite) return { ok: false, code: 'INVALID_INVITE' };
+    const demo = await ctx.db.query('demoProfiles').withIndex('by_authId', q => q.eq('authId', args.authId)).unique();
+    if (demo?.pendingInvite && demo.pendingInvite.inviteId !== invite._id) return { ok: false, code: 'INVALID_INVITE' };
     const member = await ctx.db.get(invite.memberId);
     if (!member) return { ok: false, code: 'INVALID_INVITE' };
     const family = await ctx.db.get(member.familyId);
     if (!family) return { ok: false, code: 'INVALID_INVITE' };
     const now = await clock.now(ctx, member.familyId);
-    if (invite.redeemedAt || invite.expiresAt <= now || member.authId) return { ok: false, code: 'INVALID_INVITE' };
+    if (invite.redeemedAt || invite.expiresAt <= now || member.authId || member.joinedAt !== undefined) return { ok: false, code: 'INVALID_INVITE' };
 
-    return { ok: true, inviteId: invite._id, memberId: member._id, role: member.role, failedAttempts: invite.failedAttempts ?? 0, parentCode: family.parentCode };
+    // Fixed code only for the owning presenter's single-device daughter rehearsal.
+    // Ordinary invite recipients still need the family's real parent code.
+    let parentCode = family.parentCode;
+    if (process.env[DEMO.envVar] === 'true' && demo?.pendingInvite?.inviteId === invite._id && demo.pendingInvite.memberId === member._id && member.role === 'kid') {
+      const run = await ctx.db.query('demoRuns').withIndex('by_family', q => q.eq('familyId', family._id)).filter(q => q.eq(q.field('active'), true)).first();
+      if (run?.ownerAuthId === args.authId && run.adminId === demo.demoMemberId) parentCode = DEMO_SCENARIO.daughterParentCode;
+    }
+    return { ok: true, inviteId: invite._id, memberId: member._id, role: member.role, failedAttempts: invite.failedAttempts ?? 0, parentCode };
   },
 });
 
@@ -188,13 +189,20 @@ export const finishRedeem = internalMutation({
     // Re-checked here, inside the one transaction that writes (GD review): `redeem` reads in
     // `prepareRedeem` and writes here, so two concurrent redeems could both pass the read. Convex
     // serializes these mutations, so the second sees the first's claim and is refused.
-    if (invite.redeemedAt || member.authId) fail('INVALID_INVITE');
+    if (invite.redeemedAt || member.authId || member.joinedAt !== undefined) fail('INVALID_INVITE');
     const alreadyMember = await ctx.db
       .query('members')
       .withIndex('by_authId', (q) => q.eq('authId', args.authSubject))
       .first();
     if (alreadyMember) fail('VALIDATION');
     const now = await clock.now(ctx, member.familyId);
+    if (invite.expiresAt <= now || invite.memberId !== member._id) fail('INVALID_INVITE');
+    const demo = await ctx.db.query('demoProfiles').withIndex('by_authId', q => q.eq('authId', args.authSubject)).unique();
+    if (demo?.pendingInvite) {
+      const admin = await ctx.db.get(demo.demoMemberId);
+      if (demo.pendingInvite.inviteId !== invite._id || demo.pendingInvite.memberId !== member._id || admin?.familyId !== member.familyId) fail('INVALID_INVITE');
+      await ctx.db.patch(demo._id, { pendingInvite: undefined, testedMemberIds: [...new Set([...(demo.testedMemberIds ?? []), member._id])] });
+    }
     await ctx.db.patch(args.inviteId, { redeemedAt: now });
     await ctx.db.patch(args.memberId, { authId: args.authSubject, joinedAt: now, hasMega: true });
 

@@ -1,3 +1,5 @@
+import * as Clipboard from 'expo-clipboard';
+import { contrastRatio, messageBubbleColors } from '@shared/config/theme';
 // Renders each message body and preserves authorship without an assistant avatar gutter.
 import { fireEvent, screen, waitFor } from '@testing-library/react-native';
 import { renderWithTheme } from '@/test/renderWithTheme';
@@ -30,17 +32,17 @@ describe('MessageRow', () => {
     await renderWithTheme(<MessageRow message={message} isMine mega={null} onAnswerBlock={noop} onReact={noop} onChangeMemoryScope={noop} onForgetMemory={noop} />);
     const column = screen.getByTestId('message-column');
     const style = Object.assign({}, ...[column.props.style].flat());
-    expect(style.maxWidth).toBe('82%');
+    expect(style.maxWidth).toBe('90%');
     expect(style.flexShrink).toBe(1);
     const bubble = screen.getByTestId('bubble');
     expect(Object.assign({}, ...[bubble.props.style].flat()).maxWidth).toBe('100%');
   });
 
-  test('block: an unanswered block keeps the MEGA author and uses the available width', async () => {
+  test('block: an unanswered block omits the repeated author and uses the available width', async () => {
     await renderWithTheme(
       <MessageRow message={MESSAGES_BY_TYPE.block} isMine={false} mega={TEAL_INFO} onAnswerBlock={noop} onReact={noop} onChangeMemoryScope={noop} onForgetMemory={noop} />,
     );
-    expect(screen.getByText('Teal')).toBeTruthy();
+    expect(screen.queryByText('Teal')).toBeNull();
     expect(screen.getByText('Who should I add first?')).toBeTruthy();
     expect(Object.assign({}, ...[screen.getByTestId('message-column').props.style].flat())).toMatchObject({ flex: 1, maxWidth: '100%' });
     expect(screen.queryByLabelText('Teal')).toBeNull();
@@ -122,7 +124,7 @@ describe('MessageRow', () => {
   });
 
   test('an adult can save a finalized MEGA reply, recover from failure, and see success', async () => {
-    const reply = { ...MESSAGES_BY_TYPE.text, author: { kind: 'mega' as const, id: FIXTURE_IDS.teal } };
+    const reply = { saveableIdea: true, ...MESSAGES_BY_TYPE.text, author: { kind: 'mega' as const, id: FIXTURE_IDS.teal } };
     const onSaveIdea = jest.fn().mockRejectedValueOnce(new Error('offline')).mockResolvedValueOnce('idea-1');
     await renderWithTheme(<MessageRow message={reply} isMine={false} mega={TEAL_INFO} onAnswerBlock={noop} onReact={noop} onChangeMemoryScope={noop} onForgetMemory={noop} onSaveIdea={onSaveIdea} />);
     await fireEvent.press(screen.getByLabelText('Save idea'));
@@ -136,6 +138,12 @@ describe('MessageRow', () => {
   test('read-only transcripts cannot save a suggestion even if a callback is passed', async () => {
     const reply = { ...MESSAGES_BY_TYPE.text, author: { kind: 'mega' as const, id: FIXTURE_IDS.teal } };
     await renderWithTheme(<MessageRow message={reply} isMine={false} mega={TEAL_INFO} onAnswerBlock={noop} onReact={noop} onChangeMemoryScope={noop} onForgetMemory={noop} onSaveIdea={jest.fn()} chipsReadOnly />);
+    expect(screen.queryByLabelText('Save idea')).toBeNull();
+  });
+
+  test('ordinary replies and setup questions do not offer Save idea', async () => {
+    const reply = { ...MESSAGES_BY_TYPE.text, author: { kind: 'mega' as const, id: FIXTURE_IDS.teal }, body: { type: 'text' as const, text: 'What should I call your mother?' } };
+    await renderWithTheme(<MessageRow message={reply} isMine={false} mega={TEAL_INFO} onAnswerBlock={noop} onReact={noop} onChangeMemoryScope={noop} onForgetMemory={noop} onSaveIdea={jest.fn()} />);
     expect(screen.queryByLabelText('Save idea')).toBeNull();
   });
 
@@ -162,4 +170,33 @@ describe('MessageRow', () => {
       ).resolves.toBeTruthy();
     }
   });
+});
+
+test('MEGA text has a bubble without a speaker label; long press supports copy, selection, reply and reaction', async () => {
+  const onReply = jest.fn();
+  const onReact = jest.fn();
+  const copy = jest.spyOn(Clipboard, 'setStringAsync').mockResolvedValue(true);
+  const message = { ...MESSAGES_BY_TYPE.text, author: { kind: 'mega' as const, id: FIXTURE_IDS.teal } };
+  await renderWithTheme(<MessageRow message={message} isMine={false} mega={TEAL_INFO} onAnswerBlock={noop} onReact={onReact} onReply={onReply} onChangeMemoryScope={noop} onForgetMemory={noop} />);
+  expect(screen.getByTestId('bubble')).toBeTruthy();
+  expect(screen.queryByText('Teal')).toBeNull();
+  await fireEvent(screen.getByText('We are out of milk.'), 'longPress');
+  await fireEvent.press(screen.getByText('Copy'));
+  expect(copy).toHaveBeenCalledWith('We are out of milk.');
+  await fireEvent(screen.getByText('We are out of milk.'), 'longPress');
+  await fireEvent.press(screen.getByText('Reply'));
+  expect(onReply).toHaveBeenCalledWith('We are out of milk.');
+  await fireEvent(screen.getByText('We are out of milk.'), 'longPress');
+  await fireEvent.press(screen.getByText('Like'));
+  expect(onReact).toHaveBeenCalledWith('up');
+  await fireEvent(screen.getByText('We are out of milk.'), 'longPress');
+  await fireEvent.press(screen.getByText('Select text'));
+  expect(screen.getAllByText('We are out of milk.').some(node => node.props.selectable)).toBe(true);
+  copy.mockRestore();
+});
+
+test.each(['#2FB8B0', '#FFFFFF', '#FFFF00', '#000000', '#8E6CE0', '#F2766B'])('own text is light with AA contrast for %s', accent => {
+  const colors = messageBubbleColors(accent);
+  expect(colors.text).toBe('#FFFFFF');
+  expect(contrastRatio(colors.background, colors.text)).toBeGreaterThanOrEqual(4.5);
 });

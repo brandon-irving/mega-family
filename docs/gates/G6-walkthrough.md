@@ -1,3 +1,5 @@
+> Current demo workflow: [Settings → Demo Console](../demo-console.md). The three-person live Gmail scenario and age-group policy in that guide supersede historical demo, seeded-reset, and sample-sign-in instructions below.
+
 # G6 Task 1 · Web walkthrough (Oct 29)
 
 Agent-run walkthrough of the demo script (docs/gates/G6.md) on Expo web (`localhost:19006`, never 8081) against the

@@ -103,6 +103,8 @@ export function toMailMessage(raw: RawMessage, maxBodyChars: number): MailMessag
     internalDate: Number(raw.internalDate ?? 0),
     fromName: from.name,
     fromAddress: from.address,
+    replyTo: parseFrom(header(raw.payload?.headers, 'Reply-To')).address || undefined,
+    rfcMessageId: header(raw.payload?.headers, 'Message-ID') || undefined,
     subject: header(raw.payload?.headers, 'Subject'),
     text: bodyText(raw.payload).slice(0, maxBodyChars),
   };

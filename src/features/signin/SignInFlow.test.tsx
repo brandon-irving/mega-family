@@ -17,6 +17,8 @@ import { extractToken } from './inviteToken';
 const mockRedeem = jest.fn();
 let mockPreview: InvitePreview | undefined;
 const mockBegin = jest.fn((_args: { timezone: string }) => Promise.resolve({ familyId: 'f', threadId: 't' }));
+jest.mock('@/data/useDemoProfile', () => ({ useDemoProfile: () => ({ profile: null }) }));
+jest.mock('@/data/useViewer', () => ({ useViewer: () => null }));
 jest.mock('convex/react', () => ({ useAction: () => mockRedeem, useMutation: () => mockBegin }));
 jest.mock('@/data/useInvite', () => ({ useInvitePreview: () => mockPreview }));
 jest.mock('@/services/auth', () => ({ signOut: jest.fn(), useSignedInEmail: () => 'parent@example.com' }));

@@ -1,3 +1,5 @@
+> Current demo workflow: [Settings → Demo Console](../demo-console.md). The three-person live Gmail scenario and age-group policy in that guide supersede historical demo, seeded-reset, and sample-sign-in instructions below.
+
 # Gate G4b · Shopping (Shopify Global Catalog) + price watch, air quality and UV, public holidays
 
 The contract is CONTRACT.md v0.16 (pending approval) plus `shared/` (tables, API map, config) and the two new ports in `convex/ports/` (`productCatalog.ts`, `holidays.ts`; `weather.ts` gains `air`). Backend owns `convex/`, frontend owns `src/`; they meet only at the contract. Same process as every gate (STATUS.md → How we work): checks green, three fresh reviewers (security/privacy, correctness, UX), a failing-first test for every fix, commit locally, tag `g4b`. Owner asked for this short gate before G5 (Oct 28) so G5 can run while the owner sets up Google Cloud.

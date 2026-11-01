@@ -135,3 +135,10 @@ describe('this phone’s calendar', () => {
     expect(phoneSyncDue({ ...GMAIL_CONNECTED, lastSyncAt: due }, T0)).toBe(false);
   });
 });
+
+test('Google connection checks MEGA permission before opening consent',async()=>{
+ const googleStart=jest.fn(); const navigate=jest.fn();
+ const assertCanConnect=()=>{throw new Error('Parent approval required');};
+ await expect(connectGoogle(['gmail'],{googleStart,googleConnectCode:jest.fn(),navigate,assertCanConnect} as never)).rejects.toThrow('Parent approval required');
+ expect(googleStart).not.toHaveBeenCalled();expect(navigate).not.toHaveBeenCalled();
+});

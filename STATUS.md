@@ -1,8 +1,16 @@
+> Current demo workflow: [Settings → Demo Console](docs/demo-console.md). The three-person live Gmail scenario and age-group policy in that guide supersede historical demo, seeded-reset, and sample-sign-in instructions below.
+
 # MEGA build status and handoff
 
 Read this first in a new session, then PLAN.md (product and design decisions) and CONTRACT.md (the frontend ↔ backend contract).
 
-_Last updated: Oct 28._
+_Last updated: Oct 31._
+
+## Current demo UAT
+
+- **Phase 1 — complete, owner approved Oct 31:** unified Google setup from chat and Settings, teen account-connection approval, and creation-time age/parental permission questions. The owner confirmed the first phase is complete after testing.
+- **Deferred UX follow-up:** simplify “Let MEGA help with your week.” See [the setup UAT note](docs/email-scheduling.md#pending-uat-follow-up). This is not a blocker for phase 1 acceptance.
+- Smartcar is a proposed follow-on after the core demo; not implemented or included in this acceptance.
 
 ## Where we are
 

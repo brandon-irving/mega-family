@@ -1,3 +1,4 @@
+import { MailPlanCard } from '@/features/scheduling/MailPlanCard';
 // Renders every result Card kind (CONTRACT §3): event, reminder, list, search, weather, travel,
 // request and notification. Pure presentational — the "visibleTo" scope line is shared by the kinds
 // that carry one. GD (CONTRACT v0.13): the eight demo kinds (homework, practice, chore, routine, bucks,
@@ -124,6 +125,8 @@ export function ResultCard({ card, onRespondRequest, onAnswerNotification, notif
       return <HolidayCard skipId={card.skipId} megaName={megaName ?? GD_FALLBACK_FROM} />;
     case 'connect':
       return <ConnectCard offer={card.offer} megaName={megaName ?? GD_FALLBACK_FROM} />;
+    case 'mailPlan':
+      return <MailPlanCard planId={card.planId} />;
     case 'mailFound':
       return <MailFoundCard itemIds={card.itemIds} megaName={megaName ?? GD_FALLBACK_FROM} />;
     case 'reconnect':

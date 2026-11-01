@@ -1,3 +1,6 @@
+import { push as gmailPush } from './gmailPush';
+import { SCHEDULING } from '../shared/config/scheduling';
+import { creationMcp, CREATION_MCP_PATH, CREATION_MCP_VERSION } from './model/creationMcp';
 // HTTP routes: Better Auth's own routes, plus `POST /push/answer` (CONTRACT §5 v0.11). (Chat replies are
 // server-driven since G1 — see convex/chat.ts — so there is no client-driven stream route.) Demo sign-in
 // used to live here (`/demo-signin`) but is now the contract function `demo.signInAs` (convex/demo.ts,
@@ -16,6 +19,7 @@ import { sha256Hex } from './model/random';
 import { exchangeAndStore, googleRedirectUri } from './integrations';
 
 const http = httpRouter();
+http.route({ path: SCHEDULING.pushPath, method: 'POST', handler: gmailPush });
 
 // `registerRoutesLazy` (not `registerRoutes`) defers initializing Better Auth until a request actually
 // hits one of its routes, which keeps convex/http.ts's own memory footprint small (current docs'
@@ -124,5 +128,24 @@ http.route({
     }
   }),
 });
+
+// MEGA creation tools: a stateless Streamable HTTP MCP endpoint using the app's existing bearer session.
+http.route({ path: CREATION_MCP_PATH, method: 'GET', handler: httpAction(async () => new Response(null, { status: 405, headers: { Allow: 'POST' } })) });
+http.route({ path: CREATION_MCP_PATH, method: 'POST', handler: httpAction(async (ctx, request) => {
+  const headers = { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' };
+  const origin = request.headers.get('Origin');
+  const origins = [process.env.SITE_URL, ...trustedOrigins()].filter(Boolean);
+  if (origin && !origins.includes(origin)) return new Response(null, { status: 403 });
+  if (!await ctx.auth.getUserIdentity()) return new Response(JSON.stringify({ error: 'Sign in to MEGA and supply a valid bearer session.' }), { status: 401, headers });
+  const version = request.headers.get('MCP-Protocol-Version');
+  if (version && version !== CREATION_MCP_VERSION) return new Response(null, { status: 400 });
+  if (!request.headers.get('Content-Type')?.includes('application/json')) return new Response(null, { status: 415 });
+  const raw = await request.text();
+  if (raw.length > 16_384) return new Response(null, { status: 413 });
+  let body: unknown;
+  try { body = JSON.parse(raw); } catch { return new Response(JSON.stringify({ jsonrpc: '2.0', id: null, error: { code: -32700, message: 'Parse error' } }), { status: 400, headers }); }
+  const response = await creationMcp(body, async (name, args) => JSON.parse(await ctx.runMutation(internal.megaCreation.execute, { name, argumentsJson: JSON.stringify(args) })));
+  return response === null ? new Response(null, { status: 202 }) : new Response(JSON.stringify(response), { headers });
+}) });
 
 export default http;

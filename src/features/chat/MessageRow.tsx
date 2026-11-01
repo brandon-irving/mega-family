@@ -1,15 +1,18 @@
+import { CHAT_UX } from '@shared/config/chat';
 import { FileAttachment } from './FileAttachment';
 // Renders one thread message of any MessageBody type (CONTRACT §3): text, block, answer, card,
-// image, notice. Assistant replies use the full thread width with a text author label;
-// only the viewer's own messages are bubbles.
+// image, notice. Text messages share bubbles; cards keep their own layout.
 import { memo, useState } from 'react';
+import * as Clipboard from 'expo-clipboard';
+import { ModalSheet } from '@/ui/ModalSheet';
+import { Button } from '@/ui/Button';
 import { Pressable, View } from 'react-native';
-import Animated, { FadeIn, FadeInDown, FadeOut, LinearTransition, useReducedMotion } from 'react-native-reanimated';
+import Animated, { FadeOut, useReducedMotion } from 'react-native-reanimated';
 import type { Infer } from 'convex/values';
 import type { messageDoc } from '@shared/domain/api';
 import type { BlockAnswer } from '@shared/domain/messages';
 import type { Reaction, Scope } from '@shared/domain/enums';
-import { readableOn } from '@shared/config/theme';
+import { messageBubbleColors } from '@shared/config/theme';
 import { Bubble } from '@/ui/Bubble';
 import { Text } from '@/ui/Text';
 import { useTokens } from '@/ui/theme';
@@ -29,7 +32,8 @@ export type MessageRowProps = {
   isMine: boolean;
   mega: MegaInfo | null;
   onAnswerBlock: (answer: BlockAnswer) => void;
-  onReact: (reaction: Reaction | null) => void;
+  onReact?: (reaction: Reaction | null) => void;
+  onReply?: (text: string) => void;
   onSaveIdea?: () => Promise<unknown>;
   onChangeMemoryScope: (memoryId: string, scope: Scope) => void;
   onForgetMemory: (memoryId: string) => void;
@@ -58,6 +62,8 @@ export const MessageRow = memo(function MessageRow({
   mega,
   onAnswerBlock,
   onSaveIdea,
+  onReact,
+  onReply,
   onChangeMemoryScope,
   onForgetMemory,
   onRespondRequest,
@@ -70,19 +76,19 @@ export const MessageRow = memo(function MessageRow({
   const tokens = useTokens();
   const reducedMotion = useReducedMotion();
   const [saveState, setSaveState] = useState<'ready' | 'saving' | 'saved'>('ready');
+  const [actionsOpen, setActionsOpen] = useState(false);
+  const [selecting, setSelecting] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
   // The list's streaming reply shows the draft until its persisted message is ready.
   if (isMegaStillWriting(message)) return null;
   const isMega = message.author.kind === 'mega';
-  // Connected cards already identify their MEGA in their own heading.
-  const cardShowsAuthor = message.body.type === 'card' && !['event', 'reminder', 'list', 'request', 'notification'].includes(message.body.card.kind);
+  // Only textual content gets the native message action menu.
+  const messageText = message.body.type === 'text' ? message.body.text : message.body.type === 'answer' ? message.body.label : null;
   const content = <Body message={message} isMine={isMine} mega={mega} onAnswerBlock={onAnswerBlock} onRespondRequest={onRespondRequest} onAnswerNotification={onAnswerNotification} notification={notification} />;
 
   return (
-    // A new row mounts once per message (FlatList keeps existing rows mounted as more load in), so
-    // `entering` plays exactly once, the moment this message first appears — not on every re-render —
-    // which is what makes a freshly sent/received message slide in without replaying for the whole list.
-    <Animated.View entering={reducedMotion ? undefined : FadeInDown.duration(tokens.durations.base).springify().damping(18)} style={{ marginBottom: tokens.spacing.md }}>
+    <View style={{ marginBottom: tokens.spacing.md }}>
       {noticeSentAt != null && <NotificationNotice sentAt={noticeSentAt} />}
       {highlighted && (
         // CONTRACT §6 "From a notification" deep link: a brief accent wash so the scrolled-to message
@@ -100,16 +106,14 @@ export const MessageRow = memo(function MessageRow({
         {/* The column, not the bubble, carries the width limit: a bubble's own percentage maxWidth resolved
             against a parent with no width, so long messages were clipped off the left edge on web and short
             ones ("Answered") wrapped mid-word (owner, Oct 28). */}
-        <View testID="message-column" style={{ flex: isMine ? undefined : 1, flexShrink: 1, maxWidth: isMine ? '82%' : '100%' }}>
-          {isMega && !cardShowsAuthor && (
-            <Text variant="caption" color="muted" style={{ marginBottom: 2 }}>
-              {mega?.name ?? 'MEGA'}
-            </Text>
-          )}
-          {isMine && message.body.type === 'text' ? <Bubble mine>{content}</Bubble> : content}
+        <View testID="message-column" style={{ flex: isMine ? undefined : 1, flexShrink: 1, maxWidth: message.body.type === 'text' || message.body.type === 'answer' ? CHAT_UX.bubbleMaxWidth : '100%' }}>
+          {message.body.type === 'text' ? <Pressable accessibilityLabel={`${isMine ? 'You' : 'MEGA'}: ${messageText}. Hold for actions`} onLongPress={() => { setActionsOpen(true); setSelecting(false); setActionError(null); }}>
+            <Bubble mine={isMine}>{content}</Bubble>
+          </Pressable> : content}
+          {message.reaction && <Text variant="caption" color="muted">{CHAT_UX.reactions.find(reaction => reaction.id === message.reaction)?.selected}</Text>}
         </View>
       </View>
-      {isMega && message.body.type === 'text' && message.body.text.trim() && onSaveIdea && !chipsReadOnly && (
+      {isMega && message.saveableIdea === true && message.body.type === 'text' && message.body.text.trim() && onSaveIdea && !chipsReadOnly && (
         <View style={{ alignItems: 'flex-start', marginTop: tokens.spacing.xs }}>
           <Pressable
             accessibilityRole="button"
@@ -134,6 +138,17 @@ export const MessageRow = memo(function MessageRow({
           {saveError && <Text variant="caption" color="muted" accessibilityLiveRegion="polite">{saveError}</Text>}
         </View>
       )}
+      {actionsOpen && messageText !== null && <ModalSheet open closeLabel={CHAT_UX.actions.close} title={selecting ? CHAT_UX.actions.select : CHAT_UX.actions.title} onClose={() => setActionsOpen(false)}>
+        {selecting ? <Text selectable>{messageText}</Text> : <>
+          <Button label={CHAT_UX.actions.copy} variant="secondary" onPress={async () => { try { await Clipboard.setStringAsync(messageText); setActionsOpen(false); } catch (error) { setActionError(errorCopyFor(error)); } }} />
+          <Button label={CHAT_UX.actions.select} variant="secondary" onPress={() => setSelecting(true)} />
+          {onReply && <Button label={CHAT_UX.actions.reply} variant="secondary" onPress={() => { setActionsOpen(false); onReply(messageText); }} />}
+          {isMega && onReact && <View style={{ flexDirection: 'row', gap: tokens.spacing.sm }}>
+            {CHAT_UX.reactions.map(reaction => <Button key={reaction.id} label={reaction.label} variant="secondary" onPress={async () => { try { await onReact(message.reaction === reaction.id ? null : reaction.id); setActionsOpen(false); } catch (error) { setActionError(errorCopyFor(error)); } }} />)}
+          </View>}
+        </>}
+        {actionError && <Text accessibilityRole="alert">{actionError}</Text>}
+      </ModalSheet>}
       {message.chips.length > 0 && (
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: tokens.spacing.sm, marginTop: tokens.spacing.xs }}>
           {message.chips.map((chip) => (
@@ -147,7 +162,7 @@ export const MessageRow = memo(function MessageRow({
           ))}
         </View>
       )}
-    </Animated.View>
+    </View>
   );
 });
 
@@ -169,24 +184,18 @@ function Body({
   notification?: NotificationDoc;
 }) {
   const tokens = useTokens();
-  const reducedMotion = useReducedMotion();
   const body = message.body;
-  // G2 contrast fix ("own message bubble white on the Midnight theme's own teal accent is 2.44:1"): the
-  // bubble's background is tokens.accent (Bubble.tsx), which can be the theme's own accent *or* a MEGA's
-  // custom shell color — tokens.onAccent alone assumed white always reads on it, which fails WCAG AA for
-  // that default teal. readableOn derives the actual passing color per background.
-  const onAccentText = readableOn(tokens.accent);
+  // The own bubble background is darkened by the same shared palette helper.
+  const onAccentText = messageBubbleColors(tokens.accent).text;
   switch (body.type) {
     case 'text':
       return <Text style={isMine ? { color: onAccentText } : undefined}>{body.text}</Text>;
     case 'block': {
-      // "Answering any UIBlock collapses it into the answer bubble" (G2 scope) — keyed so Reanimated
-      // treats the pending -> answered swap as a mount transition (crossfade) rather than an in-place
-      // prop change, with `layout` smoothing the card's height change as it shrinks to the answer line.
+      // Replace a completed card with its answer without an entrance or layout animation.
       return (
-        <Animated.View key={body.answeredWith ? 'answered' : 'pending'} layout={reducedMotion ? undefined : LinearTransition.duration(tokens.durations.base)} entering={reducedMotion ? undefined : FadeIn.duration(tokens.durations.base)}>
-          {body.answeredWith ? <AnsweredBlock block={body.block} answer={body.answeredWith} /> : <Block block={body.block} onAnswer={onAnswerBlock} />}
-        </Animated.View>
+        <View>
+          {body.answeredWith ? <AnsweredBlock block={body.block} answer={body.answeredWith} /> : <Block block={body.block} onAnswer={onAnswerBlock} conversationOnly />}
+        </View>
       );
     }
     case 'answer':

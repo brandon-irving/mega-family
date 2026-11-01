@@ -6,7 +6,7 @@ import { act, fireEvent, screen, waitFor } from '@testing-library/react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { renderWithTheme } from '@/test/renderWithTheme';
 import WelcomeRoute from '@/app/welcome';
-import { signInAnonymously, signInWithEmail, signInWithGoogle, signUpWithEmail } from '@/services/auth';
+import { signInWithEmail, signInWithGoogle, signUpWithEmail } from '@/services/auth';
 import { IDENTITY } from '@shared/config/identity';
 
 const mockSignInAs = jest.fn();
@@ -142,29 +142,7 @@ describe('Welcome (Screen 9)', () => {
     expect(screen.queryByText('Demo')).toBeNull();
   });
 
-  test('demo mode: the demo sheet lists the four sample members and signs in as the one picked', async () => {
-    await renderWelcome(true);
-    await act(async () => fireEvent.press(screen.getByText('Demo')));
-    expect(screen.getByText('Demo accounts')).toBeTruthy();
-    expect(screen.getByText('Dev builds only')).toBeTruthy();
-    for (const name of ['Admin', 'Partner', 'Twin 1', 'Twin 2']) expect(screen.getByText(name)).toBeTruthy();
-    await act(async () => fireEvent.press(screen.getByText('Twin 1')));
-    expect(signInAnonymously).toHaveBeenCalledTimes(1);
-    expect(mockSignInAs).toHaveBeenCalledWith({ as: 'twin1' });
-  });
-
-  // Found live (Oct 28): right after a sign-out, `demo.signInAs` can reach the server before the new
-  // anonymous session's token does (UNAUTHENTICATED). It retries a few times instead of failing.
-  test('demo mode: an UNAUTHENTICATED race right after the anonymous sign-in is retried, not shown', async () => {
-    const { ConvexError } = jest.requireActual('convex/values');
-    mockSignInAs.mockRejectedValueOnce(new ConvexError({ code: 'UNAUTHENTICATED' })).mockResolvedValueOnce({});
-    await renderWelcome(true);
-    await act(async () => fireEvent.press(screen.getByText('Demo')));
-    await act(async () => fireEvent.press(screen.getByText('Admin')));
-    await act(async () => new Promise((r) => setTimeout(r, 1500)));
-    expect(mockSignInAs).toHaveBeenCalledTimes(2);
-    expect(screen.queryByText(/UNAUTHENTICATED/)).toBeNull();
-  });
+  test('legacy sample account picker is removed even in demo builds', async () => { await renderWelcome(true); expect(screen.queryByText('Demo')).toBeNull(); });
 
   test('three MEGAs are on the screen, each one a "say hi" button', async () => {
     await renderWelcome(false);

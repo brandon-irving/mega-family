@@ -1,3 +1,5 @@
+import { ASSISTANT_BRIEF } from '@shared/config/assistantBrief';
+import { Button } from '@/ui/Button';
 // Family tab (PLAN §4, adults and admins only): members list with each MEGA's badge, role and what
 // it's doing, plus "Coming up" (events in the next 2 hours).
 import { Pressable, View } from 'react-native';
@@ -16,9 +18,9 @@ export type ComingUpEvent = Infer<(typeof API)['family']['comingUp']['returns']>
 
 const ROLE_LABEL = { admin: 'Admin', adult: 'Adult', kid: 'Kid' } as const;
 
-export type FamilyContentProps = { members: MemberCard[]; comingUp: ComingUpEvent[]; onOpenMember: (memberId: string) => void; onOpenCalendar: () => void; onOpenPlaces?: () => void; onOpenLists?: () => void; nextEvent?: ComingUpEvent | null; onOpenIdeas?: () => void };
+export type FamilyContentProps = { onAddPerson?: () => void; addingPerson?: boolean; members: MemberCard[]; comingUp: ComingUpEvent[]; onOpenMember: (memberId: string) => void; onOpenCalendar: () => void; onOpenPlaces?: () => void; onOpenLists?: () => void; nextEvent?: ComingUpEvent | null; onOpenIdeas?: () => void };
 
-export function FamilyContent({ members, comingUp, onOpenMember, onOpenCalendar, onOpenPlaces, onOpenLists, nextEvent }: FamilyContentProps) {
+export function FamilyContent({ members, comingUp, onOpenMember, onOpenCalendar, onOpenPlaces, onOpenLists, nextEvent, onAddPerson, addingPerson }: FamilyContentProps) {
   const tokens = useTokens();
   const shortcuts: { label: string; hint: string; icon: GlyphName; onPress?: () => void }[] = [
     { label: 'Lists', hint: 'Keep things together', icon: 'check', onPress: onOpenLists },
@@ -48,7 +50,7 @@ export function FamilyContent({ members, comingUp, onOpenMember, onOpenCalendar,
           <Glyph name="chevron" color={tokens.muted} />
         </Card>
       </Pressable>
-      <Text variant="label" color="muted" style={{ marginBottom: tokens.spacing.sm }}>YOUR PEOPLE</Text>
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: tokens.spacing.sm }}><Text variant="label" color="muted">YOUR PEOPLE</Text>{onAddPerson ? <Button label={ASSISTANT_BRIEF.addPerson} variant="ghost" onPress={onAddPerson} loading={addingPerson} disabled={addingPerson} /> : null}</View>
       <View style={{ gap: tokens.spacing.sm, marginBottom: tokens.spacing.lg }}>
         {members.map((m) => (
           <Pressable key={m.member._id} onPress={() => onOpenMember(m.member._id)} accessibilityRole="button" accessibilityLabel={`${m.member.name}, ${ROLE_LABEL[m.member.role]}`}>
@@ -63,7 +65,7 @@ export function FamilyContent({ members, comingUp, onOpenMember, onOpenCalendar,
               <View style={{ flex: 1 }}>
                 <Text variant="label">{m.member.name}</Text>
                 <Text variant="caption" color="muted">
-                  {ROLE_LABEL[m.member.role]} · {m.mega ? statusText(m.status) : 'No MEGA yet'}
+                  {ROLE_LABEL[m.member.role]} · {!m.member.joinedAt ? 'Invite & QR code' : m.mega ? statusText(m.status) : 'No MEGA yet'}
                 </Text>
               </View>
             </Card>

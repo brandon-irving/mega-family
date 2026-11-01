@@ -4,7 +4,14 @@
 import type { Infer } from 'convex/values';
 import type { viewer as viewerValidator } from '@shared/domain/api';
 import { FIXTURE_IDS } from '@/test/fixtures';
-import { buildOptimisticMessage } from './useChat';
+import { buildOptimisticMessage, useChatThread } from './useChat';
+import { renderHook } from '@testing-library/react-native';
+import { usePaginatedQuery } from 'convex/react';
+import { useViewer } from './useViewer';
+import { api } from './api';
+
+jest.mock('./useViewer', () => ({ useViewer: jest.fn() }));
+jest.mock('convex/react', () => ({ ...jest.requireActual('convex/react'), usePaginatedQuery: jest.fn() }));
 
 type Viewer = Infer<typeof viewerValidator>;
 
@@ -27,4 +34,17 @@ describe('buildOptimisticMessage', () => {
     const b = buildOptimisticMessage(VIEWER, { text: 'second', via: 'text' });
     expect(a._id).not.toBe(b._id);
   });
+});
+
+test('chat pagination is keyed to the current profile and skips until a viewer exists', async () => {
+  (usePaginatedQuery as jest.Mock).mockReturnValue({ status: 'LoadingFirstPage', results: [], loadMore: jest.fn() });
+  (useViewer as jest.Mock).mockReturnValue(undefined);
+  const { rerender } = await renderHook(() => useChatThread());
+  expect(usePaginatedQuery).toHaveBeenLastCalledWith(api.chat.thread, 'skip', { initialNumItems: 30 });
+  (useViewer as jest.Mock).mockReturnValue(VIEWER);
+  await rerender(undefined);
+  expect(usePaginatedQuery).toHaveBeenLastCalledWith(api.chat.thread, { profileKey: VIEWER.member._id }, { initialNumItems: 30 });
+  (useViewer as jest.Mock).mockReturnValue({ ...VIEWER, member: { _id: 'new-demo-member' } });
+  await rerender(undefined);
+  expect(usePaginatedQuery).toHaveBeenLastCalledWith(api.chat.thread, { profileKey: 'new-demo-member' }, { initialNumItems: 30 });
 });

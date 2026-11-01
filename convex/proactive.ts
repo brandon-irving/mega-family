@@ -38,6 +38,7 @@ export const loadDraftContext = internalQuery({
       seedText: v.string(),
       sentTodayCount: v.number(),
       reactionSummary: v.string(),
+      assistantBrief: v.optional(v.string()),
       // GD: every candidate source kind (CONTRACT §2 candidateSource), including the card-backed ones.
       sourceKind: v.string(),
     }),
@@ -70,6 +71,7 @@ export const processCandidate = internalAction({
       seedText: data.seedText,
       sentTodayCount: data.sentTodayCount,
       reactionSummary: data.reactionSummary,
+      assistantBrief: data.assistantBrief,
     });
 
     const model = getChatModel();

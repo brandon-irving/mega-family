@@ -1,3 +1,5 @@
+import { canConnectAccounts } from '@shared/ageGroups';
+import { DemoControls } from '@/features/settings/DemoControls';
 // Settings (canvas Screen 7 boards Settings / SettingsAdult / SettingsKid / SettingsTheme / SettingsWallpaper,
 // G5; replaces the G1 placeholder). Wires the member's own settings (`settings.set`), the admin's parent code,
 // the family count and the owner's connected accounts into SettingsContent, and opens its three sheets. Sign
@@ -64,6 +66,7 @@ export default function SettingsRoute() {
       {!sheet && error ? <Text style={{ color: tokens.danger }} accessibilityRole="alert">{error}</Text> : null}
       <SettingsContent
         role={role}
+        canConnect={canConnectAccounts(viewer.member, new Date().toISOString().slice(0,10))}
         megaName={megaName}
         theme={viewer.theme.name as ThemeName}
         accent={accent}
@@ -86,6 +89,7 @@ export default function SettingsRoute() {
           openRules: role === 'kid' && myRules ? () => router.push('/mega-profile/rules' as never) : undefined,
         }}
       />
+      {isAdmin ? <DemoControls memberId={viewer.member._id} /> : null}
       <ThemeSheet
         {...feedback}
         open={sheet === 'theme'}

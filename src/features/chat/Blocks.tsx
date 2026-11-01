@@ -1,3 +1,6 @@
+import { MegaDraftPreview } from './MegaDraftPreview';
+import { MEGA_CREATION as C } from '@shared/config/megaCreation';
+import { FieldsForm } from '@/ui/FieldsForm';
 // Renders every Thread UI block kind (CONTRACT §3 / PLAN "Thread UI blocks"): choice, toggle, text,
 // number, date, fields, look, questions, invite, confirm. Pure presentational — takes the block and an
 // onAnswer callback, so it's testable from fixtures and reusable from both chat and the kid thread. The one
@@ -17,10 +20,15 @@ import { useTokens } from '@/ui/theme';
 import { MegaSprite } from '@/ui/MegaSprite';
 import { InvitePanel } from '@/features/family/InvitePanel';
 
-export type BlockProps = { block: UIBlock; onAnswer: (answer: BlockAnswer) => void };
+export type BlockProps = { block: UIBlock; onAnswer: (answer: BlockAnswer) => void; conversationOnly?: boolean };
 
-export function Block({ block, onAnswer }: BlockProps) {
+export function Block({ block, onAnswer, conversationOnly = false }: BlockProps) {
+  if (conversationOnly && ['text', 'number', 'date', 'fields', 'look', 'questions'].includes(block.kind)) {
+    return <View><Text>{'prompt' in block ? block.prompt : ''}</Text><Text variant="caption" color="muted">{C.inputHint}</Text></View>;
+  }
   switch (block.kind) {
+    case 'megaDraft':
+      return <MegaDraftBlock block={block} onAnswer={onAnswer} />;
     case 'choice':
       return <ChoiceBlock block={block} onAnswer={onAnswer} />;
     case 'toggle':
@@ -171,35 +179,7 @@ function DateBlock({ block, onAnswer }: { block: Extract<UIBlock, { kind: 'date'
 }
 
 function FieldsBlock({ block, onAnswer }: { block: Extract<UIBlock, { kind: 'fields' }>; onAnswer: (a: BlockAnswer) => void }) {
-  const [values, setValues] = useState<Record<string, string>>({});
-  const tokens = useTokens();
-  return (
-    <Card>
-      <Text variant="label" style={{ marginBottom: tokens.spacing.sm }}>
-        {block.prompt}
-      </Text>
-      <View style={{ gap: tokens.spacing.sm }}>
-        {block.fields.map((f) => (
-          <View key={f.id}>
-            <Text variant="caption" color="muted">
-              {f.label}
-            </Text>
-            <TextInput
-              value={values[f.id] ?? ''}
-              onChangeText={(t) => setValues((v) => ({ ...v, [f.id]: t }))}
-              keyboardType={f.type === 'number' ? 'number-pad' : 'default'}
-              style={{ color: tokens.text, borderColor: tokens.line, borderWidth: 1, borderRadius: tokens.radii.sm, padding: tokens.spacing.sm, minHeight: tokens.touchTarget }}
-              accessibilityLabel={f.label}
-            />
-          </View>
-        ))}
-      </View>
-      <View style={{ flexDirection: 'row', gap: tokens.spacing.sm, marginTop: tokens.spacing.sm }}>
-        <Button label="Skip" variant="ghost" onPress={() => onAnswer({ skipped: true })} />
-        <Button label="Save" onPress={() => onAnswer({ fields: values })} />
-      </View>
-    </Card>
-  );
+  return <Card><FieldsForm block={block} onAnswer={onAnswer} /></Card>;
 }
 
 function LookBlock({ block, onAnswer }: { block: Extract<UIBlock, { kind: 'look' }>; onAnswer: (a: BlockAnswer) => void }) {
@@ -295,9 +275,9 @@ function InviteBlock({ block }: { block: Extract<UIBlock, { kind: 'invite' }> })
   return (
     <Card>
       <Text variant="label" style={{ marginBottom: tokens.spacing.sm }}>
-        Invite sent
+        {C.inviteTitle}
       </Text>
-      <InvitePanel memberId={block.memberId} />
+      <InvitePanel memberId={block.memberId} showBrief={false} />
     </Card>
   );
 }
@@ -323,4 +303,17 @@ function ConfirmBlock({ block, onAnswer }: { block: Extract<UIBlock, { kind: 'co
       </View>
     </Card>
   );
+}
+
+function MegaDraftBlock({ block, onAnswer }: { block: Extract<UIBlock, { kind: 'megaDraft' }>; onAnswer: (answer: BlockAnswer) => void }) {
+  const tokens = useTokens();
+  const data = block.data;
+  return <Card style={{ gap: tokens.spacing.sm }}>
+    <Text variant="label">{block.prompt}</Text>
+    <MegaDraftPreview data={data} />
+    <Text variant="caption" color="muted">{C.appearance}</Text>
+    <Button label={C.confirm} onPress={() => onAnswer({ value: 'confirm' })} />
+    <Button label={C.change} variant="secondary" onPress={() => onAnswer({ value: 'change' })} />
+    <Button label={C.cancel} variant="ghost" onPress={() => onAnswer({ value: 'cancel' })} />
+  </Card>;
 }

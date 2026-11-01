@@ -73,6 +73,7 @@ export const MESSAGES_BY_TYPE: Record<MessageBody['type'], Infer<typeof messageD
 
 /** One of every UIBlock kind (CONTRACT §3 / PLAN "Thread UI blocks"). */
 export const BLOCKS_BY_KIND: Record<UIBlock['kind'], UIBlock> = {
+  megaDraft: { kind: 'megaDraft', prompt: 'Ready to make this MEGA?', draftId: 'draft1' as Id<'megaDrafts'>, revision: 1, data: { target: 'self', megaName: 'Teal', hex: '#2FB8B0', sticker: 'none', personality: 'calm' } },
   choice: { kind: 'choice', prompt: 'Who is Anela to you?', options: [{ id: 'daughter', label: 'Daughter' }, { id: 'son', label: 'Son' }], multi: false, allowOther: true },
   toggle: { kind: 'toggle', prompt: 'Want the whole app in my color?', label: 'Match my MEGA', value: true, preview: 'theme' },
   text: { kind: 'text', prompt: 'What should I call you?', placeholder: 'Name' },

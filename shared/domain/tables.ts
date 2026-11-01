@@ -1,3 +1,8 @@
+import { demoRuns } from './demoConsole';
+export { demoRuns } from './demoConsole';
+import { schedulingPreferences, mailPlans } from './scheduling';
+export { schedulingPreferences, mailPlans } from './scheduling';
+import { megaDraftData } from './megaCreation';
 // CONTRACT §2. The fields of every table. convex/schema.ts adds indexes; `returns` validators reuse these.
 // Every family-owned table has familyId, and no query may read across families.
 import { type Infer, v } from 'convex/values';
@@ -21,6 +26,7 @@ import {
 } from './enums';
 import { holiday, productRef } from './integrationShapes';
 import { ideaCategory, ideaSource } from './ideas';
+import { assistantBriefContent, assistantBriefStatus, assistantBriefStep } from './assistantBrief';
 import { author, messageBody, saveChip } from './messages';
 import {
   ALERT_SEVERITIES,
@@ -93,6 +99,10 @@ export const members = {
   role,
   authId: v.optional(v.string()),
   birthday: v.optional(dateOnly),
+  ageGroup: v.optional(literals(['child', 'teen', 'adult'])),
+  connectionsApprovedBy: v.optional(memberId),
+  connectionsApprovedAt: v.optional(v.number()),
+  connectionRequest: v.optional(v.object({ at: v.number(), status: v.union(v.literal('pending'), v.literal('approved'), v.literal('denied')), messageIds: v.array(v.id('messages')) })),
   grade: v.optional(v.string()),
   activities: v.array(v.string()),
   hasMega: v.boolean(),
@@ -199,7 +209,8 @@ export const messages = {
   fromNotificationId: v.optional(v.id('notifications')),
   /** v0.17b (G5 review C3): a block answered by rule, never by an agent turn (the onboarding family step, a
    * profiler check question). A repeat or stale answer to one is a no-op. */
-  ruleBlock: v.optional(v.union(v.literal('onboarding'), v.literal('profiler'))),
+  ruleBlock: v.optional(v.union(v.literal('onboarding'), v.literal('profiler'), v.literal('brief'), v.literal('creation'), v.literal('connectionApproval'), v.literal('mailLocation'))),
+  saveableIdea: v.optional(v.boolean()),
 };
 
 // ---------- memory and learning ----------
@@ -721,6 +732,12 @@ export const integrations = {
   /** v0.17b (G5 review C4): a sync in progress holds this lease (real time, INTEGRATION_SYNC.leaseSeconds) so a
    * "Sync now" and a cron poll never run the same integration at once. Server-only bookkeeping. */
   syncingUntil: v.optional(v.number()),
+  mailWakeVersion: v.optional(v.number()),
+  mailWakeQueued: v.optional(v.boolean()),
+  mailWakeUntil: v.optional(v.number()),
+  lastMailPushAt: v.optional(v.number()),
+  watchExpiresAt: v.optional(v.number()),
+  watchFailure: v.optional(v.boolean()),
 };
 
 // ---------- G5 (CONTRACT v0.17): onboarding chat, Google, schedule links, profiler ----------
@@ -786,6 +803,28 @@ export const mailItems = {
 /** The onboarding chat's progress for one member (the admin who started the family; G5). `step` is where the
  * conversation is; `outcomes` records each integration offer's answer. `done` once the family step finishes or
  * they pick "Just me for now". Skipping never blocks: every step moves on. */
+export const megaDrafts = {
+  familyId, creatorId: memberId, threadId: v.id('threads'), data: megaDraftData,
+  status: v.union(v.literal('draft'), v.literal('review'), v.literal('created'), v.literal('cancelled')),
+  revision: v.number(), reviewMessageId: v.optional(v.id('messages')),
+  resultMemberId: v.optional(memberId), updatedAt: v.number(),
+};
+
+export const assistantBriefs = {
+  familyId,
+  memberId,
+  creatorId: memberId,
+  proposed: assistantBriefContent,
+  pendingRevision: v.optional(assistantBriefContent),
+  approved: v.optional(assistantBriefContent),
+  status: assistantBriefStatus,
+  step: assistantBriefStep,
+  blockMessageId: v.optional(v.id('messages')),
+  helpRequested: v.optional(v.boolean()),
+  createdAt: v.number(),
+  updatedAt: v.number(),
+};
+
 export const onboarding = {
   familyId,
   memberId,
@@ -803,7 +842,7 @@ export const onboarding = {
    * added (the member row is created once name, relationship and details are in). */
   family: v.optional(
     v.object({
-      step: v.union(v.literal('who'), v.literal('name'), v.literal('relationship'), v.literal('details'), v.literal('getsMega'), v.literal('look'), v.literal('more')),
+      step: v.union(v.literal('who'), v.literal('name'), v.literal('relationship'), v.literal('details'), v.literal('getsMega'), v.literal('brief'), v.literal('look'), v.literal('more')),
       role: v.optional(v.union(v.literal('adult'), v.literal('kid'))),
       name: v.optional(v.string()),
       relationship: v.optional(relationship),
@@ -987,8 +1026,28 @@ export const holidays = {
   failure: v.optional(integrationFailure),
 };
 
+/** Identity-owned demo switch, deliberately outside any family's records. Never client-addressable. */
+export const demoProfiles = {
+  authId: v.string(),
+  originalMemberId: v.id('members'),
+  demoMemberId: v.id('members'),
+  testedMemberIds: v.optional(v.array(v.id('members'))),
+  pendingInvite: v.optional(v.object({ token: v.string(), memberId: v.id('members'), inviteId: v.id('invites') })),
+};
+
 /** Every table's fields, keyed by table name. convex/schema.ts iterates this, so a table can't be missed. */
+/** Unconfirmed email context, never included in memory or family-member queries. */
+export const mailContextSuggestions = {
+  familyId: v.id('families'), ownerId: v.id('members'), integrationId: v.id('integrations'),
+  sourceMessageId: v.string(), location: v.string(), createdAt: v.number(),
+  status: v.union(v.literal('pending'), v.literal('saved'), v.literal('dismissed')),
+  messageId: v.optional(v.id('messages')),
+};
+
 export const TABLES = {
+  mailContextSuggestions,
+  demoRuns, schedulingPreferences, mailPlans,
+  demoProfiles,
   families,
   members,
   relationships,
@@ -1042,5 +1101,7 @@ export const TABLES = {
   mailItems,
   onboarding,
   profilerRuns,
+  assistantBriefs,
+  megaDrafts,
 } as const;
 export type TableName = keyof typeof TABLES;

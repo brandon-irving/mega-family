@@ -1,3 +1,6 @@
+import { demoConsoleState, demoStage } from './demoConsole';
+import { preferencesView, planView } from './scheduling';
+import { assistantBriefContent, assistantBriefStatus } from './assistantBrief';
 // CONTRACT §4. Every public function: its type, args and returns. Backend functions spread these
 // (`query({ ...API.today.get, handler })`), so a function can't drift from the contract, and tests
 // iterate this map to check every function exists and to generate the privacy grid.
@@ -369,10 +372,22 @@ type Fn = { kind: Kind; day1: 'real' | 'stub'; args: Record<string, any>; return
 const fn = <F extends Fn>(f: F) => f;
 
 export const API = {
+  scheduling: {
+    preferences: fn({ kind: 'query', day1: 'real', args: {}, returns: preferencesView }),
+    setPreferences: fn({ kind: 'mutation', day1: 'real', args: { desiredWrites: v.optional(v.boolean()), enabled: v.boolean(), autoCapture: v.boolean(), availabilityFor: v.array(v.id('members')) }, returns: v.null() }),
+    get: fn({ kind: 'query', day1: 'real', args: { planId: v.id('mailPlans') }, returns: planView }),
+    list: fn({ kind: 'query', day1: 'real', args: {}, returns: v.array(v.object({ id: v.id('mailPlans'), title: v.string(), status: v.string() })) }),
+    refresh: fn({ kind: 'action', day1: 'real', args: { planId: v.id('mailPlans') }, returns: v.null() }),
+    hold: fn({ kind: 'action', day1: 'real', args: { planId: v.id('mailPlans'), revision: v.number(), start: v.number(), end: v.number() }, returns: v.null() }),
+    draft: fn({ kind: 'action', day1: 'real', args: { planId: v.id('mailPlans'), revision: v.number() }, returns: v.null() }),
+    syncCalendar: fn({ kind: 'action', day1: 'real', args: { planId: v.id('mailPlans'), revision: v.number() }, returns: v.null() }),
+    dismiss: fn({ kind: 'mutation', day1: 'real', args: { planId: v.id('mailPlans') }, returns: v.null() }),
+  },
   me: {
     get: fn({ kind: 'query', day1: 'real', args: {}, returns: v.union(viewer, v.null()) }),
   },
   onboarding: {
+    addPerson: fn({ kind: 'mutation', day1: 'real', adminOnly: true, args: {}, returns: v.null() }),
     start: fn({
       kind: 'mutation',
       day1: 'real',
@@ -393,6 +408,10 @@ export const API = {
     // step. A skip outside onboarding just marks the offer skipped. Idempotent.
     skip: fn({ kind: 'mutation', day1: 'real', args: { offer: T.connectOffer }, returns: v.null() }),
   },
+  assistantBriefs: {
+    forMember: fn({ kind: 'query', day1: 'real', args: { memberId: v.id('members') }, returns: v.union(v.object({ proposed: assistantBriefContent, status: assistantBriefStatus, helpRequested: v.boolean(), canEdit: v.boolean() }), v.null()) }),
+    save: fn({ kind: 'mutation', day1: 'real', args: { memberId: v.id('members'), brief: assistantBriefContent }, returns: v.null() }),
+  },
   invites: {
     // v0.14 (additive): `mega` — the MEGA the admin sets for the person (omitted: their existing MEGA, or a
     // default preset). It comes with the invite; adults may change it on join, kids can't.
@@ -412,6 +431,9 @@ export const API = {
     forMember: fn({ kind: 'query', day1: 'real', args: { memberId: v.id('members') }, returns: inviteStatus }),
   },
   family: {
+    requestConnections: fn({ kind: 'mutation', day1: 'real', args: {}, returns: v.null() }),
+    setAgeGroup: fn({ kind: 'mutation', day1: 'real', args: { memberId: v.id('members'), ageGroup: literals(['child', 'teen', 'adult']) }, returns: v.null() }),
+    approveConnections: fn({ kind: 'mutation', day1: 'real', args: { memberId: v.id('members'), approved: v.boolean() }, returns: v.null() }),
     parentCode: fn({ kind: 'query', day1: 'real', adminOnly: true, args: {}, returns: v.object({ code: v.string() }) }),
     members: fn({ kind: 'query', day1: 'real', args: {}, returns: v.array(memberCard) }),
     member: fn({ kind: 'query', day1: 'real', args: { memberId: v.id('members') }, returns: memberDetail }),
@@ -430,7 +452,7 @@ export const API = {
     }),
   },
   chat: {
-    thread: fn({ kind: 'query', day1: 'real', args: { paginationOpts: paginationOptsValidator }, returns: paginationResultValidator(messageDoc) }),
+    thread: fn({ kind: 'query', day1: 'real', args: { paginationOpts: paginationOptsValidator, profileKey: v.optional(v.id('members')) }, returns: paginationResultValidator(messageDoc) }),
     send: fn({
       kind: 'mutation',
       day1: 'real', // G2: runs the real agent loop (convex/agent/loop.ts), not a canned reply
@@ -609,11 +631,27 @@ export const API = {
     get: fn({ kind: 'query', day1: 'real', args: {}, returns: v.object({ now: v.number(), mode: T.clocks.mode }) }),
     jump: fn({ kind: 'mutation', day1: 'real', adminOnly: true, args: { to: v.number() }, returns: v.null() }),
   },
+  megaCreation: {
+    personalize: fn({ kind: 'mutation', day1: 'real', args: {}, returns: v.null() }),
+    current: fn({ kind: 'query', day1: 'real', args: {}, returns: v.union(v.null(), v.object({ data: T.megaDrafts.data, revision: v.number(), status: v.union(v.literal('draft'), v.literal('review')) })) }),
+  },
+  demoConsole: {
+    abandon: fn({ kind: 'mutation', day1: 'real', adminOnly: true, args: { runId: v.id('demoRuns'), stage: demoStage, expectedAttempt: v.number() }, returns: v.null() }),
+    cleanup: fn({ kind: 'action', day1: 'real', adminOnly: true, args: { runId: v.id('demoRuns') }, returns: v.null() }),
+    state: fn({ kind: 'query', day1: 'real', adminOnly: true, args: {}, returns: v.union(v.null(), demoConsoleState) }),
+    start: fn({ kind: 'mutation', day1: 'real', adminOnly: true, args: { expectedMemberId: v.id('members') }, returns: v.null() }),
+    reset: fn({ kind: 'mutation', day1: 'real', adminOnly: true, args: { runId: v.id('demoRuns'), mode: literals(['story', 'onboarding']) }, returns: v.null() }),
+    prepare: fn({ kind: 'mutation', day1: 'real', adminOnly: true, args: { runId: v.id('demoRuns') }, returns: v.null() }),
+    trigger: fn({ kind: 'mutation', day1: 'real', adminOnly: true, args: { runId: v.id('demoRuns'), stage: demoStage, expectedAttempt: v.number() }, returns: v.null() }),
+  },
   demo: {
-    // Replaces the old ad hoc `/demo-signin` HTTP route (Milestone G1 contract change, v0.4 pending
-    // approval — see CONTRACT.md's changelog). Requires an authenticated identity (an anonymous Better
-    // Auth session is fine), FORBIDDEN unless DEMO_MODE==='true', and relinks the chosen sample member.
-    signInAs: fn({ kind: 'mutation', day1: 'real', args: { as: literals(['admin', 'partner', 'twin1', 'twin2']) }, returns: v.null() }),
+    testInvite: fn({ kind: 'mutation', day1: 'real', adminOnly: true, args: { token: v.string(), expectedMemberId: v.id('members') }, returns: v.null() }),
+    switchTester: fn({ kind: 'mutation', day1: 'real', args: { memberId: v.optional(v.id('members')), expectedMemberId: v.union(v.id('members'), v.null()) }, returns: v.null() }),
+    profile: fn({ kind: 'query', day1: 'real', args: {}, returns: v.union(v.null(), v.object({ active: v.boolean(), canResume: v.boolean(), testing: v.optional(v.boolean()), pendingToken: v.optional(v.string()), currentName: v.optional(v.string()), recording: v.optional(v.object({ runId: v.id('demoRuns'), key: v.string(), familyId: v.id('families') })), people: v.optional(v.array(v.object({ memberId: v.id('members'), name: v.string() }))) })) }),
+    switchProfile: fn({ kind: 'mutation', day1: 'real', adminOnly: true, args: {
+      mode: literals(['fresh', 'resume', 'return']), expectedMemberId: v.id('members'),
+    }, returns: v.null() }),
+
   },
 
   // ---------- GD (CONTRACT v0.13): demo features (real since the GD backend). ----------
@@ -845,7 +883,7 @@ export const API = {
     // app to open. The callback (`GET {CONVEX_SITE_URL}/google/oauth/callback`, an HTTP route) exchanges the
     // code, stores the grant, connects the integrations, posts the connected line, and redirects to
     // SITE_URL + GOOGLE.returnPath. `not_configured` (VALIDATION) when GOOGLE env isn't set.
-    googleStart: fn({ kind: 'mutation', day1: 'real', args: { want: v.array(T.googleProduct), loginHint: v.optional(v.string()) }, returns: v.object({ authUrl: v.string() }) }),
+    googleStart: fn({ kind: 'mutation', day1: 'real', args: { want: v.array(T.googleProduct), loginHint: v.optional(v.string()), scheduling: v.optional(v.boolean()) }, returns: v.object({ authUrl: v.string() }) }),
     // iOS: the `serverAuthCode` from @react-native-google-signin (offlineAccess, the read-only scopes) is
     // exchanged on the server (web client id + secret). Same effects as the callback.
     googleConnectCode: fn({ kind: 'action', day1: 'real', args: { serverAuthCode: v.string(), want: v.array(T.googleProduct) }, returns: v.object({ status: T.integrationStatus, failure: v.optional(T.integrationFailure) }) }),

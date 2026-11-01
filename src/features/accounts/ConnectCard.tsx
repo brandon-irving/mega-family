@@ -14,7 +14,7 @@ import { useAccountActions, useOffer } from '@/data/useAccounts';
 import type { ConnectOffer } from '@/data/useOnboarding';
 import { useSkipOffer } from '@/data/useOnboarding';
 import { useFamilyNow } from '@/data/useShopping';
-import { connectGoogle } from '@/services/googleConnect';
+import { router } from '@/features/shell/navigation';
 import { openPhoneSettings } from '@/services/phoneCalendar';
 import { useRunAction } from '@/features/shell/useRunAction';
 import { CardFallback } from '@/features/kids/CardFallback';
@@ -98,7 +98,7 @@ export function ConnectCardView({ view, megaName, local, on }: { view: OfferView
           <CardActions
             actions={[{ id: 'google', label: failedLine ? U.tryAgain : G5_COPY.gmailConnect, onPress: on.onGoogle, loading: local.busy === 'google', disabled: !!local.busy && local.busy !== 'google' }, notNow]}
           />
-        ) : null}
+        ) : view.state === 'connected' ? <CardActions actions={[{ id: 'google-setup', label: 'Google setup & sharing', onPress: on.onGoogle }]} /> : null}
       </IconCard>
     );
   }
@@ -195,7 +195,6 @@ export function ConnectCard({ offer, megaName }: { offer: ConnectOffer; megaName
   const skip = useSkipOffer();
   const now = useFamilyNow();
   const { busy, error, run } = useRunAction();
-  const [googleFailed, setGoogleFailed] = useState(false);
   const ics = useAddIcsLink(actions.addIcs);
   const [icsAdded, setIcsAdded] = useState<{ label: string; events: number } | null>(null);
   const [icsDone, setIcsDone] = useState(false);
@@ -204,12 +203,7 @@ export function ConnectCard({ offer, megaName }: { offer: ConnectOffer; megaName
 
   if (state.status !== 'ok') return <CardFallback state={state} from={fillCopy(FROM[offer], { mega: megaName })} />;
 
-  const onGoogle = () =>
-    void run('google', async () => {
-      setGoogleFailed(false);
-      const result = await connectGoogle(offer === 'gmail' ? ['gmail'] : ['googleCalendar'], actions);
-      if (result === 'failed') setGoogleFailed(true);
-    });
+  const onGoogle = () => router.push('/scheduling');
   const onIcsSubmit = () =>
     void ics.submit().then((r) => {
       if (!r) return;
@@ -225,7 +219,7 @@ export function ConnectCard({ offer, megaName }: { offer: ConnectOffer; megaName
         megaName={megaName}
         local={{
           busy: busy ?? (phone.stage === 'asking' || phone.stage === 'picking' || phone.stage === 'adding' ? 'phone' : null),
-          error: googleFailed ? U.connectFailed : (phone.error ?? error),
+          error: phone.error ?? error,
           phoneDenied: phone.stage === 'denied',
           phoneSupported: phone.supported,
           icsBusy: ics.busy,

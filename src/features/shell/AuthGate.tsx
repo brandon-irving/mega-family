@@ -33,7 +33,7 @@ export function AuthGate() {
   const inFamily = authState.status === 'signedIn' && viewer != null;
 
   return (
-    <Stack screenOptions={screenOptions}>
+    <Stack key={viewer?.member._id ?? authState.status} screenOptions={screenOptions}>
       <Stack.Protected guard={signedOut}>
         <Stack.Screen name="welcome" />
       </Stack.Protected>
@@ -60,6 +60,7 @@ export function AuthGate() {
         <Stack.Screen name="family/[memberId]" options={{ presentation: 'modal' }} />
         <Stack.Screen name="today" options={{ presentation: 'modal' }} />
         <Stack.Screen name="mega-profile" options={{ presentation: 'modal' }} />
+        <Stack.Screen name="demo-console" options={{ presentation: 'modal' }} />
         <Stack.Screen name="settings" options={{ presentation: 'modal' }} />
         <Stack.Screen name="widgets" options={{ presentation: 'modal' }} />
         {/* GD (Screens 10–11): the parent's homework photo, the kid's morning routine and the Store. */}
@@ -70,6 +71,7 @@ export function AuthGate() {
         <Stack.Screen name="places" options={{ presentation: 'modal' }} />
         <Stack.Screen name="searches/[memberId]" options={{ presentation: 'modal' }} />
         {/* G5 (Screen 16): Settings → Connected accounts, and a kid's Rules and limits for their parents. */}
+        <Stack.Screen name="scheduling" options={{ presentation: 'modal' }} />
         <Stack.Screen name="accounts" options={{ presentation: 'modal' }} />
         <Stack.Screen name="rules/[memberId]" options={{ presentation: 'modal' }} />
       </Stack.Protected>

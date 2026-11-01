@@ -1,3 +1,4 @@
+import { DemoSessionBar } from '@/features/settings/DemoSessionBar';
 // Join or start a family (Screen 9 board LoginFamily): shown once signed in but `me.get` has no member yet —
 // most often an adult who signed in with Apple/Google and hasn't redeemed an invite. G5: "Start a family" calls
 // `onboarding.begin` (family, admin, their default MEGA, the thread and the greeting) right here; once it
@@ -43,6 +44,7 @@ export default function StartRoute() {
 
   return (
     <SignInFrame scene={SIGNIN_SCENES.family} testID="start">
+      <DemoSessionBar resumeInvite />
       <View style={{ marginTop: tokens.spacing.xxl + tokens.spacing.lg }}>
         <Heading title={SIGNIN_COPY.family.title} body={SIGNIN_COPY.family.body} />
       </View>

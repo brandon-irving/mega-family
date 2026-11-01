@@ -72,6 +72,7 @@ export type MessageListProps = {
   onLoadMore?: () => void;
   onAnswerBlock?: (messageId: Id<'messages'>, answer: BlockAnswer) => void;
   onReact?: (messageId: Id<'messages'>, reaction: Reaction | null) => void;
+  onReply?: (text: string) => void;
   onSaveIdea?: (messageId: Id<'messages'>) => Promise<unknown>;
   onChangeMemoryScope?: (memoryId: Id<'memories'>, scope: Scope) => void;
   onForgetMemory?: (memoryId: Id<'memories'>) => void;
@@ -116,8 +117,9 @@ export function MessageList({
   megaById,
   onLoadMore,
   onAnswerBlock = noop,
-  onReact = noop,
+  onReact,
   onSaveIdea,
+  onReply,
   onChangeMemoryScope = noop,
   onForgetMemory = noop,
   onRespondRequest,
@@ -243,7 +245,8 @@ export function MessageList({
   }, [scrollToMessageId, messages, onLoadMore, paginationExhausted]);
 
   const getAnswerBlockCallback = useRowCallback<BlockAnswer>((id, answer) => onAnswerBlock(id as Id<'messages'>, answer));
-  const getReactCallback = useRowCallback<Reaction | null>((id, reaction) => onReact(id as Id<'messages'>, reaction));
+  const getReplyCallback = useRowCallback<string>((_id, text) => onReply?.(text));
+  const getReactCallback = useRowCallback<Reaction | null>((id, reaction) => onReact?.(id as Id<'messages'>, reaction));
   const getSaveIdeaCallback = useRowCallback<void, Promise<unknown>>((id) => onSaveIdea ? onSaveIdea(id as Id<'messages'>) : Promise.resolve());
   const getRespondRequestCallback = useRowCallback<boolean>((requestId, accept) => onRespondRequest?.(requestId, accept));
   const getAnswerNotificationCallback = useRowCallback<string>((notificationId, buttonId) => onAnswerNotification?.(notificationId, buttonId));
@@ -275,7 +278,8 @@ export function MessageList({
           isMine={mine}
           mega={mega}
           onAnswerBlock={getAnswerBlockCallback(item, item._id)}
-          onReact={getReactCallback(item, item._id)}
+          onReact={onReact ? getReactCallback(item, item._id) : undefined}
+          onReply={onReply ? getReplyCallback(item, item._id) : undefined}
           onSaveIdea={canSaveIdea ? getSaveIdeaCallback(item, item._id) : undefined}
           onChangeMemoryScope={stableChangeMemoryScope}
           onForgetMemory={stableForgetMemory}
@@ -288,7 +292,7 @@ export function MessageList({
         />
       );
     },
-    [isMine, megaById, getAnswerBlockCallback, getReactCallback, canSaveIdea, getSaveIdeaCallback, stableChangeMemoryScope, stableForgetMemory, getRespondRequestCallback, getAnswerNotificationCallback, notificationsById, chipsReadOnly, highlightedId, scrollToMessageId],
+    [isMine, megaById, getAnswerBlockCallback, getReactCallback, getReplyCallback, onReply, onReact, canSaveIdea, getSaveIdeaCallback, stableChangeMemoryScope, stableForgetMemory, getRespondRequestCallback, getAnswerNotificationCallback, notificationsById, chipsReadOnly, highlightedId, scrollToMessageId],
   );
 
   if (messages.length === 0 && !streamingReply) {

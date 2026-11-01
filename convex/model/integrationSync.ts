@@ -46,8 +46,8 @@ export function syncGmail(ctx: ActionCtx, integrationId: Id<'integrations'>, fir
   return withSyncLease(ctx, integrationId, () => syncGmailLeased(ctx, integrationId, firstLook));
 }
 
-export function syncGoogleCalendar(ctx: ActionCtx, integrationId: Id<'integrations'>): Promise<SyncOutcome> {
-  return withSyncLease(ctx, integrationId, () => syncGoogleCalendarLeased(ctx, integrationId));
+export function syncGoogleCalendar(ctx: ActionCtx, integrationId: Id<'integrations'>, forceFull = false): Promise<SyncOutcome> {
+  return withSyncLease(ctx, integrationId, () => syncGoogleCalendarLeased(ctx, integrationId, forceFull));
 }
 
 export function syncIcs(ctx: ActionCtx, integrationId: Id<'integrations'>): Promise<SyncOutcome> {
@@ -100,6 +100,7 @@ async function syncGmailLeased(ctx: ActionCtx, integrationId: Id<'integrations'>
   const found: { gmailMessageId: string; sourceLabel: string; items: ExtractedItem[] }[] = [];
   const processed: string[] = [];
   let decidedBy: DecidedBy = 'rule:skipSender';
+  let schedulingFound = false;
   for (const [i, id] of batch.entries()) {
     const got = await source.getMessage({ accessToken: token.accessToken, id, maxBodyChars: GMAIL.maxBodyChars });
     if (!got.ok) {
@@ -110,13 +111,18 @@ async function syncGmailLeased(ctx: ActionCtx, integrationId: Id<'integrations'>
       rest = [...batch.slice(i), ...rest].slice(0, GMAIL.pendingMax);
       break;
     }
+    if (!await ctx.runMutation(internal.demoConsole.noteMail, { familyId: integration.familyId, subject: got.message.subject, messageId: id })) { processed.push(id); continue; }
     const subject = subjectAfterPrefix(got.message.subject, prefix);
     if (subject === null || isSkippedSender(got.message.fromAddress)) {
       processed.push(id); // not ours to read: remembered as seen, never sent to the model
       continue;
     }
     try {
-      const r = await extractItems(ctx, integration.familyId, { ...got.message, subject }, timezone, now);
+      const context = await ctx.runQuery(internal.scheduling.extractionContext, { integrationId, threadId: got.message.threadId });
+      const r = await extractItems(ctx, integration.familyId, { ...got.message, subject }, timezone, now, context ?? undefined);
+      if (r.location) await ctx.runMutation(internal.mailContext.suggest, { integrationId, sourceMessageId: id, location: r.location });
+      schedulingFound ||= r.plans.length > 0;
+      if (r.plans.length) await ctx.runMutation(internal.scheduling.ingest, { integrationId, messageId: id, threadId: got.message.threadId, at: got.message.internalDate, label: cleanSenderName(got.message.fromName) || 'Gmail', plans: r.plans });
       decidedBy = r.decidedBy;
       if (r.items.length) found.push({ gmailMessageId: id, sourceLabel: cleanSenderName(got.message.fromName) || 'Gmail', items: r.items });
       processed.push(id);
@@ -128,11 +134,11 @@ async function syncGmailLeased(ctx: ActionCtx, integrationId: Id<'integrations'>
   }
 
   const config: GmailConfig = { historyId, seen: [...(cfg.seen ?? []), ...processed].slice(-GMAIL.seenMemory), pending: rest, firstLookDone: true };
-  await ctx.runMutation(internal.integrations.recordMail, { integrationId, found, decidedBy, config, firstLook: firstLook || !cfg.firstLookDone });
+  await ctx.runMutation(internal.integrations.recordMail, { integrationId, found, decidedBy, config, schedulingFound, firstLook: firstLook || !cfg.firstLookDone });
   return { status: 'connected' };
 }
 
-async function syncGoogleCalendarLeased(ctx: ActionCtx, integrationId: Id<'integrations'>): Promise<SyncOutcome> {
+async function syncGoogleCalendarLeased(ctx: ActionCtx, integrationId: Id<'integrations'>, forceFull: boolean): Promise<SyncOutcome> {
   const load = await ctx.runQuery(internal.integrations.loadForSync, { integrationId });
   if (!load || load.integration.kind !== 'googleCalendar' || !load.integration.memberId) return { status: 'disconnected' };
   if (load.status !== 'connected') return { status: load.status };
@@ -144,26 +150,28 @@ async function syncGoogleCalendarLeased(ctx: ActionCtx, integrationId: Id<'integ
   const calendarId = cfg.calendarId ?? GOOGLE_CALENDAR.calendarId;
   const window = windowAround(now, timezone, GOOGLE_CALENDAR.pastDays, GOOGLE_CALENDAR.futureDays);
 
-  const collect = async (syncToken?: string): Promise<{ events: ExternalEvent[]; nextSyncToken?: string } | { expired: true } | { failure: IntegrationFailure }> => {
+  const collect = async (syncToken?: string): Promise<{ events: ExternalEvent[]; nextSyncToken?: string; complete: boolean } | { expired: true } | { failure: IntegrationFailure }> => {
     const events: ExternalEvent[] = [];
     let pageToken: string | undefined;
     let nextSyncToken: string | undefined;
+    let eventCount = 0;
     // v0.17b (C5): Google puts `nextSyncToken` only on the LAST page, so paging runs to the end even after the event
     // cap is reached (extra events are dropped); stopping early would lose the token and force full syncs forever.
     for (let page = 0; page < GOOGLE_CALENDAR.maxPages; page++) {
       const r = await source.listEvents({ accessToken: token.accessToken, calendarId, timeZone: timezone, ...(syncToken ? { syncToken } : { timeMin: window.windowStart, timeMax: window.windowEnd }), pageToken });
       if (!r.ok) return { failure: r.failure };
       if (r.expired) return { expired: true };
+      eventCount += r.events.length;
       if (events.length < GOOGLE_CALENDAR.maxEvents) events.push(...r.events);
       nextSyncToken = r.nextSyncToken ?? nextSyncToken;
       pageToken = r.nextPageToken;
       if (!pageToken) break;
     }
-    return { events: events.slice(0, GOOGLE_CALENDAR.maxEvents), nextSyncToken };
+    return { events: events.slice(0, GOOGLE_CALENDAR.maxEvents), nextSyncToken, complete: !pageToken && eventCount <= GOOGLE_CALENDAR.maxEvents };
   };
 
-  let result = cfg.syncToken ? await collect(cfg.syncToken) : null;
-  let full = !cfg.syncToken;
+  let result = cfg.syncToken && !forceFull ? await collect(cfg.syncToken) : null;
+  let full = !cfg.syncToken || forceFull;
   if (result && 'expired' in result) {
     full = true;
     result = null;
@@ -182,7 +190,8 @@ async function syncGoogleCalendarLeased(ctx: ActionCtx, integrationId: Id<'integ
     ...(full ? { full: window } : {}),
     // Merged into the stored config (C4): a pass without a new token keeps the old one, except after a full resync
     // (the old token was expired or never existed), where a missing token is cleared (null).
-    config: { calendarId, syncToken: result.nextSyncToken ?? (full ? null : undefined) },
+    config: { calendarId, syncToken: result.nextSyncToken ?? (full ? null : undefined),
+      ...(full ? { availabilityComplete: result.complete, ...window } : !result.complete ? { availabilityComplete: false } : {}) },
   });
   return { status: 'connected' };
 }

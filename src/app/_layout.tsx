@@ -2,6 +2,7 @@
 // background notification task (src/services/backgroundNotificationTask.ts) has to be defined and
 // registered before any screen renders, per expo-notifications' own docs on where this can safely run.
 import '@/services/backgroundNotificationTask';
+import { DemoRecording } from '@/features/shell/DemoRecording';
 import { KeyboardProvider } from 'react-native-keyboard-controller';
 import { DataProvider } from '@/data/client';
 import { AppThemeProvider } from '@/features/shell/AppThemeProvider';
@@ -24,6 +25,7 @@ export default function RootLayout() {
         <AppThemeProvider>
           {/* G8: keeps the home/lock-screen widgets in step with widgets.next (renders nothing; iOS only). */}
           <WidgetSync />
+          <DemoRecording />
           <NavigationThemeBridge>
             <AuthGate />
           </NavigationThemeBridge>

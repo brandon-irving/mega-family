@@ -1,3 +1,5 @@
+import { canConnectAccounts } from '../../shared/ageGroups';
+import { clock as permissionClock } from '../ports/clock';
 // G5 (CONTRACT v0.17): connected accounts — the shared logic behind `integrations.*`, `mail.*`, the OAuth
 // callback and the sync actions. Rules (docs/gates/G5.md invariants 2, 3, 8): an integration belongs to one
 // member and only that member ever sees it; everything it brings in is that member's PRIVATE layer
@@ -63,7 +65,7 @@ export async function requireOwnIntegration(ctx: Ctx, member: Doc<'members'>, in
 
 /** Kids don't connect accounts (their MEGA's sources are the household's); FORBIDDEN, like other adult tools. */
 export function requireConnector(member: Doc<'members'>): void {
-  if (member.role === 'kid') fail('FORBIDDEN', 'grown-ups connect accounts');
+  if (!connectorAllowed(member)) fail('FORBIDDEN', 'Children cannot connect accounts. Teens need parent approval.');
 }
 
 /** Events (and, for Gmail, found items) this integration brought in during the family's current month. */
@@ -116,7 +118,7 @@ export async function buildOfferView(ctx: Ctx, member: Doc<'members'>, offer: Co
   const integrations = await Promise.all(live.map((r) => integrationView(ctx, r, now, tz)));
   const row = await onboardingRow(ctx, member.familyId, member._id);
   const failure = row?.failures?.[offer];
-  const state: OfferView['state'] = integrations.some((i) => i.status !== 'connecting') ? 'connected' : failure ? 'failed' : row?.outcomes[offer] === 'skipped' ? 'skipped' : 'offered';
+  const state: OfferView['state'] = integrations.some((i) => i.status === 'connected') ? 'connected' : failure || integrations.some(i => i.status === 'error' || i.status === 'needs_reconnect') ? 'failed' : row?.outcomes[offer] === 'skipped' ? 'skipped' : 'offered';
   return { offer, state, integrations, available: { google: googleAvailable() }, ...(state === 'failed' && failure ? { failure } : {}) };
 }
 
@@ -154,10 +156,15 @@ export async function connectGoogleProducts(
 ): Promise<{ product: 'gmail' | 'googleCalendar'; integrationId: Id<'integrations'> }[]> {
   const out: { product: 'gmail' | 'googleCalendar'; integrationId: Id<'integrations'> }[] = [];
   for (const product of p.want) {
-    if (!p.grantedScopes.includes(GOOGLE.scopes[product])) continue;
+    if (!p.grantedScopes.includes(GOOGLE.scopes[product])) {
+      const denied = (await memberIntegrations(ctx, p.familyId, p.memberId)).find(r => r.kind === product);
+      if (denied) await ctx.db.patch(denied._id, { status: 'error', lastFailure: 'unauthorized', lastFailureAt: p.now });
+      continue;
+    }
     const existing = (await memberIntegrations(ctx, p.familyId, p.memberId)).find((r) => r.kind === product);
     // Keep the sync position across a reconnect only for the same account.
     const sameAccount = existing && existing.label === p.email;
+    if (existing && !sameAccount) await removeIntegrationData(ctx, existing);
     const config = product === 'gmail' ? (sameAccount ? existing.config : {}) : { calendarId: 'primary', ...(sameAccount ? { syncToken: (existing.config as { syncToken?: string }).syncToken } : {}) };
     const integrationId = await upsertIntegration(ctx, { familyId: p.familyId, memberId: p.memberId, kind: product, config, label: p.email, now: p.now });
     out.push({ product, integrationId });
@@ -188,6 +195,7 @@ export async function applyExternalEvents(
     .query('events')
     .withIndex('by_integration_external', (q) => q.eq('integrationId', integration._id))
     .collect();
+  const mailPlans = integration.kind === 'googleCalendar' ? await ctx.db.query('mailPlans').withIndex('by_owner', q => q.eq('familyId', integration.familyId).eq('ownerId', ownerId)).collect() : [];
   const byExternal = new Map(existing.map((e) => [e.externalId ?? '', e]));
   let added = 0;
   let updated = 0;
@@ -212,7 +220,7 @@ export async function applyExternalEvents(
       }
       continue;
     }
-    await ctx.db.insert('events', {
+    const importedId = await ctx.db.insert('events', {
       familyId: integration.familyId,
       ...fields,
       who: [ownerId],
@@ -224,6 +232,16 @@ export async function applyExternalEvents(
       scope: 'personal',
       cancelled: false,
     });
+    // Gmail may recognize a commitment before Calendar imports the same event.
+    if (integration.kind === 'googleCalendar') {
+      for (const plan of mailPlans) {
+        if (!plan.ownsEvent || !plan.eventId || plan.calendarExternalId || plan.status !== 'confirmed' || plan.selected?.start !== e.start || plan.selected?.end !== e.end) continue;
+        const mailEvent = await ctx.db.get(plan.eventId);
+        if (mailEvent?.source !== 'gmail' || mailEvent.scope !== 'personal' || mailEvent.ownerId !== ownerId || mailEvent.start !== e.start || mailEvent.end !== e.end || mailEvent.title.trim().toLowerCase() !== fields.title.trim().toLowerCase()) continue;
+        await ctx.db.patch(plan._id, { eventId: importedId, ownsEvent: false });
+        await ctx.db.delete(mailEvent._id);
+      }
+    }
     added++;
   }
   if (opts.full) {
@@ -246,6 +264,9 @@ export async function removeIntegrationData(ctx: MutationCtx, integration: Integ
     .collect();
   for (const e of events) if (e.scope === 'personal') await ctx.db.delete(e._id);
   if (integration.kind !== 'gmail' || !integration.memberId) return;
+  await ctx.db.patch(integration._id, { watchExpiresAt: undefined, watchFailure: undefined, lastMailPushAt: undefined, mailWakeQueued: false, mailWakeUntil: undefined });
+  const plans = await ctx.db.query('mailPlans').withIndex('by_owner', q => q.eq('familyId', integration.familyId).eq('ownerId', integration.memberId!)).collect();
+  for (const plan of plans) if (plan.integrationId === integration._id) await ctx.db.delete(plan._id);
   const items = await ctx.db
     .query('mailItems')
     .withIndex('by_family_member_found', (q) => q.eq('familyId', integration.familyId).eq('memberId', integration.memberId!))
@@ -294,3 +315,5 @@ export async function recordSync(ctx: MutationCtx, integrationId: Id<'integratio
   if (p.failure) await ctx.db.patch(row._id, { lastFailure: p.failure, lastFailureAt: p.now, syncingUntil: undefined, ...config });
   else await ctx.db.patch(row._id, { lastSyncAt: p.now, lastFailure: undefined, lastFailureAt: undefined, syncingUntil: undefined, ...config });
 }
+
+export function connectorAllowed(member: Doc<'members'>) { return canConnectAccounts(member, new Date(permissionClock.realNow()).toISOString().slice(0, 10)); }

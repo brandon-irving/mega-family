@@ -1,3 +1,5 @@
+import { recordedAction } from '@/services/demoRecording';
+import { DemoSessionBar } from '@/features/settings/DemoSessionBar';
 // mega://join/<token> — the invite (Screen 9 boards, canvas v33). Owner, Oct 28: adults and kids get
 // different screens, picked from the invite itself (`invites.preview`), and the MEGA the admin made for the
 // person comes with it.
@@ -41,6 +43,10 @@ const back = () => (router.canGoBack() ? router.back() : router.replace('/invite
 const toInvite = () => router.replace('/invite');
 
 export default function JoinRoute() {
+  return <View style={{ flex: 1 }}><DemoSessionBar /><JoinContent /></View>;
+}
+
+function JoinContent() {
   const { token } = useLocalSearchParams<{ token: string }>();
   const preview = useInvitePreview(token);
   // A RATE_LIMITED redeem locks the invite mid-visit, before the preview catches up.
@@ -63,7 +69,7 @@ function useJoin(token: string, onLocked?: () => void) {
     setBusy(true);
     setError(null);
     try {
-      await redeem({ token, ...extra });
+      await recordedAction('invite.redeem', redeem)({ token, ...extra });
       router.replace('/chat' as never);
     } catch (e) {
       if (codeOf(e) === 'RATE_LIMITED' && onLocked) onLocked();

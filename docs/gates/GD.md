@@ -1,3 +1,5 @@
+> Current demo workflow: [Settings → Demo Console](../demo-console.md). The three-person live Gmail scenario and age-group policy in that guide supersede historical demo, seeded-reset, and sample-sign-in instructions below.
+
 # Gate GD · Demo features (between G3 and G4)
 
 The contract is CONTRACT.md v0.13 (pending approval) plus `shared/` (tables, API map, config). Backend owns `convex/`, frontend owns `src/`; they meet only at the contract. Same process as every gate (STATUS.md → How we work): checks green, three fresh reviewers (security/privacy, correctness, UX against the boards), a failing-first test for every fix, local commits only, then tag `gd`.

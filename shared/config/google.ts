@@ -1,4 +1,4 @@
-// G5 (CONTRACT v0.17): Google (Gmail + Google Calendar) as read-only integrations. Owned by the backend, read by
+// G5 (CONTRACT v0.17): Google (Gmail + Google Calendar) with read-only baseline access and optional scheduling scopes. Owned by the backend, read by
 // both. Docs checked Oct 28 (developers.google.com: OAuth 2.0 web server flow, Gmail users.history.list /
 // users.messages.get / sync guide, Calendar events.list / sync guide; Google Cloud "Testing" publishing status).
 //
@@ -51,7 +51,7 @@ export const GOOGLE = {
 
 export const GMAIL = {
   baseUrl: 'https://gmail.googleapis.com/gmail/v1/users/me',
-  /** Polling from a Convex cron (users.watch + Pub/Sub is a post-deadline upgrade, PLAN.md Integrations row 7). */
+  /** Recovery polling alongside Gmail push notifications; push setup lives in docs/email-scheduling.md. */
   pollMinutes: 10,
   /** First sync (and a full resync after a 404 on a stale historyId): recent messages via `messages.list`
    * with `q: newer_than:{firstSyncDays}d`, newest first. */
@@ -108,3 +108,6 @@ export const GOOGLE_CALENDAR = {
   maxEvents: 500,
   maxPages: 20,
 } as const;
+
+/** Capability grounding shared by first-contact and ordinary chat. */
+export const GOOGLE_ASSISTANT_PROMPT = 'MEGA supports connecting Google Gmail and Google Calendar through the app’s unified Google setup. This can recognize plans from email, sync calendars, and enable reviewed calendar holds and reply drafts. Never say you cannot connect Google or ask the person to manually copy their email/calendar because you lack that capability. Do not claim you have connected or read anything until it has actually happened. The person must choose their own permissions and consent through Google; parents can approve teens to begin setup without receiving inbox access.';

@@ -76,3 +76,10 @@ describe('InvitePanelView', () => {
     expect(screen.getByText('nope')).toBeTruthy();
   });
 });
+
+test('a redeemed invitation shows joined status instead of offering another code', async () => {
+  await renderWithTheme(<InvitePanelView name="Jamie" invite={INVITE} status={{ status: 'joined' }} timeZone={TZ} onCreate={jest.fn()} onRegenerate={jest.fn()} />);
+  expect(screen.getByText('Jamie has joined the family.')).toBeTruthy();
+  expect(screen.queryByText(G5_FIX_COPY.inviteShow)).toBeNull();
+  expect(screen.queryByText(G5_FIX_COPY.inviteSend)).toBeNull();
+});

@@ -1,3 +1,4 @@
+import { SchedulingInbox } from '@/features/scheduling/SchedulingInbox';
 // mega://today — Today sheet (PLAN §1 / §Today).
 import { router } from '@/features/shell/navigation';
 import { useAnswerNotification, useRespondToRequest, useToday } from '@/data/useToday';
@@ -25,6 +26,7 @@ export default function TodayRoute() {
         onRespondRequest={(requestId, accept) => respondToRequest({ requestId: requestId as never, accept })}
         onAnswerNotification={(notificationId, buttonId) => answerNotification({ notificationId: notificationId as never, buttonId, via: 'block' })}
       />
+      {adult ? <SchedulingInbox /> : null}
     </Sheet>
   );
 }

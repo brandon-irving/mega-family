@@ -23,6 +23,7 @@ export type ChatThreadProps = {
   onLoadMore?: () => void;
   onAnswerBlock: (messageId: Id<'messages'>, answer: BlockAnswer) => void;
   onReact: (messageId: Id<'messages'>, reaction: Reaction | null) => void;
+  onReply?: (text: string) => void;
   onSaveIdea?: (messageId: Id<'messages'>) => Promise<unknown>;
   onChangeMemoryScope: (memoryId: Id<'memories'>, scope: Scope) => void;
   onForgetMemory: (memoryId: Id<'memories'>) => void;
@@ -47,6 +48,7 @@ export function ChatThread({
   onAnswerBlock,
   onReact,
   onSaveIdea,
+  onReply,
   onChangeMemoryScope,
   onForgetMemory,
   onRespondRequest,
@@ -68,6 +70,7 @@ export function ChatThread({
       onAnswerBlock={onAnswerBlock}
       onReact={onReact}
       onSaveIdea={onSaveIdea}
+      onReply={onReply}
       onChangeMemoryScope={onChangeMemoryScope}
       onForgetMemory={onForgetMemory}
       onRespondRequest={onRespondRequest}

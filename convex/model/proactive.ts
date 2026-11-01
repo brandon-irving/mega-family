@@ -1,3 +1,4 @@
+import { acceptedBriefContext } from './assistantBriefs';
 // The proactive engine's actual logic (PLAN.md -> Proactive engine: "trigger -> candidate (dedupeKey) ->
 // draft -> judge -> timing -> deliver"). `convex/proactive.ts` is the thin registered-function layer; every
 // real decision lives here as plain functions so the pipeline is testable without going through Convex's
@@ -178,6 +179,7 @@ export interface DraftContext {
   seedText: string;
   sentTodayCount: number;
   reactionSummary: string;
+  assistantBrief?: string;
 }
 
 /** Loads everything `buildDraftJudgePrompt` needs for one `status: 'new'` candidate. `null` when the
@@ -215,6 +217,7 @@ export async function loadDraftContextFor(ctx: Ctx, candidateId: Id<'candidates'
     seedText: candidate.draft.text,
     sentTodayCount,
     reactionSummary,
+    assistantBrief: await acceptedBriefContext(ctx, candidate.familyId, candidate.recipientId),
   };
 }
 
@@ -270,6 +273,7 @@ export function buildDraftJudgePrompt(ctxData: DraftContext): { system: string; 
     `You are ${ctxData.megaName}, ${ctxData.recipientName}'s AI assistant, deciding whether to proactively message them.`,
     `Personality: ${ctxData.megaPersonalityBlurb}`,
     trigger.description,
+    ctxData.assistantBrief ? `Use these approved priorities only when relevant to the existing trigger. Never claim work is scheduled or completed based on a goal: ${fenceUntrusted(ctxData.assistantBrief)}` : '',
     // C6/UX7 (voice): match the approved board copy (design/build/Push.template.html) — plain, calm,
     // headline-first sentences like "Bring your library book today. It goes back to school today." Never a
     // form of address other than their own name/callMe above.

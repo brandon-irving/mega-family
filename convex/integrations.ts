@@ -1,3 +1,5 @@
+import { connectorAllowed } from './model/integrations';
+import { SCHEDULING } from '../shared/config/scheduling';
 // CONTRACT §4 `integrations.*` (G5, v0.17): connected accounts — Gmail and Google Calendar (one Google grant per
 // member, read-only), this phone's calendar (synced up by the app), schedule links (.ics). Owner-only everywhere:
 // another member's integrations are NOT_FOUND, the admin's included (docs/gates/G5.md invariant 2). Tokens live
@@ -88,7 +90,7 @@ export const offer = query({
 
 export const googleStart = mutation({
   ...pick(API.integrations.googleStart),
-  handler: async (ctx, { want, loginHint }) => {
+  handler: async (ctx, { want, loginHint, scheduling }) => {
     const viewer = await requireViewer(ctx);
     requireConnector(viewer.member);
     const products = [...new Set(want)];
@@ -98,7 +100,7 @@ export const googleStart = mutation({
     const { token: nonce, hash } = await randomToken();
     const now = clock.realNow(); // Google's consent screen runs in real time, whatever the demo clock says
     await ctx.db.insert('oauthStates', { familyId: viewer.member.familyId, memberId: viewer.member._id, nonceHash: hash, want: products, createdAt: now, expiresAt: now + GOOGLE.stateTtlMinutes * 60_000 });
-    const scopes = [...GOOGLE.identityScopes, ...products.map((p) => GOOGLE.scopes[p])];
+    const scopes = [...GOOGLE.identityScopes, ...products.map((p) => GOOGLE.scopes[p]), ...(scheduling ? Object.values(SCHEDULING.scopes) : [])];
     return { authUrl: getGoogleOAuth().authUrl({ scopes, state: nonce, redirectUri, loginHint: loginHint?.slice(0, 200) }) };
   },
 });
@@ -341,7 +343,7 @@ export const consumeState = internalMutation({
     await ctx.db.patch(row._id, { usedAt: now });
     if (row.expiresAt < now) return null;
     const member = await ctx.db.get(row.memberId);
-    if (!member || member.familyId !== row.familyId || member.role === 'kid') return null;
+    if (!member || member.familyId !== row.familyId || !connectorAllowed(member)) return null;
     return { familyId: row.familyId, memberId: row.memberId, want: row.want };
   },
 });
@@ -381,7 +383,7 @@ export const storeGrant = internalMutation({
   returns: v.object({ connected: googleProducts }),
   handler: async (ctx, p) => {
     const member = await ctx.db.get(p.memberId);
-    if (!member || member.familyId !== p.familyId) return { connected: [] };
+    if (!member || member.familyId !== p.familyId || !connectorAllowed(member)) return { connected: [] };
     const real = clock.realNow();
     const now = await clock.now(ctx, p.familyId);
     const existing = await ctx.db
@@ -413,6 +415,7 @@ export const storeGrant = internalMutation({
       if (c.product === 'gmail') {
         await completeOffer(ctx, { familyId: p.familyId, memberId: p.memberId, offer: 'gmail', outcome: 'connected', now, advanceNow: false });
         await ctx.scheduler.runAfter(0, internal.integrations.syncGmail, { integrationId: c.integrationId, firstLook: true });
+        await ctx.scheduler.runAfter(0, internal.gmailPush.renew, { integrationId: c.integrationId });
       } else {
         await completeOffer(ctx, { familyId: p.familyId, memberId: p.memberId, offer: 'calendar', outcome: 'connected', now });
         await ctx.scheduler.runAfter(0, internal.integrations.syncGoogleCalendar, { integrationId: c.integrationId });
@@ -427,6 +430,8 @@ export const secretFor = internalQuery({
   args: { familyId: v.id('families'), memberId: v.id('members') },
   returns: v.union(v.null(), v.object({ _id: v.id('integrationSecrets'), refreshToken: v.string(), accessToken: v.optional(v.string()), accessTokenExpiresAt: v.optional(v.number()) })),
   handler: async (ctx, { familyId, memberId }) => {
+    const member = await ctx.db.get(memberId);
+    if (!member || member.familyId !== familyId || !connectorAllowed(member)) return null;
     const s = await ctx.db
       .query('integrationSecrets')
       .withIndex('by_family_member_provider', (q) => q.eq('familyId', familyId).eq('memberId', memberId).eq('provider', 'google'))
@@ -473,6 +478,8 @@ export const loadForSync = internalQuery({
     if (!row) return null;
     const family = await ctx.db.get(row.familyId);
     if (!family) return null;
+    const owner = row.memberId ? await ctx.db.get(row.memberId) : null;
+    if (owner && !connectorAllowed(owner)) return null;
     return { integration: row, status: statusOf(row), timezone: family.timezone, now: await clock.now(ctx, row.familyId) };
   },
 });
@@ -546,12 +553,16 @@ export const recordMail = internalMutation({
     decidedBy: v.string(),
     config: v.any(),
     firstLook: v.boolean(),
+    schedulingFound: v.optional(v.boolean()),
   },
   returns: v.null(),
-  handler: async (ctx, { integrationId, found, decidedBy, config, firstLook }) => {
+  handler: async (ctx, { integrationId, found, decidedBy, config, firstLook, schedulingFound }) => {
     const row = await ctx.db.get(integrationId);
     if (!row || !row.memberId || statusOf(row) !== 'connected') return null;
     const owner = row.memberId;
+    const member = await ctx.db.get(owner);
+    if (!member || !connectorAllowed(member)) return null;
+    const runs = await ctx.db.query('demoRuns').withIndex('by_family', q => q.eq('familyId', row.familyId)).collect();
     const family = await ctx.db.get(row.familyId);
     if (!family) return null;
     const tz = family.timezone;
@@ -559,6 +570,7 @@ export const recordMail = internalMutation({
     const by = decidedBy as T.DecidedBy;
     const itemIds: Id<'mailItems'>[] = [];
     for (const msg of found) {
+      if (runs.length && !runs.some(r => r.active && r.jobs.some(j => j.sourceMessageId === msg.gmailMessageId))) continue;
       const already = await ctx.db
         .query('mailItems')
         .withIndex('by_integration_message', (q) => q.eq('integrationId', integrationId).eq('gmailMessageId', msg.gmailMessageId))
@@ -620,7 +632,7 @@ export const recordMail = internalMutation({
     }
     await recordSync(ctx, integrationId, { now, config });
     if (itemIds.length) await postCard(ctx, { familyId: row.familyId, recipientId: owner, card: { kind: 'mailFound', integrationId, itemIds }, now });
-    else if (firstLook) await sayAsOwnMega(ctx, row.familyId, owner, fillCopy(G5_COPY.foundNone, { days: ONBOARDING.gmailFirstLookDays }), now);
+    else if (firstLook && !schedulingFound) await sayAsOwnMega(ctx, row.familyId, owner, fillCopy(G5_COPY.foundNone, { days: ONBOARDING.gmailFirstLookDays }), now);
     if (firstLook) await gmailFirstLookDone(ctx, row.familyId, owner, now);
     return null;
   },

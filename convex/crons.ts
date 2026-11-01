@@ -1,3 +1,4 @@
+import { SCHEDULING } from '../shared/config/scheduling';
 // Registers the production proactive-engine sweep (PLAN.md -> Proactive engine). The demo's simulated
 // clock (`clock.jump`) drives the exact same per-family tick synchronously instead of waiting for this
 // interval — see `convex/model/proactive.ts` `tickFamilyLogic` and `convex/clock.ts`.
@@ -27,4 +28,5 @@ crons.interval('schedule link poll', { minutes: ICS.pollMinutes }, internal.inte
 crons.interval('oauth state cleanup', { minutes: INTEGRATION_SYNC.stateCleanupMinutes }, internal.integrations.cleanupStates, {});
 crons.interval('nightly profiler sweep', { minutes: PROFILER.sweepMinutes }, internal.profiler.sweep, {});
 
+crons.interval('renew Gmail mailbox watches', { hours: SCHEDULING.watchRenewHours }, internal.gmailPush.renewAll, {});
 export default crons;

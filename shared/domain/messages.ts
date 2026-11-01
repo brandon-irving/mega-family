@@ -1,3 +1,4 @@
+import { megaDraftData } from './megaCreation';
 // CONTRACT §3. Chat message bodies, thread UI blocks, block answers, cards and save chips.
 import { type Infer, v } from 'convex/values';
 import { personality, scope } from './enums';
@@ -8,6 +9,7 @@ import { literals } from './validators';
 const option = v.object({ id: v.string(), label: v.string() });
 
 export const uiBlock = v.union(
+  v.object({ kind: v.literal('megaDraft'), prompt: v.string(), draftId: v.id('megaDrafts'), revision: v.number(), data: megaDraftData }),
   v.object({ kind: v.literal('choice'), prompt: v.string(), options: v.array(option), multi: v.boolean(), allowOther: v.boolean() }),
   v.object({ kind: v.literal('toggle'), prompt: v.string(), label: v.string(), value: v.boolean(), preview: v.optional(v.literal('theme')) }),
   v.object({ kind: v.literal('text'), prompt: v.string(), placeholder: v.optional(v.string()) }),
@@ -16,8 +18,11 @@ export const uiBlock = v.union(
   v.object({
     kind: v.literal('fields'),
     prompt: v.string(),
-    fields: v.array(v.object({ id: v.string(), label: v.string(), type: v.union(v.literal('text'), v.literal('date'), v.literal('number')) })),
+    fields: v.array(v.object({ id: v.string(), label: v.string(), type: v.union(v.literal('text'), v.literal('date'), v.literal('number')), value: v.optional(v.string()), placeholder: v.optional(v.string()), multiline: v.optional(v.boolean()), maxLength: v.optional(v.number()) })),
     skippable: v.literal(true),
+    description: v.optional(v.string()),
+    saveLabel: v.optional(v.string()),
+    skipLabel: v.optional(v.string()),
   }),
   v.object({
     kind: v.literal('look'),
@@ -128,6 +133,7 @@ export const card = v.union(
   // `integrations.offer`, so the same card shows "Gmail connected · checking the last 30 days" after consent.
   v.object({ kind: v.literal('connect'), offer: literals(CONNECT_OFFERS) }),
   // `mailFound`: what MEGA found in Gmail (board OnboardGmailFound); rows read live via `mail.items`.
+  v.object({ kind: v.literal('mailPlan'), planId: v.id('mailPlans') }),
   v.object({ kind: v.literal('mailFound'), integrationId: v.id('integrations'), itemIds: v.array(v.id('mailItems')) }),
   // `reconnect`: a Google grant lapsed or was revoked (Testing mode: every 7 days). Tapping reconnects.
   // v0.17b (C10): ONE card per lapse; `integrationIds` lists every integration on that grant (Gmail + Calendar).

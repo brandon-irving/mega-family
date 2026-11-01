@@ -42,10 +42,13 @@ export function useStableQuery<T>(value: T | undefined): T | undefined {
  * starts at "LoadingFirstPage" too, so a first load still shows loading — the same "storing information
  * from previous renders" render-time setState pattern useStableQuery uses (React-Compiler-safe; see
  * useStableQuery's own comment). */
-export function useStablePaginatedQuery<T extends { status: string; results: unknown }>(paginated: T): T {
-  const [last, setLast] = useState(paginated);
+export function useStablePaginatedQuery<T extends { status: string; results: unknown }>(paginated: T, scopeKey?: string): T {
+  const [snapshot, setSnapshot] = useState({ value: paginated, scopeKey });
+  const scopeChanged = snapshot.scopeKey !== scopeKey;
+  const last = scopeChanged ? paginated : snapshot.value;
   const resuming = paginated.status === 'LoadingFirstPage' && last.status !== 'LoadingFirstPage';
   const changed = paginated.results !== last.results || paginated.status !== last.status;
-  if (!resuming && changed) setLast(paginated);
+  // A profile change is not a reconnect: never retain the previous person’s messages or cursor.
+  if (scopeChanged || (!resuming && changed)) setSnapshot({ value: paginated, scopeKey });
   return resuming ? last : paginated;
 }

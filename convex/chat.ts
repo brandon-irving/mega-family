@@ -1,3 +1,9 @@
+import { answerMailLocation } from './model/mailContext';
+import { answerConnectionApproval } from './model/connectionApproval';
+import { activeDraft, migrateCreation, answerCreation, confirmDraft } from './model/megaCreation';
+import { isCreationConfirmation, MEGA_CREATION } from '../shared/config/megaCreation';
+import { answerBrief, answerBriefText, briefFor, startBrief } from './model/assistantBriefs';
+import { ASSISTANT_BRIEF } from '../shared/config/assistantBrief';
 // CONTRACT §4 "Chat and talk". `chat.send` inserts the user's message plus an empty MEGA reply with a
 // persistent-text-streaming stream, then schedules `generateReply`. The reply is server-driven: the action
 // writes chunks with the component's addChunk mutation and every open client sees them through
@@ -23,7 +29,7 @@ import { AGENT_COPY, fillCopy, G5_COPY } from '../shared/config/copy';
 import { ADULT_STARTER, KID_INTRO } from '../shared/config/starters';
 import { getOrCreateOwnThread } from './model/threads';
 import { onboardingRow } from './model/integrations';
-import { afterName as afterOnboardingName, answerFamilyBlock, postStep as postOnboardingStep, setName as setOnboardingName, stepIsShowing as onboardingStepIsShowing } from './model/onboarding';
+import { parseNameReply, afterName as afterOnboardingName, answerFamilyBlock, postStep as postOnboardingStep, setName as setOnboardingName, stepIsShowing as onboardingStepIsShowing } from './model/onboarding';
 import { answerCheckQuestion } from './model/profiler';
 import { runFor } from './model/routines';
 import { localDate } from '../shared/time';
@@ -44,6 +50,9 @@ export const thread = query({
   ...pick(API.chat.thread),
   handler: async (ctx, args) => {
     const viewer = await requireViewer(ctx);
+    // A live subscription may briefly retain the previous profile’s cursor during a demo switch.
+    // This is a cache key, never an authorization selector.
+    if (args.profileKey && args.profileKey !== viewer.member._id) return { page: [], isDone: true, continueCursor: '' };
     const own = await ctx.db
       .query('threads')
       .withIndex('by_family_owner', (q) => q.eq('familyId', viewer.member.familyId).eq('ownerId', viewer.member._id))
@@ -62,7 +71,7 @@ export const send = mutation({
   handler: async (ctx, args) => {
     const viewer = await requireViewer(ctx);
     const familyId = viewer.member.familyId;
-    const now = await clock.now(ctx, familyId);
+    let now = await clock.now(ctx, familyId);
 
     let thread = await ctx.db
       .query('threads')
@@ -72,6 +81,9 @@ export const send = mutation({
       const threadId = await ctx.db.insert('threads', { familyId, ownerId: viewer.member._id, megaIds: viewer.mega ? [viewer.mega._id] : [], lastAt: now });
       thread = (await ctx.db.get(threadId))!;
     }
+
+    // Keep replies after their prompts even when the demo clock is paused.
+    now = Math.max(now, thread.lastAt + 1);
 
     const familyMegas = await ctx.db
       .query('megas')
@@ -94,18 +106,61 @@ export const send = mutation({
       chips: [],
     });
 
-    // G5 (v0.17): while onboarding asks "What should I call you?", the text IS the name. No agent turn: MEGA's
-    // reply is the fixed "Nice to meet you" line, then the first connect card (convex/model/onboarding.ts).
+    // Names can arrive inside a full introduction. Keep the message and let the model interpret
+    // conversational replies; a validation error must never roll back an ordinary chat message.
     const onboarding = await onboardingRow(ctx, familyId, viewer.member._id);
     if (onboarding?.step === 'name' && viewer.mega) {
-      const name = await setOnboardingName(ctx, viewer.member, args.text, now);
+      const name = parseNameReply(args.text);
       const streamId = await streaming.createStream(ctx);
-      const text = fillCopy(G5_COPY.niceToMeet, { name });
+      const text = name ? fillCopy(G5_COPY.niceToMeet, { name }) : '';
       const replyMessageId = await ctx.db.insert('messages', { familyId, threadId: thread._id, at: now + 1, author: { kind: 'mega', id: viewer.mega._id }, via: 'text', body: { type: 'text', text }, streamId, chips: [] });
       await ctx.db.patch(thread._id, { lastAt: now + 1 });
-      await ctx.scheduler.runAfter(0, internal.chat.streamFixedText, { streamId, text });
-      await afterOnboardingName(ctx, viewer.member, now);
+      if (name) {
+        await setOnboardingName(ctx, viewer.member, name, now);
+        await ctx.scheduler.runAfter(0, internal.chat.streamFixedText, { streamId, text });
+        await afterOnboardingName(ctx, viewer.member, now + 1);
+      } else {
+        await ctx.scheduler.runAfter(0, internal.onboardingConversation.reply, { familyId, memberId: viewer.member._id, replyMessageId, userText: args.text });
+      }
       return { messageId, replyMessageId, streamId };
+    }
+
+    await migrateCreation(ctx, viewer.member, thread._id, now);
+    const draft = await activeDraft(ctx, viewer.member);
+    if (draft?.status === 'review' && isCreationConfirmation(args.text) && !args.attachments?.length && !args.files?.length) {
+      await confirmDraft(ctx, viewer.member, draft._id, draft.revision, now);
+      const streamId = await streaming.createStream(ctx);
+      const text = draft.data.target === 'self' ? MEGA_CREATION.created : MEGA_CREATION.inviteReady;
+      const replies = await ctx.db.query('messages').withIndex('by_family_thread_at', q => q.eq('familyId', familyId).eq('threadId', thread._id)).order('desc').take(5);
+      const reply = replies.find(m => m.ruleBlock === 'creation' && m.body.type === 'text');
+      if (!reply) fail('NOT_FOUND');
+      const replyMessageId = reply._id;
+      await ctx.db.patch(replyMessageId, { streamId });
+      await ctx.scheduler.runAfter(0, internal.chat.streamFixedText, { streamId, text });
+      return { messageId, replyMessageId, streamId };
+    }
+    const brief = await briefFor(ctx, familyId, viewer.member._id);
+    if (brief && brief.step !== 'done' && viewer.mega) {
+      if (args.attachments?.length || args.files?.length) fail('VALIDATION', ASSISTANT_BRIEF.attachmentsLater);
+      if (brief.step !== 'edit') await startBrief(ctx, viewer.member, now);
+      const answered = !args.attachments?.length && !args.files?.length && await answerBriefText(ctx, viewer.member, args.text, now);
+      if (answered) {
+      const streamId = await streaming.createStream(ctx);
+      const recent = answered ? await ctx.db.query('messages').withIndex('by_family_thread_at', q => q.eq('familyId', familyId).eq('threadId', thread._id)).order('desc').take(4) : [];
+      const acknowledgement = recent.find(m => m.ruleBlock === 'brief' && m.body.type === 'text');
+      const text = acknowledgement?.body.type === 'text' ? acknowledgement.body.text : ASSISTANT_BRIEF.pendingHint;
+      let replyMessageId: Id<'messages'>;
+      if (acknowledgement) {
+        replyMessageId = acknowledgement._id;
+        await ctx.db.patch(replyMessageId, { streamId });
+      } else {
+        const at = Math.max(now + 1, (await ctx.db.get(thread._id))!.lastAt + 1);
+        replyMessageId = await ctx.db.insert('messages', { familyId, threadId: thread._id, at, author: { kind: 'mega', id: viewer.mega._id }, via: 'text', body: { type: 'text', text }, streamId, chips: [], ruleBlock: 'brief' });
+        await ctx.db.patch(thread._id, { lastAt: at });
+      }
+      await ctx.scheduler.runAfter(0, internal.chat.streamFixedText, { streamId, text });
+      return { messageId, replyMessageId, streamId };
+      }
     }
 
     // G6 #6b (web walkthrough, Oct 29): a kid's "Ready for tomorrow" chat-starter (KID_INTRO.rows, "Show
@@ -214,7 +269,7 @@ export const answerBlock = mutation({
     // retry or replay is a no-op that returns the first answer and never starts an agent reply.
     if (message.ruleBlock && message.body.answeredWith !== undefined) return { answerMessageId: await firstAnswerTo(ctx, message) };
 
-    const now = await clock.now(ctx, viewer.member.familyId);
+    const now = Math.max(await clock.now(ctx, viewer.member.familyId), thread.lastAt + 1);
     const answerMessageId = await ctx.db.insert('messages', {
       familyId: viewer.member.familyId,
       threadId: thread._id,
@@ -225,14 +280,20 @@ export const answerBlock = mutation({
       body: { type: 'answer', blockMessageId: message._id, label: summarizeAnswer(message.body.block, args.answer), value: args.answer },
       chips: [],
     });
+    await ctx.db.patch(thread._id, { lastAt: now });
     await ctx.db.patch(message._id, { body: { ...message.body, answeredWith: args.answer } });
 
     // G5 (v0.17): the onboarding family step's blocks and the profiler's check questions are answered by rule,
     // not by an agent turn.
+    if (await answerMailLocation(ctx, viewer.member, message, args.answer, now)) return { answerMessageId };
+    if (await answerConnectionApproval(ctx, viewer.member, message, args.answer, now)) return { answerMessageId };
+    if (await answerCreation(ctx, viewer.member, message, args.answer, now)) return { answerMessageId };
     if (await answerFamilyBlock(ctx, viewer.member, message, args.answer, now)) return { answerMessageId };
+    const briefAnswer = await answerBrief(ctx, viewer.member, message, args.answer, now);
+    if (briefAnswer && !briefAnswer.userText) return { answerMessageId };
     if (await answerCheckQuestion(ctx, viewer.member, message, args.answer, now)) return { answerMessageId };
     // A rule block no handler took (it has moved on, e.g. superseded after a resume) still never reaches the agent.
-    if (message.ruleBlock) return { answerMessageId };
+    if (message.ruleBlock && !briefAnswer?.userText) return { answerMessageId };
 
     // Feed the answer back into the agent loop (task brief: "chat.answerBlock should feed the answer back
     // into the loop"), as an ordinary turn from the same MEGA that asked — the member sees a real reply,
@@ -261,7 +322,7 @@ export const answerBlock = mutation({
         role: viewer.member.role,
         megaId: replyMegaId,
         threadId: thread._id,
-        userText: describeBlockAnswer(message.body.block, args.answer),
+        userText: briefAnswer?.userText ?? describeBlockAnswer(message.body.block, args.answer),
       });
     }
     // CONTRACT.md v0.8 (additive, pending approval): the reply's streamId, so talk mode can caption the
@@ -310,6 +371,10 @@ export const start = mutation({
     if (onboarding && onboarding.step !== 'done') {
       if (await onboardingStepIsShowing(ctx, onboarding, thread._id)) return { started: false };
       await postOnboardingStep(ctx, onboarding, now);
+      if (thread.startedAt === undefined) await ctx.db.patch(thread._id, { startedAt: now });
+      return { started: true };
+    }
+    if (await startBrief(ctx, viewer.member, now)) {
       if (thread.startedAt === undefined) await ctx.db.patch(thread._id, { startedAt: now });
       return { started: true };
     }
@@ -433,6 +498,7 @@ export const generateReply = internalAction({
       megaId: args.megaId,
       threadId: args.threadId,
       userText: args.userText,
+      replyMessageId: args.replyMessageId,
     });
 
     const words = text.split(' ');

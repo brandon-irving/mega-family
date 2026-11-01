@@ -1,3 +1,6 @@
+import { CHAT_UX } from '@shared/config/chat';
+import { DemoSessionBar } from '@/features/settings/DemoSessionBar';
+import { LiveMegaDraft } from '@/features/chat/LiveMegaDraft';
 // Chat keeps completed and streaming replies in one virtualized conversation.
 // Reads data only through the small hooks in src/data/.
 import { useCallback, useMemo, useState } from 'react';
@@ -52,6 +55,7 @@ export default function ChatRoute() {
   const forgetMemory = useForgetMemory();
   const answerNotification = useAnswerNotification();
   const saveMessageIdea = useSaveMessageIdea();
+  const [replyTo, setReplyTo] = useState<string | null>(null);
   const [pendingStreamId, setPendingStreamId] = useState<string | null>(null);
   // The active reply follows whichever MEGA reply is still being written: the viewer's last send, or one
   // they didn't send (a block answer's follow-up, a kid's "Show me", the MEGA's own starter).
@@ -147,6 +151,7 @@ export default function ChatRoute() {
     <TabBottomInset>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding">
         <Screen padded={false} presentation="tab">
+          <DemoSessionBar />
           <ChatHeader
             mega={mega}
             todayCount={todayCount}
@@ -162,6 +167,7 @@ export default function ChatRoute() {
               onLoadMore={thread.status === 'CanLoadMore' ? () => thread.loadMore(30) : undefined}
               paginationExhausted={thread.status === 'Exhausted'}
               onAnswerBlock={(id, answer) => answerBlock(id, answer, 'text')}
+              onReply={setReplyTo}
               onReact={(id, reaction) => react({ messageId: id, reaction })}
               onSaveIdea={isAdultRole(viewer.member.role) ? (id) => saveMessageIdea({ messageId: id }) : undefined}
               onChangeMemoryScope={(memoryId, scope) => changeMemoryScope({ memoryId, scope })}
@@ -176,10 +182,13 @@ export default function ChatRoute() {
               the friendly line, no retry button. */}
           {streamFailed && <RetryBanner label={streamStatusCopy(stream!.status as 'error' | 'timeout')} reducedMotion={reducedMotion} />}
           {sendError && <RetryBanner label={sendError.line} onRetry={onRetrySend} reducedMotion={reducedMotion} />}
+          <LiveMegaDraft offerPersonalize={viewer.member.role === 'admin' && !!onboarding && thread.results.length < 12} />
           <Composer
             megaName={mega.name}
             bigTalkButton={bigTalkButton}
-            onSend={onSend}
+            replyTo={replyTo}
+            onCancelReply={() => setReplyTo(null)}
+            onSend={text => { const quoted = replyTo ? `Replying to: “${replyTo.slice(0, CHAT_UX.maxQuotedCharacters)}”\n\n${text}` : text; setReplyTo(null); void onSend(quoted); }}
             onOpenTalk={() => router.push(toPath(LINKS.talk()) as never)}
             // GD (board KidsSnap): grown-ups can snap a worksheet for homework practice.
             onCamera={isAdultRole(viewer.member.role) ? attachments.open : undefined}

@@ -249,3 +249,14 @@ export const CTA_SIZES = {
 export function resolveButtonSizing(bigTargets: boolean): ButtonSize {
   return bigTargets ? BUTTON_SIZES.kid : BUTTON_SIZES.adult;
 }
+
+/** Preserve the MEGA hue while keeping white message text at WCAG AA contrast. */
+export function messageBubbleColors(accent: string) {
+  const text = CONTRAST_TEXT.light;
+  const channels = [1, 3, 5].map(i => parseInt(accent.slice(i, i + 2), 16));
+  let background = accent;
+  for (let factor = 0.95; contrastRatio(background, text) < 4.5 && factor >= 0; factor -= 0.05) {
+    background = '#' + channels.map(c => Math.round(c * factor).toString(16).padStart(2, '0')).join('');
+  }
+  return { background, text };
+}

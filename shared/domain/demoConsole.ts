@@ -1,0 +1,10 @@
+import { v } from 'convex/values';
+export const demoStage = v.union(v.literal('meeting'), v.literal('publicity'), v.literal('pickup'));
+export const demoEmailPayload = v.object({ recipient: v.string(), cc: v.array(v.string()), subject: v.string(), body: v.string() });
+export const demoJob = v.object({ stage: demoStage, attempt: v.number(), status: v.union(v.literal('queued'), v.literal('sending'), v.literal('sent'), v.literal('uncertain'), v.literal('cancelled')), queuedAt: v.number(), email: v.optional(demoEmailPayload), claimedAt: v.optional(v.number()), sentAt: v.optional(v.number()), messageId: v.optional(v.string()), receivedAt: v.optional(v.number()), sourceMessageId: v.optional(v.string()), error: v.optional(v.string()) });
+export const demoRuns = { familyId: v.id('families'), ownerAuthId: v.string(), adminId: v.id('members'), key: v.string(), date: v.string(), createdAt: v.number(), active: v.boolean(), workerAt: v.optional(v.number()), sender: v.optional(v.string()), jobs: v.array(demoJob) };
+export const demoConsoleState = v.object({
+  runId: v.id('demoRuns'), key: v.string(), date: v.string(), workerReady: v.boolean(), sender: v.optional(v.string()),
+  personas: v.array(v.object({ key: v.string(), name: v.string(), email: v.string(), memberId: v.optional(v.id('members')), joined: v.boolean(), gmail: v.boolean(), calendar: v.boolean(), recognition: v.boolean(), autoCapture: v.boolean(), push: v.boolean(), writes: v.boolean(), sharesAvailability: v.boolean() })),
+  stages: v.array(v.object({ key: demoStage, title: v.string(), recipient: v.string(), cc: v.array(v.string()), subject: v.string(), body: v.string(), attempt: v.number(), status: v.string(), received: v.boolean(), plans: v.number(), events: v.number(), error: v.optional(v.string()) })),
+});

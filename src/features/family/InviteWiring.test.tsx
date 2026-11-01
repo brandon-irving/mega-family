@@ -6,6 +6,8 @@ import { renderWithTheme } from '@/test/renderWithTheme';
 import { Block } from '@/features/chat/Blocks';
 import MemberDetailRoute from '@/app/family/[memberId]';
 
+jest.mock('@/features/family/AssistantBriefPanel', () => ({ AssistantBriefPanel: () => null }));
+
 jest.mock('./InvitePanel', () => {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { Text } = require('react-native');
@@ -27,7 +29,7 @@ jest.mock('@/data/useFamily', () => ({
 jest.mock('@/data/useMegaDirectory', () => ({ useMegaDirectory: () => ({}) }));
 // G6 fix (P0, kidThread crash): the route now also reads the viewer's own isParentOf to decide whether
 // it's safe to subscribe to kidThread (shared/domain/family.ts canReadKidThread) — not a parent here.
-jest.mock('@/data/useViewer', () => ({ useViewer: () => ({ isParentOf: [] }) }));
+jest.mock('@/data/useViewer', () => ({ useViewer: () => ({ member: { _id: 'members_admin', role: 'admin' }, isParentOf: [] }) }));
 jest.mock('@/features/family/MemberDetailContent', () => ({ MemberDetailContent: () => null }));
 
 describe('invite wiring', () => {

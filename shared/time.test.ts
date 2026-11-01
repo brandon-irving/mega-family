@@ -1,4 +1,4 @@
-import { describe, expect, test } from 'vitest';
+import { describe, expect, test, vi } from 'vitest';
 import { addDays, dayOfWeek, formatLocalDateTime, localDate, localDateTimeToInstant, localParts, zonedInstant } from './time';
 
 const NY = 'America/New_York';
@@ -36,6 +36,17 @@ describe('formatLocalDateTime', () => {
 
   test('short weekday (events/reminders shown to the model)', () => {
     expect(formatLocalDateTime(zonedInstant('2026-10-25', 16 * 60 + 50, NY), NY, { weekday: 'short' })).toBe('Sun Oct 25, 4:50 PM');
+  });
+
+  test('mobile Intl date-only parts never render undefined time fields', () => {
+    const original = Intl.DateTimeFormat.prototype.formatToParts;
+    const spy = vi.spyOn(Intl.DateTimeFormat.prototype, 'formatToParts').mockImplementation(function(this: Intl.DateTimeFormat, date) {
+      const parts = original.call(this, date);
+      return this.resolvedOptions().weekday ? parts.filter(p => !['hour', 'minute', 'dayPeriod'].includes(p.type)) : parts;
+    });
+    try {
+      expect(formatLocalDateTime(Date.UTC(2026, 10, 2, 14), NY, { weekday: 'short' })).toBe('Mon Nov 2, 9:00 AM');
+    } finally { spy.mockRestore(); }
   });
 
   test('reflects the timezone passed in, not the machine\'s local zone', () => {

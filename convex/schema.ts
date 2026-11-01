@@ -12,6 +12,12 @@ import { defineSchema, defineTable } from 'convex/server';
 import * as T from '../shared/domain/tables';
 
 export default defineSchema({
+  mailContextSuggestions: defineTable(T.mailContextSuggestions).index('by_owner', ['familyId', 'ownerId']).index('by_message', ['messageId']),
+  schedulingPreferences: defineTable(T.schedulingPreferences).index('by_family_member', ['familyId', 'memberId']),
+  mailPlans: defineTable(T.mailPlans).index('by_owner', ['familyId', 'ownerId']).index('by_thread', ['integrationId', 'threadId']).index('by_family', ['familyId']),
+  // Identity-owned demo state, like members.by_authId, is not family-scoped.
+  demoRuns: defineTable(T.demoRuns).index('by_family', ['familyId']).index('by_owner', ['ownerAuthId']).index('by_active', ['active']),
+  demoProfiles: defineTable(T.demoProfiles).index('by_authId', ['authId']),
   families: defineTable(T.families),
   members: defineTable(T.members).index('by_family', ['familyId']).index('by_authId', ['authId']),
   relationships: defineTable(T.relationships).index('by_family_from', ['familyId', 'from']),
@@ -49,7 +55,7 @@ export default defineSchema({
 
   rooms: defineTable(T.rooms).index('by_family_owner', ['familyId', 'ownerId']),
   images: defineTable(T.images).index('by_family', ['familyId']),
-  integrations: defineTable(T.integrations).index('by_family', ['familyId']).index('by_family_member_kind', ['familyId', 'memberId', 'kind']).index('by_kind_status', ['kind', 'status']),
+  integrations: defineTable(T.integrations).index('by_family', ['familyId']).index('by_family_member_kind', ['familyId', 'memberId', 'kind']).index('by_kind_status', ['kind', 'status']).index('by_kind_label', ['kind', 'label']),
   usage: defineTable(T.usage).index('by_family_day', ['familyId', 'day']),
   clocks: defineTable(T.clocks).index('by_family', ['familyId']),
 
@@ -83,6 +89,8 @@ export default defineSchema({
   integrationSecrets: defineTable(T.integrationSecrets).index('by_family_member_provider', ['familyId', 'memberId', 'provider']),
   oauthStates: defineTable(T.oauthStates).index('by_nonceHash', ['nonceHash']).index('by_family_member', ['familyId', 'memberId']),
   mailItems: defineTable(T.mailItems).index('by_family_member_found', ['familyId', 'memberId', 'foundAt']).index('by_integration_message', ['integrationId', 'gmailMessageId']),
+  megaDrafts: defineTable(T.megaDrafts).index('by_family_creator', ['familyId', 'creatorId']),
+  assistantBriefs: defineTable(T.assistantBriefs).index('by_family_member', ['familyId', 'memberId']),
   onboarding: defineTable(T.onboarding).index('by_family_member', ['familyId', 'memberId']),
   profilerRuns: defineTable(T.profilerRuns).index('by_family_member_day', ['familyId', 'memberId', 'day']),
 });

@@ -1,3 +1,4 @@
+import { postStep } from './model/onboarding';
 /// <reference types="vite/client" />
 // G5 review fixes (CONTRACT v0.17b), each written to fail before its fix: schedule-link reasons (U1), the
 // onboarding resume (C2), repeat answers to rule-answered blocks (C3), the sync lease (C4), the Calendar sync
@@ -119,6 +120,12 @@ async function freshOwner() {
   const toFamilyStep = async () => {
     await me.mutation(api.onboarding.setName, { name: 'Sam' });
     for (const offer of ['gmail', 'calendar', 'ics'] as const) await me.mutation(api.onboarding.skip, { offer });
+    // A persisted legacy setup still supports answers from an older installed client.
+    await t.run(async ctx => {
+      const current = (await ctx.db.query('onboarding').first())!;
+      await ctx.db.patch(current._id, { step: 'family', family: { step: 'who' } });
+      await postStep(ctx, (await ctx.db.get(current._id))!, current.startedAt);
+    });
   };
   return { t, me, settle, familyId, threadId, messages, lastBlock, answer, row, toFamilyStep };
 }
@@ -134,6 +141,7 @@ describe('C2: resuming onboarding never restarts the family step', () => {
     await s.answer({ optionIds: ['daughter'] });
     await s.answer({ optionIds: ['yes'] });
     await s.answer({ skipped: true });
+    await s.answer({ skipped: true }); // Optional first-day brief
     const before = await s.row();
     expect(before!.family!.step).toBe('look');
     const whoCount = async () => (await s.messages()).filter((m) => m.body.type === 'block' && (m.body.block as { prompt?: string }).prompt === 'Who should I add first?').length;
@@ -158,6 +166,7 @@ describe('C2: resuming onboarding never restarts the family step', () => {
     await s.answer({ optionIds: ['daughter'] });
     await s.answer({ optionIds: ['yes'] });
     await s.answer({ skipped: true });
+    await s.answer({ skipped: true }); // Optional first-day brief
     const before = (await s.row())!;
     await s.t.run((ctx) => ctx.db.delete(before.blockMessageId!));
     await s.me.mutation(api.chat.start, {});

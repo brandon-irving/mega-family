@@ -10,13 +10,11 @@ import { CloseButton, useDismiss, useSwipeDown } from '@/ui/dismiss';
 import { useSafeAreaPadding } from '@/ui/Screen';
 import { AppleSignInButton } from '@/services/AppleSignInButton';
 import { appleSignInOffIos } from '@/services/auth';
-import { MegaBadge } from '@/ui/MegaBadge';
 import { Text } from '@/ui/Text';
 import { useTokens } from '@/ui/theme';
 import { AUTH } from '@shared/config/auth';
 import { SIGNIN_COPY } from '@shared/config/copy';
 import { CTA_SIZES } from '@shared/config/theme';
-import { SAMPLE_FAMILY, type SampleKey } from '@shared/fixtures/sampleFamily';
 import { Pill } from './parts';
 
 /** Slides up over a scrim while `open`, and slides away when closed (Reanimated layout animations, so the
@@ -221,51 +219,6 @@ export function SignInSheetBody({ busy, initialMode, onApple, onGoogle, onEmail 
       <Text variant="caption" color="muted" style={styles.center}>
         {C.privacy}
       </Text>
-    </>
-  );
-}
-
-export const DEMO_KEYS = ['admin', 'partner', 'twin1', 'twin2'] as const satisfies readonly SampleKey[];
-
-export function DemoSheetBody({ busy, onPick }: { busy: string | null; onPick: (key: (typeof DEMO_KEYS)[number]) => void }) {
-  const tokens = useTokens();
-  return (
-    <>
-      <View style={styles.row}>
-        <Text variant="headline" accessibilityRole="header">
-          {SIGNIN_COPY.demo.title}
-        </Text>
-        <View style={[styles.devBadge, { borderColor: tokens.line, borderRadius: tokens.radii.pill, paddingHorizontal: tokens.spacing.sm }]}>
-          <Text variant="caption" color="muted">
-            {SIGNIN_COPY.demo.badge}
-          </Text>
-        </View>
-      </View>
-      <View>
-        {DEMO_KEYS.map((key) => {
-          const member = SAMPLE_FAMILY.members.find((m) => m.key === key)!;
-          const mega = SAMPLE_FAMILY.megas.find((m) => m.owner === key)!;
-          return (
-            <Pressable
-              key={key}
-              onPress={() => onPick(key)}
-              disabled={!!busy}
-              accessibilityRole="button"
-              accessibilityLabel={member.name}
-              style={({ pressed }) => [styles.demoRow, { borderBottomColor: tokens.line, minHeight: tokens.touchTarget + tokens.spacing.md, gap: tokens.spacing.md, opacity: pressed || (busy && busy !== key) ? 0.6 : 1 }]}
-            >
-              <MegaBadge hex={mega.hex} sticker={mega.sticker} face="happy" size={32} />
-              <View style={styles.fill}>
-                <Text weight="700">{member.name}</Text>
-                <Text variant="caption" color="muted">
-                  {SIGNIN_COPY.demo.sub(mega.name, member.role)}
-                </Text>
-              </View>
-              <Text color="muted">{busy === key ? '…' : '›'}</Text>
-            </Pressable>
-          );
-        })}
-      </View>
     </>
   );
 }

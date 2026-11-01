@@ -1,3 +1,5 @@
+> Current demo workflow: [Settings → Demo Console](../demo-console.md). The three-person live Gmail scenario and age-group policy in that guide supersede historical demo, seeded-reset, and sample-sign-in instructions below.
+
 # MEGA UI/UX research and design direction
 
 This delivery is a screen-by-screen source audit and an interactive concept for the main flows. It does not change the production interface. The [complete audit](2026-10-30-screen-audit.md) records every route, unfinished behavior, role boundary, and verification case. The earlier performance fixes remain in place.

@@ -1,3 +1,4 @@
+import { CREATION_TOOLS } from './creationToolSpecs';
 // JSON-schema tool specs the ChatModel sees, plus which `shared/config/roles.ts` `Tool` and runtime
 // permission each maps to. PLAN.md → Chat tools: "Which tools each level gets is config" (ROLES_CONFIG) —
 // this file is where that config becomes the concrete, implemented function names the model can call.
@@ -9,6 +10,8 @@ import type { Role } from '../../shared/domain/enums';
 import type { ToolSpec } from '../ports/chatModel';
 
 export const AGENT_TOOL_NAMES = [
+  'mega_draft_cancel', 'mega_draft_get', 'mega_draft_update', 'mega_draft_review', 'mega_brief_review',
+  'google_setup',
   'recall',
   'remember',
   'events_create',
@@ -48,6 +51,11 @@ const jsonLocalDateTime = { type: 'string', description: 'Local date-time in the
 const jsonAllDay = { type: 'string', description: 'All-day date as "YYYY-MM-DD", in the family\'s timezone.' } as const;
 
 export const AGENT_TOOLS: Record<AgentToolName, ToolDef> = {
+  google_setup: { configTool: 'show_ui', implemented: true, spec: {
+    name: 'google_setup', description: 'Show this person the Google setup card when they ask to connect Google, Gmail, email, or Calendar, or accept your suggestion to connect. Also use for reconnecting or changing Google permissions. Opens the existing unified consent UI; never connects or reads accounts itself. Takes no account identifiers or credentials. Returns a clear reason if unavailable.',
+    parameters: { type: 'object', properties: {}, additionalProperties: false },
+  } },
+  ...Object.fromEntries(CREATION_TOOLS.map(spec => [spec.name, { spec, configTool: 'mega_creation', implemented: true }])) as Record<'mega_draft_cancel' | 'mega_draft_get' | 'mega_draft_update' | 'mega_draft_review' | 'mega_brief_review', ToolDef>,
   ideas_suggest: {
     configTool: 'ideas', implemented: true,
     spec: {
@@ -191,7 +199,7 @@ export const AGENT_TOOLS: Record<AgentToolName, ToolDef> = {
     implemented: true,
     spec: {
       name: 'show_ui',
-      description: 'Show a small interactive piece of UI in the thread instead of asking in plain text (a choice, a toggle, a date picker, etc).',
+      description: 'Show a confirmation or a small choice in chat. Gather information through conversation, never through text/number/date/fields input forms.',
       parameters: { type: 'object', properties: { block: { type: 'object' } }, required: ['block'], additionalProperties: false },
     },
   },
@@ -266,15 +274,16 @@ export const AGENT_TOOLS: Record<AgentToolName, ToolDef> = {
 /** The tool specs to actually offer the model for this role: implemented tools whose config id is in
  * `ROLES_CONFIG[role].tools`. This is the first line of defense; `agent/tools.ts`'s dispatcher re-checks
  * the same gate server-side so a model that calls an unoffered tool anyway still gets refused. */
-export function toolsForRole(role: Role): ToolSpec[] {
+export function toolsForRole(role: Role, teen = false): ToolSpec[] {
   const allowed = new Set<Tool>(ROLES_CONFIG[role].tools);
+  if (teen) allowed.add('ask_member');
   return Object.values(AGENT_TOOLS)
     .filter((t) => t.implemented && allowed.has(t.configTool))
     .map((t) => t.spec);
 }
 
-export function isToolAllowedForRole(name: string, role: Role): boolean {
+export function isToolAllowedForRole(name: string, role: Role, teen = false): boolean {
   const def = (AGENT_TOOLS as Record<string, ToolDef | undefined>)[name];
   if (!def || !def.implemented) return false;
-  return new Set<Tool>(ROLES_CONFIG[role].tools).has(def.configTool);
+  return (teen && name === 'ask_member') || new Set<Tool>(ROLES_CONFIG[role].tools).has(def.configTool);
 }

@@ -1,0 +1,23 @@
+import { afterEach, expect, test } from 'vitest';
+import { createLocalJWKSet, exportJWK, generateKeyPair, SignJWT } from 'jose';
+import { verifyGmailPush } from './gmailPush';
+const audience = 'https://test.convex.site/google/gmail/push';
+const email = 'push@test.iam.gserviceaccount.com';
+afterEach(() => { delete process.env.GOOGLE_GMAIL_PUSH_AUDIENCE; delete process.env.GOOGLE_GMAIL_PUSH_SERVICE_ACCOUNT; });
+test('push authentication verifies signature, audience, issuer and the exact verified service identity', async () => {
+  process.env.GOOGLE_GMAIL_PUSH_AUDIENCE = audience;
+  process.env.GOOGLE_GMAIL_PUSH_SERVICE_ACCOUNT = email;
+  const pair = await generateKeyPair('RS256');
+  const keys = createLocalJWKSet({ keys: [await exportJWK(pair.publicKey)] });
+  const token = (overrides: Record<string, unknown> = {}, signer = pair.privateKey) => new SignJWT({ email, email_verified: true, ...overrides }).setProtectedHeader({ alg: 'RS256' }).setIssuer('https://accounts.google.com').setAudience(audience).setIssuedAt().setExpirationTime('1h').sign(signer);
+  expect(await verifyGmailPush(`Bearer ${await token()}`, keys)).toBe(true);
+  expect(await verifyGmailPush(`Bearer ${await token({ email: 'someone-else@test.iam.gserviceaccount.com' })}`, keys)).toBe(false);
+  expect(await verifyGmailPush(`Bearer ${await token({ email_verified: false })}`, keys)).toBe(false);
+  process.env.GOOGLE_GMAIL_PUSH_AUDIENCE = 'https://another-endpoint.example';
+  expect(await verifyGmailPush(`Bearer ${await token()}`, keys)).toBe(false);
+  process.env.GOOGLE_GMAIL_PUSH_AUDIENCE = audience;
+  const other = await generateKeyPair('RS256');
+  expect(await verifyGmailPush(`Bearer ${await token({}, other.privateKey)}`, keys)).toBe(false);
+  const badIssuer = await new SignJWT({ email, email_verified: true }).setProtectedHeader({ alg: 'RS256' }).setIssuer('https://attacker.example').setAudience(audience).setExpirationTime('1h').sign(pair.privateKey);
+  expect(await verifyGmailPush(`Bearer ${badIssuer}`, keys)).toBe(false);
+});

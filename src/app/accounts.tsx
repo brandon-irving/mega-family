@@ -8,18 +8,17 @@ import { router } from '@/features/shell/navigation';
 import { View } from 'react-native';
 import type { IntegrationView } from '@shared/domain/api';
 import { G5_COPY, G5_FIX_COPY, G5_UI_COPY as U, fillCopy } from '@shared/config/copy';
-import { useAccountActions, useIntegrations, useOffer, type GoogleProduct } from '@/data/useAccounts';
+import { useAccountActions, useIntegrations, useOffer } from '@/data/useAccounts';
 import { useFamilyNow } from '@/data/useShopping';
 import { errorCopyFor } from '@/data/errorCopy';
-import { connectGoogle } from '@/services/googleConnect';
 import { AccountsContent } from '@/features/accounts/AccountsContent';
-import { googleProductsOf, kindName } from '@/features/accounts/accountFormat';
+import { kindName } from '@/features/accounts/accountFormat';
 import { LinkField } from '@/features/accounts/parts';
 import { PhoneCalendarSheet } from '@/features/accounts/PhoneCalendarSheet';
 import { useAddIcsLink } from '@/features/accounts/useAddIcsLink';
 import { syncPhone, usePhoneCalendarFlow } from '@/features/accounts/usePhoneCalendarFlow';
 import { CardFallback } from '@/features/kids/CardFallback';
-import { AdultOnly } from '@/features/shell/RoleGate';
+import { ConnectorOnly } from '@/features/shell/RoleGate';
 import { Button } from '@/ui/Button';
 import { ModalSheet } from '@/ui/ModalSheet';
 import { Sheet } from '@/ui/Sheet';
@@ -29,9 +28,9 @@ import { useTokens } from '@/ui/theme';
 /** Adults only (G5 UX review): a kid is sent back to chat before any of this page's queries run. */
 export default function AccountsRoute() {
   return (
-    <AdultOnly>
+    <ConnectorOnly>
       <AccountsScreen />
-    </AdultOnly>
+    </ConnectorOnly>
   );
 }
 
@@ -60,12 +59,6 @@ function AccountsScreen() {
     }
   };
 
-  const google = (want: GoogleProduct[], key: string, noteKey: string) =>
-    run(key, async () => {
-      const result = await connectGoogle(want, actions);
-      if (result === 'failed') note(noteKey, U.connectFailed);
-    }, noteKey);
-
   const syncNow = (i: IntegrationView) =>
     run(`sync:${i.integrationId}`, async () => {
       if (i.kind === 'deviceCalendar') {
@@ -92,6 +85,7 @@ function AccountsScreen() {
 
   return (
     <Sheet title={G5_COPY.accountsTitle} onClose={() => router.back()}>
+      <Button label="Email & scheduling" variant="secondary" onPress={() => router.push('/scheduling')} />
       {list.status !== 'ok' ? (
         <CardFallback state={list} from={G5_COPY.accountsTitle} />
       ) : (
@@ -103,8 +97,8 @@ function AccountsScreen() {
           busy={busy ?? (phone.stage === 'asking' || phone.stage === 'adding' ? 'phone' : null)}
           notes={{ ...notes, ...(phone.error ? { deviceCalendar: phone.error } : {}), ...(phone.stage === 'denied' ? { deviceCalendar: G5_COPY.calendarPhoneDenied } : {}) }}
           on={{
-            onConnectGoogle: (p) => void google([p], `connect:${p}`, p),
-            onReconnect: (i) => void google(googleProductsOf(list.data.filter((x) => (x.kind === 'gmail' || x.kind === 'googleCalendar') && x.status !== 'disconnected').map((x) => x.kind)), `reconnect:${i.integrationId}`, i.integrationId),
+            onConnectGoogle: () => router.push('/scheduling'),
+            onReconnect: () => router.push('/scheduling'),
             onSyncNow: (i) => void syncNow(i),
             onDisconnect: setConfirm,
             onAddPhone: () => void phone.start(),

@@ -1,3 +1,5 @@
+import { ageGroupOf, AGE_GROUP_LABELS } from '@shared/ageGroups';
+import { AgeGroupControls } from './AgeGroupControls';
 // Member detail sheet (PLAN §4): Message / Visit room / Kid controls (parents only) / read kid chat
 // (read-only). Kid controls: homework mode, quiet hours, daily minutes, blocked topics, what the
 // kid's MEGA tells parents, and "Parents can read chats" (on by default).
@@ -40,7 +42,7 @@ export function MemberDetailContent({ detail, onMessage, onVisitRoom, onChangeKi
     <>
       <View style={{ alignItems: 'center', gap: tokens.spacing.sm, marginBottom: tokens.spacing.lg }}>
         {mega && <MegaBadge hex={mega.look.hex} sticker={mega.look.sticker} face={faceFor(mega.personality)} size={64} />}
-        <Text variant="title">{member.name}</Text>
+        <Text variant="title">{member.name}</Text><Text color="muted">{AGE_GROUP_LABELS[ageGroupOf(member, new Date().toISOString().slice(0,10))]}</Text>
         {detail.relationshipToViewer && (
           <Text color="muted" style={{ textTransform: 'capitalize' }}>
             Your {detail.relationshipToViewer}
@@ -53,10 +55,11 @@ export function MemberDetailContent({ detail, onMessage, onVisitRoom, onChangeKi
         <Button label="Visit room" variant="secondary" onPress={onVisitRoom} style={{ flex: 1 }} />
       </View>
 
+      {isKid && kidControls ? <AgeGroupControls member={member} /> : null}
       {isKid && kidControls && (
         <Card style={{ marginBottom: tokens.spacing.lg }}>
           <Text variant="label" style={{ marginBottom: tokens.spacing.md }}>
-            Kid controls
+            Family protections
           </Text>
           <Row label="Homework mode" value={kidControls.homeworkMode} onChange={(v) => onChangeKidControls({ homeworkMode: v })} />
           <Row label="Web search" value={kidControls.webSearch} onChange={(v) => onChangeKidControls({ webSearch: v })} />

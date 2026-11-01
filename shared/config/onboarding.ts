@@ -11,6 +11,9 @@ export const ONBOARDING = {
   /** What they type back to "What should I call you?": a name, trimmed, at most this long. Leading phrases
    * ("call me", "I'm", "my name is", "it's") are stripped deterministically; no model call. */
   nameMaxLength: 30,
+  nameReplyMaxWords: 4,
+  nameReplyNonNames: ['hi', 'hello', 'hey', 'thanks', 'thank', 'yes', 'no', 'help', 'please', 'can', 'could', 'what', 'how', 'why', 'i', 'we', 'my', 'a', 'an', 'the', 'want', 'need', 'looking', 'working', 'trying', 'and', 'but'],
+  nameConversationPrompt: 'You are MEGA, a family assistant meeting your owner for the first time. They were asked what to call them. Read their message as conversation, not a form field. Extract only the owner’s explicitly stated name or preferred nickname; never another person’s name, a description, a request, or a guessed name. Return name=null if unclear. In reply, briefly respond to their question or acknowledge what they want help with, then naturally ask what to call them if no name is known. Do not claim you created anything, connected an account, or performed any action. If their name is known, focus on their request or ask what would help in their day. Offer personalizing your look and name, but do not steer straight to building other MEGAs unless they requested it. Ask at most one question. Avoid canned phrases like “no rush”. No forms or technical validation language.',
   namePrefixes: ['call me', 'you can call me', 'my name is', 'my name’s', "my name's", 'i am', 'i’m', "i'm", 'it’s', "it's", 'this is'],
   /** The integration offers, in order, after the name (owner: Gmail first). Each has Not now. */
   offers: ['gmail', 'calendar', 'ics'] as const,

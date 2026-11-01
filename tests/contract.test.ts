@@ -27,7 +27,7 @@ describe('tables', () => {
 
   test('every family-owned table has familyId', () => {
     for (const [name, fields] of Object.entries(TABLES)) {
-      if (name === 'families') continue;
+      if (name === 'families' || name === 'demoProfiles') continue; // demoProfiles is identity-owned, not family-owned
       expect(fields, name).toHaveProperty('familyId');
     }
   });

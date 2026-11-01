@@ -22,3 +22,14 @@ test('Message dismisses the root modal then selects Chat', () => {
   expect(nativeRouter.navigate).toHaveBeenCalledWith('/chat');
   expect((nativeRouter.dismissAll as jest.Mock).mock.invocationCallOrder[0]).toBeLessThan((nativeRouter.navigate as jest.Mock).mock.invocationCallOrder[0]);
 });
+
+test('SDK 58 late-bound methods are resolved when called, not captured before first render', () => {
+  const initial = nativeRouter.replace;
+  const bound = jest.fn();
+  nativeRouter.replace = bound;
+  try {
+    router.replace('/chat');
+    expect(bound).toHaveBeenCalledWith('/chat');
+    expect(initial).not.toHaveBeenCalled();
+  } finally { nativeRouter.replace = initial; }
+});

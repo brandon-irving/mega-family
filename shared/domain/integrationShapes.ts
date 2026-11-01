@@ -65,6 +65,8 @@ export type MailMessage = {
   internalDate: number;
   fromName: string;
   fromAddress: string;
+  replyTo?: string;
+  rfcMessageId?: string;
   subject: string;
   text: string;
 };

@@ -1,3 +1,6 @@
+import { offerGoogleSetup } from '../model/googleSetup';
+import { ageGroupOf } from '../../shared/ageGroups';
+import { executeCreationTool } from '../model/creationTools';
 // Executes one tool call (PLAN.md → Chat tools; task brief: "Tool handlers get the viewer from the server,
 // never from model output; every tool validates args against shared/domain schemas and enforces the same
 // permissions as the public API"). One internalMutation, called by the agent loop (an action) through
@@ -29,7 +32,7 @@ import { GIFT_LIST_NAME } from '../../shared/config/copy';
 import { IDEA_CATEGORIES } from '../../shared/domain/ideas';
 import { isToolAllowedForRole } from './toolSpecs';
 
-type Caller = { familyId: Id<'families'>; memberId: Id<'members'>; role: Doc<'members'>['role']; megaId: Id<'megas'> | null; threadId: Id<'threads'>; tz: string };
+type Caller = { familyId: Id<'families'>; memberId: Id<'members'>; role: Doc<'members'>['role']; teen?: boolean; megaId: Id<'megas'> | null; threadId: Id<'threads'>; tz: string };
 
 // ---------- small arg validators (shared/domain enums back every enum check) ----------
 
@@ -314,7 +317,7 @@ function optOnAccept(raw: unknown): { tool: 'lists_add'; listName: string; text:
 }
 
 async function toolAskMember(ctx: any, caller: Caller, raw: Record<string, unknown>, now: number): Promise<string> {
-  if (caller.role === 'kid') throw new Error("kids can't ask another member's MEGA");
+  if (caller.role === 'kid' && !caller.teen) throw new Error("children cannot ask another member’s MEGA");
   const target = await loadMember(ctx, caller.familyId, raw.toMemberId, 'toMemberId');
   if (target._id === caller.memberId) throw new Error("can't ask yourself");
   // S2 (HIGH, G3 security review): a kid can never be the TARGET of an ask either — otherwise a request
@@ -322,6 +325,11 @@ async function toolAskMember(ctx: any, caller: Caller, raw: Record<string, unkno
   // asks themselves. A clear, model-relayable error (the model can tell the asking member "I can't ask
   // [kid] directly") rather than a silent no-op, so the asking member finds out immediately.
   if (target.role === 'kid') throw new Error("can't ask a kid's MEGA directly — ask a parent instead");
+  if (caller.teen) {
+    const relationships = await ctx.db.query('relationships').withIndex('by_family_from', (q: any) => q.eq('familyId', caller.familyId).eq('from', target._id)).collect();
+    if (!relationships.some((r: any) => r.kind === 'parent' && r.to === caller.memberId)) throw new Error('Teens can ask their parents or guardians for help.');
+    if (raw.onAccept) throw new Error('Teen requests cannot attach automatic actions.');
+  }
   const text = str(raw.text, 'text');
   const onAccept = optOnAccept(raw.onAccept);
   const requestId = await ctx.db.insert('requests', { familyId: caller.familyId, fromMemberId: caller.memberId, toMemberId: target._id, text, status: 'open', onAccept });
@@ -369,9 +377,10 @@ function validateUiBlock(raw: unknown): UIBlock {
     case 'toggle':
       return { kind: 'toggle', prompt: str(b.prompt, 'block.prompt'), label: str(b.label, 'block.label'), value: bool(b.value, 'block.value', false) };
     case 'text':
-      return { kind: 'text', prompt: str(b.prompt, 'block.prompt'), placeholder: optStr(b.placeholder) };
     case 'number':
-      return { kind: 'number', prompt: str(b.prompt, 'block.prompt'), min: optNum(b.min), max: optNum(b.max) };
+    case 'date':
+    case 'fields':
+      throw new Error('Ask this question in conversational text. The member answers in the chat composer, not an inline input.');
     case 'confirm': {
       const summary = Array.isArray(b.summary) ? b.summary : [];
       return {
@@ -416,6 +425,7 @@ export interface DispatchToolArgs {
   threadId: Id<'threads'>;
   name: string;
   argumentsJson: string;
+  replyMessageId?: Id<'messages'>;
   /** `remember` only: the independent concern classification `convex/agent/loop.ts` ran before dispatching
    * this call (this is a mutation and can't call a model itself — see convex/agent/concernClassifier.ts). */
   serverConcern?: string;
@@ -431,7 +441,8 @@ export interface DispatchToolArgs {
 export async function dispatchTool(ctx: MutationCtx, args: DispatchToolArgs): Promise<{ ok: boolean; resultText: string }> {
   const member = await ctx.db.get(args.memberId);
   if (!member || member.familyId !== args.familyId) return { ok: false, resultText: 'caller is not a member of this family' };
-  if (!isToolAllowedForRole(args.name, member.role)) return { ok: false, resultText: `the "${args.name}" tool isn't available to you` };
+  const teen = ageGroupOf(member, new Date(clock.realNow()).toISOString().slice(0,10)) === 'teen';
+  if (!isToolAllowedForRole(args.name, member.role, teen)) return { ok: false, resultText: `the "${args.name}" tool isn't available to you` };
   const family = await ctx.db.get(args.familyId);
   if (!family) return { ok: false, resultText: 'family not found' };
 
@@ -444,11 +455,20 @@ export async function dispatchTool(ctx: MutationCtx, args: DispatchToolArgs): Pr
     return { ok: false, resultText: 'invalid tool arguments (not valid JSON)' };
   }
 
-  const caller: Caller = { familyId: args.familyId, memberId: args.memberId, role: member.role, megaId: args.megaId ?? null, threadId: args.threadId, tz: family.timezone };
+  const caller: Caller = { familyId: args.familyId, memberId: args.memberId, role: member.role, teen, megaId: args.megaId ?? null, threadId: args.threadId, tz: family.timezone };
   const now = await clock.now(ctx, args.familyId);
 
   try {
     switch (args.name) {
+      case 'google_setup':
+        if (Object.keys(raw).length) throw new Error('Google setup takes no arguments.');
+        return { ok: true, resultText: await offerGoogleSetup(ctx, member, args.threadId, now) };
+      case 'mega_draft_cancel':
+      case 'mega_draft_get':
+      case 'mega_draft_update':
+      case 'mega_draft_review':
+      case 'mega_brief_review':
+        return { ok: true, resultText: JSON.stringify(await executeCreationTool(ctx, member, args.threadId, args.name, raw, now)) };
       case 'ideas_suggest': {
         const thread = await ctx.db.get(caller.threadId);
         if (caller.role === 'kid' || !thread || thread.familyId !== caller.familyId || thread.ownerId !== caller.memberId) throw new Error('This collection belongs to another member.');
@@ -456,7 +476,9 @@ export async function dispatchTool(ctx: MutationCtx, args: DispatchToolArgs): Pr
         const text = str(raw.text, 'text').trim();
         if (title.length > 100 || text.length > 4000) throw new Error('Keep the title under 100 characters and the suggestion under 4000.');
         const category = oneOf(raw.category, IDEA_CATEGORIES, 'category');
-        const message = await ctx.db.query('messages').withIndex('by_family_thread_at', q => q.eq('familyId', caller.familyId).eq('threadId', caller.threadId)).order('desc').first();
+        const reply = args.replyMessageId ? await ctx.db.get(args.replyMessageId) : null;
+        const message = reply?.familyId === caller.familyId && reply.threadId === caller.threadId && reply.author.kind === 'mega' ? reply : null;
+        if (message?.author.kind === 'mega' && message.body.type === 'text') await ctx.db.patch(message._id, { saveableIdea: true });
         await putIdea(ctx, { familyId: caller.familyId, ownerId: caller.memberId, title, text, category,
           source: { kind: 'suggestion', messageId: message?._id }, sourceKey: `suggestion:${await sha256Hex(`${title.toLowerCase()}\n${text.toLowerCase()}`)}`, saved: false, at: now });
         return { ok: true, resultText: 'Added to their private Ideas collection; they can save or dismiss it.' };
@@ -501,6 +523,7 @@ export const execute = internalMutation({
     threadId: v.id('threads'),
     name: v.string(),
     argumentsJson: v.string(),
+    replyMessageId: v.optional(v.id('messages')),
     serverConcern: v.optional(v.string()),
     serverConcernBy: v.optional(v.string()),
   },

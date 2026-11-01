@@ -1,7 +1,9 @@
+import { demoRecorder, recordedAction } from '@/services/demoRecording';
 // Chat screen data: the thread, sending, the streamed reply, answering a block, and reactions.
 import { useEffect, useRef } from 'react';
 import { insertAtTop, useMutation, usePaginatedQuery } from 'convex/react';
 import type { Infer } from 'convex/values';
+import type { FunctionArgs } from 'convex/server';
 import type { Id } from '@shared/domain/validators';
 import type { BlockAnswer } from '@shared/domain/messages';
 import type { Via } from '@shared/domain/enums';
@@ -27,12 +29,13 @@ export function useStartChat(ready: boolean) {
 }
 
 export function useChatThread() {
-  return useStablePaginatedQuery(usePaginatedQuery(api.chat.thread, {}, { initialNumItems: 30 }));
+  const viewer = useViewer();
+  return useStablePaginatedQuery(usePaginatedQuery(api.chat.thread, viewer ? { profileKey: viewer.member._id } : 'skip', { initialNumItems: 30 }), viewer?.member._id);
 }
 
 type Viewer = Infer<typeof viewerValidator>;
 type MessageDoc = Infer<typeof messageDoc>;
-type SendArgs = { text: string; mentions?: Id<'megas'>[]; via: Via };
+type SendArgs = FunctionArgs<typeof api.chat.send>;
 
 /** A plain (non-hook, non-component) function on purpose: React Compiler's purity rule forbids
  * `Date.now()`/`Math.random()` inside a component/hook body (even in a nested callback), since it can't
@@ -59,10 +62,11 @@ export function buildOptimisticMessage(viewer: Viewer, args: SendArgs): MessageD
  * no layout jump) rather than waiting on a round trip to show anything. */
 export function useSendMessage() {
   const viewer = useViewer();
-  return useMutation(api.chat.send).withOptimisticUpdate((localStore, args) => {
+  const send = useMutation(api.chat.send).withOptimisticUpdate((localStore, args) => {
     if (!viewer) return;
-    insertAtTop({ paginatedQuery: api.chat.thread, localQueryStore: localStore, item: buildOptimisticMessage(viewer, args) });
+    insertAtTop({ paginatedQuery: api.chat.thread, argsToMatch: { profileKey: viewer.member._id }, localQueryStore: localStore, item: buildOptimisticMessage(viewer, args) });
   });
+  return (args: SendArgs) => { demoRecorder.event('conversation.send', { text: args.text, via: args.via }); return recordedAction('chat.send',send)(args); };
 }
 
 /** Polls/subscribes the streamed reply text for a messageId's streamId (persistent-text-streaming wiring lands later). */
@@ -72,7 +76,7 @@ export function useStreamBody(streamId: string | null) {
 
 export function useAnswerBlock() {
   const answer = useMutation(api.chat.answerBlock);
-  return (messageId: Id<'messages'>, blockAnswer: BlockAnswer, via: Via) => answer({ messageId, answer: blockAnswer, via });
+  return (messageId: Id<'messages'>, blockAnswer: BlockAnswer, via: Via) => { demoRecorder.event('conversation.answer', { messageId, answer: blockAnswer, via }); return recordedAction('chat.answer',answer)({ messageId, answer: blockAnswer, via }); };
 }
 
 export function useReactToMessage() {

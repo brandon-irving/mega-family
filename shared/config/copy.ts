@@ -582,13 +582,14 @@ export const G4B_UI_COPY = {
  * accounts, schedule links, the reconnect ask and the profiler's check questions. The server writes MEGA's
  * onboarding lines from here (deterministic, no model call); the app reads the rest. `{x}` slots via fillCopy. */
 export const G5_COPY = {
+  meetAdmin: 'What would you like a hand with? You can tell me a little about your day or your family. You can also personalize my look and name whenever you like.',
   // Step 1 · name (OnboardChat)
   hello: 'Hi! I’m {mega}, your MEGA. I help you keep the family’s week on track, and I’ll get better the more I know.',
   askName: 'First things first: what should I call you?',
   namePlaceholder: 'What should I call you?',
   privateFoot: 'Everything I find stays private to you until you share it.',
   // Step 2 · named (OnboardChatNamed)
-  niceToMeet: 'Nice to meet you, {name}! A couple of quick things and I can start helping right away.',
+  niceToMeet: 'Nice to meet you, {name}.',
   // Step 3 · Gmail (OnboardGmail / OnboardGmailConnected)
   gmailTitle: 'Want me to watch your Gmail?',
   gmailBody: 'I’ll look for the things families miss: school emails, appointments, bills and deliveries. I only read; I never send, delete or reply.',
@@ -662,6 +663,8 @@ export const G5_COPY = {
   // v0.17b (G5 review C12): the family step at ONBOARDING.maxFamilyMembers.
   familyFull: 'Your family has {max} people, the most I can set up here. You can manage everyone from Family.',
   familyDoneForNow: 'Done for now',
+  nameConversationFallback: 'I’m here to help. What name would you like me to use for you?',
+  nameAlreadySet: 'Thanks — we can keep going with your setup.',
   nameAgain: 'I didn’t catch that. What should I call you? (A name up to {max} characters.)',
   // v0.17a: the reply to a profiler check question (no agent turn).
   checkAck: 'Got it, thanks!',
@@ -949,7 +952,7 @@ export const G5_FIX_COPY = {
   inviteNew: 'New code',
   inviteExpires: 'Works until {when}',
   inviteShareMessage: '{name}, here’s your MEGA invite: {url}',
-  inviteWaiting: 'An invite from {who} is waiting · works until {when}',
+  inviteWaiting: '{who} prepared an invite · works until {when}',
   inviteExpired: 'The last invite ran out {when}. Make a new code below.',
   inviteFoot: 'A new code doesn’t cancel the old one; each works until it expires or someone joins with it.',
   // A kid's own rules (UX review finding 4; boards SettingsKid / ProfileRulesKid)

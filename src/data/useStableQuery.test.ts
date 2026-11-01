@@ -69,6 +69,18 @@ describe('useStablePaginatedQuery', () => {
     expect(result.current).toBe(nextLoaded); // the new args' real data replaces it once it arrives
   });
 
+  test('changing profile drops retained messages and the old loadMore cursor immediately', async () => {
+    const old = paginated(['private old message'], 'CanLoadMore');
+    const { result, rerender } = await renderHook(({ value, profile }: { value: Paginated<string>; profile: string }) => useStablePaginatedQuery(value, profile), {
+      initialProps: { value: old, profile: 'original' },
+    });
+    const fresh = paginated<string>([], 'LoadingFirstPage');
+    await rerender({ value: fresh, profile: 'demo' });
+    expect(result.current).toBe(fresh);
+    expect(result.current.results).toEqual([]);
+    expect(result.current.loadMore).not.toBe(old.loadMore);
+  });
+
   test('loading more (not a reset) is reported immediately, not held back', async () => {
     const loaded = paginated([1, 2], 'CanLoadMore');
     const { result, rerender } = await renderHook<Paginated<number>, Props<Paginated<number>>>(({ value }) => useStablePaginatedQuery(value), {
