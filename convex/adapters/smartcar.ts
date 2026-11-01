@@ -203,6 +203,7 @@ export function parseConnections(json: unknown): VehicleConnection[] {
     if (!providerVehicleId || !providerUserId || !vehicle) return [];
     const year = num(vehicle.year);
     const powertrain = str(vehicle.powertrainType);
+    const externalId = str(obj(attrs?.user)?.externalId);
     return [{
       providerVehicleId,
       providerUserId,
@@ -211,6 +212,7 @@ export function parseConnections(json: unknown): VehicleConnection[] {
       ...(year !== null ? { year } : {}),
       mode: vehicle.mode === 'simulated' ? 'simulated' as const : 'live' as const,
       ...(powertrain ? { powertrain } : {}),
+      ...(externalId ? { externalId } : {}),
     }];
   });
 }
@@ -266,6 +268,18 @@ export function parseWebhook(json: unknown): VehicleWebhookEvent {
 }
 
 export const smartcarVehicles: Vehicles = {
+  async ownerTag(ownerKey) {
+    const key = secret(VEHICLES.env.clientSecret);
+    return key ? `mega-${(await hmacHex(key, `vehicle-owner:${ownerKey}`)).slice(0, 40)}` : null;
+  },
+
+  connectUrl(ownerTag, mode) {
+    const applicationId = secret(VEHICLES.env.applicationId);
+    if (!applicationId) return null;
+    const q = new URLSearchParams({ application_id: applicationId, external_id: ownerTag, response_type: 'none', mode });
+    return `${VEHICLES.api.connectUrl}?${q.toString()}`;
+  },
+
   async listConnections() {
     const connections: VehicleConnection[] = [];
     for (let page = 1; page <= VEHICLES.api.maxConnectionPages; page++) {

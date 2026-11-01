@@ -194,7 +194,31 @@ describe('linking and who can see a car', () => {
       const a = rows.find((m) => m.role === 'admin')!;
       await ctx.db.patch(a._id, { authId: 'other:admin' });
     });
-    await expect(s.t.withIdentity({ subject: 'other:admin' }).action(api.vehicles.link, { providerVehicleId: FAKE_CONNECTION.providerVehicleId })).rejects.toThrow(/another family/);
+    await expect(s.t.withIdentity({ subject: 'other:admin' }).action(api.vehicles.link, { providerVehicleId: FAKE_CONNECTION.providerVehicleId })).rejects.toThrow(/NOT_FOUND/);
+  });
+
+  test("review fix: one app token lists every family's cars, but only the member who connected a car can see or claim it", async () => {
+    const s0 = await setup();
+    const tagOf = (m: Doc<'members'>) => `mega-fake-${m.familyId}:${m._id}`;
+    const partnersLive = { ...FAKE_CONNECTION, providerVehicleId: 'veh_partner_live', mode: 'live' as const, externalId: tagOf(s0.partner) };
+    const strangersSim = { ...FAKE_CONNECTION, providerVehicleId: 'veh_stranger_sim', externalId: 'mega-fake-someone-else' };
+    const untaggedLive = { ...FAKE_CONNECTION, providerVehicleId: 'veh_untagged_live', mode: 'live' as const };
+    __setVehiclesForTests(makeFakeVehicles({ connections: [partnersLive, strangersSim, untaggedLive, FAKE_CONNECTION] }));
+    // The admin sees only the untagged simulated (demo) car: not the partner's, not a stranger's, not an untagged live car.
+    expect((await s0.asAdmin.action(api.vehicles.available, {})).map((c) => c.providerVehicleId)).toEqual([FAKE_CONNECTION.providerVehicleId]);
+    for (const id of ['veh_partner_live', 'veh_stranger_sim', 'veh_untagged_live']) {
+      await expect(s0.asAdmin.action(api.vehicles.link, { providerVehicleId: id })).rejects.toThrow(/NOT_FOUND/);
+    }
+    // The partner sees their own tagged car, and can link it.
+    expect((await s0.asPartner.action(api.vehicles.available, {})).map((c) => c.providerVehicleId)).toContain('veh_partner_live');
+    expect(await s0.asPartner.action(api.vehicles.link, { providerVehicleId: 'veh_partner_live' })).toBeTruthy();
+  });
+
+  test('connectUrl carries the member\'s own owner tag', async () => {
+    const s = await setup();
+    const { url } = await s.asAdmin.action(api.vehicles.connectUrl, { mode: 'simulated' });
+    expect(url).toContain(encodeURIComponent(`mega-fake-${s.familyId}:${s.admin._id}`));
+    await expect(s.asKid.action(api.vehicles.connectUrl, {})).rejects.toThrow();
   });
 });
 

@@ -25,9 +25,13 @@ export const VEHICLES = {
     clientId: 'SMART_CAR_API_CLIENT_ID',
     clientSecret: 'SMART_CAR_API_SECRET',
     managementToken: 'SMART_CAR_APPLICATION_MANAGEMENT_KEY',
+    /** Optional: the Smartcar application id (a UUID, Dashboard → Configuration), for Connect links. */
+    applicationId: 'SMART_CAR_APPLICATION_ID',
   },
   api: {
     tokenUrl: 'https://iam.smartcar.com/oauth2/token',
+    /** Connect with `response_type=none` + `external_id` (we use application tokens, so no code exchange). */
+    connectUrl: 'https://connect.smartcar.com/oauth/authorize',
     vehicleBase: 'https://vehicle.api.smartcar.com/v3',
     /** Re-request the app token this long before Smartcar's stated expiry. */
     tokenRefreshMarginSeconds: 120,
@@ -38,6 +42,10 @@ export const VEHICLES = {
     /** Connections pages read at most (50 each) when looking for unlinked cars. */
     maxConnectionPages: 4,
   },
+  /** One Smartcar application serves every family, and its token lists every connected car. A car is claimable
+   * only by the member whose Connect `external_id` it carries. A simulated car with no `external_id` (made in the
+   * Dashboard) is claimable by any adult only while this is on: fine for the demo, off for real multi-family use. */
+  allowUnclaimedSimulated: true,
   webhookPath: '/smartcar/webhook',
   mcpPath: '/mcp/mega-vehicle',
   mcpVersion: '2025-11-25',

@@ -62,14 +62,35 @@ async function publicState(ctx: Parameters<typeof whereLabel>[0], familyId: Id<'
   return { ...rest, ...(where ? { where } : {}) };
 }
 
+/** Cars this member may claim: ones connected with their own owner tag, plus (demo setting) simulated cars
+ * nobody tagged. Never another member's or family's car, even though the app token lists them all. */
+async function claimable(ctx: ActionCtx, caller: { familyId: Id<'families'>; memberId: Id<'members'> }): Promise<VehicleConnection[]> {
+  const provider = getVehicles();
+  const r = await provider.listConnections();
+  if (!r.ok) fail('VALIDATION', r.failure === 'not_configured' ? VEHICLE_COPY.notConfigured : VEHICLE_COPY.unavailable);
+  const tag = await provider.ownerTag(`${caller.familyId}:${caller.memberId}`);
+  const mine = r.connections.filter((c) => (tag !== null && c.externalId === tag) || (VEHICLES.allowUnclaimedSimulated && c.mode === 'simulated' && !c.externalId));
+  const linked = new Set<string>(await ctx.runQuery(internal.vehicles.linkedProviderIds, { providerVehicleIds: mine.map((c) => c.providerVehicleId) }));
+  return mine.filter((c) => !linked.has(c.providerVehicleId));
+}
+
 export const available = action({
   ...pick(API.vehicles.available),
-  handler: async (ctx): Promise<Omit<VehicleConnection, 'providerUserId'>[]> => {
-    await ctx.runQuery(internal.vehicles.caller, {});
-    const r = await getVehicles().listConnections();
-    if (!r.ok) fail('VALIDATION', r.failure === 'not_configured' ? VEHICLE_COPY.notConfigured : VEHICLE_COPY.unavailable);
-    const linked = new Set<string>(await ctx.runQuery(internal.vehicles.linkedProviderIds, { providerVehicleIds: r.connections.map((c) => c.providerVehicleId) }));
-    return r.connections.filter((c) => !linked.has(c.providerVehicleId)).map(({ providerUserId: _owner, ...rest }) => rest);
+  handler: async (ctx): Promise<Omit<VehicleConnection, 'providerUserId' | 'externalId'>[]> => {
+    const caller = await ctx.runQuery(internal.vehicles.caller, {});
+    return (await claimable(ctx, caller)).map(({ providerUserId: _user, externalId: _tag, ...rest }) => rest);
+  },
+});
+
+export const connectUrl = action({
+  ...pick(API.vehicles.connectUrl),
+  handler: async (ctx, { mode }): Promise<{ url: string }> => {
+    const caller = await ctx.runQuery(internal.vehicles.caller, {});
+    const provider = getVehicles();
+    const tag = await provider.ownerTag(`${caller.familyId}:${caller.memberId}`);
+    const url = tag ? provider.connectUrl(tag, mode ?? 'live') : null;
+    if (!url) fail('VALIDATION', VEHICLE_COPY.notConfigured);
+    return { url };
   },
 });
 
@@ -77,11 +98,9 @@ export const link = action({
   ...pick(API.vehicles.link),
   handler: async (ctx, args): Promise<Id<'vehicles'>> => {
     const caller = await ctx.runQuery(internal.vehicles.caller, {});
-    const provider = getVehicles();
-    const r = await provider.listConnections();
-    if (!r.ok) fail('VALIDATION', r.failure === 'not_configured' ? VEHICLE_COPY.notConfigured : VEHICLE_COPY.unavailable);
-    const connection = r.connections.find((c) => c.providerVehicleId === args.providerVehicleId);
-    if (!connection) fail('NOT_FOUND');
+    const found = (await claimable(ctx, caller)).find((c) => c.providerVehicleId === args.providerVehicleId);
+    if (!found) fail('NOT_FOUND');
+    const { externalId: _tag, ...connection } = found;
     const vehicleId = await ctx.runMutation(internal.vehicles.insertLinked, {
       familyId: caller.familyId,
       ownerId: caller.memberId,
@@ -196,7 +215,7 @@ export const insertLinked = internalMutation({
   handler: async (ctx, { familyId, ownerId, connection, nickname, sharing }) => {
     const existing = await ctx.db.query('vehicles').withIndex('by_provider_vehicle', (q) => q.eq('provider', VEHICLES.provider).eq('providerVehicleId', connection.providerVehicleId)).first();
     if (existing) {
-      if (existing.familyId !== familyId) fail('VALIDATION', 'that car is already linked to another family');
+      if (existing.familyId !== familyId) fail('NOT_FOUND');
       return existing._id;
     }
     const count = (await ctx.db.query('vehicles').withIndex('by_family', (q) => q.eq('familyId', familyId)).collect()).length;
@@ -267,12 +286,22 @@ export const byProviderVehicle = internalQuery({
 
 export const commandInfo = internalQuery({
   args: { commandId: v.id('vehicleCommands') },
-  returns: v.any(),
+  returns: v.union(v.null(), v.object({
+    command: vehicleCommandKind,
+    vehicleId: v.id('vehicles'),
+    destination: v.optional(v.object({ lat: v.number(), lng: v.number() })),
+    ref: v.object({ providerVehicleId: v.string(), providerUserId: v.string() }),
+  })),
   handler: async (ctx, { commandId }) => {
     const command = await ctx.db.get(commandId);
     const vehicle = command ? await ctx.db.get(command.vehicleId) : null;
     if (!command || !vehicle || command.status !== 'running') return null;
-    return { command, ref: { providerVehicleId: vehicle.providerVehicleId, providerUserId: vehicle.providerUserId } };
+    return {
+      command: command.command,
+      vehicleId: command.vehicleId,
+      ...(command.destination ? { destination: { lat: command.destination.lat, lng: command.destination.lng } } : {}),
+      ref: { providerVehicleId: vehicle.providerVehicleId, providerUserId: vehicle.providerUserId },
+    };
   },
 });
 
@@ -306,13 +335,19 @@ export const executeCommand = internalAction({
   handler: async (ctx, { commandId }): Promise<null> => {
     const info = await ctx.runQuery(internal.vehicles.commandInfo, { commandId });
     if (!info) return null;
-    const command = info.command as Doc<'vehicleCommands'>;
-    const input: VehicleCommandInput = command.command === 'set_destination'
-      ? { command: 'set_destination', destination: { lat: command.destination!.lat, lng: command.destination!.lng } }
-      : { command: command.command };
+    let input: VehicleCommandInput;
+    if (info.command === 'set_destination') {
+      if (!info.destination) {
+        await ctx.runMutation(internal.vehicles.finishCommand, { commandId, ok: false, failure: 'no destination' });
+        return null;
+      }
+      input = { command: 'set_destination', destination: info.destination };
+    } else {
+      input = { command: info.command };
+    }
     const r = await getVehicles().command(info.ref, input);
     await ctx.runMutation(internal.vehicles.finishCommand, { commandId, ok: r.ok, ...(r.ok ? {} : { failure: r.detail ?? r.failure }) });
-    if (r.ok && command.command !== 'set_destination') await refreshNow(ctx, command.vehicleId);
+    if (r.ok && info.command !== 'set_destination') await refreshNow(ctx, info.vehicleId);
     return null;
   },
 });

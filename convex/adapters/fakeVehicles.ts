@@ -48,6 +48,12 @@ export function makeFakeVehicles(opts: {
     setState(id, state) {
       states[id] = state;
     },
+    async ownerTag(ownerKey) {
+      return `mega-fake-${ownerKey}`;
+    },
+    connectUrl(ownerTag, mode) {
+      return `https://connect.example.test/?external_id=${encodeURIComponent(ownerTag)}&mode=${mode}`;
+    },
     async listConnections() {
       calls.push('listConnections');
       if (opts.failWith) return { ok: false, failure: opts.failWith };

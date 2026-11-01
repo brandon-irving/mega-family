@@ -815,11 +815,14 @@ export const API = {
   vehicles: {
     // Cars the viewer may see. Empty for kids.
     list: fn({ kind: 'query', day1: 'real', args: {}, returns: v.array(vehicleView) }),
-    // Adults. Cars connected to MEGA's Smartcar application that no family has linked yet. Live cars appear only
-    // in simulated/testing setups for now (a Connect link flow is a follow-up); simulated cars always appear.
+    // Adults. Cars this member may claim and nobody linked yet: ones connected through their own `connectUrl`
+    // (matched by an owner tag), plus simulated cars nobody tagged while VEHICLES.allowUnclaimedSimulated is on.
     available: fn({ kind: 'action', day1: 'real', args: {}, returns: v.array(availableVehicle) }),
+    // Adults. The provider's hosted page for connecting a car to MEGA as this member. VALIDATION when not set up
+    // (SMART_CAR_APPLICATION_ID missing).
+    connectUrl: fn({ kind: 'action', day1: 'real', args: { mode: v.optional(v.union(v.literal('live'), v.literal('simulated'))) }, returns: v.object({ url: v.string() }) }),
     // Adults. Links an available car to the viewer (owner), private unless `sharing: 'household'`. Reads it once.
-    // VALIDATION if another family already linked it; NOT_FOUND if the provider doesn't list it.
+    // NOT_FOUND unless it is one of `available` (or already this family's).
     link: fn({ kind: 'action', day1: 'real', args: { providerVehicleId: v.string(), nickname: v.optional(v.string()), sharing: v.optional(vehicleSharing) }, returns: v.id('vehicles') }),
     // The owner only. Renames or changes sharing.
     update: fn({ kind: 'mutation', day1: 'real', args: { vehicleId: v.id('vehicles'), nickname: v.optional(v.string()), sharing: v.optional(vehicleSharing) }, returns: v.null() }),

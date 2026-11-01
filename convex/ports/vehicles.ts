@@ -14,6 +14,8 @@ export interface VehicleConnection {
   year?: number;
   mode: 'live' | 'simulated';
   powertrain?: string;
+  /** The `external_id` the car was connected with (MEGA sets it to the member's owner tag), if any. */
+  externalId?: string;
 }
 
 export interface VehicleRef {
@@ -33,6 +35,11 @@ export type VehicleWebhookEvent =
 
 export interface Vehicles {
   listConnections(): Promise<IntegrationResult<{ connections: VehicleConnection[] }>>;
+  /** An unguessable, stable tag for one member (keyed by a server secret), passed to Connect as `external_id`
+   * so the cars they connect can be told apart from everyone else's. Null when not configured. */
+  ownerTag(ownerKey: string): Promise<string | null>;
+  /** The provider's hosted connect page for that tag, or null when not configured. */
+  connectUrl(ownerTag: string, mode: 'live' | 'simulated'): string | null;
   readState(ref: VehicleRef): Promise<IntegrationResult<{ state: VehicleState }>>;
   /** Resolves when the provider reports the command's final result (it may hold the request open a while). */
   command(ref: VehicleRef, input: VehicleCommandInput): Promise<IntegrationResult<{ status: 'succeeded' }>>;
