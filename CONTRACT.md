@@ -11,6 +11,7 @@ This is the agreement both build tracks follow. The backend owns `convex/`, the 
 ## Changelog
 | Version | Date | Change |
 |---|---|---|
+| 0.21 | Nov 1 | Demo reliability review: document reviewed scheduling replies, immediate availability sharing, request details and recipient-owned calendar retries. Reply content is bound to its preview; uncertain sends are not resent. Accepted shared meetings write each consenting participant’s connected calendar with stable event IDs. |
 | 0.20 | Oct 30 | User-requested assistant first-day briefing: creator suggestions, private recipient review/edit/rejection, explicit first-task start and optional request for creator help. Additive table/API/UI fields; existing invite paths preserved. |
 | 0.18a | Oct 29 | **Pending approval.** G8 backend, additive. `widgets.next` is `real` (`convex/model/widgetTimeline.ts`). **Rules as built:** events are what the viewer sees in the app (`canSeeEvent`), never another member's private-layer event even with the viewer in `who`; a **kid** additionally sees only events they're in or the whole family's (`who` empty), so a household event for other people (an adult's dinner, a pickup) stays off a kid's widget. Items are sorted by start (then title), `maxSoon` per entry; a new entry only when what the widget shows changes (enter at `start − soonWindowMinutes`, leave at `start + startedGraceMinutes`); identical neighbours are merged. `statement.short` = whole words up to `shortStatementChars`, trailing punctuation dropped, then "…". The plan ends with one `stale` entry at the horizon, or at the first change it had to drop when `maxEntries − 1` entries were used; a plan with nothing planned and nothing to say is a single `empty` entry. `stale` and `empty` carry no text (the app fills `G8_COPY`). No model calls, no new tables. |
 | 0.18 | Oct 29 | **Pending approval.** G8 contract, all additive. **§4:** `widgets.next` (q, any member, own data only) → `WidgetTimeline` (§6): the home/lock widget timeline the app writes into the `MegaNext` / `MegaTalk` kinds with expo-widgets `updateTimeline` (iOS). `widgets.timeline` (G3) stays for the Today screen and is unchanged. **§6:** `WidgetTimeline` = `{ generatedAt, mega, kid, entries: WidgetNextEntry[], talkLink }`; `WidgetNextEntry` = `{ at, kind: "soon" \| "statement" \| "empty" \| "stale", soon?: WidgetSoonItem[] (≤ WIDGET_TIMELINE.maxSoon), statement?: { text, short }, link }`; `WidgetSoonItem` = `{ title, startsAt, timeLabel, who: { name, hex }[], private }`. The widget computes "in 40 min" from `startsAt` and its entry date (the widget runtime can't fetch or read app state). `private` marks the viewer's own private-layer events; the lock screen shows `G8_COPY.widgetPrivate` with SwiftUI `privacySensitive` instead of the title. The last entry after `WIDGET_TIMELINE.horizonHours` is `stale` ("Open Teal for what's next"), because the frozen build has no background-refresh module: widgets refresh only while the app runs. Widget taps use the existing §6 links (`widgetURL`): `soon`/`empty`/`stale` → `mega://today`, `statement` → `mega://chat`, Talk → `mega://talk`. **No new functions** for the QR scan (it feeds the existing `invites.preview` / `invites.redeem` through `mega://join/<token>`), the homework viewfinder (`files.uploadUrl` → `homework.submit`, unchanged) or Paste (client only). **Config:** `WIDGET_TIMELINE` (shared/config/widgets.ts), `INVITE_SCAN` (auth.ts: only `mega://join/<48 hex>` or the bare token; anything else is refused and never opened), `HOMEWORK.capture` (quality, `exif: false`), `G8_COPY`. **Gaps (frozen native build):** no `accessoryInline` family (the Widgets board's inline line can't ship until a rebuild), no background widget refresh, Android widgets off. |
@@ -244,7 +245,7 @@ Every row in a family-owned table has `familyId`, and every index starts with `f
 
 **assistantBriefs**: `familyId`, `memberId`, `creatorId`, `proposed: { context, goal, firstTask, proactive }`, `approved?` (same shape), `status: "pending" | "accepted" | "declined"`, `step: "review" | "edit" | "fresh" | "ready" | "done"`, `blockMessageId?`, `helpRequested?`, `createdAt`, `updatedAt`. Indexed by family/member. `pendingRevision?` holds a recipient-authored revision awaiting acceptance. Creator reads only their original proposal and status; recipient edits remain private. Only accepted content informs the owner’s agent and proactive wording. No scheduled work or access grant is created by acceptance.
 
-**schedulingPreferences**: `familyId`, `memberId`, `enabled`, `autoCapture`, `availabilityFor: id(members)[]`. Owner-only, adult opt-in. Availability permission exposes only slot checks, never private event details or authority to book another person's calendar.
+**schedulingPreferences**: `familyId`, `memberId`, `enabled`, `autoCapture`, `availabilityFor: id(members)[]`, optional `availabilitySharing: private | family | custom`. Owner-only opt-in for adults and parent-approved teens. Family is an ongoing grant to current and future eligible members of the same family and can be selected while alone. Custom retains explicit recipients; legacy rows without a mode remain custom when nonempty, private otherwise. Availability permission exposes only slot checks, never private event details or authority to book another person's calendar.
 
 **mailContextSuggestions**: `familyId`, `ownerId`, `integrationId`, `sourceMessageId`, `location` (city/region only), `createdAt`, `status: pending | saved | dismissed`, `messageId?`. Unconfirmed, owner-only email context; never included in memory retrieval. One confirmation per member, with an explicit private save or dismissal.
 
@@ -410,6 +411,8 @@ The creator’s family onboarding adds a skippable `brief` sub-step between deta
 | `ideas.refreshGifts` | m | `{}` (adult; bounded import of eligible gifts) | null | real |
 | `lists.addItem` / `.check` / `.remove` | m | `{ listId, text }` / `{ itemId, checked }` / `{ itemId }` | `id` / `null` / `null` | real |
 | `requests.respond` | m | `{ requestId, accept: boolean }` | `null` | real (G3: real effects, idempotent) |
+| `requests.get` | q | `{ requestId }` | recipient-only request text, status, notification mirror and calendar operation state, or null | real |
+| `requests.syncCalendar` | m | `{ requestId }` | `null`; recipient-only retry of an already authorized calendar update, reusing the same event | real |
 
 ### HQ and rooms
 | Function | Type | Args | Returns | Day 1 |
@@ -454,6 +457,9 @@ The creator’s family onboarding adds a skippable `brief` sub-step between deta
 | `demoConsole.trigger` | m | `{runId, stage, expectedAttempt}` owner admin | null | real |
 | `demoConsole.reset` | m | `{runId, mode: story or onboarding}` owner admin | null | real |
 | `demoConsole.cleanup` | a | `{runId}` owner admin; exact recorded Google artifact ids | null | real |
+| `demoCleanup.authorizeStart` | m | `{runId, persona, returnOrigin?}` owner admin | OAuth URL for the configured demo account; allowlisted return origin | real |
+| `demoCleanup.authorizeCode` | a | `{runId, persona, serverAuthCode}` owner admin | connection status after verifying the expected account | real |
+| `demoCleanup.clear` | a | `{runId}` owner admin | cleanup report; preflight all demo accounts before removing only test emails and owned demo artifacts | real |
 | `family.setAgeGroup` | m | `{memberId, ageGroup: child or teen or adult}` admin/parent, same family | null | real |
 | `family.requestConnections` | m | `{}` teen only; deduplicated request to parents’ own MEGA chats | null | real |
 | `family.approveConnections` | m | `{memberId, approved}` teen’s parent only | null | real |
@@ -560,7 +566,10 @@ The onboarding chat (canvas Screen 13) is **server-driven**: MEGA's lines come f
 | Function | Kind | Args | Result |
 |---|---|---|---|
 | `scheduling.preferences` | q | — | own settings, permissions, people and detection status |
-| `scheduling.setPreferences` | m | enabled, autoCapture, availabilityFor | null |
+| `scheduling.setPreferences` | m | enabled, autoCapture, availabilityFor, availabilitySharing?, desiredWrites? | null |
+| `scheduling.setSharing` | m | availabilityFor, availabilitySharing? | null; persist the explicit Private, Family, or Custom availability policy |
+| `scheduling.previewReply` | a | planId, revision | reviewed recipient, subject and reply body; requires family acceptance |
+| `scheduling.sendReply` | a | planId, revision, to, subject, body | null; send the exact reviewed reply once, block uncertain retries |
 | `scheduling.get` | q | planId | owner-only plan with consented availability checks |
 | `scheduling.list` | q | — | owner's active email plans |
 | `scheduling.refresh` | a | planId | refresh authorized calendars |
@@ -684,7 +693,7 @@ The identity-owned demo session may temporarily have no member while it opens th
 The client stores bounded per-run conversation snapshots and app interaction events, persists across reloads/resets, and offers explicit Copy/Share export in Demo Console. No log upload endpoint exists. Development-only inspector access is read-only. See `docs/demo-console.md` for retention, capture limits, and `npm run demo:logs` retrieval.
 
 
-Unified Google setup: chat and account entry points share Email & scheduling. Read permissions for Gmail and Calendar are requested together, with reviewed optional holds/drafts permissions. Sharing presets apply only availability visibility to the listed members, never email contents, event details, or future members. Partial Google grants remain partial. Members may carry `connectionRequest {at,status,messageIds}`; `messages.ruleBlock` also supports `connectionApproval` and `mailLocation` for owner-authorized, replay-safe answers. Parent approval does not itself grant OAuth or sharing. Scheduling preferences may record `desiredWrites` to preserve the user's setup choice separately from actual granted capabilities.
+Unified Google setup: chat and account entry points share Email & scheduling. Read permissions for Gmail and Calendar are requested together, with reviewed optional holds/drafts permissions. Family coordination grants availability visibility to current and future eligible family members; Choose people remains limited to selected members. Neither exposes email contents or event details. Family can be saved before other people join. Membership and teen approval are rechecked at access time. Revoking a teen's connection approval resets their outgoing sharing to Private. Partial Google grants remain partial. Members may carry `connectionRequest {at,status,messageIds}`; `messages.ruleBlock` also supports `connectionApproval` and `mailLocation` for owner-authorized, replay-safe answers. Parent approval does not itself grant OAuth or sharing. Scheduling preferences may record `desiredWrites` to preserve the user's setup choice separately from actual granted capabilities.
 
 
 ### Proactive brief handoff (phase 2)

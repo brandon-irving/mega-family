@@ -34,11 +34,12 @@ export default function MemberDetailRoute() {
   const kidThread = useKidThread(canReadThisKidThread ? id : null);
   const tokens = useTokens();
 
-  if (detail === undefined) return <LoadingScreen label="Loading member…" />;
-  if (!detail) return <LoadingScreen label="Member not found" />;
+  if (detail === undefined || viewer === undefined) return <LoadingScreen label="Loading member…" />;
+  if (!detail || !viewer) return <LoadingScreen label="Member not found" />;
 
   const profile = <>
       <MemberDetailContent
+        timezone={viewer.family.timezone}
         detail={detail}
         onMessage={() => router.toTab('/chat')}
         onVisitRoom={() => router.toTab(`/hq/${id}` as never)}

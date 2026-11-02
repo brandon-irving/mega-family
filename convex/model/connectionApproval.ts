@@ -1,6 +1,6 @@
 import { COORDINATION_COPY } from '../../shared/config/scheduling';
 import { enqueueCardCandidate } from './proactive';
-import { ageGroupOf } from '../../shared/ageGroups';
+import { memberAgeGroup } from './memberAge';
 import type { BlockAnswer } from '../../shared/domain/messages';
 import type { Doc, Id } from '../_generated/dataModel';
 import type { MutationCtx } from '../_generated/server';
@@ -11,7 +11,7 @@ import { postOwnMegaMessage } from './threads';
 
 export async function requestConnectionApproval(ctx: MutationCtx, member: Doc<'members'>) {
   const now = clock.realNow();
-  if (ageGroupOf(member, new Date(now).toISOString().slice(0,10)) !== 'teen') fail('FORBIDDEN', 'Only teens can request parent approval for account connections.');
+  if ((await memberAgeGroup(ctx, member)) !== 'teen') fail('FORBIDDEN', 'Only teens can request parent approval for account connections.');
   if (member.connectionsApprovedBy || member.connectionRequest?.status === 'pending') return;
   if (member.connectionRequest && now - member.connectionRequest.at < 60_000) fail('VALIDATION', 'Please wait before asking again.');
   const relations = await ctx.db.query('relationships').withIndex('by_family_from', q => q.eq('familyId', member.familyId)).collect();
@@ -46,7 +46,7 @@ export async function answerConnectionApproval(ctx: MutationCtx, parent: Doc<'me
   if (!child || !['admin','adult'].includes(parent.role)) fail('FORBIDDEN');
   const request = child.connectionRequest!;
   if (request.status !== 'pending') return true;
-  if (ageGroupOf(child, new Date(clock.realNow()).toISOString().slice(0,10)) !== 'teen') fail('FORBIDDEN');
+  if ((await memberAgeGroup(ctx, child)) !== 'teen') fail('FORBIDDEN');
   const decision = answer.optionIds?.[0];
   if (answer.optionIds?.length !== 1 || !['approve','deny'].includes(decision!)) fail('VALIDATION');
   const approved = decision === 'approve';

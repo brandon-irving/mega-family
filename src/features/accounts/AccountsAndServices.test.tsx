@@ -84,14 +84,20 @@ describe('Connected accounts (boards SettingsAccounts / SettingsAccountsLapse)',
 });
 
 describe('Google connect', () => {
-  afterEach(() => jest.restoreAllMocks());
+  const originalLocation = Object.getOwnPropertyDescriptor(window, 'location');
+  afterEach(() => {
+    jest.restoreAllMocks();
+    if (originalLocation) Object.defineProperty(window, 'location', originalLocation);
+    else Reflect.deleteProperty(window, 'location');
+  });
   test('web: opens Google’s consent URL in the same tab, and refuses any other host', async () => {
     jest.replaceProperty(Platform, 'OS', 'web');
+    Object.defineProperty(window, 'location', { configurable: true, value: { origin: 'http://localhost:8082' } });
     const navigate = jest.fn();
     const googleStart = jest.fn(async () => ({ authUrl: `${GOOGLE.authUrl}?client_id=x&scope=y` }));
     const r = await connectGoogle(['gmail'], { googleStart, googleConnectCode: jest.fn() as never, navigate } as never);
     expect(r).toBe('redirecting');
-    expect(googleStart).toHaveBeenCalledWith({ want: ['gmail'] });
+    expect(googleStart).toHaveBeenCalledWith({ want: ['gmail'], returnOrigin: 'http://localhost:8082' });
     expect(navigate).toHaveBeenCalledWith(`${GOOGLE.authUrl}?client_id=x&scope=y`);
 
     const evil = jest.fn();

@@ -31,6 +31,9 @@ import { NavigationThemeBridge } from './NavigationThemeBridge';
 import * as TabLayoutModule from '@/app/(tabs)/_layout.tsx';
 import ChatLayout from '@/app/(tabs)/chat/_layout';
 
+// This suite exercises navigation; the independently tested demo menu requires a live Convex provider.
+jest.mock('@/features/settings/DemoQuickMenu', () => ({ DemoQuickMenu: () => null }));
+
 function RootLayout() {
   return (
     <ThemeProvider>

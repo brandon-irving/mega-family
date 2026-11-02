@@ -1,4 +1,4 @@
-import { ageGroupOf } from '../../shared/ageGroups';
+import { memberAgeGroup } from './memberAge';
 import type { Doc, Id } from '../_generated/dataModel';
 import type { QueryCtx, MutationCtx } from '../_generated/server';
 import { postOwnMegaMessage } from './threads';
@@ -15,7 +15,7 @@ export async function googleConnectionContext(ctx: QueryCtx | MutationCtx, membe
   const rows = await memberIntegrations(ctx, member.familyId, member._id);
   const prefs = await preferenceFor(ctx, member.familyId, member._id);
   return {
-    allowed: connectorAllowed(member),
+    allowed: (await connectorAllowed(ctx, member)),
     products: ['gmail', 'googleCalendar'].map(kind => {
       const row = rows.find(r => r.kind === kind);
       return { kind, status: row ? statusOf(row) : 'not_connected', lastSyncAt: row?.lastSyncAt ?? null, lastFailure: row?.lastFailure ?? null };
@@ -28,7 +28,7 @@ export async function googleConnectionContext(ctx: QueryCtx | MutationCtx, membe
 export async function requestGoogleCheck(ctx: MutationCtx, member: Doc<'members'>, threadId: Id<'threads'>) {
   const thread = await ctx.db.get(threadId);
   if (!thread || thread.ownerId !== member._id || thread.familyId !== member.familyId) fail('FORBIDDEN');
-  if (!connectorAllowed(member)) return 'Account access requires parent approval for this member. Use Google setup to request approval; do not read accounts.';
+  if (!(await connectorAllowed(ctx, member))) return 'Account access requires parent approval for this member. Use Google setup to request approval; do not read accounts.';
   const rows = await memberIntegrations(ctx, member.familyId, member._id);
   const gmail = rows.find(r => r.kind === 'gmail');
   if (!gmail || statusOf(gmail) !== 'connected') return 'Gmail is not connected or needs reconnection. Use google_setup.';
@@ -54,7 +54,7 @@ export async function requestGoogleCheck(ctx: MutationCtx, member: Doc<'members'
 export async function offerGoogleSetup(ctx: MutationCtx, member: Doc<'members'>, threadId: Id<'threads'>, now: number): Promise<string> {
   const thread = await ctx.db.get(threadId);
   if (!thread || thread.ownerId !== member._id || thread.familyId !== member.familyId) fail('FORBIDDEN');
-  if (ageGroupOf(member, new Date(clock.realNow()).toISOString().slice(0,10)) === 'child') return 'Children under 13 cannot connect Google accounts. A parent can correct the age group in Family if it is wrong.';
+  if ((await memberAgeGroup(ctx, member)) === 'child') return 'Children under 13 cannot connect Google accounts. A parent can correct the age group in Family if it is wrong.';
   if (!googleAvailable()) return 'Google connections are not configured on this deployment. Do not claim that MEGA lacks Google support generally.';
   const state = await googleConnectionContext(ctx, member);
   const status = JSON.stringify(state);

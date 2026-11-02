@@ -1,3 +1,9 @@
+import { useRef } from 'react';
+import { useQueryState } from '@/data/useQuery';
+import { useMutation } from 'convex/react';
+import { useRunAction } from '@/features/shell/useRunAction';
+import { Button } from '@/ui/Button';
+import { api } from '@/data/api';
 import { EventCard } from '@/features/calendar/EventCard';
 import { MailPlanCard } from '@/features/scheduling/MailPlanCard';
 // Renders every result Card kind (CONTRACT §3): event, reminder, list, search, weather, travel,
@@ -12,7 +18,7 @@ import { MailPlanCard } from '@/features/scheduling/MailPlanCard';
 import type { Card as CardKind } from '@shared/domain/messages';
 import { BUTTON_SETS } from '@shared/config/notifications';
 import type { NotificationDoc } from '@/data/useNotifications';
-import { ButtonRow } from '@/ui/ButtonRow';
+import { ButtonRow, type ButtonRowButton } from '@/ui/ButtonRow';
 import { Card } from '@/ui/Card';
 import { Text } from '@/ui/Text';
 import { CardSkeleton } from '@/ui/ThreadCard';
@@ -37,8 +43,8 @@ import { ReconnectCard } from '@/features/accounts/ReconnectCard';
 
 export type CardProps = {
   card: CardKind;
-  onRespondRequest?: (accept: boolean) => void;
-  onAnswerNotification?: (buttonId: string) => void;
+  onRespondRequest?: (accept: boolean) => Promise<unknown> | void;
+  onAnswerNotification?: (buttonId: string) => Promise<unknown> | void;
   /** The resolved notification doc for a `{ kind: 'notification' }` card (loaded via `notifications.get` —
    * the card itself only carries an id, CONTRACT §3). Undefined while it's still loading. */
   notification?: NotificationDoc;
@@ -50,14 +56,9 @@ export type CardProps = {
 
 const scopeLabel = { family: 'Family', adults: 'Adults', personal: 'Only me', shared: 'Shared' } as const;
 
-// `requests.respond` isn't wired to a notification lookup, so a bare `{ kind: 'request' }` card (never
-// actually emitted by the backend today, see requests.ts — kept for CONTRACT §3 completeness) renders
-// its buttons straight from config instead of a doc, in the same order a real request's notification
-// would carry them (G1 fix #3: this used to hardcode "I can't" before "Yes", the reverse of BUTTON_SETS).
 const REQUEST_BUTTONS = BUTTON_SETS['request.default'];
 
 export function ResultCard({ card, onRespondRequest, onAnswerNotification, notification, megaName }: CardProps) {
-  const tokens = useTokens();
   const visibleTo = 'visibleTo' in card ? <VisibleTo scope={card.visibleTo} /> : null;
 
   switch (card.kind) {
@@ -85,14 +86,7 @@ export function ResultCard({ card, onRespondRequest, onAnswerNotification, notif
     case 'travel':
       return <TravelResultCard card={card} megaName={megaName ?? GD_FALLBACK_FROM} />;
     case 'request':
-      return (
-        <Card>
-          <Text variant="label" style={{ marginBottom: tokens.spacing.sm }}>
-            A request is waiting on you
-          </Text>
-          <ButtonRow buttons={REQUEST_BUTTONS} onPress={(buttonId) => onRespondRequest?.(buttonId === 'yes')} />
-        </Card>
-      );
+      return <RequestCard requestId={card.requestId} onRespond={onRespondRequest} />;
     case 'notification':
       return <NotificationCard notification={notification} onAnswerNotification={onAnswerNotification} megaName={megaName} />;
     case 'homework':
@@ -132,6 +126,48 @@ export function ResultCard({ card, onRespondRequest, onAnswerNotification, notif
   }
 }
 
+function RequestCard({ requestId, onRespond }: { requestId: Extract<CardKind, { kind: 'request' }>['requestId']; onRespond?: (accept: boolean) => Promise<unknown> | void }) {
+  const state = useQueryState(api.requests.get, { requestId });
+  const request = state.status === 'ok' ? state.data : null;
+  if (state.status === 'loading') return <CardSkeleton from="" label="Loading request" />;
+  if (!request || request.mirrored) return null;
+  return <Card>
+    <Text>{request.text}</Text>
+    {request.status === 'open'
+      ? <CardAnswerButtons buttons={REQUEST_BUTTONS} onAnswer={onRespond ? id => onRespond(id === 'yes') : undefined} />
+      : <Text color="muted">{request.status === 'accepted' ? 'You confirmed.' : request.status === 'declined' ? 'You declined.' : 'Completed.'}</Text>}
+    <RequestCalendarStatus requestId={requestId} />
+  </Card>;
+}
+
+/** Both chat card surfaces await the real response and expose failures without claiming success. */
+function CardAnswerButtons({ buttons, onAnswer }: { buttons: readonly ButtonRowButton[]; onAnswer?: (id: string) => Promise<unknown> | void }) {
+  const { busy, error, run } = useRunAction();
+  const lock = useRef(false);
+  const answer = async (id: string) => {
+    if (!onAnswer || lock.current) return;
+    lock.current = true;
+    try { await run(id, async () => { await onAnswer(id); }); }
+    finally { lock.current = false; }
+  };
+  return <>
+    <ButtonRow buttons={buttons} disabled={!onAnswer || !!busy} loadingButtonId={busy ?? undefined} onPress={id => { void answer(id); }} />
+    {error ? <Text accessibilityRole="alert">{error}</Text> : null}
+  </>;
+}
+
+function RequestCalendarStatus({ requestId }: { requestId: Extract<CardKind, { kind: 'request' }>['requestId'] }) {
+  const state = useQueryState(api.requests.get, { requestId });
+  const retry = useMutation(api.requests.syncCalendar);
+  const { busy, error, run } = useRunAction();
+  const operation = state.status === 'ok' ? state.data?.calendarOperation : undefined;
+  if (!operation) return null;
+  return <>
+    {operation === 'running' ? <Text>Adding to your calendar…</Text> : operation === 'done' ? <Text>Calendar updated.</Text> : <Button label="Retry calendar update" disabled={!!busy} onPress={() => void run('calendar', () => retry({ requestId }))} />}
+    {error ? <Text accessibilityRole="alert">{error}</Text> : null}
+  </>;
+}
+
 /** The "from" line when a GD card's MEGA isn't known (a message whose author has no directory entry). */
 const GD_FALLBACK_FROM = 'MEGA';
 
@@ -161,7 +197,7 @@ function shouldShowNotificationTitle(title: string, megaName: string | undefined
   return title.trim() !== megaName.trim();
 }
 
-function NotificationCard({ notification, onAnswerNotification, megaName }: { notification?: NotificationDoc; onAnswerNotification?: (buttonId: string) => void; megaName?: string }) {
+function NotificationCard({ notification, onAnswerNotification, megaName }: { notification?: NotificationDoc; onAnswerNotification?: (buttonId: string) => Promise<unknown> | void; megaName?: string }) {
   const tokens = useTokens();
   if (!notification) return <CardSkeleton from={megaName ?? ''} label={KIDS_COPY.loadingLabel} />;
   const answer = notification.answer;
@@ -183,8 +219,9 @@ function NotificationCard({ notification, onAnswerNotification, megaName }: { no
           {notification.reply ?? answeredLabel ?? 'Answered'}
         </Text>
       ) : (
-        <ButtonRow buttons={notification.buttons} onPress={(buttonId) => onAnswerNotification?.(buttonId)} />
+        <CardAnswerButtons buttons={notification.buttons} onAnswer={onAnswerNotification} />
       )}
+      {notification.requestId ? <RequestCalendarStatus requestId={notification.requestId} /> : null}
     </Card>
   );
 }

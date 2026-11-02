@@ -3,6 +3,8 @@ import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useDismiss } from './dismiss';
 import { SafeFrame, type Presentation } from './Screen';
 import { Text } from './Text';
+import { DESKTOP_LAYOUT } from '@shared/config/theme';
+import { useDesktopLayout } from './useDesktopLayout';
 import { useTokens } from './theme';
 
 /** `presentation`: 'sheet' for a modal route (the default); 'tab' for a sheet-style screen in a tab's stack. */
@@ -15,6 +17,7 @@ export type SheetProps = { title: string; onClose?: () => void; presentation?: P
  */
 export function Sheet({ title, onClose, presentation = 'sheet', children, scroll = true }: SheetProps) {
   const tokens = useTokens();
+  const desktop = useDesktopLayout();
   // Escape on web closes it too (a route modal: the navigator already handles Android back).
   useDismiss(onClose ?? noop, { enabled: !!onClose, androidBack: false });
   return (
@@ -22,8 +25,8 @@ export function Sheet({ title, onClose, presentation = 'sheet', children, scroll
       {/* G6 polish fix: wide desktop web ran a sheet's content edge-to-edge (the Invite/QR panel showed
           content pinned to one side with dead space beside it) — same tokens.layout.contentMaxWidth
           centered column as src/ui/Screen.tsx, applied once here so every sheet benefits. */}
-      <View style={styles.center}>
-        <View testID="sheet-content" style={[styles.fill, { width: '100%', maxWidth: tokens.layout.contentMaxWidth }]}>
+      <View style={[styles.center, desktop && { padding: DESKTOP_LAYOUT.gutter, justifyContent: 'center' }]}>
+        <View testID="sheet-content" style={[styles.fill, { width: '100%', maxWidth: desktop ? DESKTOP_LAYOUT.dialogMaxWidth : tokens.layout.contentMaxWidth }, desktop && { maxHeight: DESKTOP_LAYOUT.dialogMaxHeight, borderWidth: 1, borderColor: tokens.line, borderRadius: tokens.radii.lg, overflow: 'hidden', backgroundColor: tokens.surface }]}>
           <View
             style={{
               flexDirection: 'row',

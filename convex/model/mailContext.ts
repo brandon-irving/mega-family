@@ -12,7 +12,7 @@ export async function suggestMailLocation(ctx: MutationCtx, args: { integrationI
   const row = await ctx.db.get(args.integrationId);
   if (!row?.memberId || row.kind !== 'gmail' || statusOf(row) !== 'connected') return;
   const member = await ctx.db.get(row.memberId);
-  if (!member || !connectorAllowed(member)) return;
+  if (!member || !(await connectorAllowed(ctx, member))) return;
   const pref = await ctx.db.query('schedulingPreferences').withIndex('by_family_member', q => q.eq('familyId', member.familyId).eq('memberId', member._id)).unique();
   if (!pref?.enabled || args.location.length > 125) return;
   const runs = await ctx.db.query('demoRuns').withIndex('by_family', q => q.eq('familyId', member.familyId)).collect();

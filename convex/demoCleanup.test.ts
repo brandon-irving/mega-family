@@ -30,3 +30,19 @@ test('identity mismatch never writes', async () => {
   await expect(clearDemoGoogle('fake', DEMO_SCENARIO.personas[0].email, [])).rejects.toThrow('identity');
   expect(fetcher).toHaveBeenCalledTimes(1);
 });
+test('orphaned events require explicit demo provenance; a normal megaPlan marker is never enough',async()=>{
+ const writes:string[]=[];
+ vi.stubGlobal('fetch',vi.fn(async(raw:string,options:RequestInit)=>{
+  const url=new URL(raw);
+  if(options.method!=='GET'){writes.push(raw);return new Response('{}',{status:200});}
+  const data=url.pathname.endsWith('/profile')?{emailAddress:DEMO_SCENARIO.personas[0].email}
+   :url.searchParams.has('privateExtendedProperty')?{items:[
+    {id:'orphan-demo',summary:'Book call',extendedProperties:{private:{megaPlan:'lost-plan',megaDemo:'true',megaDemoRun:'run-old'}}},
+    {id:'real-meeting',summary:'Book call',extendedProperties:{private:{megaPlan:'real-plan'}}},
+    {id:'bad-marker',extendedProperties:{private:{megaDemo:'true'}}}
+   ]}:{};
+  return new Response(JSON.stringify(data),{status:200});
+ }));
+ expect(await clearDemoGoogle('token',DEMO_SCENARIO.personas[0].email,[])).toEqual({mailCount:0,eventCount:1,error:null});
+ expect(writes).toHaveLength(1);expect(writes[0]).toContain('/orphan-demo?');
+});

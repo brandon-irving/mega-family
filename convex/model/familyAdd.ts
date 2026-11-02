@@ -1,4 +1,5 @@
-import { ageGroupOf, type AgeGroup } from '../../shared/ageGroups';
+import type { AgeGroup } from '../../shared/ageGroups';
+import { memberAgeGroup } from './memberAge';
 // G5 (CONTRACT v0.17 `family.add`): the admin adds a person (the onboarding family step, later Family → Add).
 // The member has no login until they redeem an invite; they get the same rows the seed gives its members
 // (settings, sharing or kid controls, profile), the relationship both ways (and, for a kid, a parent link from
@@ -85,6 +86,8 @@ export async function addFamilyMember(
   if (!name || name.length > ONBOARDING.nameMaxLength) fail('VALIDATION', 'name');
   if (args.birthday !== undefined && !/^\d{4}-\d{2}-\d{2}$/.test(args.birthday)) fail('VALIDATION', 'birthday');
   if (args.ageGroup && (args.role === 'adult') !== (args.ageGroup === 'adult')) fail('VALIDATION', 'Age group must match the member’s protected role.');
+  const ageGroup = args.birthday ? await memberAgeGroup(ctx, { ...args, familyId: admin.familyId }) : args.ageGroup;
+  if (ageGroup && ((args.role === 'adult') !== (ageGroup === 'adult') || (args.ageGroup && args.ageGroup !== ageGroup))) fail('VALIDATION', 'Birthday, age group, and protected role must agree.');
   const familyId = admin.familyId;
   if (await familyIsFull(ctx, familyId)) fail('VALIDATION', 'family is full');
 
@@ -126,7 +129,7 @@ export async function addFamilyMember(
       dailyMinutes: d.dailyMinutes,
       blockedTopics: [],
       tellsParents: { ...d.tellsParents },
-      parentsCanReadChat: ageGroupOf({ role: args.role, birthday: args.birthday, ageGroup: args.ageGroup }, new Date(now).toISOString().slice(0,10)) === 'teen' ? false : d.parentsCanReadChat,
+      parentsCanReadChat: ageGroup === 'teen' ? false : d.parentsCanReadChat,
       webSearch: d.webSearch,
     });
   } else {

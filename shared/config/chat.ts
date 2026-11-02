@@ -1,8 +1,10 @@
 /** Shared chat behavior and action copy; native chat and previews use the same choices. */
 export const CHAT_UX = {
+  actionMenu: { width: 292, reservedHeight: 320, previewHeight: 180, reactionSize: 26 },
+  header: { fadeStops: [{ offset: '0%', opacity: 0.94 }, { offset: '35%', opacity: 0.85 }, { offset: '70%', opacity: 0.45 }, { offset: '100%', opacity: 0 }] },
   entrance: {
     spriteScale: 2,
-    badgeSize: 32,
+    badgeSize: 48,
     dockMs: 1000,
     typingMs: 500,
     reducedMs: 450,

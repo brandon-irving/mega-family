@@ -46,7 +46,7 @@ http.route({
   path: GOOGLE.callbackPath,
   method: 'GET',
   handler: httpAction(async (ctx, request) => {
-    const site = (process.env.SITE_URL ?? '').replace(/\/$/, '');
+    let site = (process.env.SITE_URL ?? '').replace(/\/$/, '');
     const back = (result: 'connected' | 'failed', what?: string[]) =>
       new Response(null, { status: 302, headers: { Location: `${site}${GOOGLE.returnPath}?google=${result}${what?.length ? `&what=${what.join(',')}` : ''}`, 'Cache-Control': 'no-store' } });
     const url = new URL(request.url);
@@ -56,6 +56,7 @@ http.route({
     if (!state || state.length > 200 || !redirectUri) return back('failed');
     const claim = await ctx.runMutation(internal.integrations.consumeState, { nonceHash: await sha256Hex(state) });
     if (!claim) return back('failed');
+    if (claim.returnOrigin) site = claim.returnOrigin;
     if (!code || url.searchParams.get('error')) {
       // v0.17b (C9): a combined Gmail + Calendar consent that was denied fails BOTH offers.
       await ctx.runMutation(internal.integrations.setFailures, { familyId: claim.familyId, memberId: claim.memberId, want: claim.want, failure: 'unauthorized' });

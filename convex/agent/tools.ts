@@ -1,6 +1,6 @@
 import { recommendConnection } from '../model/connectionRecommendations';
 import { offerGoogleSetup, requestGoogleCheck } from '../model/googleSetup';
-import { ageGroupOf } from '../../shared/ageGroups';
+import { memberAgeGroup } from '../model/memberAge';
 import { executeCreationTool } from '../model/creationTools';
 // Executes one tool call (PLAN.md → Chat tools; task brief: "Tool handlers get the viewer from the server,
 // never from model output; every tool validates args against shared/domain schemas and enforces the same
@@ -443,7 +443,7 @@ export async function dispatchTool(ctx: MutationCtx, args: DispatchToolArgs): Pr
   if (args.replyMessageId && (await ctx.db.get(args.replyMessageId))?.stoppedAt !== undefined) return { ok: false, resultText: 'Response stopped by the owner.' };
   const member = await ctx.db.get(args.memberId);
   if (!member || member.familyId !== args.familyId) return { ok: false, resultText: 'caller is not a member of this family' };
-  const teen = ageGroupOf(member, new Date(clock.realNow()).toISOString().slice(0,10)) === 'teen';
+  const teen = (await memberAgeGroup(ctx, member)) === 'teen';
   if (!isToolAllowedForRole(args.name, member.role, teen)) return { ok: false, resultText: `the "${args.name}" tool isn't available to you` };
   const family = await ctx.db.get(args.familyId);
   if (!family) return { ok: false, resultText: 'family not found' };

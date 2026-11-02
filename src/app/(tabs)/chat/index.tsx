@@ -1,7 +1,6 @@
-import { ageGroupOf } from '@shared/ageGroups';
+import { ageGroupAt } from '@shared/ageGroups';
 import { ChatEntrance } from '@/features/chat/ChatEntrance';
 import { CHAT_UX } from '@shared/config/chat';
-import { DemoSessionBar } from '@/features/settings/DemoSessionBar';
 import { LiveMegaDraft } from '@/features/chat/LiveMegaDraft';
 // Chat keeps completed and streaming replies in one virtualized conversation.
 // Reads data only through the small hooks in src/data/.
@@ -16,10 +15,11 @@ import { ROLES_CONFIG } from '@shared/config/roles';
 import { CHAT_COPY, G5_COPY } from '@shared/config/copy';
 import { LINKS } from '@shared/domain/api';
 import { useViewer } from '@/data/useViewer';
+import { useDemoProfile } from '@/data/useDemoProfile';
 import { useOnboardingState } from '@/data/useOnboarding';
 import { useStopResponse, useAnswerBlock, useChatThread, useReactToMessage, useSendMessage, useStartChat, useStreamBody } from '@/data/useChat';
 import { pendingMegaStreamId } from '@/features/chat/pendingStream';
-import { useToday, useAnswerNotification } from '@/data/useToday';
+import { useToday, useAnswerNotification, useRespondToRequest } from '@/data/useToday';
 import { useNotificationsFor } from '@/data/useNotifications';
 import { useChangeMemoryScope, useForgetMemory } from '@/data/useMega';
 import { useSaveMessageIdea } from '@/data/useIdeas';
@@ -46,6 +46,7 @@ import { TabBottomInset } from '@/ui/TabBottomInset';
 export default function ChatRoute() {
   const { messageId } = useLocalSearchParams<{ messageId?: string }>();
   const viewer = useViewer();
+  const { profile: demoProfile } = useDemoProfile();
   const thread = useChatThread();
   const today = useToday();
   const megaById = useMegaDirectory();
@@ -53,6 +54,8 @@ export default function ChatRoute() {
   const sendMessage = useSendMessage();
   const stopResponse = useStopResponse();
   const [sending, setSending] = useState(false);
+  const [headerLayout, setHeaderLayout] = useState<{ memberId: string; height: number } | null>(null);
+  const headerHeight = headerLayout?.memberId === viewer?.member._id ? headerLayout?.height : undefined;
   const [stopping, setStopping] = useState(false);
   const [stopError, setStopError] = useState<string | null>(null);
   const answerBlock = useAnswerBlock();
@@ -60,6 +63,7 @@ export default function ChatRoute() {
   const changeMemoryScope = useChangeMemoryScope();
   const forgetMemory = useForgetMemory();
   const answerNotification = useAnswerNotification();
+  const respondToRequest = useRespondToRequest();
   const saveMessageIdea = useSaveMessageIdea();
   const [replyTo, setReplyTo] = useState<string | null>(null);
   const [pendingStreamId, setPendingStreamId] = useState<string | null>(null);
@@ -155,7 +159,7 @@ export default function ChatRoute() {
     );
   }
 
-  const bigTalkButton = ROLES_CONFIG[viewer.member.role].talkButton && ageGroupOf(viewer.member, new Date().toISOString().slice(0, 10)) === 'child';
+  const bigTalkButton = ROLES_CONFIG[viewer.member.role].talkButton && ageGroupAt(viewer.member, new Date().getTime(), viewer.family.timezone) === 'child';
   const todayCount = today?.waitingOnYou.length ?? 0;
 
   return (
@@ -166,17 +170,18 @@ export default function ChatRoute() {
     // `manualInsets`); on web it's a plain flex view.
     <TabBottomInset>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding">
-        <Screen padded={false} presentation="tab">
-          <DemoSessionBar />
+        <Screen reading padded={false} presentation="tab">
           <ChatEntrance hasHistory={thread.results.some(message => message.author.kind === 'member')} key={viewer.member._id} memberId={viewer.member._id} mega={mega}>{({ avatarRef, onAvatarLayout }) => <>
-          <ChatHeader avatarRef={avatarRef} onAvatarLayout={onAvatarLayout}
+          <ChatHeader onHeightChange={height => setHeaderLayout(current => current?.memberId === viewer.member._id && current.height === height ? current : { memberId: viewer.member._id, height })} avatarRef={avatarRef} onAvatarLayout={onAvatarLayout}
             mega={mega}
+            demoPersonName={demoProfile?.active ? viewer.member.name : undefined}
             todayCount={todayCount}
             onOpenProfile={() => router.push('/mega-profile' as never)}
             onOpenToday={() => router.push(toPath(LINKS.today()) as never)}
           />
           <View style={{ flex: 1 }} accessibilityLabel={messageId ? `Scrolled to message ${messageId}` : undefined}>
-            <ChatThread
+            {headerHeight === undefined ? <MegaLoader text={CHAT_COPY.opening} testID="chat-measuring" /> : <ChatThread
+              historyPadding={headerHeight}
               messages={thread.results}
               viewerMemberId={viewer.member._id}
               viewerRole={viewer.member.role}
@@ -189,11 +194,12 @@ export default function ChatRoute() {
               onSaveIdea={isAdultRole(viewer.member.role) ? (id) => saveMessageIdea({ messageId: id }) : undefined}
               onChangeMemoryScope={(memoryId, scope) => changeMemoryScope({ memoryId, scope })}
               onForgetMemory={(memoryId) => forgetMemory({ memoryId })}
+              onRespondRequest={(requestId, accept) => respondToRequest({ requestId: requestId as Id<'requests'>, accept })}
               onAnswerNotification={(notificationId, buttonId) => answerNotification({ notificationId: notificationId as Id<'notifications'>, buttonId, via: 'block' })}
               notificationsById={notificationsById}
               streamingReply={showStreamingReply && stream ? <StreamingReply megaHex={mega.hex} megaName={mega.name} text={stream.text} /> : undefined}
               scrollToMessageId={messageId as Id<'messages'> | undefined}
-            />
+            />}
           </View>
           {/* A streamed-reply failure has no text to resend (the message itself already sent fine) — just
               the friendly line, no retry button. */}

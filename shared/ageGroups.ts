@@ -1,8 +1,16 @@
 import type { Role } from './domain/enums';
+import { localDate } from './time';
 export const AGE_GROUPS = ['child', 'teen', 'adult'] as const;
 export type AgeGroup = typeof AGE_GROUPS[number];
 export const AGE_GROUP_LABELS: Record<AgeGroup, string> = { child: 'Child · 0–12', teen: 'Teen · 13–17', adult: 'Adult · 18+' };
 type Person = { role: Role; birthday?: string; ageGroup?: AgeGroup; connectionsApprovedBy?: string };
+/** Use real time, never a demo clock. Pure callers without household context explicitly fall back to UTC. */
+export function ageGroupAt(person: Person, realNow: number, timezone = 'UTC'): AgeGroup {
+  return ageGroupOf(person, localDate(realNow, timezone));
+}
+export function canConnectAccountsAt(person: Person, realNow: number, timezone = 'UTC'): boolean {
+  return canConnectAccounts(person, localDate(realNow, timezone));
+}
 /** Age and family authority are independent. Unknown legacy minors remain children. */
 export function ageGroupOf(person: Person, today: string): AgeGroup {
   if (person.birthday && /^\d{4}-\d{2}-\d{2}$/.test(person.birthday)) {

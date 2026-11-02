@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import { Switch, View } from 'react-native';
 import { SCHEDULING_COPY as C, GOOGLE_SETUP as U } from '@shared/config/scheduling';
+import { availabilitySharingMode } from '@shared/scheduling';
 import { useSchedulingPreferences, useSchedulingActions } from '@/data/useScheduling';
 import { useAccountActions } from '@/data/useAccounts';
 import { connectGoogle } from '@/services/googleConnect';
@@ -14,7 +15,7 @@ import type { FunctionReturnType } from 'convex/server';
 import type { api } from '@/data/api';
 
 type Preferences = FunctionReturnType<typeof api.scheduling.preferences>;
-type Selection = Pick<Preferences, 'enabled' | 'autoCapture' | 'availabilityFor'>;
+type Selection = Pick<Preferences, 'enabled' | 'autoCapture' | 'availabilityFor' | 'availabilitySharing'>;
 
 export function SchedulingSettings() {
   const state = useSchedulingPreferences();
@@ -29,14 +30,34 @@ export function SchedulingSetup({ preferences: p }: { preferences: Preferences }
   const lock = useRef(false);
   const [draft, setDraft] = useState<Selection | null>(null);
   const [writes, setWrites] = useState(p.desiredWrites ?? true);
+  const [sharingNotice, setSharingNotice] = useState('');
   const [notice, setNotice] = useState('');
   const [sharingMode, setSharingMode] = useState<'private' | 'family' | 'custom' | null>(null);
   const t = useTokens();
   const connected = !!p.gmailConnected && !!p.calendarConnected;
-  const selection = draft ?? { enabled: p.configured ? p.enabled : true, autoCapture: p.autoCapture, availabilityFor: p.availabilityFor };
-  const mode = sharingMode ?? (selection.availabilityFor.length === 0 ? 'private' : p.people.length > 0 && p.people.every(person => selection.availabilityFor.includes(person.id)) ? 'family' : 'custom');
+  const selection = draft ?? { enabled: p.configured ? p.enabled : true, autoCapture: p.autoCapture, availabilityFor: p.availabilityFor, availabilitySharing: availabilitySharingMode(p) };
+  const mode = sharingMode ?? availabilitySharingMode(selection);
   const needsGoogle = !connected || (writes && (!p.canWriteCalendar || !p.canWriteDraft));
   const change = (patch: Partial<Selection>) => setDraft({ ...selection, ...patch });
+  const chooseSharing = async (availabilityFor: Selection['availabilityFor'], nextMode: 'private' | 'family' | 'custom') => {
+    if (lock.current) return;
+    if (!p.configured) {
+      setSharingMode(nextMode);
+      change({ availabilityFor, availabilitySharing: nextMode });
+      setSharingNotice('Not saved yet. Continue below to save your setup choices.');
+      return;
+    }
+    lock.current = true;
+    setSharingNotice('');
+    const saved = await run('sharing', () => actions.setSharing({ availabilityFor, availabilitySharing: nextMode }));
+    if (saved) {
+      // Preserve unsaved recognition/write choices without freezing their old sharing value.
+      setDraft(current => current ? { ...current, availabilityFor, availabilitySharing: nextMode } : null);
+      setSharingMode(nextMode === 'custom' ? 'custom' : null);
+      setSharingNotice('Sharing saved.');
+    }
+    lock.current = false;
+  };
   const save = async () => {
     if (lock.current) return;
     lock.current = true;
@@ -45,6 +66,7 @@ export function SchedulingSetup({ preferences: p }: { preferences: Preferences }
       // Save the explicitly reviewed choices before redirecting on web. They grant no Google access.
       await actions.setPreferences({ ...selection, desiredWrites: writes });
       setDraft(selection);
+      setSharingNotice('Sharing saved.');
       if (needsGoogle) {
         const result = await connectGoogle(['gmail', 'googleCalendar'], accounts, writes);
         if (result === 'failed') throw new Error('Google could not finish connecting. Your setup choices are saved; try connecting again.');
@@ -70,11 +92,14 @@ export function SchedulingSetup({ preferences: p }: { preferences: Preferences }
     </Card>
     <View style={{ gap: t.spacing.sm }}><Text variant="label">What can your family see?</Text>
       {U.sharing.map(preset => <Card key={preset.key}>
-        <Button label={`${mode === preset.key ? 'Selected · ' : ''}${preset.title}`} variant={mode === preset.key ? 'primary' : 'secondary'} disabled={!!busy} onPress={() => { setSharingMode(preset.key); if (preset.key !== 'custom') change({ availabilityFor: preset.key === 'family' ? p.people.map(person => person.id) : [] }); }} />
+        <Button label={`${mode === preset.key ? 'Selected · ' : ''}${preset.title}`} variant={mode === preset.key ? 'primary' : 'secondary'} disabled={!!busy || (preset.key === 'custom' && p.people.length === 0)} onPress={() => { if (preset.key === 'custom') setSharingMode('custom'); else void chooseSharing(preset.key === 'family' ? p.people.map(person => person.id) : [], preset.key); }} />
         <Text color="muted">{preset.detail}</Text>
       </Card>)}
-      {mode === 'family' ? <Text color="muted">{p.people.length ? `Share availability with: ${p.people.map(person => person.name).join(', ')}. New family members are not added automatically.` : 'No eligible family members yet. You can choose them here after they join.'}</Text> : null}
-      {mode === 'custom' ? <Card>{p.people.map(person => <SettingSwitch key={person.id} title={person.name} detail={person.sharesWithMe ? 'They also share availability with you.' : 'This only changes what you share.'} disabled={!!busy} value={selection.availabilityFor.includes(person.id)} onChange={on => change({ availabilityFor: on ? [...selection.availabilityFor, person.id] : selection.availabilityFor.filter(id => id !== person.id) })} />)}</Card> : null}
+      {!p.people.length ? <Text color="muted">{U.noSharingRecipients}</Text> : null}
+      {sharingNotice ? <Text accessibilityLiveRegion="polite">{sharingNotice}</Text> : null}
+      {error ? <Text accessibilityRole="alert">{error}</Text> : null}
+      {mode === 'family' ? <Text color="muted">{p.people.length ? `Share availability with: ${p.people.map(person => person.name).join(', ')}. ${U.familyFuture}` : U.familyEmpty}</Text> : null}
+      {mode === 'custom' ? <Card>{p.people.map(person => <SettingSwitch key={person.id} title={person.name} detail={person.sharesWithMe ? 'They also share availability with you.' : 'This only changes what you share.'} disabled={!!busy} value={selection.availabilityFor.includes(person.id)} onChange={on => void chooseSharing(on ? [...selection.availabilityFor, person.id] : selection.availabilityFor.filter(id => id !== person.id), 'custom')} />)}</Card> : null}
     </View>
     <Text color="muted">{needsGoogle ? 'Next, Google will ask for Gmail and Calendar access together. You choose which permissions to grant.' : 'Google is already connected for these choices. No sign-in needed.'}</Text>
     <Button label={needsGoogle ? connected ? U.update : U.connect : 'Save choices'} loading={!!busy} disabled={!!busy} onPress={() => void save()} />
@@ -83,7 +108,6 @@ export function SchedulingSetup({ preferences: p }: { preferences: Preferences }
       setNotice(result === 'connected' ? 'Google returned. The admin can now try demo cleanup.' : result === 'redirecting' ? '' : 'Cleanup authorization was not completed.');
     })} /></Card> : null}
     {notice ? <Text accessibilityLiveRegion="polite">{notice}</Text> : null}
-    {error ? <Text accessibilityRole="alert">{error}</Text> : null}
   </View>;
 }
 

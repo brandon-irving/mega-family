@@ -89,7 +89,7 @@ export const skip = mutation({
   handler: async (ctx, { offer }) => {
     const viewer = await requireViewer(ctx);
     // v0.17b (C8): adults only, like every connect mutation.
-    requireConnector(viewer.member);
+    await requireConnector(ctx, viewer.member);
     const now = await clock.now(ctx, viewer.member.familyId);
     await completeOffer(ctx, { familyId: viewer.member.familyId, memberId: viewer.member._id, offer, outcome: 'skipped', now });
     return null;

@@ -1,5 +1,6 @@
+import { googleReturnOrigin } from './model/googleReturnOrigin';
 import { DEMO_CLEANUP } from '../shared/config/demo';
-import { demoGate } from './model/demoConsole';
+import { demoGate, expectedDemoEmail } from './model/demoConsole';
 import { connectorAllowed } from './model/integrations';
 import { SCHEDULING } from '../shared/config/scheduling';
 // CONTRACT §4 `integrations.*` (G5, v0.17): connected accounts — Gmail and Google Calendar (one Google grant per
@@ -92,30 +93,31 @@ export const offer = query({
 
 export const googleStart = mutation({
   ...pick(API.integrations.googleStart),
-  handler: async (ctx, { want, loginHint, scheduling, demoCleanup }) => {
+  handler: async (ctx, { want, loginHint, scheduling, demoCleanup, returnOrigin }) => {
     const viewer = await requireViewer(ctx);
-    requireConnector(viewer.member);
+    await requireConnector(ctx, viewer.member);
     if (demoCleanup) demoGate();
+    const expectedEmail = await expectedDemoEmail(ctx, viewer.member);
     const products = [...new Set(want)];
     if (!products.length) fail('VALIDATION', 'nothing to connect');
     const redirectUri = googleRedirectUri();
     if (!googleAvailable() || !redirectUri) fail('VALIDATION', 'not_configured');
     const { token: nonce, hash } = await randomToken();
     const now = clock.realNow(); // Google's consent screen runs in real time, whatever the demo clock says
-    await ctx.db.insert('oauthStates', { familyId: viewer.member.familyId, memberId: viewer.member._id, nonceHash: hash, want: products, createdAt: now, expiresAt: now + GOOGLE.stateTtlMinutes * 60_000 });
+    await ctx.db.insert('oauthStates', { expectedEmail, returnOrigin: googleReturnOrigin(returnOrigin), familyId: viewer.member.familyId, memberId: viewer.member._id, nonceHash: hash, want: products, createdAt: now, expiresAt: now + GOOGLE.stateTtlMinutes * 60_000 });
     const scopes = [...GOOGLE.identityScopes, ...products.map((p) => GOOGLE.scopes[p]), ...(scheduling ? Object.values(SCHEDULING.scopes) : []), ...(demoCleanup ? [DEMO_CLEANUP.gmailScope] : [])];
-    return { authUrl: getGoogleOAuth().authUrl({ scopes, state: nonce, redirectUri, loginHint: loginHint?.slice(0, 200) }) };
+    return { authUrl: getGoogleOAuth().authUrl({ scopes, state: nonce, redirectUri, loginHint: expectedEmail ?? loginHint?.slice(0, 200) }) };
   },
 });
 
 /** Actions can't read the db: they check the caller through this query (the identity carries over). */
 export const callerCheck = internalQuery({
   args: { connector: v.optional(v.boolean()) },
-  returns: v.object({ familyId: v.id('families'), memberId: v.id('members'), timezone: v.string(), now: v.number() }),
+  returns: v.object({ familyId: v.id('families'), memberId: v.id('members'), timezone: v.string(), now: v.number(), expectedEmail: v.optional(v.string()) }),
   handler: async (ctx, { connector }) => {
     const viewer = await requireViewer(ctx);
-    if (connector) requireConnector(viewer.member);
-    return { familyId: viewer.member.familyId, memberId: viewer.member._id, timezone: viewer.family.timezone, now: await clock.now(ctx, viewer.member.familyId) };
+    if (connector) await requireConnector(ctx, viewer.member);
+    return { expectedEmail: await expectedDemoEmail(ctx, viewer.member), familyId: viewer.member.familyId, memberId: viewer.member._id, timezone: viewer.family.timezone, now: await clock.now(ctx, viewer.member.familyId) };
   },
 });
 
@@ -163,7 +165,7 @@ export const googleConnectCode = action({
     if (!products.length) fail('VALIDATION', 'nothing to connect');
     if (!googleAvailable()) return { status: 'error', failure: 'not_configured' };
     // iOS: the native SDK's serverAuthCode is exchanged with the web client and an empty redirect_uri.
-    return exchangeAndStore(ctx, { familyId: caller.familyId, memberId: caller.memberId, want: products, code: serverAuthCode, redirectUri: '' });
+    return exchangeAndStore(ctx, { familyId: caller.familyId, memberId: caller.memberId, expectedEmail: caller.expectedEmail, want: products, code: serverAuthCode, redirectUri: '' });
   },
 });
 
@@ -171,7 +173,7 @@ export const connectDevice = mutation({
   ...pick(API.integrations.connectDevice),
   handler: async (ctx, { label, calendarIds }) => {
     const viewer = await requireViewer(ctx);
-    requireConnector(viewer.member);
+    await requireConnector(ctx, viewer.member);
     const ids = [...new Set(calendarIds.map((c) => c.trim()).filter(Boolean))];
     if (!ids.length || ids.length > DEVICE_CALENDAR.maxCalendars) fail('VALIDATION', 'calendars');
     const now = await clock.now(ctx, viewer.member.familyId);
@@ -336,7 +338,7 @@ export const syncNow = action({
 /** The callback's state check: unknown, expired or already used → null (and a used one stays used). */
 export const consumeState = internalMutation({
   args: { nonceHash: v.string() },
-  returns: v.union(v.null(), v.object({ familyId: v.id('families'), memberId: v.id('members'), want: googleProducts, expectedEmail: v.optional(v.string()) })),
+  returns: v.union(v.null(), v.object({ familyId: v.id('families'), memberId: v.id('members'), want: googleProducts, expectedEmail: v.optional(v.string()), returnOrigin: v.optional(v.string()) })),
   handler: async (ctx, { nonceHash }) => {
     const row = await ctx.db
       .query('oauthStates')
@@ -347,8 +349,8 @@ export const consumeState = internalMutation({
     await ctx.db.patch(row._id, { usedAt: now });
     if (row.expiresAt < now) return null;
     const member = await ctx.db.get(row.memberId);
-    if (!member || member.familyId !== row.familyId || !connectorAllowed(member)) return null;
-    return { familyId: row.familyId, memberId: row.memberId, want: row.want, ...(row.expectedEmail ? { expectedEmail: row.expectedEmail } : {}) };
+    if (!member || member.familyId !== row.familyId || !(await connectorAllowed(ctx, member))) return null;
+    return { ...(row.returnOrigin ? { returnOrigin: row.returnOrigin } : {}), familyId: row.familyId, memberId: row.memberId, want: row.want, ...(row.expectedEmail ? { expectedEmail: row.expectedEmail } : {}) };
   },
 });
 
@@ -387,7 +389,7 @@ export const storeGrant = internalMutation({
   returns: v.object({ connected: googleProducts }),
   handler: async (ctx, p) => {
     const member = await ctx.db.get(p.memberId);
-    if (!member || member.familyId !== p.familyId || !connectorAllowed(member)) return { connected: [] };
+    if (!member || member.familyId !== p.familyId || !(await connectorAllowed(ctx, member))) return { connected: [] };
     const real = clock.realNow();
     const now = await clock.now(ctx, p.familyId);
     const existing = await ctx.db
@@ -435,7 +437,7 @@ export const secretFor = internalQuery({
   returns: v.union(v.null(), v.object({ _id: v.id('integrationSecrets'), refreshToken: v.string(), accessToken: v.optional(v.string()), accessTokenExpiresAt: v.optional(v.number()) })),
   handler: async (ctx, { familyId, memberId }) => {
     const member = await ctx.db.get(memberId);
-    if (!member || member.familyId !== familyId || !connectorAllowed(member)) return null;
+    if (!member || member.familyId !== familyId || !(await connectorAllowed(ctx, member))) return null;
     const s = await ctx.db
       .query('integrationSecrets')
       .withIndex('by_family_member_provider', (q) => q.eq('familyId', familyId).eq('memberId', memberId).eq('provider', 'google'))
@@ -483,7 +485,7 @@ export const loadForSync = internalQuery({
     const family = await ctx.db.get(row.familyId);
     if (!family) return null;
     const owner = row.memberId ? await ctx.db.get(row.memberId) : null;
-    if (owner && !connectorAllowed(owner)) return null;
+    if (owner && !(await connectorAllowed(ctx, owner))) return null;
     return { integration: row, status: statusOf(row), timezone: family.timezone, now: await clock.now(ctx, row.familyId) };
   },
 });
@@ -565,7 +567,7 @@ export const recordMail = internalMutation({
     if (!row || !row.memberId || statusOf(row) !== 'connected') return null;
     const owner = row.memberId;
     const member = await ctx.db.get(owner);
-    if (!member || !connectorAllowed(member)) return null;
+    if (!member || !(await connectorAllowed(ctx, member))) return null;
     const runs = await ctx.db.query('demoRuns').withIndex('by_family', q => q.eq('familyId', row.familyId)).collect();
     const family = await ctx.db.get(row.familyId);
     if (!family) return null;
@@ -647,7 +649,7 @@ export const saveIcs = internalMutation({
   returns: v.id('integrations'),
   handler: async (ctx, p) => {
     const viewer = await requireViewer(ctx);
-    requireConnector(viewer.member);
+    await requireConnector(ctx, viewer.member);
     const familyId = viewer.member.familyId;
     const now = await clock.now(ctx, familyId);
     const mine = (await memberIntegrations(ctx, familyId, viewer.member._id)).filter((r) => r.kind === 'ics' && statusOf(r) !== 'disconnected');
@@ -710,6 +712,8 @@ export const pollKind = internalMutation({
     let i = 0;
     for (const row of rows) {
       if (!row.memberId) continue;
+      const member = await ctx.db.get(row.memberId);
+      if (!member || member.familyId !== row.familyId || !await connectorAllowed(ctx, member)) continue;
       if ((GOOGLE_KINDS as readonly string[]).includes(kind)) {
         const secret = await ctx.db
           .query('integrationSecrets')

@@ -2,7 +2,7 @@
 // mode ran off the screen ("Back to T…" cut off). Kids get one bar on every screen (canvas v33,
 // design/build/thread.html "Kid composer"): a 72pt Talk pill + a 72pt round keyboard toggle with a drawn
 // 28px icon; typing swaps in a full-width 72pt field (20px text) + a round mic to go back.
-import { Keyboard } from 'react-native';
+import { Keyboard, Platform } from 'react-native';
 import { act, fireEvent, screen } from '@testing-library/react-native';
 import { COMPOSER_SIZES } from '@shared/config/theme';
 import { renderWithTheme } from '@/test/renderWithTheme';
@@ -156,4 +156,22 @@ test('while responding the action is an icon-only Stop and preserves typed text'
   expect(onSend).not.toHaveBeenCalled();
   expect(screen.getByLabelText('Message Teal').props.value).toBe('Next question');
   await result.unmount();
+});
+
+test('web Enter sends; Shift+Enter and composition retain the draft', async () => {
+  const previous = Platform.OS;
+  Object.defineProperty(Platform, 'OS', { configurable: true, value: 'web' });
+  try {
+    const onSend = jest.fn();
+    await renderWithTheme(<Composer megaName="Teal" onSend={onSend} onOpenTalk={noop} />);
+    const field = () => screen.getByLabelText('Message Teal');
+    await fireEvent.changeText(field(), 'Hello');
+    const preventDefault = jest.fn();
+    await fireEvent(field(), 'keyPress', { nativeEvent: { key: 'Enter', shiftKey: true }, preventDefault });
+    await fireEvent(field(), 'keyPress', { nativeEvent: { key: 'Enter', isComposing: true }, preventDefault });
+    expect(onSend).not.toHaveBeenCalled(); expect(preventDefault).not.toHaveBeenCalled();
+    await fireEvent(field(), 'keyPress', { nativeEvent: { key: 'Enter' }, preventDefault });
+    expect(onSend).toHaveBeenCalledWith('Hello'); expect(preventDefault).toHaveBeenCalledTimes(1);
+    expect(field().props.value).toBe('');
+  } finally { Object.defineProperty(Platform, 'OS', { configurable: true, value: previous }); }
 });

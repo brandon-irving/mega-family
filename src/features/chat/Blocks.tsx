@@ -1,4 +1,5 @@
 import { ModalSheet } from '@/ui/ModalSheet';
+import { useRunAction } from '@/features/shell/useRunAction';
 import { MegaDraftPreview } from './MegaDraftPreview';
 import { MEGA_CREATION as C } from '@shared/config/megaCreation';
 import { FieldsForm } from '@/ui/FieldsForm';
@@ -6,7 +7,7 @@ import { FieldsForm } from '@/ui/FieldsForm';
 // number, date, fields, look, questions, invite, confirm. Pure presentational — takes the block and an
 // onAnswer callback, so it's testable from fixtures and reusable from both chat and the kid thread. The one
 // exception is the invite block, whose panel makes the invite code on request (G5 UX review).
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Switch, TextInput, View } from 'react-native';
 import type { BlockAnswer, UIBlock } from '@shared/domain/messages';
 import { summarizeAnswer } from '@shared/domain/answerLabel';
@@ -311,18 +312,27 @@ function ConfirmBlock({ block, onAnswer }: { block: Extract<UIBlock, { kind: 'co
 function MegaDraftBlock({ block, onAnswer }: { block: Extract<UIBlock, { kind: 'megaDraft' }>; onAnswer: (answer: BlockAnswer) => void }) {
   const tokens = useTokens();
   const [confirmDiscard, setConfirmDiscard] = useState(false);
+  const { busy, error, run } = useRunAction();
+  const submitting = useRef(false);
+  const answer = async (value: 'confirm' | 'change' | 'cancel') => {
+    if (submitting.current) return;
+    submitting.current = true;
+    try { await run(value, async () => { await onAnswer({ value }); }); }
+    finally { submitting.current = false; }
+  };
   const data = block.data;
   return <Card style={{ gap: tokens.spacing.sm }}>
     <Text variant="label">{block.prompt}</Text>
     <MegaDraftPreview data={data} />
     <Text variant="caption" color="muted">{C.appearance}</Text>
-    <Button label={C.confirm} onPress={() => onAnswer({ value: 'confirm' })} />
-    <Button label={C.change} variant="secondary" onPress={() => onAnswer({ value: 'change' })} />
-    <Button label={C.cancel} variant="ghost" onPress={() => setConfirmDiscard(true)} />
+    <Button label={C.confirm} loading={busy === 'confirm'} disabled={!!busy} onPress={() => answer('confirm')} />
+    <Button label={C.change} loading={busy === 'change'} disabled={!!busy} variant="secondary" onPress={() => answer('change')} />
+    <Button label={C.cancel} disabled={!!busy} variant="ghost" onPress={() => setConfirmDiscard(true)} />
+    {error && <Text accessibilityRole="alert">{error}</Text>}
     {confirmDiscard && <ModalSheet open title={C.discardTitle} closeLabel={C.keepEditing} onClose={() => setConfirmDiscard(false)}>
       <Text>{C.discardBody}</Text>
       <Button label={C.keepEditing} onPress={() => setConfirmDiscard(false)} />
-      <Button label={C.discard} variant="secondary" onPress={() => { setConfirmDiscard(false); onAnswer({ value: 'cancel' }); }} />
+      <Button label={C.discard} variant="secondary" onPress={() => { setConfirmDiscard(false); void answer('cancel'); }} />
     </ModalSheet>}
   </Card>;
 }

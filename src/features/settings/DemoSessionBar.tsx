@@ -14,16 +14,17 @@ import { useTokens } from '@/ui/theme';
 import type { Id } from '@shared/domain/validators';
 
 /** Demo-only controls follow the tester into the real recipient experience. */
-export function DemoSessionBar({ resumeInvite = false }: { resumeInvite?: boolean }) {
+export function DemoSessionBar({ resumeInvite = false, stacked = false }: { resumeInvite?: boolean; stacked?: boolean }) {
   const { profile, switchTester } = useDemoProfile();
   if (!profile?.active) return null;
-  return <ActiveDemoSessionBar profile={profile} switchTester={switchTester} resumeInvite={resumeInvite} />;
+  return <ActiveDemoSessionBar profile={profile} switchTester={switchTester} resumeInvite={resumeInvite} stacked={stacked} />;
 }
 
-function ActiveDemoSessionBar({ profile, switchTester, resumeInvite }: {
+function ActiveDemoSessionBar({ profile, switchTester, resumeInvite, stacked }: {
   profile: NonNullable<ReturnType<typeof useDemoProfile>['profile']>;
   switchTester: ReturnType<typeof useDemoProfile>['switchTester'];
   resumeInvite: boolean;
+  stacked: boolean;
 }) {
   // The hook is bound to this mounted navigator, including its first render after a profile switch.
   const router = useRouter();
@@ -47,7 +48,7 @@ function ActiveDemoSessionBar({ profile, switchTester, resumeInvite }: {
     finally { lock.current = false; setBusy(false); }
   };
   return <View style={{ paddingHorizontal: tokens.spacing.md, backgroundColor: tokens.surface }}>
-    <View style={{ flexDirection: 'row', alignItems: 'center' }}><Text variant="caption" color="muted" numberOfLines={1} style={{ flex: 1 }}>Demo · {profile.currentName ?? 'Admin'}</Text><Button label={profile.testing ? C.backToAdmin : C.switchPerson} variant="ghost" disabled={busy} onPress={() => profile.testing ? void switchTo() : setOpen(true)} /></View>
+    <View style={{ flexDirection: stacked ? 'column' : 'row', alignItems: stacked ? 'flex-start' : 'center' }}><Text variant="caption" color="muted" numberOfLines={1} style={stacked ? undefined : { flex: 1 }}>Demo · {profile.currentName ?? 'Admin'}</Text><Button label={profile.testing ? C.backToAdmin : C.switchPerson} variant="ghost" disabled={busy} onPress={() => profile.testing ? void switchTo() : setOpen(true)} /></View>
     {error && <Text accessibilityRole="alert">{error}</Text>}
     {open && <ModalSheet open closeLabel="Close" title={C.switchTitle} onClose={() => { if (!busy) setOpen(false); }}>
       <Text color="muted">{C.switchHint}</Text>

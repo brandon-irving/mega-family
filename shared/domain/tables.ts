@@ -420,6 +420,7 @@ export const notifications = {
 };
 
 export const requests = {
+  scheduling: v.optional(v.object({ planId: v.id('mailPlans'), revision: v.number(), calendarAuthorized: v.optional(v.boolean()), acceptedSlot: v.optional(v.object({ start: v.number(), end: v.number() })), calendarOperation: v.optional(v.union(v.literal('running'), v.literal('done'), v.literal('failed'), v.literal('uncertain'))), calendarAttempt: v.optional(v.number()), calendarExternalId: v.optional(v.string()), calendarEventId: v.optional(v.id('events')), calendarCancelled: v.optional(v.boolean()) })),
   familyId,
   fromMemberId: memberId,
   toMemberId: memberId,
@@ -773,6 +774,7 @@ export const integrationSecrets = {
 /** A pending Google consent (web redirect flow): the `state` we send is a random nonce; we store only its hash,
  * bound to the member and what they asked for. Single use; expires after GOOGLE.stateTtlMinutes. */
 export const oauthStates = {
+  returnOrigin: v.optional(v.string()),
   familyId,
   memberId,
   nonceHash: v.string(),

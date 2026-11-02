@@ -1,5 +1,5 @@
 import { CONNECTION_CATALOG, CONNECTION_COPY as C, rankConnections, type ConnectionCapability } from '../../shared/config/connections';
-import { ageGroupOf } from '../../shared/ageGroups';
+import { memberAgeGroup } from './memberAge';
 import type { Doc } from '../_generated/dataModel';
 import type { MutationCtx } from '../_generated/server';
 import type { BlockAnswer } from '../../shared/domain/messages';
@@ -8,7 +8,6 @@ import { googleAvailable } from './tokenVault';
 import { offerGoogleSetup } from './googleSetup';
 import { postOwnMegaMessage } from './threads';
 import { fail } from './errors';
-import { clock } from '../ports/clock';
 
 const adapters = {
   google: {
@@ -31,7 +30,7 @@ export async function recommendConnection(ctx: MutationCtx, owner: Doc<'members'
   if (!creator) {
     const creatorChoices = await ctx.db.query('connectionSuggestions').withIndex('by_subject', q => q.eq('familyId', owner.familyId).eq('subjectId', owner._id)).collect();
     // A creator's permission only controls this proactive suggestion, never the recipient's manual setup.
-    excluded.push(...creatorChoices.filter(r => r.mode === 'creator' && r.status !== 'accepted').map(r => r.providerId));
+    excluded.push(...creatorChoices.filter(r => r.mode === 'creator' && r.status === 'declined').map(r => r.providerId));
   }
   const connected: ConnectionCapability[] = [];
   // Never inspect or disclose another person's connected accounts to a creator.
@@ -48,7 +47,7 @@ export async function recommendConnection(ctx: MutationCtx, owner: Doc<'members'
   const onboarding = !creator ? await ctx.db.query('onboarding').withIndex('by_family_member', q => q.eq('familyId', owner.familyId).eq('memberId', owner._id)).unique() : null;
   const available = CONNECTION_CATALOG.filter(p => adapters[p.setup as keyof typeof adapters]?.available()).map(p => p.id);
   if (onboarding?.outcomes.gmail === 'skipped') excluded.push('google');
-  const candidate = rankConnections({ context, ageGroup: ageGroupOf(subject, new Date(clock.realNow()).toISOString().slice(0, 10)), connected, available, excluded, allowBaseline: options.allowBaseline })[0];
+  const candidate = rankConnections({ context, ageGroup: await memberAgeGroup(ctx, subject), connected, available, excluded, allowBaseline: options.allowBaseline })[0];
   if (!candidate) return false;
   const prompt = creator ? C.creator(subject.name, candidate.label, candidate.reason) : C.own(candidate.label, candidate.reason) + '\n\n' + C.optional;
   const messageId = await postOwnMegaMessage(ctx, owner.familyId, owner._id, { type: 'block', block: { kind: 'choice', prompt, multi: false, allowOther: false, options: [

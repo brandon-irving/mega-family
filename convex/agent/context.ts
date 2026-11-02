@@ -17,7 +17,7 @@ import { pinnedFacts, recall } from '../model/recall';
 import { clock } from '../ports/clock';
 
 const DAY_MS = 24 * 60 * 60_000;
-const RECENT_THREAD_MESSAGES = 12;
+const CONTEXT = LIMITS.conversationContext;
 
 function summarizeBody(body: Doc<'messages'>['body']): string {
   switch (body.type) {
@@ -99,7 +99,11 @@ export const buildContext = internalQuery({
     const approvedBrief = megaDoc?.ownerId === args.memberId ? await acceptedBriefContext(ctx, args.familyId, args.memberId) : '';
     const draft = await activeDraft(ctx, member);
     const pendingBrief = await briefFor(ctx, args.familyId, member._id);
-    const creationContext = JSON.stringify({ draft, recipientBrief: pendingBrief && pendingBrief.step !== 'done' ? {
+    // Creator-owned snapshots preserve details from earlier setup without exposing recipients' private chats.
+    const completedDrafts = (await ctx.db.query('megaDrafts').withIndex('by_family_creator', q => q.eq('familyId', args.familyId).eq('creatorId', args.memberId)).order('desc').take(CONTEXT.completedDraftScan))
+      .filter(d => d.status === 'created').slice(0, CONTEXT.completedDrafts)
+      .map(d => ({ name: d.data.name, relationship: d.data.relationship, role: d.data.role, ageGroup: d.data.ageGroup, memberId: d.resultMemberId, brief: d.data.brief ? { context: d.data.brief.context, goal: d.data.brief.goal } : null }));
+    const creationContext = JSON.stringify({ draft, previouslyCreatedByYou: completedDrafts, recipientBrief: pendingBrief && pendingBrief.step !== 'done' ? {
       status: pendingBrief.status, step: pendingBrief.step,
       suggestionAwaitingConsent: pendingBrief.status === 'pending' ? pendingBrief.pendingRevision ?? pendingBrief.proposed : pendingBrief.pendingRevision,
       approved: pendingBrief.approved,
@@ -121,11 +125,25 @@ export const buildContext = internalQuery({
       .query('messages')
       .withIndex('by_family_thread_at', (q) => q.eq('familyId', args.familyId).eq('threadId', args.threadId))
       .order('desc')
-      .take(RECENT_THREAD_MESSAGES);
+      .take(CONTEXT.scanMessages);
 
     const briefAnswerIds = new Set(await Promise.all(thread.map(async message =>
       message.body.type === 'answer' && (await ctx.db.get(message.body.blockMessageId))?.ruleBlock === 'brief' ? message._id : null,
     )));
+
+    // UI cards and streamed placeholders must not consume the conversation-turn budget.
+    const recentThread: { role: 'user' | 'assistant'; content: string }[] = [];
+    let userTurns = 0, characters = 0;
+    for (const message of thread) {
+      if (message.author.kind === 'system' || message.ruleBlock === 'brief' || briefAnswerIds.has(message._id)) continue;
+      const content = summarizeBody(message.body).trim().slice(0, CONTEXT.maxMessageCharacters);
+      if (!content) continue;
+      if (characters + content.length > CONTEXT.maxCharacters) break;
+      recentThread.push({ role: message.author.kind === 'member' ? 'user' : 'assistant', content });
+      characters += content.length;
+      if (message.author.kind === 'member' && ++userTurns >= CONTEXT.userTurns) break;
+    }
+    recentThread.reverse();
 
     const nameOf = (id: Id<'members'>) => roster.find((m) => m.memberId === id)?.name;
     const eventLine = (e: Doc<'events'>) => {
@@ -145,10 +163,7 @@ export const buildContext = internalQuery({
       upcomingEvents: events.map(eventLine),
       upcomingReminders: reminders.filter((r) => !r.done).map((r) => `${r.text} (due ${formatLocalDateTime(r.dueAt, tz, { weekday: 'short' })})`),
       lists: lists.map((l) => `${l.list.name}: ${l.items.map((i) => (i.checked ? `~~${i.text}~~` : i.text)).join(', ')}`),
-      recentThread: thread
-        .reverse()
-        .filter((m) => m.author.kind !== 'system' && m.ruleBlock !== 'brief' && !briefAnswerIds.has(m._id))
-        .map((m) => ({ role: m.author.kind === 'member' ? ('user' as const) : ('assistant' as const), content: summarizeBody(m.body) })),
+      recentThread,
     };
   },
 });

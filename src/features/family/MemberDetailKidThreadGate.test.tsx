@@ -35,7 +35,7 @@ jest.mock('@/data/useFamily', () => ({
   useSetKidControls: () => jest.fn(),
   useKidThread: (id: string | null) => mockUseKidThread(id),
 }));
-jest.mock('@/data/useViewer', () => ({ useViewer: () => ({ member: { _id: 'members_admin', role: 'admin' }, isParentOf: mockParent ? ['members_admin'] : [] }) }));
+jest.mock('@/data/useViewer', () => ({ useViewer: () => ({ family: { timezone: 'America/New_York' }, member: { _id: 'members_admin', role: 'admin' }, isParentOf: mockParent ? ['members_admin'] : [] }) }));
 jest.mock('@/data/useMegaDirectory', () => ({ useMegaDirectory: () => ({}) }));
 jest.mock('@/features/family/MemberDetailContent', () => ({ MemberDetailContent: () => null }));
 

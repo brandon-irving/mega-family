@@ -1,5 +1,5 @@
 import { maybeSuggestEventShare } from './layers';
-import { canConnectAccounts } from '../../shared/ageGroups';
+import { memberAgeGroup } from './memberAge';
 import { clock as permissionClock } from '../ports/clock';
 // G5 (CONTRACT v0.17): connected accounts — the shared logic behind `integrations.*`, `mail.*`, the OAuth
 // callback and the sync actions. Rules (docs/gates/G5.md invariants 2, 3, 8): an integration belongs to one
@@ -65,8 +65,8 @@ export async function requireOwnIntegration(ctx: Ctx, member: Doc<'members'>, in
 }
 
 /** Kids don't connect accounts (their MEGA's sources are the household's); FORBIDDEN, like other adult tools. */
-export function requireConnector(member: Doc<'members'>): void {
-  if (!connectorAllowed(member)) fail('FORBIDDEN', 'Children cannot connect accounts. Teens need parent approval.');
+export async function requireConnector(ctx: Ctx, member: Doc<'members'>): Promise<void> {
+  if (!await connectorAllowed(ctx, member)) fail('FORBIDDEN', 'Children cannot connect accounts. Teens need parent approval.');
 }
 
 /** Events (and, for Gmail, found items) this integration brought in during the family's current month. */
@@ -322,4 +322,7 @@ export async function recordSync(ctx: MutationCtx, integrationId: Id<'integratio
   else await ctx.db.patch(row._id, { lastSyncAt: p.now, lastFailure: undefined, lastFailureAt: undefined, syncingUntil: undefined, ...config });
 }
 
-export function connectorAllowed(member: Doc<'members'>) { return canConnectAccounts(member, new Date(permissionClock.realNow()).toISOString().slice(0, 10)); }
+export async function connectorAllowed(ctx: Ctx, member: Doc<'members'>) {
+  const group = await memberAgeGroup(ctx, member);
+  return group === 'adult' || (group === 'teen' && !!member.connectionsApprovedBy);
+}

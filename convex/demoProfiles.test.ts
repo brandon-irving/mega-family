@@ -124,7 +124,7 @@ async function freshInvite() {
   const fresh = (await s.admin.query(api.me.get, {}))!;
   await s.admin.mutation(api.onboarding.setName, { name: 'Brandon' });
   const call = async (name: string, args: object) => JSON.parse(await s.admin.mutation(internal.megaCreation.execute, { name, argumentsJson: JSON.stringify(args) }));
-  const draft = await call('mega_draft_update', { target: 'new', name: 'Lovie', role: 'adult', relationship: 'parent', brief: { context: 'A busy mother writing a children’s book.' } });
+  const draft = await call('mega_draft_update', { target: 'new', name: 'Lovie', ageGroup: 'adult', role: 'adult', relationship: 'parent', brief: { context: 'A busy mother writing a children’s book.' } });
   const review = await call('mega_draft_review', { draftId: draft.draftId });
   const { memberId } = await call('mega_draft_confirm', { draftId: draft.draftId, revision: review.revision, confirmed: true });
   const invite = await s.admin.mutation(api.invites.create, { memberId });

@@ -25,7 +25,7 @@ async function setup(join = true) {
   registerStreaming(t);
   const { familyId, members } = await t.mutation(internal.seed.sampleFamily, { weekOf: '2026-10-25' });
   const admin = t.withIdentity({ subject: 'sample:admin' });
-  const { memberId } = await admin.mutation(api.family.add, { name: 'Lovie', role: 'adult', relationship: 'partner' });
+  const { memberId } = await admin.mutation(api.family.add, { name: 'Lovie', ageGroup: 'adult', role: 'adult', relationship: 'partner' });
   await admin.mutation(api.assistantBriefs.save, { memberId, brief: proposed });
   const { url } = await admin.mutation(api.invites.create, { memberId });
   const owner = t.withIdentity({ subject: 'brief-owner' });
@@ -70,7 +70,7 @@ describe('assistant first-day brief', () => {
     await s.owner.action(api.invites.redeem, { token: s.url });
     await s.owner.mutation(api.chat.start, {});
     const before = await s.messages();
-    expect(JSON.stringify(before)).toContain('first-day brief');
+    expect(JSON.stringify(before)).toContain('shared a starting point');
     expect(JSON.stringify(before)).toContain(proposed.goal);
     await s.owner.mutation(api.chat.start, {});
     expect(await s.messages()).toHaveLength(before.length);

@@ -82,7 +82,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:ui": "jest",
-    "test:scripts": "node --test scripts/secrets.test.mjs",
+    "test:scripts": "node --test scripts/secrets.test.mjs scripts/demo-delivery.test.mjs",
     "check": "npm run typecheck && npm run test && npm run test:ui && npm run test:scripts",
     "secrets": "node scripts/secrets.mjs",
     "smoke:meta": "node scripts/secrets.mjs run --only tool -- node scripts/smoke/meta.mjs",
@@ -92,7 +92,10 @@
     "dev:all:web": "convex dev --start \"npm run dev:web\"",
     "build:ios:dev": "npx eas-cli@latest build --profile development --platform ios",
     "demo:runner": "node scripts/demo-runner.mjs",
-    "demo:logs": "node scripts/demo-recordings.mjs"
+    "demo:logs": "node scripts/demo-recordings.mjs",
+    "demo:runner:start": "node scripts/demo-runner.mjs --background",
+    "demo:runner:status": "npx convex run demoConsole:runnerHealth",
+    "demo:runner:stop": "node scripts/demo-runner.mjs --stop"
   },
   "private": true
 }

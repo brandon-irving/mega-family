@@ -13,18 +13,25 @@ export async function request(url: string, token: string, method: string, body?:
 const failed = (status: number): WriteResult => ({ ok: false, uncertain: status === 0 || status >= 500 });
 function base64(s: string) { return btoa(Array.from(new TextEncoder().encode(s), b => String.fromCharCode(b)).join('')); }
 const header = (s: string) => s.replace(/[\r\n]/g, ' ').trim();
+function composeReply({ to, subject, body, replyToMessageId, messageId }: Pick<Parameters<MailScheduling['draft']>[0], 'to' | 'subject' | 'body' | 'replyToMessageId' | 'messageId'>) {
+    if (!/^[^\s<>@]+@[^\s<>@]+\.[^\s<>@]+$/.test(to)) return null;
+    const raw = [`To: ${header(to)}`, `Subject: =?UTF-8?B?${base64(/^re:/i.test(subject) ? header(subject) : `Re: ${header(subject)}`)}?=`,
+      `Message-ID: <${header(messageId)}>`, ...(replyToMessageId ? [`In-Reply-To: ${header(replyToMessageId)}`, `References: ${header(replyToMessageId)}`] : []),
+      'MIME-Version: 1.0', 'Content-Type: text/plain; charset=UTF-8', 'Content-Transfer-Encoding: base64', '', base64(body)].join('\r\n');
+    return raw;
+}
 export const googleScheduling: MailScheduling = {
   async watch({ accessToken, topic }) {
     const r = await request(`${GMAIL.baseUrl}/watch`, accessToken, 'POST', { topicName: topic, labelIds: ['INBOX'], labelFilterBehavior: 'INCLUDE' });
     const expiresAt = Number(r.data.expiration);
     return r.status === 200 && Number.isFinite(expiresAt) ? { expiresAt } : null;
   },
-  async hold({ accessToken, id, planKey, title, slot, confirmed, cancelled }) {
+  async hold({ accessToken, id, planKey, title, slot, confirmed, cancelled, demoRunKey }) {
     const base = `${GOOGLE_CALENDAR.baseUrl}/calendars/primary/events`;
     const body = { id, summary: title, start: { dateTime: new Date(slot.start).toISOString() }, end: { dateTime: new Date(slot.end).toISOString() },
-      status: cancelled ? 'cancelled' : confirmed ? 'confirmed' : 'tentative', visibility: 'private', transparency: 'opaque', extendedProperties: { private: { megaPlan: planKey } } };
+      status: cancelled ? 'cancelled' : confirmed ? 'confirmed' : 'tentative', visibility: 'private', transparency: 'opaque', extendedProperties: { private: { megaPlan: planKey, ...(demoRunKey ? { megaDemo: 'true', megaDemoRun: demoRunKey } : {}) } } };
     // Stable provider id makes create retries safe. No attendees: this never sends an invitation.
-    const r = confirmed || cancelled ? { status: 409 } : await request(`${base}?sendUpdates=none`, accessToken, 'POST', body);
+    const r = cancelled ? { status: 409 } : await request(`${base}?sendUpdates=none`, accessToken, 'POST', body);
     if (r.status === 200 || r.status === 201) return { ok: true, id };
     if (r.status !== 409) return failed(r.status);
     const existing = await request(`${base}/${id}`, accessToken, 'GET');
@@ -33,11 +40,15 @@ export const googleScheduling: MailScheduling = {
     const updated = await request(`${base}/${id}?sendUpdates=none`, accessToken, 'PATCH', { summary: body.summary, start: body.start, end: body.end, status: body.status });
     return updated.status === 200 ? { ok: true, id } : failed(updated.status);
   },
+  async send(p) {
+    const raw = composeReply(p);
+    if (!raw) return { ok: false, uncertain: false };
+    const r = await request(`${GMAIL.baseUrl}/messages/send`, p.accessToken, 'POST', { threadId: p.threadId, raw: base64(raw).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '') });
+    return r.status === 200 && typeof r.data.id === 'string' ? { ok: true, id: r.data.id } : r.status === 200 ? { ok: false, uncertain: true } : failed(r.status);
+  },
   async draft({ accessToken, threadId, to, subject, body, replyToMessageId, messageId }) {
-    if (!/^[^\s<>@]+@[^\s<>@]+\.[^\s<>@]+$/.test(to)) return { ok: false, uncertain: false };
-    const raw = [`To: ${header(to)}`, `Subject: =?UTF-8?B?${base64(/^re:/i.test(subject) ? header(subject) : `Re: ${header(subject)}`)}?=`,
-      `Message-ID: <${header(messageId)}>`, ...(replyToMessageId ? [`In-Reply-To: ${header(replyToMessageId)}`, `References: ${header(replyToMessageId)}`] : []),
-      'MIME-Version: 1.0', 'Content-Type: text/plain; charset=UTF-8', 'Content-Transfer-Encoding: base64', '', base64(body)].join('\r\n');
+    const raw = composeReply({ to, subject, body, replyToMessageId, messageId });
+    if (!raw) return { ok: false, uncertain: false };
     const r = await request(`${GMAIL.baseUrl}/drafts`, accessToken, 'POST', { message: { threadId, raw: base64(raw).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '') } });
     return r.status === 200 && typeof r.data.id === 'string' ? { ok: true, id: r.data.id } : failed(r.status);
   },

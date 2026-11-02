@@ -34,6 +34,12 @@ export async function clearDemoGoogle(token: string, email: string, plans: { id:
   await pages(`${base}?q=MEGA_TEST&maxResults=100&showDeleted=false`, 'items', async item => {
     if (isDemoSubject(item.summary) && typeof item.id === 'string') events.add(item.id);
   });
+  // Explicit provenance survives a lost local plan and an ordinary human-readable event title.
+  // megaPlan alone is used by real events too and is deliberately insufficient for deletion.
+  await pages(`${base}?privateExtendedProperty=megaDemo%3Dtrue&maxResults=100&showDeleted=false`, 'items', async item => {
+    const tags = (item.extendedProperties as { private?: Record<string, unknown> })?.private;
+    if (tags?.megaDemo === 'true' && typeof tags.megaDemoRun === 'string' && tags.megaDemoRun.startsWith('run-') && typeof item.id === 'string') events.add(item.id);
+  });
   try {
     for (const plan of plans) {
       if (plan.calendarExternalId) {

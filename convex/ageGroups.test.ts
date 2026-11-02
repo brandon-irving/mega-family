@@ -1,10 +1,31 @@
 /// <reference types="vite/client" />
 import { convexTest } from 'convex-test';
-import { expect, test } from 'vitest';
+import { expect, test, vi } from 'vitest';
 import schema from './schema';
 import { api, internal } from './_generated/api';
-import { ageGroupOf, canConnectAccounts } from '../shared/ageGroups';
+import { ageGroupOf, ageGroupAt, canConnectAccounts } from '../shared/ageGroups';
+import { connectorAllowed } from './model/integrations';
+import { memberAgeGroup } from './model/memberAge';
+import { clock } from './ports/clock';
 const modules=import.meta.glob('./**/*.ts');
+test('birthday eligibility changes at household midnight, not UTC or the demo date', async () => {
+ const t=convexTest(schema,modules); const s=await t.mutation(internal.seed.sampleFamily,{weekOf:'2026-10-25'});
+ await t.run(ctx=>ctx.db.patch(s.members.twin1,{birthday:'2008-11-02',ageGroup:'teen',connectionsApprovedBy:undefined}));
+ const real=vi.spyOn(clock,'realNow').mockReturnValue(Date.parse('2026-11-02T02:00:00Z'));
+ try {
+  const before=await t.run(async ctx=>{const p=(await ctx.db.get(s.members.twin1))!;return {group:await memberAgeGroup(ctx,p),allowed:await connectorAllowed(ctx,p)};});
+  expect(before).toEqual({group:'teen',allowed:false});
+  real.mockReturnValue(Date.parse('2026-11-02T05:00:00Z'));
+  expect(await t.run(async ctx=>connectorAllowed(ctx,(await ctx.db.get(s.members.twin1))!))).toBe(true);
+  expect(ageGroupAt({role:'kid',birthday:'2008-11-02'},Date.parse('2026-11-01T15:00:00Z'),'Asia/Tokyo')).toBe('adult');
+ } finally {real.mockRestore();}
+});
+test('reading legacy adults keeps their category while legacy minors remain protected', async () => {
+ const t=convexTest(schema,modules); const s=await t.mutation(internal.seed.sampleFamily,{weekOf:'2026-10-25'});
+ expect(await t.run(async ctx=>memberAgeGroup(ctx,(await ctx.db.get(s.members.admin))!))).toBe('adult');
+ await t.run(ctx=>ctx.db.patch(s.members.twin1,{birthday:undefined,ageGroup:undefined}));
+ expect(await t.run(async ctx=>connectorAllowed(ctx,(await ctx.db.get(s.members.twin1))!))).toBe(false);
+});
 test('age boundaries are separate from authority; unknown minors fail closed',()=>{
  const p={role:'kid' as const,birthday:'2010-11-01'};
  expect(ageGroupOf(p,'2023-10-31')).toBe('child');expect(ageGroupOf(p,'2023-11-01')).toBe('teen');expect(ageGroupOf(p,'2028-11-01')).toBe('adult');

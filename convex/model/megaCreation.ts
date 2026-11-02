@@ -1,5 +1,6 @@
 import { recommendConnection } from './connectionRecommendations';
-import { ageGroupFromBrief, ageGroupOf, AGE_GROUP_LABELS } from '../../shared/ageGroups';
+import { ageGroupFromBrief, AGE_GROUP_LABELS } from '../../shared/ageGroups';
+import { memberAgeGroup } from './memberAge';
 import { ASSISTANT_BRIEF } from '../../shared/config/assistantBrief';
 import { MEGA_CREATION as C } from '../../shared/config/megaCreation';
 import { ONBOARDING } from '../../shared/config/onboarding';
@@ -101,7 +102,7 @@ export async function updateDraft(ctx: MutationCtx, member: Doc<'members'>, thre
     if (data.target !== 'self' && (person.authId || person.joinedAt !== undefined)) fail('FORBIDDEN', 'This person controls their own MEGA.');
     if (data.memberId !== row.data.memberId) {
       const look = await defaultInviteMega(ctx, person);
-      data = { ...data, role: person.role === 'kid' ? 'kid' : 'adult', ageGroup: person.birthday ? ageGroupOf(person, new Date(clock.realNow()).toISOString().slice(0,10)) : person.ageGroup, accountConnections: undefined, name: person.name, megaName: look.name, hex: look.look.hex, sticker: look.look.sticker, personality: look.personality };
+      data = { ...data, role: person.role === 'kid' ? 'kid' : 'adult', ageGroup: person.birthday ? await memberAgeGroup(ctx, person) : person.ageGroup, accountConnections: undefined, name: person.name, megaName: look.name, hex: look.look.hex, sticker: look.look.sticker, personality: look.personality };
     }
   }
   if (raw.name !== undefined && data.target === 'new') data.name = stringValue(raw.name, ONBOARDING.nameMaxLength);
@@ -157,9 +158,11 @@ async function validateMinorSetup(ctx: QueryCtx, member: Doc<'members'>, data: M
   if (data.target === 'self') return;
   const person = data.target === 'existing' && data.memberId ? await ctx.db.get(data.memberId) : null;
   const role = person?.role ?? data.role;
+  if (data.target === 'new' && !data.ageGroup) fail('VALIDATION', C.ageRequired);
+  if (data.ageGroup && (role === 'adult') !== (data.ageGroup === 'adult')) fail('VALIDATION', 'Age group must match the member’s protected role.');
+  if (person?.birthday && await memberAgeGroup(ctx, person) !== data.ageGroup) fail('VALIDATION', 'The age group must match the saved birthday.');
   if (role !== 'kid') return;
   if (!data.ageGroup) fail('VALIDATION', 'Ask how old the child is in chat and save their age group before reviewing.');
-  if (person?.birthday && ageGroupOf(person, new Date(clock.realNow()).toISOString().slice(0,10)) !== data.ageGroup) fail('VALIDATION', 'The age group must match the saved birthday.');
   if (data.ageGroup === 'teen') {
     if (!data.accountConnections) fail('VALIDATION', 'Ask the parent whether this teen may connect accounts or must ask for approval first.');
     const isParent = person ? (await parentOf(ctx, member.familyId, member._id)).includes(person._id) : ['daughter', 'son', 'child'].includes(data.relationship ?? '');

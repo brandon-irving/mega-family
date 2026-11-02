@@ -214,6 +214,6 @@ export function __setIcsFetcherForTests(adapter: IcsFetcher | null): void {
 }
 
 let schedulingOverride: MailScheduling | null = null;
-const disabledScheduling: MailScheduling = { watch: async () => null, hold: async () => ({ ok: false, uncertain: false }), draft: async () => ({ ok: false, uncertain: false }) };
+const disabledScheduling: MailScheduling = { send: async () => ({ ok: false, uncertain: false }), watch: async () => null, hold: async () => ({ ok: false, uncertain: false }), draft: async () => ({ ok: false, uncertain: false }) };
 export function getMailScheduling(): MailScheduling { return schedulingOverride ?? (wantsRealAdapters() ? googleScheduling : disabledScheduling); }
 export function __setMailSchedulingForTests(value: MailScheduling | null) { schedulingOverride = value; }

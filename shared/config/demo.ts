@@ -39,7 +39,8 @@ export const DEMO_SCENARIO = {
   ],
   stages: [
     { key: 'meeting', title: '{dad}’s meeting', recipient: 'dad', subject: 'Confirmed: client meeting', body: 'Hi {dad}, your client meeting is confirmed for {date} from 12:00 PM to 1:00 PM {timezone}. The meeting is at our downtown {location} office. This is a private business commitment.' },
-    { key: 'publicity', title: '{mom}’s publicity call options', recipient: 'mom', subject: 'Choose a time: book publicity call', body: 'Hi {mom} and {dad}, we would like both of you on the book publicity call on {date}. Would 12:00 PM–1:00 PM or 2:00 PM–3:00 PM {timezone} work? We are planning outreach to libraries and independent bookstores around {location}, where you mentioned you are based. Please choose one time. These are options, not a booking.' },
+    { key: 'publicity', title: '{mom}’s publicity call options', recipient: 'mom', subject: 'Choose a time: book publicity call', body: 'Hi {mom} and {dad}, we would like both of you on the book publicity call on {date}. Would 12:00 PM–1:00 PM or 2:00 PM–3:00 PM {timezone} work? We are planning outreach to libraries and independent bookstores around {location}, where you mentioned you are based. Please choose one time. Both slots are available on our side. Once you both choose one of these times, consider the call confirmed; no further confirmation from us is needed.' },
+    { key: 'confirmation', retired: true, title: 'Organizer confirms {mom}’s call', recipient: 'mom', subject: 'Confirmed: book publicity call', body: 'Hi {mom} and {dad}, your book publicity call is confirmed for {selectedTime}. We look forward to speaking with you.' },
     { key: 'pickup', title: '{daughter}’s pickup change', recipient: 'daughter', subject: 'Confirmed: {daughter}’s drama pickup at 2:30', body: 'Hi {daughter}, your drama rehearsal on {date} now ends at 2:30 PM {timezone}. Your pickup window is from 2:30 PM to 3:00 PM instead of the previous 3:30 PM pickup. Pickup is at the rehearsal studio in {location}. This new pickup time is confirmed. Please coordinate with your parents about who can pick you up.' },
   ],
   momBrief: { context: '{mom} is a working mother promoting her children’s book. She is new to AI.', goals: 'Help her coordinate her schedule and {daughter}’s activities with less back-and-forth.', firstTask: 'Help me review upcoming commitments and choose a time for my book publicity call.', boundaries: 'Ask before sharing, booking, or contacting anyone.' },
@@ -56,3 +57,6 @@ export const DEMO_CONSOLE_TABS = [
   { id: 'animations', label: 'Motion' },
   { id: 'logs', label: 'Logs' },
 ] as const;
+
+/** Placement shared by the mobile demo launcher; kept away from the composer and tab bar. */
+export const DEMO_QUICK_MENU = { label: 'Demo', title: 'Demo controls', size: 52, inset: 16, initialTop: 140, bottomReserve: 180, dragThreshold: 6 } as const;

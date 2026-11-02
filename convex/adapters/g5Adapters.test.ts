@@ -90,16 +90,17 @@ describe('googleOAuth', () => {
 });
 
 describe('gmail', () => {
-  test('history: ids from messagesAdded across pages, the new historyId; a 404 means a full sync', async () => {
+  test('history: inbox arrivals across pages and label changes, the new historyId; a 404 means a full sync', async () => {
     mockFetch((url) => {
       const u = new URL(url);
-      if (u.searchParams.get('pageToken')) return { json: { history: [{ messagesAdded: [{ message: { id: 'm3' } }] }], historyId: '120' } };
+      if (u.searchParams.get('pageToken')) return { json: { history: [{ messagesAdded: [{ message: { id: 'm3' } }], labelsAdded: [{ message: { id: 'm4' }, labelIds: ['INBOX'] }, { message: { id: 'm1' }, labelIds: ['INBOX'] }, { message: { id: 'archived' }, labelIds: ['STARRED'] }] }], historyId: '120' } };
       return { json: { history: [{ messagesAdded: [{ message: { id: 'm1' } }, { message: { id: 'm2' } }] }], historyId: '110', nextPageToken: 'p2' } };
     });
     const r = await gmailMailSource.history({ accessToken: 'at', startHistoryId: '100', max: 50 });
-    expect(r).toEqual({ ok: true, stale: false, messageIds: ['m1', 'm2', 'm3'], historyId: '120' });
+    expect(r).toEqual({ ok: true, stale: false, messageIds: ['m1', 'm2', 'm3', 'm4'], historyId: '120' });
     const first = new URL(calls[0].url);
-    expect(Object.fromEntries(first.searchParams)).toMatchObject({ startHistoryId: '100', historyTypes: 'messageAdded', labelId: 'INBOX' });
+    expect(Object.fromEntries(first.searchParams)).toMatchObject({ startHistoryId: '100', labelId: 'INBOX' });
+    expect(first.searchParams.getAll('historyTypes')).toEqual(['messageAdded', 'labelAdded']);
     expect(calls[0].init?.headers).toMatchObject({ Authorization: 'Bearer at' });
 
     mockFetch(() => ({ status: 404, json: { error: { code: 404 } } }));

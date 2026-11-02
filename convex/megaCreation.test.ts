@@ -20,7 +20,22 @@ async function setup() {
   const count = () => t.run(ctx => ctx.db.query('members').collect()).then(rows => rows.length);
   return { t, familyId, members, admin, call, draft, count };
 }
-const mother = { target: 'new', name: 'Lovie', role: 'adult', relationship: 'parent', megaName: 'Coral', hex: 'coral', sticker: 'heart', personality: 'calm' };
+const mother = { ageGroup: "adult", target: 'new', name: 'Lovie', role: 'adult', relationship: 'parent', megaName: 'Coral', hex: 'coral', sticker: 'heart', personality: 'calm' };
+
+test('new adult-role drafts require an explicit age category, including stale reviewed drafts', async () => {
+  const s = await setup();
+  const d = await s.call('mega_draft_update', { ...mother, name: 'Maya', ageGroup: undefined, relationship: 'daughter', brief: { context: 'Maya is my 16-year-old daughter' } });
+  await expect(s.call('mega_draft_review', { draftId: d.draftId })).rejects.toThrow(/age group/);
+  await s.t.run(ctx => ctx.db.patch(d.draftId, { status: 'review' }));
+  await expect(s.call('mega_draft_confirm', { draftId: d.draftId, revision: d.revision, confirmed: true })).rejects.toThrow(/age group/);
+});
+
+test('family.add cannot bypass age confirmation or save an adult role with a minor birthday', async () => {
+  const s = await setup(); const before = await s.count();
+  await expect(s.admin.mutation(api.family.add, { name: 'Maya', role: 'adult', relationship: 'daughter' })).rejects.toThrow(/age group/);
+  await expect(s.admin.mutation(api.family.add, { name: 'Maya', role: 'adult', relationship: 'daughter', birthday: '2010-01-01' })).rejects.toThrow(/protected role/);
+  expect(await s.count()).toBe(before);
+});
 
 test('typed mother answer enters the agent tools; conversation gathers details without making a person or forms', async () => {
   const s = await setup(); const count = await s.count();
@@ -162,7 +177,7 @@ test('live drafts are creator-private; own personalization is idempotent and nev
 
 test('explicit teen age in the brief persists to the confirmed member without approving accounts',async()=>{
  const s=await setup();
- const d=await s.call('mega_draft_update',{...mother,name:'Anela',role:'kid',relationship:'daughter',accountConnections:'ask',brief:{context:'16 yr old high schooler who has piano classes'}});
+ const d=await s.call('mega_draft_update',{...mother,ageGroup:undefined,name:'Anela',role:'kid',relationship:'daughter',accountConnections:'ask',brief:{context:'16 yr old high schooler who has piano classes'}});
  expect(d.data.ageGroup).toBe('teen');
  const review=await s.call('mega_draft_review',{draftId:d.draftId});
  const created=await s.call('mega_draft_confirm',{draftId:d.draftId,revision:review.revision,confirmed:true});
@@ -179,7 +194,7 @@ test('explicit teen age in the brief persists to the confirmed member without ap
 
 test('child creation requires age, then teen permissions, before review or a stale confirmation', async () => {
   const s = await setup();
-  const d = await s.call('mega_draft_update', { ...mother, name: 'Anela', role: 'kid', relationship: 'daughter' });
+  const d = await s.call('mega_draft_update', { ...mother, ageGroup: undefined, name: 'Anela', role: 'kid', relationship: 'daughter' });
   await expect(s.call('mega_draft_review', { draftId: d.draftId })).rejects.toThrow(/how old/);
   await s.call('mega_draft_update', { draftId: d.draftId, ageGroup: 'teen' });
   await expect(s.call('mega_draft_review', { draftId: d.draftId })).rejects.toThrow(/approval first/);

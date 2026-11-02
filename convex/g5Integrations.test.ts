@@ -270,6 +270,19 @@ describe('lapse → reconnect, disconnect', () => {
     expect((await s.integ('partner', 'gmail'))!.status).toBe('connected');
   });
 
+  test('polling does not enqueue connected integrations for a teen whose parent approval was revoked', async () => {
+    const s = await seeded();
+    await s.connectGoogle('partner', ['gmail', 'googleCalendar']);
+    await s.settle();
+    await s.t.run(ctx => ctx.db.patch(s.m.partner, { role: 'kid', birthday: undefined, ageGroup: 'teen', connectionsApprovedBy: undefined }));
+    await s.t.mutation(internal.integrations.pollKind, { kind: 'gmail' });
+    await s.t.mutation(internal.integrations.pollKind, { kind: 'googleCalendar' });
+    const gmail = (await s.integ('partner', 'gmail'))!;
+    const calendar = (await s.integ('partner', 'googleCalendar'))!;
+    const scheduled = await s.t.run(ctx => ctx.db.system.query('_scheduled_functions').collect());
+    expect(scheduled.filter(f => f.state.kind === 'pending' && [gmail._id, calendar._id].some(id => JSON.stringify(f.args).includes(id)))).toHaveLength(0);
+  });
+
   test('disconnect: revokes the last Google grant, deletes the secret, removes the private copies (a shared one stays), idempotent; only the owner', async () => {
     const s = await seeded();
     await s.connectGoogle('partner', ['gmail']);
@@ -430,4 +443,35 @@ describe('demo: only mail whose subject starts with the configured prefix is rea
     expect(modelRequests).toHaveLength(FAKE_INBOX.length);
     expect(mail.requests).toContain('listRecent:');
   });
+});
+
+test('Google consent returns to the originating demo port even when consent is cancelled', async () => {
+  const previous = process.env.DEMO_MODE;
+  process.env.DEMO_MODE = 'true';
+  try {
+    const { t, as } = await seeded();
+    const { authUrl } = await as('admin').mutation(api.integrations.googleStart, { want: ['gmail'], returnOrigin: 'http://localhost:8082' });
+    const state = new URL(authUrl).searchParams.get('state')!;
+    const response = await t.fetch(`${GOOGLE.callbackPath}?${new URLSearchParams({ state, error: 'access_denied' })}`, { method: 'GET', redirect: 'manual' });
+    expect(response.headers.get('location')).toBe(`http://localhost:8082${GOOGLE.returnPath}?google=failed`);
+    await expect(as('admin').mutation(api.integrations.googleStart, { want: ['gmail'], returnOrigin: 'https://attacker.test' })).rejects.toThrow();
+  } finally {
+    if (previous === undefined) delete process.env.DEMO_MODE; else process.env.DEMO_MODE = previous;
+  }
+});
+
+test('ordinary demo OAuth binds its expected mailbox before Google consent', async () => {
+  const previous = process.env.DEMO_MODE; process.env.DEMO_MODE = 'true';
+  try {
+    const { t, as, familyId, m } = await seeded();
+    await t.run(ctx => ctx.db.insert('demoRuns', {familyId, adminId:m.admin, ownerAuthId:'sample:admin', key:'test-mailbox-binding',date:'2026-11-03',createdAt:Date.now(),active:true,jobs:[]}));
+    const before=await t.run(ctx=>ctx.db.query('integrations').withIndex('by_family',q=>q.eq('familyId',familyId)).collect());
+    const {authUrl}=await as('admin').mutation(api.integrations.googleStart,{want:['gmail'],loginHint:'testusersynthetic90@gmail.com'});
+    const nonce=new URL(authUrl).searchParams.get('state')!;
+    const response=await t.fetch(`${GOOGLE.callbackPath}?${new URLSearchParams({state:nonce,code:'good-code'})}`,{method:'GET',redirect:'manual'});
+    // The fake provider returns its ordinary mailbox, not the expected configured demo mailbox.
+    expect(response.headers.get('location')).toContain('google=failed');
+    const rows=await t.run(ctx=>ctx.db.query('integrations').withIndex('by_family',q=>q.eq('familyId',familyId)).collect());
+    expect(rows).toEqual(before);
+  } finally { if(previous===undefined) delete process.env.DEMO_MODE; else process.env.DEMO_MODE=previous; }
 });

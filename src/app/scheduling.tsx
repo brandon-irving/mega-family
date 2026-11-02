@@ -1,5 +1,5 @@
 import { useMutation } from 'convex/react';
-import { ageGroupOf, canConnectAccounts } from '@shared/ageGroups';
+import { ageGroupAt, canConnectAccountsAt } from '@shared/ageGroups';
 import { router } from '@/features/shell/navigation';
 import { SchedulingSettings } from '@/features/scheduling/SchedulingSettings';
 import { useViewer } from '@/data/useViewer';
@@ -15,9 +15,9 @@ export default function SchedulingRoute() {
   const request = useMutation(api.family.requestConnections);
   const { busy, error, run } = useRunAction();
   const member = viewer?.member;
-  const today = new Date().toISOString().slice(0,10);
-  const allowed = member && canConnectAccounts(member, today);
-  const teen = member && ageGroupOf(member, today) === 'teen';
+  const now = new Date().getTime();
+  const allowed = member && canConnectAccountsAt(member, now, viewer?.family.timezone);
+  const teen = member && ageGroupAt(member, now, viewer?.family.timezone) === 'teen';
   const pending = member?.connectionRequest?.status === 'pending';
   return <Sheet title={SCHEDULING_COPY.title} onClose={() => router.back()}>
     {!viewer ? <Text>Loading…</Text> : allowed ? <SchedulingSettings /> : <>

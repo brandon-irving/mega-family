@@ -15,7 +15,7 @@ export const complete = internalMutation({
     const member = await ctx.db.get(args.memberId);
     if (!message || !member || message.familyId !== member.familyId || message.body.type !== 'notice') return;
     const thread = await ctx.db.get(message.threadId);
-    if (!thread || thread.ownerId !== member._id || !connectorAllowed(member)) return;
+    if (!thread || thread.ownerId !== member._id || !(await connectorAllowed(ctx, member))) return;
     let pending = false;
     let calendarChecked = false;
     let backlog = false;

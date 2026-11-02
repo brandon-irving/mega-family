@@ -263,3 +263,14 @@ export function messageBubbleColors(accent: string, tone: 'owner' | 'assistant' 
 
 /** Consistent user bubbles regardless of theme or MEGA color. */
 export const USER_BUBBLE = { background: '#292D34', text: '#FFFFFF' } as const;
+
+/** Desktop web geometry; native and narrow web retain their existing layouts. */
+export const DESKTOP_LAYOUT = {
+  breakpoint: 960,
+  sidebarWidth: 240,
+  chatMaxWidth: 800,
+  contentMaxWidth: 920,
+  dialogMaxWidth: 760,
+  dialogMaxHeight: 880,
+  gutter: 32,
+} as const;

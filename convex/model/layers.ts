@@ -3,7 +3,7 @@
 // own `events.share` and `shareSuggestions.answer(share: true)` — both check the caller IS the owner first.
 // No model output, trigger, rule or other member reaches it. Every move writes a `shareActions` row in the
 // same mutation. Suggestions (`suggestShare`) never change anything by themselves.
-import { ageGroupOf } from '../../shared/ageGroups';
+import { memberAgeGroup } from './memberAge';
 import { COORDINATION_COPY } from '../../shared/config/scheduling';
 import { clock } from '../ports/clock';
 import { canSeeEvent } from './visibility';
@@ -127,7 +127,7 @@ export async function maybeSuggestEventShare(ctx: MutationCtx, event: Doc<'event
     (e) => e._id !== event._id && !e.cancelled && layerOf(e) === 'household' && e.start < end && (e.end ?? e.start) > event.start && (e.end ?? e.start) - e.start >= CLASH.minOverlapMinutes * 60_000,
   );
   const owner = await ctx.db.get(ownerId);
-  const teenEvent = !!owner && ageGroupOf(owner, new Date(clock.realNow()).toISOString().slice(0, 10)) === 'teen' && event.start > now;
+  const teenEvent = !!owner && (await memberAgeGroup(ctx, owner)) === 'teen' && event.start > now;
   if (!overlaps && !teenEvent) return;
   if (teenEvent) {
     // Re-syncing or editing an event must not ask again after a decision.
@@ -141,7 +141,7 @@ export async function maybeSuggestEventShare(ctx: MutationCtx, event: Doc<'event
 export async function notifyParentsOfTeenEvent(ctx: MutationCtx, event: Doc<'events'>, now: number): Promise<void> {
   const ownerId = eventOwnerId(event);
   const owner = ownerId ? await ctx.db.get(ownerId) : null;
-  if (!owner || event.cancelled || event.start <= now || ageGroupOf(owner, new Date(clock.realNow()).toISOString().slice(0, 10)) !== 'teen') return;
+  if (!owner || event.cancelled || event.start <= now || (await memberAgeGroup(ctx, owner)) !== 'teen') return;
   const relations = await ctx.db.query('relationships').withIndex('by_family_from', q => q.eq('familyId', event.familyId)).collect();
   for (const parentId of new Set(relations.filter(r => r.kind === 'parent' && r.to === owner._id).map(r => r.from))) {
     const parent = await ctx.db.get(parentId);

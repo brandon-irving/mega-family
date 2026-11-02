@@ -7,7 +7,7 @@ import { CHAT_UX } from '@shared/config/chat';
 // Sizes are config (COMPOSER_SIZES), icons are drawn SVG (no emoji or icon-font glyphs, which rendered
 // tiny), and the field shrinks (flex 1, minWidth 0) so nothing runs past the screen edge.
 import { useEffect, useRef, useState, type ComponentRef } from 'react';
-import { Keyboard, Pressable, TextInput, View } from 'react-native';
+import { Keyboard, Platform, Pressable, TextInput, View } from 'react-native';
 import { Path, Rect, Svg } from 'react-native-svg';
 import { fillCopy, COMPOSER_COPY } from '@shared/config/copy';
 import { COMPOSER_SIZES, readableOn } from '@shared/config/theme';
@@ -15,6 +15,7 @@ import { Button } from '@/ui/Button';
 import { Text } from '@/ui/Text';
 import { useTokens } from '@/ui/theme';
 import { Glyph } from '@/features/integrations/glyphs';
+import { useDesktopLayout } from '@/ui/useDesktopLayout';
 import { hiddenFromA11y } from '@/ui/a11y';
 
 export type ComposerProps = {
@@ -40,6 +41,7 @@ export function Composer({ responding = false, stopping = false, onStop, megaNam
   const [text, setText] = useState('');
   const [showKeyboard, setShowKeyboard] = useState(!bigTalkButton);
   const tokens = useTokens();
+  const desktop = useDesktopLayout();
   const copy = (template: string) => fillCopy(template, { mega: megaName });
 
   const send = () => {
@@ -98,6 +100,8 @@ export function Composer({ responding = false, stopping = false, onStop, megaNam
         {onCamera ? <Pressable onPress={onCamera} accessibilityRole="button" accessibilityLabel="Add attachment" style={{ width: tokens.touchTarget, height: tokens.touchTarget, alignItems: 'center', justifyContent: 'center' }}><Glyph name="plus" size={24} color={tokens.muted} /></Pressable> : null}
         <TextInput
           ref={fieldRef}
+          nativeID="mega-composer-input"
+          numberOfLines={desktop ? 1 : undefined}
           autoFocus={bigTalkButton}
           value={text}
           onChangeText={setText}
@@ -108,6 +112,12 @@ export function Composer({ responding = false, stopping = false, onStop, megaNam
           multiline
           scrollEnabled
           submitBehavior="newline"
+          onKeyPress={Platform.OS === 'web' ? event => {
+            const key = event.nativeEvent as unknown as KeyboardEvent;
+            if (key.key !== 'Enter' || key.shiftKey || key.isComposing || key.keyCode === 229) return;
+            event.preventDefault();
+            if (!responding) send();
+          } : undefined}
           underlineColorAndroid="transparent"
         />
         <Pressable disabled={responding && (stopping || !onStop)} onPress={responding ? onStop : hasText ? send : bigTalkButton ? () => setShowKeyboard(false) : onOpenTalk} accessibilityRole="button" accessibilityLabel={responding ? stopping ? CHAT_UX.stopping : CHAT_UX.stopResponse : hasText ? COMPOSER_COPY.send : bigTalkButton ? COMPOSER_COPY.talkInstead : 'Talk'} style={{ width: tokens.touchTarget, height: tokens.touchTarget, alignItems: 'center', justifyContent: 'center' }}>

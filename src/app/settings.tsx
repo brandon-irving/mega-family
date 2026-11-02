@@ -1,4 +1,4 @@
-import { canConnectAccounts } from '@shared/ageGroups';
+import { canConnectAccountsAt } from '@shared/ageGroups';
 import { DemoControls } from '@/features/settings/DemoControls';
 // Settings (canvas Screen 7 boards Settings / SettingsAdult / SettingsKid / SettingsTheme / SettingsWallpaper,
 // G5; replaces the G1 placeholder). Wires the member's own settings (`settings.set`), the admin's parent code,
@@ -66,7 +66,7 @@ export default function SettingsRoute() {
       {!sheet && error ? <Text style={{ color: tokens.danger }} accessibilityRole="alert">{error}</Text> : null}
       <SettingsContent
         role={role}
-        canConnect={canConnectAccounts(viewer.member, new Date().toISOString().slice(0,10))}
+        canConnect={canConnectAccountsAt(viewer.member, new Date().getTime(), viewer.family.timezone)}
         megaName={megaName}
         theme={viewer.theme.name as ThemeName}
         accent={accent}

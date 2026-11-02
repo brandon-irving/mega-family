@@ -187,7 +187,7 @@ test('MEGA text has a bubble without a speaker label; long press supports copy, 
   await fireEvent.press(screen.getByText('Reply'));
   expect(onReply).toHaveBeenCalledWith('We are out of milk.');
   await fireEvent(screen.getByText('We are out of milk.'), 'longPress');
-  await fireEvent.press(screen.getByText('Like'));
+  await fireEvent.press(screen.getByLabelText('Like'));
   expect(onReact).toHaveBeenCalledWith('up');
   await fireEvent(screen.getByText('We are out of milk.'), 'longPress');
   await fireEvent.press(screen.getByText('Select text'));

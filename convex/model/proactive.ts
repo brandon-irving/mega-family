@@ -1,4 +1,5 @@
-import { ageGroupOf } from '../../shared/ageGroups';
+import { memberAgeGroup } from './memberAge';
+import { canAnswerScheduling } from './schedulingRequests';
 import { canSeeEvent, eventOwnerId } from './visibility';
 import { parentOf } from './viewer';
 import { acceptedBriefContext } from './assistantBriefs';
@@ -370,8 +371,10 @@ export async function decideDeliveryTiming(
   params: { familyId: Id<'families'>; recipient: Doc<'members'>; tz: string; kind: NotificationKind; score: number; window: { from: number; to: number }; now: number; forcedDelivery?: Delivery; source?: CandidateSource },
 ): Promise<{ delivery: Delivery; deliverAt?: number }> {
   // Teen-owned scheduling and explicit share questions are useful even though general kid tips stay off.
-  const teenUpdate = params.kind === 'update' && ['mailPlan', 'shareSuggestion'].includes(params.source?.kind ?? '') && ageGroupOf(params.recipient, new Date(clock.realNow()).toISOString().slice(0, 10)) === 'teen';
-  const delivery = judgedDelivery(params.kind, params.score, teenUpdate ? 'adult' : params.recipient.role, params.forcedDelivery);
+  const teenUpdate = params.kind === 'update' && ['mailPlan', 'shareSuggestion'].includes(params.source?.kind ?? '') && (await memberAgeGroup(ctx, params.recipient)) === 'teen';
+  const request = params.source?.kind === 'request' ? await ctx.db.get(params.source.requestId) : null;
+  const teenScheduling = params.kind === 'request' && !!request?.scheduling && request.familyId === params.familyId && request.toMemberId === params.recipient._id && await canAnswerScheduling(ctx, params.recipient);
+  const delivery = judgedDelivery(params.kind, params.score, teenUpdate || teenScheduling ? 'adult' : params.recipient.role, params.forcedDelivery);
   if (delivery === 'drop') return { delivery };
   return timeDelivery(ctx, params, delivery);
 }
@@ -435,7 +438,7 @@ export async function candidateStillApplies(ctx: Ctx, source: CandidateSource | 
     const parent = recipientId ? await ctx.db.get(recipientId) : null;
     const ownerId = event ? eventOwnerId(event) : undefined;
     const owner = ownerId ? await ctx.db.get(ownerId) : null;
-    return !!event && !!parent && !!owner && parent.familyId === event.familyId && parent.role !== 'kid' && !event.cancelled && event.start === source.start && event.start > await clock.now(ctx, event.familyId) && ageGroupOf(owner, new Date(clock.realNow()).toISOString().slice(0, 10)) === 'teen' && canSeeEvent({ memberId: parent._id, role: parent.role }, event) && (await parentOf(ctx, event.familyId, parent._id)).includes(owner._id);
+    return !!event && !!parent && !!owner && parent.familyId === event.familyId && parent.role !== 'kid' && !event.cancelled && event.start === source.start && event.start > await clock.now(ctx, event.familyId) && (await memberAgeGroup(ctx, owner)) === 'teen' && canSeeEvent({ memberId: parent._id, role: parent.role }, event) && (await parentOf(ctx, event.familyId, parent._id)).includes(owner._id);
   }
   switch (source.kind) {
     case 'reminder': {

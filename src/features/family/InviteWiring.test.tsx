@@ -29,7 +29,7 @@ jest.mock('@/data/useFamily', () => ({
 jest.mock('@/data/useMegaDirectory', () => ({ useMegaDirectory: () => ({}) }));
 // G6 fix (P0, kidThread crash): the route now also reads the viewer's own isParentOf to decide whether
 // it's safe to subscribe to kidThread (shared/domain/family.ts canReadKidThread) — not a parent here.
-jest.mock('@/data/useViewer', () => ({ useViewer: () => ({ member: { _id: 'members_admin', role: 'admin' }, isParentOf: [] }) }));
+jest.mock('@/data/useViewer', () => ({ useViewer: () => ({ family: { timezone: 'America/New_York' }, member: { _id: 'members_admin', role: 'admin' }, isParentOf: [] }) }));
 jest.mock('@/features/family/MemberDetailContent', () => ({ MemberDetailContent: () => null }));
 
 describe('invite wiring', () => {

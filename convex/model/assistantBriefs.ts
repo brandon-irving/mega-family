@@ -1,5 +1,5 @@
 import { recommendConnection } from './connectionRecommendations';
-import { ASSISTANT_BRIEF as C, briefSummary } from '../../shared/config/assistantBrief';
+import { ASSISTANT_BRIEF as C, briefSummary, briefIntroduction } from '../../shared/config/assistantBrief';
 import { fillCopy } from '../../shared/config/copy';
 import { MEGA_CREATION } from '../../shared/config/megaCreation';
 import { BRIEF_FIELDS, emptyAssistantBrief, type AssistantBriefContent } from '../../shared/domain/assistantBrief';
@@ -109,7 +109,7 @@ export async function startBrief(ctx: MutationCtx, member: Doc<'members'>, now: 
     const creator = await ctx.db.get(row.creatorId);
     const mega = await ctx.db.query('megas').withIndex('by_family_owner', q => q.eq('familyId', member.familyId).eq('ownerId', member._id)).unique();
     await say(ctx, row, fillCopy(C.hello, { name: member.name, mega: mega?.name ?? 'your MEGA', creator: creator?.name ?? 'your inviter' }), now);
-    await say(ctx, row, `${briefSummary(row.proposed)}\n\n${C.reviewHint}`, now);
+    await say(ctx, row, `${briefIntroduction(row.proposed)}\n\n${C.reviewHint}`, now);
     await ask(ctx, row, choice(C.review, [{ id: 'accept', label: C.accept }, { id: 'edit', label: C.adjust }, { id: 'different', label: C.different }]), 'review', now);
   }
   return true;

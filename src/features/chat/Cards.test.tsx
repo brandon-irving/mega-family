@@ -1,9 +1,20 @@
 // Renders every result Card kind (CONTRACT §3).
-import { fireEvent, screen } from '@testing-library/react-native';
+import { act, fireEvent, screen, waitFor } from '@testing-library/react-native';
 import { renderWithTheme } from '@/test/renderWithTheme';
-import { CARDS_BY_KIND, NOTIFICATION_FIXTURE, NOTIFICATION_HELD_FIXTURE } from '@/test/fixtures';
+import { CARDS_BY_KIND, FIXTURE_IDS, MESSAGES_BY_TYPE, NOTIFICATION_FIXTURE, NOTIFICATION_HELD_FIXTURE } from '@/test/fixtures';
+import { ChatThread } from './ChatThread';
+import { cloneElement } from 'react';
+import { ThemeProvider } from '@/ui/theme';
 import { EventCard } from '@/features/calendar/EventCard';
 import { ResultCard } from './Cards';
+import { useQueryState } from '@/data/useQuery';
+jest.mock('@/data/useQuery', () => ({ useQueryState: jest.fn() }));
+const mockRetry = jest.fn().mockResolvedValue(null);
+jest.mock('convex/react', () => ({ ...jest.requireActual('convex/react'), useMutation: () => mockRetry }));
+beforeEach(() => {
+  mockRetry.mockClear();
+  jest.mocked(useQueryState).mockReturnValue({ status: 'ok', data: { text: 'Does 2 PM work for you?', status: 'open', mirrored: false } } as never);
+});
 
 // G4: the search/weather/travel cards read the viewer's timezone and role (src/features/integrations).
 jest.mock('@/data/useViewer', () => ({ useViewer: () => ({ member: { role: 'adult' }, family: { timezone: 'America/New_York' } }) }));
@@ -137,10 +148,6 @@ describe('ResultCard', () => {
   // BUTTON_SIZES, from design/build/Push.template.html's SIZES: adult 44pt, kid 54pt) rather than the
   // generic touch-target scale.
   //
-  // Kept last in the file: this test's explicit `.unmount()` between two renders leaves the RNTL/RN
-  // test renderer in a state that breaks `screen`-based queries in whatever test runs after it in this
-  // file (a pre-existing harness quirk, not something introduced here) — observed when tests were added
-  // after it; keeping it last avoids that rather than papering over it per-test.
   test('a kid viewer sees bigger notification buttons than an adult, matching the design board', async () => {
     const minHeightOf = (style: unknown): number => {
       const flat = (Array.isArray(style) ? style : [style]).filter(Boolean) as Record<string, unknown>[];
@@ -150,10 +157,59 @@ describe('ResultCard', () => {
 
     const adult = await renderWithTheme(<ResultCard card={CARDS_BY_KIND.notification} notification={NOTIFICATION_FIXTURE} onAnswerNotification={() => {}} />, { role: 'adult' });
     const adultHeight = minHeightOf(adult.getAllByRole('button')[0].props.style);
-    adult.unmount();
+    await adult.unmount();
     const kid = await renderWithTheme(<ResultCard card={CARDS_BY_KIND.notification} notification={NOTIFICATION_FIXTURE} onAnswerNotification={() => {}} />, { role: 'kid' });
     const kidHeight = minHeightOf(kid.getAllByRole('button')[0].props.style);
     expect(adultHeight).toBe(44);
     expect(kidHeight).toBe(54);
   });
+});
+
+test('an accepted request can retry a failed calendar write without answering twice', async () => {
+ jest.mocked(useQueryState).mockReturnValue({ status: 'ok', data: { text: 'Does 2 PM work?', status: 'accepted', mirrored: false, calendarOperation: 'uncertain' } } as never);
+ const respond = jest.fn();
+ await renderWithTheme(<ResultCard card={CARDS_BY_KIND.request} onRespondRequest={respond} />);
+ await fireEvent.press(screen.getByRole('button', { name: 'Retry calendar update' }));
+ expect(mockRetry).toHaveBeenCalledWith({ requestId: (CARDS_BY_KIND.request as { requestId: string }).requestId });
+ expect(respond).not.toHaveBeenCalled();
+});
+
+test('request answers travel through the chat list, stay busy, then show the saved response', async () => {
+ let resolve!: () => void;
+ const respond = jest.fn(() => new Promise<void>(done => { resolve = done; }));
+ const message = { ...MESSAGES_BY_TYPE.text, body: { type: 'card' as const, card: CARDS_BY_KIND.request } };
+ const noop = () => {};
+ const thread = <ChatThread messages={[message]} viewerMemberId={FIXTURE_IDS.admin} megaById={{}} onAnswerBlock={noop} onReact={noop} onChangeMemoryScope={noop} onForgetMemory={noop} onRespondRequest={respond} />;
+ const rendered = await renderWithTheme(thread);
+ await fireEvent.press(screen.getByRole('button', { name: 'Yes' }));
+ expect(respond).toHaveBeenCalledWith((CARDS_BY_KIND.request as { requestId: string }).requestId, true);
+ expect(screen.getByRole('button', { name: 'Yes' })).toBeDisabled();
+ expect(screen.getByRole('button', { name: "I can't" })).toBeDisabled();
+ await fireEvent.press(screen.getByRole('button', { name: 'Yes' }));
+ expect(respond).toHaveBeenCalledTimes(1);
+ await act(async () => { resolve(); });
+ jest.mocked(useQueryState).mockReturnValue({ status: 'ok', data: { text: 'Does 2 PM work for you?', status: 'accepted', mirrored: false, calendarOperation: 'done' } } as never);
+ // A live query update must change the card, not require re-answering the request.
+ await rendered.rerender(<ThemeProvider initialRole="adult">{cloneElement(thread, { messages: [{ ...message }] })}</ThemeProvider>);
+ expect(screen.getByText('You confirmed.')).toBeTruthy();
+ expect(screen.getByText('Calendar updated.')).toBeTruthy();
+ expect(screen.queryByRole('button', { name: 'Yes' })).toBeNull();
+});
+
+test.each(['request', 'notification'] as const)('%s answer failures are visible and can be retried', async kind => {
+ const answer = jest.fn().mockRejectedValueOnce(new Error('Offline')).mockResolvedValue(null);
+ await renderWithTheme(<ResultCard card={CARDS_BY_KIND[kind]} onRespondRequest={answer} onAnswerNotification={answer} notification={kind === 'notification' ? NOTIFICATION_FIXTURE : undefined} />);
+ await fireEvent.press(screen.getByRole('button', { name: 'Yes' }));
+ await waitFor(() => expect(screen.getByRole('alert')).toBeTruthy());
+ expect(screen.queryByText('You confirmed.')).toBeNull();
+ expect(screen.getByRole('button', { name: 'Yes' })).toBeEnabled();
+ await fireEvent.press(screen.getByRole('button', { name: 'Yes' }));
+ await waitFor(() => expect(screen.queryByRole('alert')).toBeNull());
+ expect(answer).toHaveBeenCalledTimes(2);
+});
+
+test('a request without a response action cannot present silently ineffective buttons', async () => {
+ await renderWithTheme(<ResultCard card={CARDS_BY_KIND.request} />);
+ expect(screen.getByRole('button', { name: 'Yes' })).toBeDisabled();
+ expect(screen.getByRole('button', { name: "I can't" })).toBeDisabled();
 });

@@ -44,7 +44,7 @@ type Deps = {
 export async function connectGoogle(want: GoogleProduct[], deps: Deps, scheduling = false, demoCleanup = false): Promise<GoogleConnectResult> {
   deps.assertCanConnect?.();
   if (Platform.OS === 'web') {
-    const { authUrl } = await deps.googleStart({ want, ...(scheduling ? { scheduling: true } : {}), ...(demoCleanup ? { demoCleanup: true } : {}) });
+    const { authUrl } = await deps.googleStart({ returnOrigin: window.location.origin, want, ...(scheduling ? { scheduling: true } : {}), ...(demoCleanup ? { demoCleanup: true } : {}) });
     if (!isGoogleConsentUrl(authUrl)) return 'failed';
     (deps.navigate ?? ((url: string) => window.location.assign(url)))(authUrl);
     return 'redirecting';

@@ -52,7 +52,7 @@ export default defineSchema({
     .index('by_family_dedupeKey', ['familyId', 'dedupeKey'])
     .index('by_family_status', ['familyId', 'status']),
   notifications: defineTable(T.notifications).index('by_family_recipient', ['familyId', 'recipientId', 'sentAt']), // ordered by send time, held ones (no sentAt) first
-  requests: defineTable(T.requests).index('by_family_to', ['familyId', 'toMemberId']),
+  requests: defineTable(T.requests).index('by_family_to', ['familyId', 'toMemberId']).index('by_family_plan', ['familyId', 'scheduling.planId']),
 
   rooms: defineTable(T.rooms).index('by_family_owner', ['familyId', 'ownerId']),
   images: defineTable(T.images).index('by_family', ['familyId']),

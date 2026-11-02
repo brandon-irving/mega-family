@@ -1,3 +1,4 @@
+import { formatLocalDateTime, formatLocalTime } from '../shared/time';
 import { DEMO_CLEANUP } from '../shared/config/demo';
 import { SCHEDULING } from '../shared/config/scheduling';
 import { GMAIL } from '../shared/config/google';
@@ -13,7 +14,7 @@ import { DEMO_SCENARIO as C } from '../shared/config/demo';
 import { demoEmail, demoText } from '../shared/demoScenario';
 import { action, mutation, query, internalAction, internalMutation, internalQuery } from './_generated/server';
 import { pick } from './model/define';
-import { demoGate, freshConsole, newRun, ownedRun, resolveDemoPeople, demoPeople } from './model/demoConsole';
+import { demoGate, freshConsole, newRun, ownedRun, resolveDemoPeople, demoPeople, demoAccountIssue, acceptsDemoSubject } from './model/demoConsole';
 import { requireMember, requireAdmin } from './model/viewer';
 import { fail } from './model/errors';
 import { clock } from './ports/clock';
@@ -22,7 +23,15 @@ import { preferenceFor, writePermissions } from './model/scheduling';
 import { addFamilyMember } from './model/familyAdd';
 import { saveBrief } from './model/assistantBriefs';
 import { demoStage } from '../shared/domain/demoConsole';
+import { requestsForPlan } from './model/schedulingRequests';
+import { sharesAvailability } from './model/schedulingSharing';
 
+function confirmationPlan(run: Doc<'demoRuns'>, plans: Doc<'mailPlans'>[]) {
+  const ids = new Set(run.jobs.filter(j => j.stage === 'publicity').map(j => j.sourceMessageId));
+  return plans.filter(p => ids.has(p.sourceMessageId) && p.status === 'held' && p.replyOperation === 'done' && p.selected).sort((a,b) => b.updatedAt - a.updatedAt)[0];
+}
+function confirmationTime(p?: Doc<'mailPlans'>) { return p?.selected ? `${formatLocalDateTime(p.selected.start, C.timezone)}–${formatLocalTime(p.selected.end, C.timezone)} (${C.timezone})` : undefined; }
+function expiredSend(job: Doc<'demoRuns'>['jobs'][number]) { return job.status === 'sending' && (job.claimedAt ?? 0) <= clock.realNow() - C.sendTimeoutMs; }
 export const start = mutation({ ...pick(API.demoConsole.start), handler: async (ctx, { expectedMemberId }) => {
   demoGate(); const m = await requireMember(ctx); requireAdmin(m.role);
   if (m._id !== expectedMemberId) return null;
@@ -41,20 +50,21 @@ export const state = query({ ...pick(API.demoConsole.state), handler: async ctx 
     const member = p.member;
     const rows = integrations.filter(i => i.memberId === member?._id && i.label?.toLowerCase() === p.email && statusOf(i) === 'connected');
     const gmail = rows.find(i => i.kind === 'gmail');
+    const connectedEmail = integrations.find(i => i.memberId === member?._id && i.kind === 'gmail' && statusOf(i) === 'connected')?.label;
     const pref = member ? await preferenceFor(ctx, m.familyId, member._id) : null;
     const writes = member ? await writePermissions(ctx, m.familyId, member._id) : null;
     const other = people.find(x => x.key === (p.key === 'dad' ? 'mom' : 'dad'))?.member;
     const grant = member ? await ctx.db.query('integrationSecrets').withIndex('by_family_member_provider', q => q.eq('familyId', run.familyId).eq('memberId', member._id).eq('provider', 'google')).unique() : null;
     const cleanupReady = !!gmail && !!grant?.scopes.includes(DEMO_CLEANUP.gmailScope) && !!grant?.scopes.includes(SCHEDULING.scopes.calendar);
-    return { cleanupReady, key: p.key, name: p.name, email: p.email, memberId: member?._id, joined: member?.joinedAt !== undefined, gmail: !!gmail, calendar: rows.some(i => i.kind === 'googleCalendar'), recognition: !!pref?.enabled, autoCapture: !!pref?.autoCapture, push: !!gmail?.lastMailPushAt && !gmail.watchFailure && (gmail.watchExpiresAt ?? 0) > clock.realNow(), writes: !!writes?.canWriteCalendar && !!writes.canWriteDraft, sharesAvailability: !!other && !!pref?.availabilityFor.includes(other._id) };
+    return { connectedEmail, setupIssue: member ? demoAccountIssue(p.name, p.email, connectedEmail, !!pref?.enabled) : p.ambiguous ? `Choose the family member for ${p.email} by connecting that account in their Google setup.` : `Create ${p.name} first.`, cleanupReady, key: p.key, name: p.name, email: p.email, memberId: member?._id, joined: member?.joinedAt !== undefined, gmail: !!gmail, calendar: rows.some(i => i.kind === 'googleCalendar'), recognition: !!pref?.enabled, autoCapture: !!pref?.autoCapture, push: !!gmail?.lastMailPushAt && !gmail.watchFailure && (gmail.watchExpiresAt ?? 0) > clock.realNow(), writes: !!writes?.canWriteCalendar && !!writes.canWriteDraft, sharesAvailability: !!other && await sharesAvailability(ctx, pref, other._id) };
   }));
-  const stages = C.stages.map(s => {
+  const stages = C.stages.filter(s => !('retired' in s && s.retired)).map(s => {
     const jobs = run.jobs.filter(j => j.stage === s.key); const job = jobs.at(-1); const attempt = job?.attempt ?? 0;
     const sourceIds = new Set(jobs.map(j => j.sourceMessageId).filter(Boolean));
-    const matched = plans.filter(p => sourceIds.has(p.sourceMessageId));
-    return { key: s.key, title: demoText(s.title, names), ...demoEmail(run.key, run.date, s.key, attempt + 1, names), attempt, status: job?.status ?? 'ready', received: !!job?.receivedAt, plans: matched.length, events: matched.filter(p => p.eventId).length, error: job?.error };
+    const matched = plans.filter(p => sourceIds.has(p.sourceMessageId) || jobs.some(j => j.planId === p._id));
+    return { setupIssue: personas.find(p => p.key === s.recipient)?.setupIssue ?? (s.key === 'confirmation' && !confirmationPlan(run, plans) ? 'Have the family confirm, then send the reviewed reply from the publicity card first.' : undefined), key: s.key, title: demoText(s.title, names), ...demoEmail(run.key, run.date, s.key, attempt + 1, names, s.key === 'confirmation' ? confirmationTime(confirmationPlan(run, plans)) : undefined), attempt, status: job && expiredSend(job) ? 'uncertain' as const : job?.status ?? 'ready', received: !!job?.receivedAt, plans: matched.length, events: matched.filter(p => p.eventId).length, error: job && expiredSend(job) ? 'Delivery timed out. Inspect Gmail before closing this attempt. No automatic resend.' : job?.error };
   });
-  return { runId: run._id, key: run.key, date: run.date, workerReady: (run.workerAt ?? 0) > clock.realNow() - C.workerFreshMs, sender: run.sender, personas, stages };
+  return { runId: run._id, key: run.key, date: run.date, workerAt: run.workerAt, workerReady: (run.workerAt ?? 0) > clock.realNow() - C.workerFreshMs, sender: run.sender, personas, stages };
 } });
 /** Optional rehearsal shortcut. Real invites and recipient acceptance still follow normal UI. */
 export const prepare = mutation({ ...pick(API.demoConsole.prepare), handler: async (ctx, { runId }) => {
@@ -62,7 +72,9 @@ export const prepare = mutation({ ...pick(API.demoConsole.prepare), handler: asy
   const admin = (await ctx.db.get(run.adminId))!;
   if (!admin.name) fail('VALIDATION', 'Introduce yourself to MEGA in Chat first.');
   for (const p of C.personas.slice(1)) {
-    if ((await demoPeople(ctx, run)).find(person => person.key === p.key)?.member) continue;
+    const person = (await demoPeople(ctx, run)).find(person => person.key === p.key);
+    if (person?.member) continue;
+    if (person?.ambiguous) fail('VALIDATION', `More than one family member could be ${p.label}. Connect the intended member to ${p.email} in their Google setup before preparing the demo. No additional member was created.`);
     const id = await addFamilyMember(ctx, admin, { name: p.name, role: p.key === 'daughter' ? 'kid' : 'adult', relationship: p.key === 'mom' ? 'partner' : 'daughter', ...(p.key === 'daughter' ? { birthday: `${Number(run.date.slice(0,4))-16}-01-01` } : {}), mega: { name: p.key === 'mom' ? 'Teal' : 'Violet', look: { hex: p.key === 'mom' ? '#2FB8B0' : '#8B6DE0', sticker: 'none' }, personality: 'calm' } }, clock.realNow());
     if (p.key === 'mom') {
       const names = Object.fromEntries((await demoPeople(ctx, run)).map(person => [person.key, person.name]));
@@ -77,15 +89,22 @@ export const trigger = mutation({ ...pick(API.demoConsole.trigger), handler: asy
   if ((previous?.attempt ?? 0) !== expectedAttempt || previous?.status === 'queued' || previous?.status === 'sending') return null;
   if (previous?.status === 'uncertain') fail('VALIDATION', 'Delivery is uncertain. Verify the mailbox before starting a new run.');
   if ((run.workerAt ?? 0) < clock.realNow() - C.workerFreshMs) fail('VALIDATION', 'Start npm run demo:runner on the demo computer.');
-  const spec = C.stages.find(s => s.key === stage)!; const persona = C.personas.find(p => p.key === spec.recipient)!;
+  const spec = C.stages.find(s => s.key === stage)!;
+  if ('retired' in spec && spec.retired) fail('VALIDATION', 'This demo step is retired. Choosing an offered publicity time and accepting the family request confirms the event.');
+  const persona = C.personas.find(p => p.key === spec.recipient)!;
   const people = await demoPeople(ctx, run);
   const member = people.find(p => p.key === persona.key)?.member;
   if (!member) fail('VALIDATION', 'Create this family member first.');
   const gmail = await ctx.db.query('integrations').withIndex('by_family', q => q.eq('familyId', run.familyId)).collect();
   const pref = await preferenceFor(ctx, run.familyId, member._id);
-  if (!gmail.some(i => i.memberId === member._id && i.kind === 'gmail' && i.label?.toLowerCase() === persona.email && statusOf(i) === 'connected') || !pref?.enabled) fail('VALIDATION', 'Connect the expected Gmail account and enable recognition for this person.');
+  const connectedEmail = gmail.find(i => i.memberId === member._id && i.kind === 'gmail' && statusOf(i) === 'connected')?.label;
+  const issue = demoAccountIssue(member.name || persona.name, persona.email, connectedEmail, !!pref?.enabled);
+  if (issue) fail('VALIDATION', issue);
   if (run.jobs.length >= 30) fail('VALIDATION', 'Restart the story before sending more emails.');
-  await ctx.db.patch(runId, { jobs: [...run.jobs, { stage, attempt: expectedAttempt + 1, status: 'queued', queuedAt: clock.realNow(), email: demoEmail(run.key, run.date, stage, expectedAttempt + 1, Object.fromEntries(people.map(p => [p.key, p.name]))) }] }); return null;
+  const plans = stage === 'confirmation' ? await ctx.db.query('mailPlans').withIndex('by_family', q => q.eq('familyId', run.familyId)).collect() : [];
+  const plan = stage === 'confirmation' ? confirmationPlan(run, plans) : undefined;
+  if (stage === 'confirmation' && !plan) fail('VALIDATION', 'Send the reviewed reply before the organizer confirms.');
+  await ctx.db.patch(runId, { jobs: [...run.jobs, { ...(plan ? { planId: plan._id, planRevision: plan.revision } : {}), stage, attempt: expectedAttempt + 1, status: 'queued', queuedAt: clock.realNow(), email: demoEmail(run.key, run.date, stage, expectedAttempt + 1, Object.fromEntries(people.map(p => [p.key, p.name])), confirmationTime(plan)) }] }); return null;
 } });
 /** Restart only tracked local artifacts. External writes must be removed before restarting. */
 export const reset = mutation({ ...pick(API.demoConsole.reset), handler: async (ctx, { runId, mode }) => {
@@ -94,9 +113,11 @@ export const reset = mutation({ ...pick(API.demoConsole.reset), handler: async (
   const ids = new Set(run.jobs.map(j => j.sourceMessageId).filter(Boolean));
   const plans = (await ctx.db.query('mailPlans').withIndex('by_family', q => q.eq('familyId', run.familyId)).collect()).filter(p => ids.has(p.sourceMessageId));
   if (plans.some(p => p.calendarExternalId || p.draftId || p.calendarOperation === 'running' || p.draftOperation === 'running')) fail('VALIDATION', 'This run has Google artifacts. Use Cleanup Google artifacts before restarting.');
+  const requests = (await Promise.all(plans.map(p => requestsForPlan(ctx, run.familyId, p._id)))).flat();
+  if (requests.some(r => r.scheduling?.calendarExternalId || r.scheduling?.calendarOperation === 'running')) fail('VALIDATION', 'Use Cleanup Google artifacts to remove participant calendar events before restarting.');
   for (const p of plans) {
-    if (p.eventId && p.ownsEvent) await ctx.db.delete(p.eventId);
-    if (p.messageId) await ctx.db.delete(p.messageId);
+    if (p.eventId && p.ownsEvent && await ctx.db.get(p.eventId)) await ctx.db.delete(p.eventId);
+    if (p.messageId && await ctx.db.get(p.messageId)) await ctx.db.delete(p.messageId);
     await ctx.db.delete(p._id);
   }
   const mailItems = await ctx.db.query('mailItems').withIndex('by_family_member_found', q => q.eq('familyId', run.familyId)).collect();
@@ -112,6 +133,11 @@ export const reset = mutation({ ...pick(API.demoConsole.reset), handler: async (
 } });
 
 /** Local Composio runner only, authenticated by Convex deployment credentials. No client endpoint. */
+export const heartbeat = internalMutation({ args: { sender: v.string() }, handler: async (ctx, { sender }) => {
+  demoGate(); if (!C.personas.some(p => p.email === sender)) fail('FORBIDDEN', 'Runner must use a configured test mailbox.');
+  const runs = await ctx.db.query('demoRuns').withIndex('by_active', q => q.eq('active', true)).collect();
+  for (const run of runs) if (!run.cleanupPaused) await ctx.db.patch(run._id, { workerAt: clock.realNow(), sender });
+} });
 export const claim = internalMutation({ args: { sender: v.string() }, handler: async (ctx, { sender }) => {
   demoGate(); if (!C.personas.some(p => p.email === sender)) fail('FORBIDDEN', 'Runner must use a configured test mailbox.');
   const now = clock.realNow();
@@ -124,10 +150,18 @@ export const claim = internalMutation({ args: { sender: v.string() }, handler: a
     if (index >= 0) {
       jobs[index] = { ...jobs[index], status: 'sending', claimedAt: now };
       claimed = { runId: run._id, stage: jobs[index].stage, attempt: jobs[index].attempt, ...(jobs[index].email ?? demoEmail(run.key, run.date, jobs[index].stage, jobs[index].attempt)) };
+      await ctx.scheduler.runAfter(C.sendTimeoutMs, internal.demoConsole.expireSend, { runId: run._id, stage: jobs[index].stage, attempt: jobs[index].attempt });
     }
     await ctx.db.patch(run._id, { jobs, workerAt: now, sender });
   }
   return claimed;
+} });
+/** The backend owns the deadline, so recovery does not depend on a dead runner restarting. */
+export const expireSend = internalMutation({ args: { runId: v.id('demoRuns'), stage: demoStage, attempt: v.number() }, handler: async (ctx, args) => {
+  const run = await ctx.db.get(args.runId); if (!run) return;
+  const jobs = run.jobs.map(j => j.stage === args.stage && j.attempt === args.attempt && j.status === 'sending' && (j.claimedAt ?? 0) <= clock.realNow() - C.sendTimeoutMs
+    ? { ...j, status: 'uncertain' as const, error: 'Runner did not confirm delivery. Inspect Gmail before closing this attempt. No automatic resend.' } : j);
+  await ctx.db.patch(run._id, { jobs });
 } });
 export const finish = internalMutation({ args: { runId: v.id('demoRuns'), stage: demoStage, attempt: v.number(), messageId: v.optional(v.string()), error: v.optional(v.string()) }, handler: async (ctx, args) => {
   demoGate(); const run = await ctx.db.get(args.runId); if (!run) return;
@@ -139,17 +173,15 @@ export const finish = internalMutation({ args: { runId: v.id('demoRuns'), stage:
 /** Prevent emails from past runs reaching either extractor, including after a reset race. */
 export const acceptsMail = internalQuery({ args: { familyId: v.id('families'), subject: v.string() }, handler: async (ctx, { familyId, subject }) => {
   const runs = await ctx.db.query('demoRuns').withIndex('by_family', q => q.eq('familyId', familyId)).collect();
-  if (!runs.length) return true;
-  const run = runs.find(r => r.active);
-  return !!run && !run.cleanupPaused && subject.startsWith(`${C.prefix} [${run.key}] `);
+  return acceptsDemoSubject(runs, subject);
 } });
 
 export const noteMail = internalMutation({ args: { familyId: v.id('families'), subject: v.string(), messageId: v.string() }, handler: async (ctx, args) => {
   const runs = await ctx.db.query('demoRuns').withIndex('by_family', q => q.eq('familyId', args.familyId)).collect();
-  if (!runs.length) return true;
-  const run = runs.find(r => r.active); if (!run || run.cleanupPaused) return false;
+  if (!acceptsDemoSubject(runs, args.subject)) return false;
+  const run = runs.find(r => r.active); if (!run) return true;
   const index = run.jobs.findIndex(j => (j.email ?? demoEmail(run.key, run.date, j.stage, j.attempt)).subject === args.subject);
-  if (index < 0) return false;
+  if (index < 0) return true;
   const jobs = [...run.jobs]; jobs[index] = { ...jobs[index], receivedAt: clock.realNow(), sourceMessageId: args.messageId };
   await ctx.db.patch(run._id, { jobs }); return true;
 } });
@@ -158,7 +190,7 @@ export const cleanupTargets = internalMutation({ args: { runId: v.id('demoRuns')
   const run = await ownedRun(ctx, runId);
   const ids = new Set(run.jobs.map(j => j.sourceMessageId).filter(Boolean));
   const plans = (await ctx.db.query('mailPlans').withIndex('by_family', q => q.eq('familyId', run.familyId)).collect()).filter(p => ids.has(p.sourceMessageId));
-  if (plans.some(p => ['running','uncertain'].includes(p.calendarOperation ?? '') || ['running','uncertain'].includes(p.draftOperation ?? ''))) fail('VALIDATION', 'Resolve the pending Google operation before cleanup.');
+  if (plans.some(p => ['running','uncertain'].includes(p.replyOperation ?? '') || ['running','uncertain'].includes(p.calendarOperation ?? '') || ['running','uncertain'].includes(p.draftOperation ?? ''))) fail('VALIDATION', 'Resolve the pending Google operation before cleanup.');
   for (const p of plans) await ctx.db.patch(p._id, { status: 'dismissed', revision: p.revision + 1 });
   return plans;
 } });
@@ -184,7 +216,7 @@ export const cleanup = action({ ...pick(API.demoConsole.cleanup), handler: async
 export const abandon = mutation({ ...pick(API.demoConsole.abandon), handler: async (ctx, { runId, stage, expectedAttempt }) => {
   const run = await ownedRun(ctx, runId); const jobs = [...run.jobs];
   const index = jobs.findIndex(j => j.stage === stage && j.attempt === expectedAttempt);
-  if (index >= 0 && jobs[index].status === 'uncertain') { jobs[index] = { ...jobs[index], status: 'cancelled', error: 'Presenter closed this uncertain attempt after inspecting Gmail.' }; await ctx.db.patch(runId, { jobs }); }
+  if (index >= 0 && (jobs[index].status === 'uncertain' || expiredSend(jobs[index]))) { jobs[index] = { ...jobs[index], status: 'cancelled', error: 'Presenter closed this uncertain attempt after inspecting Gmail.' }; await ctx.db.patch(runId, { jobs }); }
   return null;
 } });
 
@@ -239,3 +271,21 @@ export const inspectDelivery = internalAction({
     return { recipient: target.recipient, subject: target.subject, messages };
   },
 });
+
+/** Local health check contains no conversations or email contents. */
+export const runnerHealth = internalQuery({ args: {}, handler: async ctx => {
+  demoGate();
+  const runs = await ctx.db.query('demoRuns').withIndex('by_active', q => q.eq('active', true)).collect();
+  return runs.filter(r => !r.cleanupPaused).map(r => ({ key: r.key, ready: (r.workerAt ?? 0) > clock.realNow() - C.workerFreshMs, heartbeatAgeSeconds: Math.round((clock.realNow() - (r.workerAt ?? 0)) / 1000), queued: r.jobs.filter(j => j.status === 'queued').length, sending: r.jobs.filter(j => j.status === 'sending').length }));
+} });
+
+/** Read-only local diagnostics for demo account mapping; no tokens or email content. */
+export const accountDiagnostics = internalQuery({ args: {}, handler: async ctx => {
+  demoGate();
+  const runs = await ctx.db.query('demoRuns').withIndex('by_active', q => q.eq('active', true)).collect();
+  return Promise.all(runs.map(async run => ({ runId: run._id, key: run.key, jobs: run.jobs.map(j => ({ stage: j.stage, attempt: j.attempt, status: j.status, sentAt: j.sentAt, receivedAt: j.receivedAt, subject: j.email?.subject, messageId: j.messageId })), people: await Promise.all((await demoPeople(ctx, run)).map(async p => ({
+    name: p.name, persona: p.key, expectedEmail: p.email, memberId: p.member?._id,
+    gmail: (await ctx.db.query('integrations').withIndex('by_family', q => q.eq('familyId', run.familyId)).collect()).filter(i => i.memberId === p.member?._id && i.kind === 'gmail').map(i => ({ id: i._id, email: i.label, status: statusOf(i), lastSyncAt: i.lastSyncAt, lastMailPushAt: i.lastMailPushAt, watchFailure: i.watchFailure, watchExpiresAt: i.watchExpiresAt, failure: i.lastFailure })),
+    recognition: p.member ? (await preferenceFor(ctx, run.familyId, p.member._id))?.enabled ?? false : false,
+  }))) })));
+} });

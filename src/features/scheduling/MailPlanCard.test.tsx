@@ -53,3 +53,26 @@ test('MEGA explains the conflict and alternative alongside the time choices', as
   await renderWithTheme(<MailPlanCardView plan={{ ...plan, guidance }} busy={null} error={null} {...actions()} />);
   expect(screen.getByText(guidance)).toBeTruthy();
 });
+
+test('sending requires reviewing the exact recipient and text first', async () => {
+  const preview = { to: 'organizer@example.org', subject: 'Re: Publicity call', body: 'Would Tuesday at 2 PM work? Please confirm.' };
+  const previewReply = jest.fn().mockResolvedValue(preview), sendReply = jest.fn().mockResolvedValue(null);
+  jest.mocked(useMailPlan).mockReturnValue({ status: 'ok', data: { ...plan, status: 'held', canSendReply: true, selected: plan.slots[1] } });
+  jest.mocked(useSchedulingActions).mockReturnValue({ previewReply, sendReply } as unknown as ReturnType<typeof useSchedulingActions>);
+  await renderWithTheme(<MailPlanCard planId={plan.id} />);
+  await fireEvent.press(screen.getByRole('button', { name: 'Reply with this time' }));
+  await waitFor(() => expect(screen.getByText('To: organizer@example.org')).toBeTruthy());
+  expect(screen.getByText(preview.body)).toBeTruthy();
+  expect(sendReply).not.toHaveBeenCalled();
+  await fireEvent.press(screen.getByRole('button', { name: 'Send email' }));
+  await waitFor(() => expect(sendReply).toHaveBeenCalledWith({ planId: plan.id, revision: 1, ...preview }));
+});
+
+test('offered time explains automatic confirmation after family acceptance', async () => {
+  const on = actions();
+  await renderWithTheme(<MailPlanCardView plan={{ ...plan, selectionConfirms: true }} busy={null} error={null} {...on} />);
+  await fireEvent.press(screen.getByRole('button', { name: /1:30.*Available/ }));
+  expect(screen.getByText(C.offeredReview)).toBeTruthy();
+  await fireEvent.press(screen.getByRole('button', { name: C.choose }));
+  expect(on.onHold).toHaveBeenCalledTimes(1);
+});

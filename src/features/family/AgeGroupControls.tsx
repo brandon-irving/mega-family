@@ -1,14 +1,14 @@
 import { useState } from 'react';
-import { AGE_GROUPS, AGE_GROUP_LABELS, ageGroupOf } from '@shared/ageGroups';
+import { AGE_GROUPS, AGE_GROUP_LABELS, ageGroupAt } from '@shared/ageGroups';
 import { useAgeGroupActions } from '@/data/useAgeGroups';
 import { errorCopyFor } from '@/data/errorCopy';
 import { Text } from '@/ui/Text';
 import { Button } from '@/ui/Button';
 import { Card } from '@/ui/Card';
 import type { MemberDetail } from './MemberDetailContent';
-export function AgeGroupControls({ member }: { member: MemberDetail['member'] }) {
+export function AgeGroupControls({ member, timezone }: { member: MemberDetail['member']; timezone: string }) {
   const actions = useAgeGroupActions(); const [busy, setBusy] = useState(false); const [error, setError] = useState('');
-  const group = ageGroupOf(member, new Date().toISOString().slice(0,10));
+  const group = ageGroupAt(member, new Date().getTime(), timezone);
   const run = async (fn: () => Promise<unknown>) => { if (busy) return; setBusy(true); setError(''); try { await fn(); } catch(e) { setError(errorCopyFor(e)); } finally { setBusy(false); } };
   return <Card><Text variant="label">Age group · {AGE_GROUP_LABELS[group]}</Text>
     <Text color="muted">Age group is separate from family permissions. A teen’s private accounts are not shared with parents.</Text>

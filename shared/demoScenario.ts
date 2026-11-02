@@ -9,10 +9,10 @@ export type DemoNames = Partial<Record<typeof C.personas[number]['key'], string>
 export function demoText(template: string, names: DemoNames = {}): string {
   return template.replace(/\{(dad|mom|daughter)\}/g, (_, key: keyof DemoNames) => names[key] ?? C.personas.find(p => p.key === key)!.name);
 }
-export function demoEmail(run: string, date: string, stage: DemoStage, attempt: number, names: DemoNames = {}) {
+export function demoEmail(run: string, date: string, stage: DemoStage, attempt: number, names: DemoNames = {}, selectedTime?: string) {
   const spec = C.stages.find(s => s.key === stage)!;
   const recipient = C.personas.find(p => p.key === spec.recipient)!;
   return { recipient: recipient.email, cc: [] as string[],
     subject: `${C.prefix} [${run}] [${stage}-${attempt}] ${demoText(spec.subject, names)}`,
-    body: demoText(spec.body, names).replaceAll('{date}', date).replaceAll('{timezone}', C.timezone).replaceAll('{location}', C.location) + '\n\nSynthetic MEGA demo scenario; not a real appointment.' };
+    body: demoText(spec.body, names).replaceAll('{date}', date).replaceAll('{timezone}', C.timezone).replaceAll('{location}', C.location).replaceAll('{selectedTime}', selectedTime ?? 'the time selected in MEGA') + '\n\nSynthetic MEGA demo scenario; not a real appointment.' };
 }

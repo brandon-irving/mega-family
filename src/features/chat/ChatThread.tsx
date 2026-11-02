@@ -14,6 +14,7 @@ import { MegaLoader } from '@/features/walkers';
 import { MessageList, type MessageDoc } from './MessageList';
 
 export type ChatThreadProps = {
+  historyPadding?: number;
   messages: MessageDoc[];
   viewerMemberId: Id<'members'>;
   /** Kids' save chips are read-only (PLAN "MEGA profile") — defaults to 'adult' so existing callers/tests
@@ -27,8 +28,8 @@ export type ChatThreadProps = {
   onSaveIdea?: (messageId: Id<'messages'>) => Promise<unknown>;
   onChangeMemoryScope: (memoryId: Id<'memories'>, scope: Scope) => void;
   onForgetMemory: (memoryId: Id<'memories'>) => void;
-  onRespondRequest?: (requestId: string, accept: boolean) => void;
-  onAnswerNotification?: (notificationId: string, buttonId: string) => void;
+  onRespondRequest?: (requestId: string, accept: boolean) => Promise<unknown> | void;
+  onAnswerNotification?: (notificationId: string, buttonId: string) => Promise<unknown> | void;
   notificationsById?: Record<string, NotificationDoc>;
   streamingReply?: ReactElement;
   /** CONTRACT §6: a deep-link tap scrolls the thread to this message and briefly highlights it. */
@@ -40,6 +41,7 @@ export type ChatThreadProps = {
 };
 
 export function ChatThread({
+  historyPadding,
   messages,
   viewerMemberId,
   viewerRole = 'adult',
@@ -63,6 +65,7 @@ export function ChatThread({
   const isMine = useCallback((m: MessageDoc) => m.author.kind === 'member' && m.author.id === viewerMemberId, [viewerMemberId]);
   return (
     <MessageList
+      historyPadding={historyPadding}
       messages={messages}
       isMine={isMine}
       megaById={megaById}

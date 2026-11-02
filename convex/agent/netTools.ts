@@ -1,4 +1,4 @@
-import { ageGroupOf } from '../../shared/ageGroups';
+import { memberAgeGroup } from '../model/memberAge';
 // The agent's network tools (G4): `web_search`, `weather` and `travel_time`; G4b: `shop_search` (adults). They can't run in
 // `agent/tools.ts`'s dispatcher (a mutation can't call out), so the loop (an action) routes them here. Each
 // re-checks the role gate server-side, reads only what the caller may see, posts its card in the caller's own
@@ -37,7 +37,7 @@ export const toolGate = internalQuery({
       .withIndex('by_family_member', (q) => q.eq('familyId', familyId).eq('memberId', memberId))
       .unique();
     const member = await ctx.db.get(memberId);
-    return { webSearchOff: kc ? !kc.webSearch : false, teen: !!member && member.familyId === familyId && ageGroupOf(member, new Date(clock.realNow()).toISOString().slice(0,10)) === 'teen' };
+    return { webSearchOff: kc ? !kc.webSearch : false, teen: !!member && member.familyId === familyId && (await memberAgeGroup(ctx, member)) === 'teen' };
   },
 });
 

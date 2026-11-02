@@ -2,10 +2,14 @@
 // Coral and add milk to Groceries"). Called by both `requests.respond` (the chat card's Yes/No buttons) and
 // `notifications.answer` (the same request's push/lock-screen buttons) — CONTRACT §5: "An answer from the
 // lock screen and one in the chat are recorded the same way."
+import { answerSchedulingRequest } from './schedulingCoordination';
 import { dispatchTool } from '../agent/tools';
 import type { Id } from '../_generated/dataModel';
 import type { MutationCtx } from '../_generated/server';
 import { getOrCreateOwnThread } from './threads';
+import { canAnswerScheduling } from './schedulingRequests';
+import { fail } from './errors';
+import { COORDINATION_COPY } from '../../shared/config/scheduling';
 
 /** Idempotent: a request already answered (`status !== 'open'`) is a no-op that just returns the same kind
  * of summary again, never re-applies `onAccept`'s effect twice — the one thing that matters for "the
@@ -14,9 +18,13 @@ import { getOrCreateOwnThread } from './threads';
 export async function respondToRequest(ctx: MutationCtx, params: { requestId: Id<'requests'>; accept: boolean; now: number }): Promise<string> {
   const request = await ctx.db.get(params.requestId);
   if (!request) return 'That request no longer exists.';
+  const recipient = await ctx.db.get(request.toMemberId);
+  if (!recipient || recipient.familyId !== request.familyId || (recipient.role === 'kid' && (!request.scheduling || !await canAnswerScheduling(ctx, recipient)))) fail('FORBIDDEN', COORDINATION_COPY.approvalRequired);
   if (request.status !== 'open') {
     return request.status === 'accepted' ? 'Already said yes to this.' : request.status === 'declined' ? "Already said you can't." : 'Already handled.';
   }
+
+  if (request.scheduling) return answerSchedulingRequest(ctx, request, params.accept, params.now);
 
   await ctx.db.patch(request._id, { status: params.accept ? 'accepted' : 'declined' });
 

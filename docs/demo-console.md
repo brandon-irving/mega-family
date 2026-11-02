@@ -2,6 +2,8 @@
 
 This replaces all previous sample-family, staged-price, command-line reset and ad hoc Gmail demos. Use Settings → Demo Console. Sample fixture factories in tests are not presentation tools.
 
+See the [November 1 readiness audit](demo-readiness.md) for verified fixes, review corrections, remaining limits, and the final rehearsal checklist.
+
 ## Personas
 
 | Persona | Gmail | Age group | Family authority |
@@ -16,11 +18,13 @@ Children cannot connect accounts. Teens need a parent to approve account connect
 
 ## Start the runner once
 
-Run `npm run demo:runner` on the demo computer. The local Composio CLI must be signed in and connected to one of the three test mailboxes. The runner verifies its actual Gmail identity and the server rejects all other senders. No Composio key is bundled into the app. The runner uses the checkout’s Convex development deployment credentials; never point it at production.
+Run `npm run demo:runner:start` once on the demo computer. It runs detached, so closing the launching terminal does not stop delivery. Check `npm run demo:runner:status` for each active run’s heartbeat and queued/sending counts. Logs are in `.demo-runtime/runner.log`. Stop gracefully with `npm run demo:runner:stop` (waits for the current delivery). `npm run demo:runner` remains available for foreground troubleshooting. The local Composio CLI must be signed in and connected to one of the three test mailboxes. The runner verifies its actual Gmail identity and the server rejects all other senders. No Composio key is bundled into the app. The runner uses the checkout’s Convex development deployment credentials; never point it at production.
 
 `DEMO_MODE=true` must be enabled on that deployment. Keep `MEGA_GMAIL_SUBJECT_PREFIX=MEGA_TEST`. Gmail push configuration is documented in [email-scheduling.md](email-scheduling.md). Use real model adapters for a live demo.
 
 The UI queues the configured email only after a preview and Send confirmation. The worker claims it atomically, sends exactly once through Composio, and records the result. Two taps cannot enqueue the same attempt. A lost response becomes uncertain, never an automatic retry. `.demo-runtime/delivery.json` preserves the acknowledgement across worker restarts. Do not delete the journal to force a resend.
+
+The backend expires an unacknowledged send after two minutes even if the worker never returns. Inspect the exact subject in Gmail before closing the uncertain attempt; this does not send another email. The next send always requires a new explicit preview and confirmation.
 
 ## Rehearse entirely through the UI
 
@@ -32,7 +36,7 @@ The UI queues the configured email only after a preview and Send confirmation. T
 6. Connect the exact configured Gmail/Calendar for each profile. Turn on recognition and optional automatic capture. Enable holds/drafts when demonstrating them. Each member explicitly selects who may check availability. For the call, Dad must share availability with Mom. No setting is silently granted by the demo console.
 7. Back as Dad, inspect readiness. Every stage previews its exact recipient, subject and body. Dates use a future weekday, America/New_York, fixed at run creation. All subjects start `MEGA_TEST [run-id]`.
 8. Trigger Dad’s meeting: noon–1 PM. Wait for received, plan and calendar counts.
-9. Trigger Mom’s publicity call: noon or 2 PM, both parents requested. Open Mom’s chat, verify noon conflicts, and select the later time through the normal review UI. Holds are private and do not invite attendees.
+9. Trigger Mom’s publicity call: noon or 2 PM, both parents requested. Open Mom’s chat, verify noon conflicts, and select the later time through the normal review UI. Then switch to Dad and accept the time request. MEGA confirms the existing event on Mom’s calendar and updates both chats; no extra organizer email is needed. Each accepting participant gets a private event using their own connected calendar. No external invitations are sent.
 10. Trigger Maya’s pickup change: 2:30–3 PM. Open Maya’s chat. Have her ask her MEGA to request pickup help from Dad. Teen requests go only to parents and cannot attach automatic actions. Dad explicitly accepts in his own chat; being available is not agreement.
 
 ## Reset and cleanup
@@ -41,6 +45,7 @@ The UI queues the configured email only after a preview and Send confirmation. T
 - **Restart full onboarding** starts a new isolated family and the real first conversation. Old families remain saved; account grants are not copied. Reconnect each persona through Google. Use this for end-to-end onboarding practice.
 - **Cleanup Google artifacts** deletes only recorded calendar holds (verified by their MEGA plan marker) and Gmail reply draft ids. It never sweeps a mailbox by subject. Run this before resetting a run with external artifacts. Failures block reset and are safe to retry by exact id.
 - Sent scenario emails remain in Gmail as an audit trail. Old-run subjects are rejected before extraction, so they cannot contaminate a new run. The runner’s sender message id and the receiving mailbox’s message id are tracked separately.
+- Off-script emails prefixed `MEGA_TEST` also use normal recognition and scheduling. Only stale bracketed run ids are rejected; the scenario list is not an email allowlist. Off-script mail does not increment scripted-stage counters.
 - Return to my original family restores the presenter’s original profile. Demo data never replaces its records.
 
 ## Honest status and limits
@@ -74,6 +79,8 @@ Brandon, Lovie, and Maya are default rehearsal names, not required profile names
 ### Connection setup and location confirmation
 
 From each person's chat, open the Google connection card. Review Email & scheduling once, choose recognition and optional automatic capture, keep Calendar holds & reply drafts selected for the full scheduling demo, and select Private or Family coordination. Continue to Google once for both Gmail and Calendar. Existing complete grants do not need another sign-in. Teens can request approval from this screen; the parent answers in their own chat before the teen continues.
+
+Dad can select Family coordination before adding anyone else. The choice persists and includes adults and parent-approved teens added later. It shares availability only, not email contents or event details. Choose people remains an explicit list, and existing lists are not expanded automatically.
 
 Newly previewed emails include the configured Orlando, Florida location. The publicity email explicitly suggests the recipient is based there; the meeting/pickup emails identify venues only. MEGA asks the recipient before remembering their inferred base privately. Existing queued emails retain their confirmed snapshots. Send a new previewed publicity email to exercise this addition; no full reset is needed, and no test emails are automatically sent by deployment.
 
@@ -116,8 +123,40 @@ The admin can authorize all three fixed test accounts from Demo Console using th
 
 The admin then chooses **Clear MEGA_TEST emails & events** in Demo Console and confirms. Cleanup preflights all three grants, verifies the actual Gmail identity against the configured test address, moves individually verified MEGA_TEST-subject messages to Trash (including Sent and Spam), and deletes matching events from primary calendars plus exact, ownership-marked holds/drafts tracked by this family's demo runs. It does not empty Trash or delete unrelated emails/events. Other calendars are not scanned. An operation that fails partway reports its counts and can be retried.
 
+New scripted-demo calendar writes also carry explicit demo-run provenance, allowing cleanup to discover them if their local plan is later lost. A generic `megaPlan` marker is insufficient: it also exists on ordinary meetings. Older orphaned events without a demo marker or retained exact plan reference require manual inspection; cleanup deliberately leaves them alone.
+
 Cleanup pauses delivery and rejects incoming messages for those runs. Choose **Restart story · keep connections** afterward to resume with a new run. The old per-run **Cleanup Google artifacts** remains available for narrow cleanup without clearing emails. No production account setup requests the new Gmail permission automatically.
 
 ### Console tabs
 
 The fixed tab bar separates People (profiles, invitations, Google authorization), Emails (scenario previews and sending), Reset (cleanup and restarts), Motion (animation previews), and Logs (recording/export). Only the selected section is mounted; switching tabs starts its content at the top.
+
+### Delivery recovery
+
+The worker retries transient polling and acknowledgement failures with bounded backoff. A separate 15-second heartbeat continues during a slow provider call. The UI expires stale heartbeats even if no other database changes occur. A durable local journal is acknowledged before another job is claimed; uncertain provider sends are never automatically repeated. Use “Resolve uncertain attempt” only after checking the exact subject in Gmail.
+
+This worker injects demo scenario emails only. Gmail recognition uses the deployed Gmail Pub/Sub webhook and is independent of the local worker. The demo computer must remain awake and online; detached startup does not provide restart-on-reboot or hosting. After reboot, run the start command again. No new email is generated unless the presenter queues one.
+
+### Account identity and recognition
+
+The console displays each person’s expected demo mailbox separately from the account actually connected to MEGA. Email previews and queue validation use the same readiness check. Wrong-account errors name both addresses; recognition-off errors direct the user to their existing Google setup without requiring another OAuth connection. Normal Google setup and centralized demo authorization both validate the returned mailbox against the active demo persona before saving a grant. Choosing another persona’s inbox leaves the existing connection unchanged. Connections from a different demo family/run are not copied or substituted.
+
+### Scheduling confirmation and repeat sends
+
+Holding a proposed time creates a tentative event only on the choosing person's calendar and sends a MEGA request to each named family participant. Accepting or declining updates both chats. Acceptance authorizes saving the confirmed meeting to the responding person’s connected Google Calendar; it sends no email. Calendar writes use each person’s own existing authorization and a stable event ID, with a retry control for failures. For definite slots offered by the sender, choosing an offered slot and collecting every family acceptance confirms the event. Tentative suggestions and MEGA-generated alternatives still need sender confirmation.
+
+Repeated sends of the same stage in an active demo run reuse the active scheduling proposal. Cancel the existing hold before starting another choice. Cancelling a held card reconciles the MEGA-created Google event; failures remain visible with an Update Google Calendar retry. Old dismissed holds can be repaired for a single active run with `scheduling:repairDemoCoordination`; it also creates missing confirmation requests idempotently.
+
+### Close the scheduling loop
+
+The publicity email explicitly offers two available slots and says selecting one confirms the call. Lovie chooses a slot, Brandon accepts in his chat, and MEGA upgrades the existing tentative Google event to confirmed. Both chats receive completion only after Google acknowledges the update. No second organizer-confirmation email is needed; that former demo stage is retired. If Google cannot confirm the write, the card offers Update Google Calendar instead of claiming success.
+
+The event is on Lovie’s calendar and, after Brandon accepts, his connected Google Calendar too. His request explains that accepting adds the meeting; missing calendar access is reported and does not change permissions. The optional **Reply with this time** action lets Lovie review and send the selection to the organizer, but is not a prerequisite for confirming the event. No email is sent automatically.
+
+Start a new story and send the updated publicity email to test this flow. Historical emails that explicitly said “not a booking” keep their original behavior. MEGA-generated alternative times outside the sender’s offered slots also remain tentative until the sender confirms.
+
+### Saving availability sharing
+
+After initial setup, Email & scheduling saves Family coordination, Private, and custom person choices immediately and displays “Sharing saved.” These changes only update availability sharing; recognition, automatic capture, and Google permissions stay unchanged. First-time setup still saves all reviewed choices with Connect Google.
+
+Scheduling extraction rechecks a time-bearing scheduling email if the first result is empty or contains raw schema labels. A second unresolved result stays visible for review, rather than silently disappearing. The reader’s own name is addressed as “your” in card titles and explanations.

@@ -1,7 +1,7 @@
 import type { UIBlock } from '@shared/domain/messages';
 // Renders every UIBlock kind (CONTRACT §3) and checks each one shows its prompt and answers correctly.
 // @testing-library/react-native 13+: render() and fireEvent are async.
-import { fireEvent, screen } from '@testing-library/react-native';
+import { act, fireEvent, screen } from '@testing-library/react-native';
 import { renderWithTheme } from '@/test/renderWithTheme';
 import { BLOCKS_BY_KIND } from '@/test/fixtures';
 import { AnsweredBlock, Block, summarizeAnswer } from './Blocks';
@@ -113,4 +113,17 @@ test('draft cancellation requires confirmation and Keep editing preserves it', a
   await fireEvent.press(screen.getByText('Discard draft'));
   expect(onAnswer).toHaveBeenCalledTimes(1);
   expect(onAnswer).toHaveBeenCalledWith({ value: 'cancel' });
+});
+
+test('finalize stays busy during the request, blocks double taps, and recovers after failure', async () => {
+  let reject!: (error: Error) => void;
+  const onAnswer = jest.fn(() => new Promise<void>((_, fail) => { reject = fail; }));
+  await renderWithTheme(<Block block={BLOCKS_BY_KIND.megaDraft} onAnswer={onAnswer} />);
+  await fireEvent.press(screen.getByRole('button', { name: 'Finalize MEGA' }));
+  expect(screen.getByRole('button', { name: 'Finalize MEGA' })).toBeDisabled();
+  await fireEvent.press(screen.getByRole('button', { name: 'Finalize MEGA' }));
+  expect(onAnswer).toHaveBeenCalledTimes(1);
+  await act(async () => { reject(new Error('network')); });
+  expect(screen.getByRole('button', { name: 'Finalize MEGA' })).toBeEnabled();
+  expect(screen.getByRole('alert')).toBeTruthy();
 });

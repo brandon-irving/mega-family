@@ -1,5 +1,5 @@
 import { demoConsoleState, demoStage } from './demoConsole';
-import { preferencesView, planView } from './scheduling';
+import { preferencesView, planView, availabilitySharing } from './scheduling';
 import { assistantBriefContent, assistantBriefStatus } from './assistantBrief';
 // CONTRACT §4. Every public function: its type, args and returns. Backend functions spread these
 // (`query({ ...API.today.get, handler })`), so a function can't drift from the contract, and tests
@@ -373,8 +373,11 @@ const fn = <F extends Fn>(f: F) => f;
 
 export const API = {
   scheduling: {
+    previewReply: fn({ kind: 'action', day1: 'real', args: { planId: v.id('mailPlans'), revision: v.number() }, returns: v.object({ to: v.string(), subject: v.string(), body: v.string() }) }),
+    sendReply: fn({ kind: 'action', day1: 'real', args: { planId: v.id('mailPlans'), revision: v.number(), to: v.string(), subject: v.string(), body: v.string() }, returns: v.null() }),
     preferences: fn({ kind: 'query', day1: 'real', args: {}, returns: preferencesView }),
-    setPreferences: fn({ kind: 'mutation', day1: 'real', args: { desiredWrites: v.optional(v.boolean()), enabled: v.boolean(), autoCapture: v.boolean(), availabilityFor: v.array(v.id('members')) }, returns: v.null() }),
+    setSharing: fn({ kind: 'mutation', day1: 'real', args: { availabilitySharing: v.optional(availabilitySharing), availabilityFor: v.array(v.id('members')) }, returns: v.null() }),
+    setPreferences: fn({ kind: 'mutation', day1: 'real', args: { availabilitySharing: v.optional(availabilitySharing), desiredWrites: v.optional(v.boolean()), enabled: v.boolean(), autoCapture: v.boolean(), availabilityFor: v.array(v.id('members')) }, returns: v.null() }),
     get: fn({ kind: 'query', day1: 'real', args: { planId: v.id('mailPlans') }, returns: planView }),
     list: fn({ kind: 'query', day1: 'real', args: {}, returns: v.array(v.object({ id: v.id('mailPlans'), title: v.string(), status: v.string() })) }),
     refresh: fn({ kind: 'action', day1: 'real', args: { planId: v.id('mailPlans') }, returns: v.null() }),
@@ -588,6 +591,8 @@ export const API = {
     refreshGifts: fn({ kind: 'mutation', day1: 'real', args: {}, returns: v.null() }),
   },
   requests: {
+    syncCalendar: fn({ kind: 'mutation', day1: 'real', args: { requestId: v.id('requests') }, returns: v.null() }),
+    get: fn({ kind: 'query', day1: 'real', args: { requestId: v.id('requests') }, returns: v.union(v.null(), v.object({ text: v.string(), status: v.string(), mirrored: v.boolean(), calendarOperation: v.optional(v.string()) })) }),
     // G3: real effects (PLAN.md -> Proactive engine step 6) — see convex/model/requestEffects.ts.
     respond: fn({ kind: 'mutation', day1: 'real', args: { requestId: v.id('requests'), accept: v.boolean() }, returns: v.null() }),
   },
@@ -642,7 +647,7 @@ export const API = {
     current: fn({ kind: 'query', day1: 'real', args: {}, returns: v.union(v.null(), v.object({ draftId: v.id('megaDrafts'), data: T.megaDrafts.data, revision: v.number(), status: v.union(v.literal('draft'), v.literal('review')) })) }),
   },
   demoCleanup: {
-    authorizeStart: fn({ kind: 'mutation', day1: 'real', adminOnly: true, args: { runId: v.id('demoRuns'), persona: v.string() }, returns: v.object({ authUrl: v.string() }) }),
+    authorizeStart: fn({ kind: 'mutation', day1: 'real', adminOnly: true, args: { runId: v.id('demoRuns'), persona: v.string(), returnOrigin: v.optional(v.string()) }, returns: v.object({ authUrl: v.string() }) }),
     authorizeCode: fn({ kind: 'action', day1: 'real', adminOnly: true, args: { runId: v.id('demoRuns'), persona: v.string(), serverAuthCode: v.string() }, returns: v.object({ status: T.integrationStatus }) }),
     clear: fn({ kind: 'action', day1: 'real', adminOnly: true, args: { runId: v.id('demoRuns') }, returns: v.string() }) },
   demoConsole: {
@@ -893,7 +898,7 @@ export const API = {
     // app to open. The callback (`GET {CONVEX_SITE_URL}/google/oauth/callback`, an HTTP route) exchanges the
     // code, stores the grant, connects the integrations, posts the connected line, and redirects to
     // SITE_URL + GOOGLE.returnPath. `not_configured` (VALIDATION) when GOOGLE env isn't set.
-    googleStart: fn({ kind: 'mutation', day1: 'real', args: { want: v.array(T.googleProduct), loginHint: v.optional(v.string()), scheduling: v.optional(v.boolean()), demoCleanup: v.optional(v.boolean()) }, returns: v.object({ authUrl: v.string() }) }),
+    googleStart: fn({ kind: 'mutation', day1: 'real', args: { returnOrigin: v.optional(v.string()), want: v.array(T.googleProduct), loginHint: v.optional(v.string()), scheduling: v.optional(v.boolean()), demoCleanup: v.optional(v.boolean()) }, returns: v.object({ authUrl: v.string() }) }),
     // iOS: the `serverAuthCode` from @react-native-google-signin (offlineAccess, the read-only scopes) is
     // exchanged on the server (web client id + secret). Same effects as the callback.
     googleConnectCode: fn({ kind: 'action', day1: 'real', args: { serverAuthCode: v.string(), want: v.array(T.googleProduct) }, returns: v.object({ status: T.integrationStatus, failure: v.optional(T.integrationFailure) }) }),

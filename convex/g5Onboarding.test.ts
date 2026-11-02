@@ -220,9 +220,9 @@ describe('family.add', () => {
     const t = convexTest(schema, modules);
     const { familyId, members } = await t.mutation(internal.seed.sampleFamily, { weekOf: '2026-10-25' });
     const m = members as unknown as Record<string, Id<'members'>>;
-    expect(codeOf(await t.withIdentity({ subject: 'sample:partner' }).mutation(api.family.add, { name: 'Kai', role: 'kid', relationship: 'son' }).catch((e) => e))).toBe('FORBIDDEN');
-    expect(codeOf(await t.withIdentity({ subject: 'sample:twin1' }).mutation(api.family.add, { name: 'Kai', role: 'kid', relationship: 'son' }).catch((e) => e))).toBe('FORBIDDEN');
-    const { memberId } = await t.withIdentity({ subject: 'sample:admin' }).mutation(api.family.add, { name: 'Kai', role: 'kid', relationship: 'son', mega: { name: 'Pip', look: { hex: '#FF9AD5', sticker: 'star' }, personality: 'funny' } });
+    expect(codeOf(await t.withIdentity({ subject: 'sample:partner' }).mutation(api.family.add, { name: 'Kai', ageGroup: 'child', role: 'kid', relationship: 'son' }).catch((e) => e))).toBe('FORBIDDEN');
+    expect(codeOf(await t.withIdentity({ subject: 'sample:twin1' }).mutation(api.family.add, { name: 'Kai', ageGroup: 'child', role: 'kid', relationship: 'son' }).catch((e) => e))).toBe('FORBIDDEN');
+    const { memberId } = await t.withIdentity({ subject: 'sample:admin' }).mutation(api.family.add, { name: 'Kai', ageGroup: 'child', role: 'kid', relationship: 'son', mega: { name: 'Pip', look: { hex: '#FF9AD5', sticker: 'star' }, personality: 'funny' } });
     const rels = await t.run((ctx) => ctx.db.query('relationships').withIndex('by_family_from', (q) => q.eq('familyId', familyId)).collect());
     expect(rels.filter((r) => r.to === memberId && r.kind === 'parent').map((r) => r.from).sort()).toEqual([m.admin, m.partner].sort());
     expect(rels.some((r) => r.from === memberId && r.to === m.admin && r.kind === 'son')).toBe(true);

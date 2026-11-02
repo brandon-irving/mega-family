@@ -1,7 +1,7 @@
 import { v } from 'convex/values';
 import { ASSISTANT_BRIEF as C } from '../shared/config/assistantBrief';
 import { LIMITS } from '../shared/config';
-import { ageGroupOf } from '../shared/ageGroups';
+import { memberAgeGroup } from './model/memberAge';
 import { internal } from './_generated/api';
 import { internalAction, internalMutation, internalQuery } from './_generated/server';
 import { callModel, parseJson } from './model/modelCall';
@@ -27,7 +27,7 @@ export const context = internalQuery({
     if (!member || member.familyId !== row.familyId) return null;
     const integrations = await memberIntegrations(ctx, row.familyId, row.memberId);
     const connected = integrations.filter(i => statusOf(i) === 'connected').map(i => i.kind);
-    const offerGoogle = googleAvailable() && ageGroupOf(member, new Date(clock.realNow()).toISOString().slice(0,10)) !== 'child' && !(connected.includes('gmail') && connected.includes('googleCalendar'));
+    const offerGoogle = googleAvailable() && (await memberAgeGroup(ctx, member)) !== 'child' && !(connected.includes('gmail') && connected.includes('googleCalendar'));
     return { familyId: row.familyId, approved: row.approved, name: member.name, offerGoogle };
   },
 });

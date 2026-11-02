@@ -1,3 +1,4 @@
+import { useDesktopLayout } from '@/ui/useDesktopLayout';
 import { PersonAvatar } from '@/ui/PersonAvatar';
 import { ASSISTANT_BRIEF } from '@shared/config/assistantBrief';
 import { Button } from '@/ui/Button';
@@ -23,6 +24,7 @@ export type FamilyContentProps = { onAddPerson?: () => void; addingPerson?: bool
 
 export function FamilyContent({ members, comingUp, onOpenMember, onOpenCalendar, onOpenPlaces, onOpenLists, nextEvent, onAddPerson, addingPerson }: FamilyContentProps) {
   const tokens = useTokens();
+  const desktop = useDesktopLayout();
   const shortcuts: { label: string; hint: string; icon: GlyphName; onPress?: () => void }[] = [
     { label: 'Lists', hint: 'Keep things together', icon: 'check', onPress: onOpenLists },
     { label: 'Places', hint: 'Your familiar places', icon: 'pin', onPress: onOpenPlaces },
@@ -31,7 +33,7 @@ export function FamilyContent({ members, comingUp, onOpenMember, onOpenCalendar,
     <>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: tokens.spacing.md }}>
         <Text variant="headline">Family</Text>
-        <AppSettingsButton />
+        {!desktop && <AppSettingsButton />}
       </View>
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: tokens.spacing.sm, marginBottom: tokens.spacing.lg }}>
         {shortcuts.filter((shortcut) => shortcut.onPress).map((shortcut) => (
@@ -52,9 +54,9 @@ export function FamilyContent({ members, comingUp, onOpenMember, onOpenCalendar,
         </Card>
       </Pressable>
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: tokens.spacing.sm }}><Text variant="label" color="muted">YOUR PEOPLE</Text>{onAddPerson ? <Button label={ASSISTANT_BRIEF.addPerson} variant="ghost" onPress={onAddPerson} loading={addingPerson} disabled={addingPerson} /> : null}</View>
-      <View style={{ gap: tokens.spacing.sm, marginBottom: tokens.spacing.lg }}>
+      <View style={{ flexDirection: desktop ? 'row' : 'column', flexWrap: 'wrap', gap: tokens.spacing.sm, marginBottom: tokens.spacing.lg }}>
         {members.map((m) => (
-          <Pressable key={m.member._id} onPress={() => onOpenMember(m.member._id)} accessibilityRole="button" accessibilityLabel={`${m.member.name}, ${ROLE_LABEL[m.member.role]}`}>
+          <Pressable style={desktop ? { width: '49%', flexGrow: 1 } : undefined} key={m.member._id} onPress={() => onOpenMember(m.member._id)} accessibilityRole="button" accessibilityLabel={`${m.member.name}, ${ROLE_LABEL[m.member.role]}`}>
             <Card style={{ flexDirection: 'row', alignItems: 'center', gap: tokens.spacing.md }}>
               {m.mega ? (
                 <MegaBadge hex={m.mega.look.hex} sticker={m.mega.look.sticker} face={faceFor(m.mega.personality)} />

@@ -9,7 +9,8 @@ import { Modal, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import Animated, { useAnimatedStyle, useReducedMotion } from 'react-native-reanimated';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { SHEET_LAYOUT } from '@shared/config/theme';
+import { SHEET_LAYOUT, DESKTOP_LAYOUT } from '@shared/config/theme';
+import { useDesktopLayout } from './useDesktopLayout';
 import { hiddenFromA11y } from './a11y';
 import { CloseButton, useDismiss, useSwipeDown } from './dismiss';
 import { useSafeAreaPadding } from './Screen';
@@ -20,29 +21,31 @@ const noop = () => {};
 // Web modals use a portal; a nested native-style provider can measure that portal as an inset.
 const ModalSafeArea = Platform.OS === 'web' ? View : SafeAreaProvider;
 
-export type ModalSheetProps = { open: boolean; title: string; closeLabel: string; onClose: () => void; children: ReactNode; showTitle?: boolean; testID?: string };
+export type ModalSheetProps = { open: boolean; title: string; closeLabel: string; onClose: () => void; children: ReactNode; showTitle?: boolean; testID?: string; scrollable?: boolean };
 
-export function ModalSheet({ open, title, closeLabel, onClose, children, showTitle = true, testID }: ModalSheetProps) {
+export function ModalSheet({ open, title, closeLabel, onClose, children, showTitle = true, testID, scrollable = true }: ModalSheetProps) {
   const reduced = useReducedMotion();
+  const desktop = useDesktopLayout();
   useDismiss(noop, { enabled: open, androidBack: false, layer: 'overlay' });
   return (
-    <Modal visible={open} transparent animationType={reduced ? 'none' : 'slide'} onRequestClose={onClose} statusBarTranslucent>
+    <Modal visible={open} transparent animationType={reduced ? 'none' : desktop ? 'fade' : 'slide'} onRequestClose={onClose} statusBarTranslucent>
       {/* Measure the modal window, not the presenting tab's bottom-bar inset. */}
       <ModalSafeArea style={styles.fill}>
-        <ModalSheetBody title={title} closeLabel={closeLabel} onClose={onClose} showTitle={showTitle} testID={testID}>{children}</ModalSheetBody>
+        <ModalSheetBody title={title} closeLabel={closeLabel} onClose={onClose} showTitle={showTitle} testID={testID} scrollable={scrollable}>{children}</ModalSheetBody>
       </ModalSafeArea>
     </Modal>
   );
 }
 
-function ModalSheetBody({ title, closeLabel, onClose, children, showTitle, testID }: Omit<ModalSheetProps, 'open'>) {
+function ModalSheetBody({ title, closeLabel, onClose, children, showTitle, testID, scrollable }: Omit<ModalSheetProps, 'open'>) {
   const tokens = useTokens();
+  const desktop = useDesktopLayout();
   const bottomInset = Number(useSafeAreaPadding('full').padding.paddingBottom) || 0;
   const { handlers, dragY } = useSwipeDown(onClose);
   const dragged = useAnimatedStyle(() => ({ transform: [{ translateY: dragY.value }] }));
   return (
     <KeyboardAvoidingView behavior="padding" style={styles.fill}>
-      <View style={styles.fill}>
+      <View style={[styles.fill, desktop && { justifyContent: 'center', alignItems: 'center', padding: DESKTOP_LAYOUT.gutter }]}>
         {/* A tap target only: screen readers get the one ✕ (G4 UX review: two "Close" buttons otherwise). */}
         <Pressable testID={testID ? `${testID}-scrim` : undefined} style={[StyleSheet.absoluteFill, { backgroundColor: tokens.scrim }]} onPress={onClose} accessible={false} {...hiddenFromA11y()} />
         <Animated.View
@@ -53,6 +56,7 @@ function ModalSheetBody({ title, closeLabel, onClose, children, showTitle, testI
             {
               marginTop: 'auto',
               maxHeight: SHEET_LAYOUT.maxHeight,
+              ...(!scrollable ? { height: SHEET_LAYOUT.maxHeight } : {}),
               backgroundColor: tokens.surface,
               borderTopLeftRadius: tokens.radii.xl,
               borderTopRightRadius: tokens.radii.xl,
@@ -60,10 +64,11 @@ function ModalSheetBody({ title, closeLabel, onClose, children, showTitle, testI
               borderColor: tokens.line,
               paddingTop: tokens.spacing.sm,
             },
-            dragged,
+            desktop && { marginTop: 0, width: '100%', maxWidth: DESKTOP_LAYOUT.dialogMaxWidth, borderRadius: tokens.radii.xl, borderWidth: 1, overflow: 'hidden' },
+            !desktop && dragged,
           ]}
         >
-          <View {...handlers} style={{ flexShrink: 0, alignSelf: 'center', width: 40, height: 5, borderRadius: 3, backgroundColor: tokens.line }} {...hiddenFromA11y()} />
+          {!desktop && <View {...handlers} style={{ flexShrink: 0, alignSelf: 'center', width: 40, height: 5, borderRadius: 3, backgroundColor: tokens.line }} {...hiddenFromA11y()} />}
           <View testID={testID ? `${testID}-header` : undefined} {...handlers} style={{ flexShrink: 0, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: tokens.spacing.lg, gap: tokens.spacing.md }}>
             {showTitle ? (
               <Text variant="title" accessibilityRole="header" style={{ flex: 1 }}>
@@ -74,7 +79,7 @@ function ModalSheetBody({ title, closeLabel, onClose, children, showTitle, testI
             )}
             <CloseButton onPress={onClose} label={closeLabel} variant="filled" testID={testID ? `${testID}-close` : undefined} />
           </View>
-          <ScrollView
+          {scrollable ? <ScrollView
             testID={testID ? `${testID}-scroll` : undefined}
             style={{ flexGrow: 0, flexShrink: 1, minHeight: 0 }}
             keyboardDismissMode="on-drag" keyboardShouldPersistTaps="handled"
@@ -82,7 +87,7 @@ function ModalSheetBody({ title, closeLabel, onClose, children, showTitle, testI
             contentContainerStyle={{ padding: tokens.spacing.lg, paddingBottom: bottomInset + tokens.spacing.lg, gap: tokens.spacing.md }}
           >
             {children}
-          </ScrollView>
+          </ScrollView> : <View style={{ flex: 1, minHeight: 0 }}>{children}</View>}
         </Animated.View>
       </View>
     </KeyboardAvoidingView>

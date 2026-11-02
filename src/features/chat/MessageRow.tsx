@@ -4,9 +4,9 @@ import { FileAttachment } from './FileAttachment';
 // image, notice. Text messages share bubbles; cards keep their own layout.
 import { memo, useState } from 'react';
 import * as Clipboard from 'expo-clipboard';
-import { ModalSheet } from '@/ui/ModalSheet';
-import { Button } from '@/ui/Button';
-import { Pressable, View } from 'react-native';
+import { MessageActions, type ActionAnchor } from './MessageActions';
+import { Glyph } from '@/features/integrations/glyphs';
+import { Platform, Pressable, View } from 'react-native';
 import Animated, { FadeOut, useReducedMotion } from 'react-native-reanimated';
 import type { Infer } from 'convex/values';
 import type { messageDoc } from '@shared/domain/api';
@@ -37,8 +37,8 @@ export type MessageRowProps = {
   onSaveIdea?: () => Promise<unknown>;
   onChangeMemoryScope: (memoryId: string, scope: Scope) => void;
   onForgetMemory: (memoryId: string) => void;
-  onRespondRequest?: (accept: boolean) => void;
-  onAnswerNotification?: (buttonId: string) => void;
+  onRespondRequest?: (accept: boolean) => Promise<unknown> | void;
+  onAnswerNotification?: (buttonId: string) => Promise<unknown> | void;
   notification?: NotificationDoc;
   /** Kids' save chips are read-only (PLAN "MEGA profile": no sharing/memory controls for kids). */
   chipsReadOnly?: boolean;
@@ -77,6 +77,8 @@ export const MessageRow = memo(function MessageRow({
   const reducedMotion = useReducedMotion();
   const [saveState, setSaveState] = useState<'ready' | 'saving' | 'saved'>('ready');
   const [actionsOpen, setActionsOpen] = useState(false);
+  const [anchor, setAnchor] = useState<ActionAnchor | null>(null);
+  const openActions = (x?: number, y?: number) => { setAnchor(x === undefined || y === undefined ? null : { x, y }); setActionsOpen(true); setSelecting(false); setActionError(null); };
   const [selecting, setSelecting] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -107,9 +109,10 @@ export const MessageRow = memo(function MessageRow({
             against a parent with no width, so long messages were clipped off the left edge on web and short
             ones ("Answered") wrapped mid-word (owner, Oct 28). */}
         <View testID="message-column" style={{ flex: isMine ? undefined : 1, flexShrink: 1, maxWidth: message.body.type === 'text' || message.body.type === 'answer' ? CHAT_UX.bubbleMaxWidth : '100%' }}>
-          {message.body.type === 'text' ? <Pressable accessibilityLabel={`${isMine ? 'You' : 'MEGA'}: ${messageText}. Hold for actions`} onLongPress={() => { setActionsOpen(true); setSelecting(false); setActionError(null); }}>
+          {message.body.type === 'text' ? <Pressable accessibilityLabel={`${isMine ? 'You' : 'MEGA'}: ${messageText}. Hold for actions`} onLongPress={event => openActions(event?.nativeEvent?.pageX, event?.nativeEvent?.pageY)} {...(Platform.OS === 'web' ? { onContextMenu: (event: { preventDefault: () => void; clientX: number; clientY: number }) => { event.preventDefault(); openActions(event.clientX, event.clientY); } } : {})}>
             <Bubble mine={isMine} accent={!isMine ? mega?.hex : undefined}>{content}</Bubble>
           </Pressable> : content}
+          {Platform.OS === 'web' && messageText && <Pressable accessibilityRole="button" accessibilityLabel="Message actions" onPress={event => openActions(event?.nativeEvent?.pageX, event?.nativeEvent?.pageY)} style={{ position: 'absolute', top: 0, ...(isMine ? { left: -36 } : { right: -36 }), padding: tokens.spacing.sm }}><Glyph name="more" size={20} color={tokens.muted} /></Pressable>}
           {message.reaction && <Text variant="caption" color="muted">{CHAT_UX.reactions.find(reaction => reaction.id === message.reaction)?.selected}</Text>}
         </View>
       </View>
@@ -138,17 +141,13 @@ export const MessageRow = memo(function MessageRow({
           {saveError && <Text variant="caption" color="muted" accessibilityLiveRegion="polite">{saveError}</Text>}
         </View>
       )}
-      {actionsOpen && messageText !== null && <ModalSheet open closeLabel={CHAT_UX.actions.close} title={selecting ? CHAT_UX.actions.select : CHAT_UX.actions.title} onClose={() => setActionsOpen(false)}>
-        {selecting ? <Text selectable>{messageText}</Text> : <>
-          <Button label={CHAT_UX.actions.copy} variant="secondary" onPress={async () => { try { await Clipboard.setStringAsync(messageText); setActionsOpen(false); } catch (error) { setActionError(errorCopyFor(error)); } }} />
-          <Button label={CHAT_UX.actions.select} variant="secondary" onPress={() => setSelecting(true)} />
-          {onReply && <Button label={CHAT_UX.actions.reply} variant="secondary" onPress={() => { setActionsOpen(false); onReply(messageText); }} />}
-          {isMega && onReact && <View style={{ flexDirection: 'row', gap: tokens.spacing.sm }}>
-            {CHAT_UX.reactions.map(reaction => <Button key={reaction.id} label={reaction.label} variant="secondary" onPress={async () => { try { await onReact(message.reaction === reaction.id ? null : reaction.id); setActionsOpen(false); } catch (error) { setActionError(errorCopyFor(error)); } }} />)}
-          </View>}
-        </>}
-        {actionError && <Text accessibilityRole="alert">{actionError}</Text>}
-      </ModalSheet>}
+      {actionsOpen && messageText !== null && <MessageActions text={messageText} anchor={anchor} selecting={selecting} error={actionError} reaction={message.reaction}
+        onClose={() => setActionsOpen(false)}
+        onCopy={async () => { try { await Clipboard.setStringAsync(messageText); setActionsOpen(false); } catch (error) { setActionError(errorCopyFor(error)); } }}
+        onSelect={() => setSelecting(true)}
+        onReply={onReply ? () => { setActionsOpen(false); onReply(messageText); } : undefined}
+        onReact={isMega && onReact ? async reaction => { try { await onReact(message.reaction === reaction ? null : reaction); setActionsOpen(false); } catch (error) { setActionError(errorCopyFor(error)); } } : undefined}
+      />}
       {message.chips.length > 0 && (
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: tokens.spacing.sm, marginTop: tokens.spacing.xs }}>
           {message.chips.map((chip) => (
@@ -179,8 +178,8 @@ function Body({
   isMine: boolean;
   mega: MegaInfo | null;
   onAnswerBlock: (answer: BlockAnswer) => void;
-  onRespondRequest?: (accept: boolean) => void;
-  onAnswerNotification?: (buttonId: string) => void;
+  onRespondRequest?: (accept: boolean) => Promise<unknown> | void;
+  onAnswerNotification?: (buttonId: string) => Promise<unknown> | void;
   notification?: NotificationDoc;
 }) {
   const tokens = useTokens();
