@@ -100,6 +100,9 @@ const FAMILY_OWNED_TABLES: readonly [TableNames, string][] = [
   ['assistantBriefs', 'by_family_member'],
   ['megaDrafts', 'by_family_creator'],
   ['profilerRuns', 'by_family_member_day'],
+  // Vehicles addendum
+  ['vehicleCommands', 'by_family_vehicle'],
+  ['vehicles', 'by_family'],
 ];
 
 async function deleteFamilyCompletely(ctx: MutationCtx, familyId: Id<'families'>): Promise<void> {

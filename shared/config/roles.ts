@@ -9,6 +9,8 @@ export const TOOLS = [
   'web_search', 'weather', 'travel_time', 'make_image', 'follow_up',
   // G4b (v0.16): catalog product search, adults only (kids' list below leaves it out; SHOPPING.viewers).
   'shop_search', 'ideas', 'mega_creation',
+  // Vehicles addendum: connected cars, adults only (VEHICLE_ROLES); the kids' list below leaves it out.
+  'vehicle',
 ] as const;
 export type Tool = (typeof TOOLS)[number];
 

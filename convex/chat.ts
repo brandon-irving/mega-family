@@ -2,6 +2,7 @@ import { answerConnectionRecommendation, answerConnectionRecommendationText, rec
 import { CHAT_UX } from '../shared/config/chat';
 import { answerMailLocation } from './model/mailContext';
 import { answerConnectionApproval } from './model/connectionApproval';
+import { answerVehicleCommand } from './model/vehicles';
 import { activeDraft, migrateCreation, answerCreation, confirmDraft, resumeDraftConversation } from './model/megaCreation';
 import { isCreationConfirmation, MEGA_CREATION } from '../shared/config/megaCreation';
 import { answerBrief, answerBriefText, briefFor, startBrief, continueAfterBrief } from './model/assistantBriefs';
@@ -302,6 +303,7 @@ export const answerBlock = mutation({
     if (await answerConnectionRecommendation(ctx, viewer.member, message, args.answer, now)) return { answerMessageId };
     if (await answerMailLocation(ctx, viewer.member, message, args.answer, now)) return { answerMessageId };
     if (await answerConnectionApproval(ctx, viewer.member, message, args.answer, now)) return { answerMessageId };
+    if (await answerVehicleCommand(ctx, viewer.member, message, args.answer, now)) return { answerMessageId };
     if (await answerCreation(ctx, viewer.member, message, args.answer, now)) return { answerMessageId };
     if (await answerFamilyBlock(ctx, viewer.member, message, args.answer, now)) return { answerMessageId };
     const briefAnswer = await answerBrief(ctx, viewer.member, message, args.answer, now);

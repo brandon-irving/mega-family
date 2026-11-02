@@ -13,6 +13,7 @@ import { holiday, product, productRef } from './integrationShapes';
 import { blockAnswer, spokenMention } from './messages';
 import { ideaCategory, ideaSort } from './ideas';
 import * as T from './tables';
+import { availableVehicle, vehicleCommandKind, vehicleSharing, vehicleView } from './vehicles';
 import { literals, withSystemFields } from './validators';
 
 // ---------- documents as returned to the app ----------
@@ -822,6 +823,31 @@ export const API = {
     get: fn({ kind: 'query', day1: 'real', args: { placeId: v.optional(v.id('places')) }, returns: v.union(weatherView, v.null()) }),
     // Any member. Queues a refresh for that place if its cache is past its TTL; otherwise does nothing.
     refresh: fn({ kind: 'mutation', day1: 'real', args: { placeId: v.optional(v.id('places')) }, returns: v.object({ queued: v.boolean() }) }),
+  },
+  // Vehicles addendum (CONTRACT v0.22): connected cars through the Vehicles port (Smartcar). Adults only
+  // (VEHICLE_ROLES); kids get FORBIDDEN or an empty list. A car is private to the adult who linked it unless they
+  // share it with the household (adults). Readers see the nearest saved place, never coordinates.
+  vehicles: {
+    // Cars the viewer may see. Empty for kids.
+    list: fn({ kind: 'query', day1: 'real', args: {}, returns: v.array(vehicleView) }),
+    // Adults. Cars this member may claim and nobody linked yet: ones connected through their own `connectUrl`
+    // (matched by an owner tag), plus simulated cars nobody tagged while VEHICLES.allowUnclaimedSimulated is on.
+    available: fn({ kind: 'action', day1: 'real', args: {}, returns: v.array(availableVehicle) }),
+    // Adults. The provider's hosted page for connecting a car to MEGA as this member. VALIDATION when not set up
+    // (SMART_CAR_APPLICATION_ID missing).
+    connectUrl: fn({ kind: 'action', day1: 'real', args: { mode: v.optional(v.union(v.literal('live'), v.literal('simulated'))) }, returns: v.object({ url: v.string() }) }),
+    // Adults. Links an available car to the viewer (owner), private unless `sharing: 'household'`. Reads it once.
+    // NOT_FOUND unless it is one of `available` (or already this family's).
+    link: fn({ kind: 'action', day1: 'real', args: { providerVehicleId: v.string(), nickname: v.optional(v.string()), sharing: v.optional(vehicleSharing) }, returns: v.id('vehicles') }),
+    // The owner only. Renames or changes sharing.
+    update: fn({ kind: 'mutation', day1: 'real', args: { vehicleId: v.id('vehicles'), nickname: v.optional(v.string()), sharing: v.optional(vehicleSharing) }, returns: v.null() }),
+    // The owner only. Removes the car and its command history from MEGA (the provider connection stays).
+    unlink: fn({ kind: 'mutation', day1: 'real', args: { vehicleId: v.id('vehicles') }, returns: v.null() }),
+    // Readers. Reads the car now and stores the reading (alerts may fire).
+    refresh: fn({ kind: 'action', day1: 'real', args: { vehicleId: v.id('vehicles') }, returns: v.null() }),
+    // Readers. Posts an Approve / Cancel block in the viewer's own chat; nothing runs until Approve
+    // (chat.answerBlock). `set_destination` needs a geocoded saved place.
+    requestCommand: fn({ kind: 'mutation', day1: 'real', args: { vehicleId: v.id('vehicles'), command: vehicleCommandKind, placeId: v.optional(v.id('places')) }, returns: v.object({ commandId: v.id('vehicleCommands') }) }),
   },
   travel: {
     // Members who can see the event (private-layer events: the owner only; NOT_FOUND otherwise, same as

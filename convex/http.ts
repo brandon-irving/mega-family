@@ -1,6 +1,8 @@
 import { push as gmailPush } from './gmailPush';
 import { SCHEDULING } from '../shared/config/scheduling';
 import { creationMcp, CREATION_MCP_PATH, CREATION_MCP_VERSION } from './model/creationMcp';
+import { VEHICLES } from '../shared/config/vehicles';
+import { mcpGet as vehicleMcpGet, mcpPost as vehicleMcpPost, webhook as smartcarWebhook } from './vehicleRoutes';
 // HTTP routes: Better Auth's own routes, plus `POST /push/answer` (CONTRACT §5 v0.11). (Chat replies are
 // server-driven since G1 — see convex/chat.ts — so there is no client-driven stream route.) Demo sign-in
 // used to live here (`/demo-signin`) but is now the contract function `demo.signInAs` (convex/demo.ts,
@@ -148,5 +150,10 @@ http.route({ path: CREATION_MCP_PATH, method: 'POST', handler: httpAction(async 
   const response = await creationMcp(body, async (name, args) => JSON.parse(await ctx.runMutation(internal.megaCreation.execute, { name, argumentsJson: JSON.stringify(args) })));
   return response === null ? new Response(null, { status: 202 }) : new Response(JSON.stringify(response), { headers });
 }) });
+
+// Vehicles addendum: Smartcar webhook deliveries (signature-checked) and the vehicle MCP endpoint.
+http.route({ path: VEHICLES.webhookPath, method: 'POST', handler: smartcarWebhook });
+http.route({ path: VEHICLES.mcpPath, method: 'GET', handler: vehicleMcpGet });
+http.route({ path: VEHICLES.mcpPath, method: 'POST', handler: vehicleMcpPost });
 
 export default http;

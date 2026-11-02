@@ -16,6 +16,7 @@ import { ANDROID_CHANNELS, BUTTON_SETS, NOTIFICATION_KINDS_CONFIG, PUSH_BODY_RED
 import { DRAFT_SANITIZE, PROACTIVE, checkinDedupeKey, reminderDedupeKey, requestDedupeKey } from '../../shared/config/proactive';
 import { NOTIFICATION_KINDS, type Delivery, type Loudness, type NotificationKind, type Role } from '../../shared/domain/enums';
 import type { CandidateSource } from '../../shared/domain/tables';
+import { vehicleAlertStillApplies } from './vehicles';
 import { addDays, localDate, localParts, zonedInstant } from '../../shared/time';
 import { internal } from '../_generated/api';
 import type { Doc, Id } from '../_generated/dataModel';
@@ -482,6 +483,10 @@ export async function candidateStillApplies(ctx: Ctx, source: CandidateSource | 
     }
     case 'bucks':
       return !!(await ctx.db.get(source.ledgerId));
+    // Vehicles addendum: the car is still linked and the alert still holds (a refilled tank or a locked door
+    // drops a push that hasn't gone out yet).
+    case 'vehicleAlert':
+      return vehicleAlertStillApplies(ctx, source.vehicleId, source.alert);
     // G4 (v0.15). Leave-by: the event is still on and this candidate's travel check is still the latest one
     // (a newer check re-times the candidate instead). Rain tip: the event is still on and hasn't started.
     // Alert: still among the place's active NWS alerts.
@@ -940,7 +945,7 @@ export async function finalizeCandidateLogic(
  * patch or cancel it before delivery — forcing it through now would defeat that. Matches
  * `fireDueScheduledCandidates`'s own due check — see convex/clock.ts's comment ("clock.jump drives the same
  * tick... firing any candidate whose deliverAt the jump leapt past"). */
-async function deliverNowIfAlreadyDue(ctx: MutationCtx, candidateId: Id<'candidates'>, now: number): Promise<void> {
+export async function deliverNowIfAlreadyDue(ctx: MutationCtx, candidateId: Id<'candidates'>, now: number): Promise<void> {
   const candidate = await ctx.db.get(candidateId);
   if (!candidate || candidate.status !== 'scheduled' || candidate.deliverAt === undefined || candidate.deliverAt > now) return;
   if (candidate.scheduledId) await ctx.scheduler.cancel(candidate.scheduledId);

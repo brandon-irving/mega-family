@@ -72,3 +72,9 @@ Use Restart full onboarding separately when rehearsing introductions and Google 
 - Family coordination now persists before other family members exist. It includes future eligible members; existing explicit recipient lists remain scoped to those people.
 - The chat request card's response callback is now wired to `requests.respond`. Request and notification buttons share loading/error feedback and duplicate-tap protection. The owner confirmed the Yes action works in the running app.
 - Before the requested merge into `main`: 1,195 backend tests, 929 UI tests, and 41 script tests passed. Lint, type checking, and diff whitespace checks passed.
+
+## November 2 Smartcar integration
+
+- Merged the six commits on `smartcar-vehicle` through `6915599` into the current demo code. Resolved overlapping chat rule handlers, agent tool restrictions, schema definitions, privacy fixtures, and contract versions while preserving the existing demo fixes.
+- Validation: 1,241 backend tests, 930 UI tests, and 41 script tests passed. Lint and type checking passed. Vehicle tests exercise private/household access, ownership binding, approval before commands, signed webhooks, alerts, and MCP tools through controlled adapters.
+- No live vehicle command, email, calendar write, or demo reset was performed during this integration. Live Smartcar deployment/configuration and the shared-assets screen, responsibility routing, and repeatable console scenario remain follow-up work documented in [Connected cars](vehicles.md).

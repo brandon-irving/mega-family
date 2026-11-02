@@ -29,6 +29,8 @@ export const AGENT_TOOL_NAMES = [
   'weather',
   'travel_time',
   'shop_search',
+  'vehicle_status',
+  'vehicle_command',
   'make_image',
 ] as const;
 export type AgentToolName = (typeof AGENT_TOOL_NAMES)[number];
@@ -269,6 +271,35 @@ export const AGENT_TOOLS: Record<AgentToolName, ToolDef> = {
           title: { type: 'string', description: "A short heading for the results card, e.g. \"Kids' rain jackets · under $40\". No names of family members." },
         },
         required: ['query'],
+        additionalProperties: false,
+      },
+    },
+  },
+  // Vehicles addendum: connected cars through the Vehicles port (Smartcar), adults only. Network tools
+  // (convex/agent/netTools.ts). A command never runs from a tool call: it posts an Approve / Cancel card.
+  vehicle_status: {
+    configTool: 'vehicle',
+    implemented: true,
+    spec: {
+      name: 'vehicle_status',
+      description: "Read a linked family car right now: fuel or battery, range in miles, locked or not, tire pressures, oil life, odometer, and which saved family place it's at or near. Use only the numbers it returns. Use it before advising on a drive (enough range? tires OK?). If it says no car is linked, say so plainly.",
+      parameters: { type: 'object', properties: { car: { type: 'string', description: "The car's name, make or model; omit when the family has one car." } }, additionalProperties: false },
+    },
+  },
+  vehicle_command: {
+    configTool: 'vehicle',
+    implemented: true,
+    spec: {
+      name: 'vehicle_command',
+      description: "Ask to lock or unlock a linked car, or send a saved family place to its navigation. This only puts an Approve / Cancel card in this member's chat; nothing happens until they tap Approve, so never say it's done. Only use when the member asked for it.",
+      parameters: {
+        type: 'object',
+        properties: {
+          command: { type: 'string', enum: ['lock', 'unlock', 'set_destination'] },
+          car: { type: 'string', description: "The car's name, make or model; omit when the family has one car." },
+          place: { type: 'string', description: 'For set_destination: a saved family place name.' },
+        },
+        required: ['command'],
         additionalProperties: false,
       },
     },

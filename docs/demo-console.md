@@ -4,6 +4,8 @@ This replaces all previous sample-family, staged-price, command-line reset and a
 
 See the [November 1 readiness audit](demo-readiness.md) for verified fixes, review corrections, remaining limits, and the final rehearsal checklist.
 
+The November 2 Smartcar merge supplies the backend for the next **shared-assets** demo extension. See [Connected cars](vehicles.md) for available capabilities and the planned flow. No vehicle scenario buttons or asset screens are included yet; the email rehearsal below remains the current repeatable demo.
+
 ## Personas
 
 | Persona | Gmail | Age group | Family authority |

@@ -3,6 +3,7 @@ export { demoRuns } from './demoConsole';
 import { schedulingPreferences, mailPlans } from './scheduling';
 export { schedulingPreferences, mailPlans } from './scheduling';
 import { megaDraftData } from './megaCreation';
+import { vehicleAlertKind, vehicleCommandKind, vehicleCommandStatus, vehicleMode, vehicleSharing, vehicleState } from './vehicles';
 // CONTRACT §2. The fields of every table. convex/schema.ts adds indexes; `returns` validators reuse these.
 // Every family-owned table has familyId, and no query may read across families.
 import { type Infer, v } from 'convex/values';
@@ -210,7 +211,7 @@ export const messages = {
   fromNotificationId: v.optional(v.id('notifications')),
   /** v0.17b (G5 review C3): a block answered by rule, never by an agent turn (the onboarding family step, a
    * profiler check question). A repeat or stale answer to one is a no-op. */
-  ruleBlock: v.optional(v.union(v.literal('onboarding'), v.literal('profiler'), v.literal('brief'), v.literal('creation'), v.literal('connectionApproval'), v.literal('mailLocation'), v.literal('connectionSuggestion'))),
+  ruleBlock: v.optional(v.union(v.literal('onboarding'), v.literal('profiler'), v.literal('brief'), v.literal('creation'), v.literal('connectionApproval'), v.literal('mailLocation'), v.literal('connectionSuggestion'), v.literal('vehicleCommand'))),
   saveableIdea: v.optional(v.boolean()),
 };
 
@@ -367,6 +368,8 @@ export const candidateSource = v.union(
   // never the recipient), and the evening-before-a-holiday question (a `request` to adults, `holiday.default`).
   v.object({ kind: v.literal('priceDrop'), watchId: v.id('priceWatches'), priceCents: v.number() }),
   v.object({ kind: v.literal('holiday'), skipId: v.id('routineSkips') }),
+  // Vehicles addendum (internal only): a linked car crossed an alert threshold (shared/config/vehicles.ts).
+  v.object({ kind: v.literal('vehicleAlert'), vehicleId: v.id('vehicles'), alert: vehicleAlertKind }),
 );
 export type CandidateSource = Infer<typeof candidateSource>;
 
@@ -1061,6 +1064,50 @@ export const connectionSuggestions = {
   messageId: v.id('messages'), createdAt: v.number(), updatedAt: v.number(),
 };
 
+// ---------- Vehicles addendum (CONTRACT v0.22) ----------
+
+/** A car linked to MEGA through the Vehicles port (Smartcar). One provider vehicle belongs to at most one family.
+ * `state` is the latest normalized reading (webhook or on-demand); raw provider payloads are never stored. */
+export const vehicles = {
+  familyId,
+  /** The adult who linked it. Private cars are visible to them only. */
+  ownerId: memberId,
+  provider: v.literal('smartcar'),
+  providerVehicleId: v.string(),
+  providerUserId: v.string(),
+  mode: vehicleMode,
+  make: v.string(),
+  model: v.string(),
+  year: v.optional(v.number()),
+  powertrain: v.optional(v.string()),
+  nickname: v.string(),
+  sharing: vehicleSharing,
+  state: v.optional(vehicleState),
+  /** Highest webhook `meta.sequence` applied, so an out-of-order delivery never overwrites newer state. */
+  lastSequence: v.optional(v.number()),
+  lastEventId: v.optional(v.string()),
+  linkedAt: v.number(),
+};
+
+/** A command MEGA asked to run on a car. Runs only after the requester taps Approve on its chat block. */
+export const vehicleCommands = {
+  familyId,
+  vehicleId: v.id('vehicles'),
+  requestedBy: memberId,
+  command: vehicleCommandKind,
+  destination: v.optional(v.object({ label: v.string(), lat: v.number(), lng: v.number() })),
+  status: vehicleCommandStatus,
+  /** The approval block in the requester's own thread. */
+  messageId: v.optional(v.id('messages')),
+  createdAt: v.number(),
+  expiresAt: v.number(),
+  decidedAt: v.optional(v.number()),
+  finishedAt: v.optional(v.number()),
+  /** Provider error code on failure (e.g. IN_MOTION), never a raw body. */
+  failure: v.optional(v.string()),
+};
+
+
 export const TABLES = {
   connectionSuggestions,
   mailContextSuggestions,
@@ -1108,6 +1155,8 @@ export const TABLES = {
   bucksLedger,
   purchases,
   places,
+  vehicles,
+  vehicleCommands,
   weatherCache,
   travelChecks,
   searchLog,

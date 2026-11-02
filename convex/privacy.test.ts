@@ -173,6 +173,13 @@ async function loadFamily(t: ReturnType<typeof convexTest>, key: 'A' | 'B', fami
   });
   docs.megaDrafts = [(await t.run(ctx => ctx.db.get(draftId))) as unknown as AnyDoc];
   ids.add(draftId);
+  // Vehicles addendum: one private car per family (with a reading that has coordinates) and a command on it.
+  const vehicleId = await t.run(ctx => ctx.db.insert('vehicles', { familyId, ownerId: members.admin, provider: 'smartcar', providerVehicleId: `veh-${key}`, providerUserId: `usr-${key}`, mode: 'simulated', make: 'Simulated', model: 'ICE', nickname: `Car ${key}`, sharing: 'private', state: { fuelPct: 50, location: { lat: 40.7, lng: -73.9 }, readAt: 1 }, linkedAt: 1 }));
+  const commandId = await t.run(ctx => ctx.db.insert('vehicleCommands', { familyId, vehicleId, requestedBy: members.admin, command: 'lock', status: 'declined', createdAt: 1, expiresAt: 2 }));
+  docs.vehicles = [(await t.run(ctx => ctx.db.get(vehicleId))) as unknown as AnyDoc];
+  docs.vehicleCommands = [(await t.run(ctx => ctx.db.get(commandId))) as unknown as AnyDoc];
+  ids.add(vehicleId);
+  ids.add(commandId);
   return { key, familyId, members, docs, ids };
 }
 
