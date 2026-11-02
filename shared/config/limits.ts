@@ -5,6 +5,7 @@ export const LIMITS = {
   // them fast and cheap rather than relying on a tiny max_tokens (which can return an empty reply).
   // Muse Spark is a reasoning model: hidden reasoning counts against max tokens, so limits leave room for it
   // and `effort` stays low (G2 live check: default effort spent all 1,200 tokens reasoning and replied with nothing).
+  conversationContext: { scanMessages: 100, userTurns: 12, maxCharacters: 24000, maxMessageCharacters: 4000, completedDraftScan: 30, completedDrafts: 8 },
   agent: { maxSteps: 6, maxTokensReply: 4000, maxTokensTool: 800, maxTokensStructured: 1500, effort: 'low' as const },
   push: {
     dailyCapAdult: 8,

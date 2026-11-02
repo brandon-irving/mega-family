@@ -9,6 +9,8 @@ import { renderWithTheme } from '@/test/renderWithTheme';
 import StartRoute from '@/app/start';
 import WelcomeRoute from '@/app/welcome';
 
+jest.mock('@/data/useDemoProfile', () => ({ useDemoProfile: () => ({ profile: null }) }));
+jest.mock('@/data/useViewer', () => ({ useViewer: () => null }));
 jest.mock('convex/react', () => ({ useMutation: () => jest.fn() }));
 jest.mock('@/services/auth', () => ({
   signInAnonymously: jest.fn(() => Promise.resolve()),

@@ -43,7 +43,9 @@ export function useQueryState<Query extends FunctionReference<'query'>>(query: Q
   useEffect(() => {
     if (memoryKey && value !== undefined) rememberQuery(memoryKey, value);
   }, [memoryKey, value]);
-  const stable = useStableQuery(value) ?? (memoryKey ? recallQuery<FunctionReturnType<Query>>(memoryKey) : undefined);
+  const held = useStableQuery(value);
+  // null is a real empty result (for example a completed draft), never a loading state.
+  const stable = held === undefined ? (memoryKey ? recallQuery<FunctionReturnType<Query>>(memoryKey) : undefined) : held;
   if (result instanceof Error) return { status: 'error', error: result };
   if (stable === undefined) return { status: 'loading' };
   return { status: 'ok', data: stable };

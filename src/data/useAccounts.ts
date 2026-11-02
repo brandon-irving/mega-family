@@ -1,3 +1,5 @@
+import { useViewer } from './useViewer';
+import { ageGroupAt, canConnectAccountsAt, AccountConnectionPermissionError } from '@shared/ageGroups';
 // G5 (CONTRACT v0.17): connected accounts — the owner's own Gmail, Google Calendar, this phone's calendar and
 // schedule links (.ics) — and what MEGA found in Gmail. Every function is owner-only on the server; reads go
 // through `useQueryState`, so a stub (backend still being built), a refusal or a provider failure renders a calm
@@ -27,7 +29,9 @@ export function useMailItems(itemIds: Id<'mailItems'>[]) {
 }
 
 export function useAccountActions() {
+  const viewer = useViewer();
   return {
+    assertCanConnect: () => { const now = new Date().getTime(); if (!viewer || !canConnectAccountsAt(viewer.member, now, viewer.family.timezone)) throw new AccountConnectionPermissionError(viewer ? ageGroupAt(viewer.member, now, viewer.family.timezone) : 'unknown'); },
     googleStart: useMutation(api.integrations.googleStart),
     googleConnectCode: useAction(api.integrations.googleConnectCode),
     connectDevice: useMutation(api.integrations.connectDevice),

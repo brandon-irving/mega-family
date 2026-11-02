@@ -27,7 +27,7 @@ describe('tables', () => {
 
   test('every family-owned table has familyId', () => {
     for (const [name, fields] of Object.entries(TABLES)) {
-      if (name === 'families') continue;
+      if (name === 'families' || name === 'demoProfiles') continue; // demoProfiles is identity-owned, not family-owned
       expect(fields, name).toHaveProperty('familyId');
     }
   });
@@ -95,7 +95,8 @@ describe('API', () => {
 
   test('the API map has nothing that CONTRACT.md §4 does not list', () => {
     const listed = new Set(contractFunctions().map((f) => f.name));
-    for (const [mod, fns] of Object.entries(API)) for (const name of Object.keys(fns)) expect(listed.has(`${mod}.${name}`), `${mod}.${name}`).toBe(true);
+    const missing = Object.entries(API).flatMap(([mod, fns]) => Object.keys(fns).map(name => `${mod}.${name}`)).filter(name => !listed.has(name));
+    expect(missing, 'Public API functions missing from CONTRACT.md §4').toEqual([]);
   });
 
   test('every args field and returns is a Convex validator', () => {

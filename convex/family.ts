@@ -1,3 +1,7 @@
+import { requestConnectionApproval } from './model/connectionApproval';
+import { memberAgeGroup } from './model/memberAge';
+import { MEGA_CREATION } from '../shared/config/megaCreation';
+import { clock as ageClock } from './ports/clock';
 // CONTRACT §4 "Family" (+ `family.parentCode` from "Session and onboarding", same module).
 import { API } from '../shared/domain/api';
 import { canReadKidThread } from '../shared/domain/family';
@@ -116,6 +120,7 @@ export const add = mutation({
   handler: async (ctx, args) => {
     const viewer = await requireViewer(ctx);
     requireAdmin(viewer.member.role);
+    if (!args.ageGroup && !args.birthday) fail('VALIDATION', MEGA_CREATION.ageRequired);
     const now = await clock.now(ctx, viewer.member.familyId);
     const memberId = await addFamilyMember(ctx, viewer.member, args, now);
     return { memberId };
@@ -134,3 +139,24 @@ export const nextEvent = query({
     return null;
   },
 });
+
+/** Age group never promotes family authority or silently grants account access. */
+export const setAgeGroup = mutation({ ...pick(API.family.setAgeGroup), handler: async (ctx, args) => {
+  const viewer = await requireViewer(ctx); const target = await sameFamilyMember(ctx, viewer.member.familyId, args.memberId);
+  if (viewer.member.role !== 'admin' && !viewer.isParentOf.includes(target._id)) fail('FORBIDDEN');
+  if (target.role !== 'kid' && args.ageGroup !== 'adult') fail('VALIDATION', 'Create a child or teen member with protected permissions first.');
+  if (target.birthday && await memberAgeGroup(ctx, target) !== args.ageGroup) fail('VALIDATION', 'The saved birthday belongs to a different age group.');
+  await ctx.db.patch(target._id, { ageGroup: args.ageGroup, connectionsApprovedBy: undefined, connectionsApprovedAt: undefined }); return null;
+} });
+export const approveConnections = mutation({ ...pick(API.family.approveConnections), handler: async (ctx, args) => {
+  const viewer = await requireViewer(ctx); const target = await sameFamilyMember(ctx, viewer.member.familyId, args.memberId);
+  if (!viewer.isParentOf.includes(target._id) || await memberAgeGroup(ctx, target) !== 'teen') fail('FORBIDDEN');
+  await ctx.db.patch(target._id, { connectionsApprovedBy: args.approved ? viewer.member._id : undefined, connectionsApprovedAt: args.approved ? ageClock.realNow() : undefined, ...(target.connectionRequest ? { connectionRequest: { ...target.connectionRequest, status: args.approved ? 'approved' as const : 'denied' as const } } : {}) });
+  if (!args.approved) {
+    const pref = await ctx.db.query('schedulingPreferences').withIndex('by_family_member', q => q.eq('familyId', target.familyId).eq('memberId', target._id)).unique();
+    if (pref) await ctx.db.patch(pref._id, { enabled: false, autoCapture: false, availabilitySharing: 'private', availabilityFor: [] });
+  }
+  return null;
+} });
+
+export const requestConnections = mutation({ ...pick(API.family.requestConnections), handler: async ctx => { await requestConnectionApproval(ctx, (await requireViewer(ctx)).member); return null; } });

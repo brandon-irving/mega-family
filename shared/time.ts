@@ -80,7 +80,11 @@ export function formatLocalDateTime(at: number, tz: string, opts: { weekday?: 'l
   const weekday = opts.weekday ?? 'long';
   const p = Object.fromEntries(displayFormatter(tz, weekday).formatToParts(new Date(at)).map((x) => [x.type, x.value]));
   const sep = weekday === 'long' ? ', ' : ' ';
-  return `${p.weekday}${sep}${p.month} ${p.day}, ${p.hour}:${p.minute} ${p.dayPeriod}`;
+  // Some mobile Intl implementations return date-only parts for a combined formatter.
+  // Keep the date, but derive missing time fields through the numeric wall-clock formatter.
+  const time = p.hour && p.minute && p.dayPeriod ? `${p.hour}:${p.minute} ${p.dayPeriod}` : formatLocalTime(at, tz);
+  const date = [p.weekday, [p.month, p.day].filter(Boolean).join(' ')].filter(Boolean).join(sep);
+  return `${date || localDate(at, tz)}, ${time}`;
 }
 
 /** GD: "4:00 PM" — the local clock time of an instant (event previews, before/after cards). */

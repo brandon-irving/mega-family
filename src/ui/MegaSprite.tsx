@@ -16,7 +16,7 @@ export type MegaSpriteProps = {
   sticker: StickerId;
   face?: ExpressionName;
   view?: SpriteView;
-  /** A walk-cycle frame (the walking MEGAs, src/features/walkers). */
+  /** A walk-cycle or greeting-wave frame (the walking MEGAs, src/features/walkers). */
   frame?: FrameName;
   badge?: boolean;
   scale?: number;

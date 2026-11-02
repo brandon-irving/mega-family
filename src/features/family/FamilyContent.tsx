@@ -1,3 +1,7 @@
+import { useDesktopLayout } from '@/ui/useDesktopLayout';
+import { PersonAvatar } from '@/ui/PersonAvatar';
+import { ASSISTANT_BRIEF } from '@shared/config/assistantBrief';
+import { Button } from '@/ui/Button';
 // Family tab (PLAN §4, adults and admins only): members list with each MEGA's badge, role and what
 // it's doing, plus "Coming up" (events in the next 2 hours).
 import { Pressable, View } from 'react-native';
@@ -16,10 +20,11 @@ export type ComingUpEvent = Infer<(typeof API)['family']['comingUp']['returns']>
 
 const ROLE_LABEL = { admin: 'Admin', adult: 'Adult', kid: 'Kid' } as const;
 
-export type FamilyContentProps = { members: MemberCard[]; comingUp: ComingUpEvent[]; onOpenMember: (memberId: string) => void; onOpenCalendar: () => void; onOpenPlaces?: () => void; onOpenLists?: () => void; nextEvent?: ComingUpEvent | null; onOpenIdeas?: () => void };
+export type FamilyContentProps = { onAddPerson?: () => void; addingPerson?: boolean; members: MemberCard[]; comingUp: ComingUpEvent[]; onOpenMember: (memberId: string) => void; onOpenCalendar: () => void; onOpenPlaces?: () => void; onOpenLists?: () => void; nextEvent?: ComingUpEvent | null; onOpenIdeas?: () => void };
 
-export function FamilyContent({ members, comingUp, onOpenMember, onOpenCalendar, onOpenPlaces, onOpenLists, nextEvent }: FamilyContentProps) {
+export function FamilyContent({ members, comingUp, onOpenMember, onOpenCalendar, onOpenPlaces, onOpenLists, nextEvent, onAddPerson, addingPerson }: FamilyContentProps) {
   const tokens = useTokens();
+  const desktop = useDesktopLayout();
   const shortcuts: { label: string; hint: string; icon: GlyphName; onPress?: () => void }[] = [
     { label: 'Lists', hint: 'Keep things together', icon: 'check', onPress: onOpenLists },
     { label: 'Places', hint: 'Your familiar places', icon: 'pin', onPress: onOpenPlaces },
@@ -28,7 +33,7 @@ export function FamilyContent({ members, comingUp, onOpenMember, onOpenCalendar,
     <>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: tokens.spacing.md }}>
         <Text variant="headline">Family</Text>
-        <AppSettingsButton />
+        {!desktop && <AppSettingsButton />}
       </View>
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: tokens.spacing.sm, marginBottom: tokens.spacing.lg }}>
         {shortcuts.filter((shortcut) => shortcut.onPress).map((shortcut) => (
@@ -48,22 +53,20 @@ export function FamilyContent({ members, comingUp, onOpenMember, onOpenCalendar,
           <Glyph name="chevron" color={tokens.muted} />
         </Card>
       </Pressable>
-      <Text variant="label" color="muted" style={{ marginBottom: tokens.spacing.sm }}>YOUR PEOPLE</Text>
-      <View style={{ gap: tokens.spacing.sm, marginBottom: tokens.spacing.lg }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: tokens.spacing.sm }}><Text variant="label" color="muted">YOUR PEOPLE</Text>{onAddPerson ? <Button label={ASSISTANT_BRIEF.addPerson} variant="ghost" onPress={onAddPerson} loading={addingPerson} disabled={addingPerson} /> : null}</View>
+      <View style={{ flexDirection: desktop ? 'row' : 'column', flexWrap: 'wrap', gap: tokens.spacing.sm, marginBottom: tokens.spacing.lg }}>
         {members.map((m) => (
-          <Pressable key={m.member._id} onPress={() => onOpenMember(m.member._id)} accessibilityRole="button" accessibilityLabel={`${m.member.name}, ${ROLE_LABEL[m.member.role]}`}>
+          <Pressable style={desktop ? { width: '49%', flexGrow: 1 } : undefined} key={m.member._id} onPress={() => onOpenMember(m.member._id)} accessibilityRole="button" accessibilityLabel={`${m.member.name}, ${ROLE_LABEL[m.member.role]}`}>
             <Card style={{ flexDirection: 'row', alignItems: 'center', gap: tokens.spacing.md }}>
               {m.mega ? (
                 <MegaBadge hex={m.mega.look.hex} sticker={m.mega.look.sticker} face={faceFor(m.mega.personality)} />
               ) : (
-                <View style={{ width: 44, height: 44, borderRadius: 11, backgroundColor: tokens.line, alignItems: 'center', justifyContent: 'center' }}>
-                  <Text color="muted">—</Text>
-                </View>
+                <PersonAvatar />
               )}
               <View style={{ flex: 1 }}>
                 <Text variant="label">{m.member.name}</Text>
                 <Text variant="caption" color="muted">
-                  {ROLE_LABEL[m.member.role]} · {m.mega ? statusText(m.status) : 'No MEGA yet'}
+                  {ROLE_LABEL[m.member.role]} · {!m.mega ? 'Family context · No MEGA' : !m.member.joinedAt ? 'Invite & QR code' : statusText(m.status)}
                 </Text>
               </View>
             </Card>

@@ -10,6 +10,14 @@ import { useTokens } from '@/ui/theme';
 
 /** SVG path data on a 24×24 grid (the boards' icons, stroke-only). */
 export const GLYPHS = {
+  reply: 'M9 5l-6 6 6 6 M3 11h10a7 7 0 0 1 7 7',
+  copy: 'M8 8h12v13H8z M16 8V3H3v13h5',
+  selectText: 'M5 5h14 M12 5v14 M8 19h8',
+  more: 'M5 12h.01 M12 12h.01 M19 12h.01',
+  chat: 'M4 4h16v12H9l-5 4z',
+  bulb: 'M9 18h6 M10 21h4 M8 14a6 6 0 1 1 8 0l-1 2H9z',
+  people: 'M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8 M2 21v-2a7 7 0 0 1 14 0v2 M17 4a4 4 0 0 1 0 8 M19 15a6 6 0 0 1 3 5',
+  settings: 'M4 6h16M4 12h16M4 18h16 M8 3v6 M16 9v6 M10 15v6',
   mic: 'M9 6a3 3 0 0 1 6 0v6a3 3 0 0 1-6 0z M5 11v1a7 7 0 0 0 14 0v-1 M12 19v3 M8 22h8',
   down: 'M6 9l6 6 6-6',
   filter: 'M4 6h16M4 12h16M4 18h16 M8 3v6 M16 9v6 M10 15v6',

@@ -8,7 +8,7 @@ export const TOOLS = [
   'recall', 'remember', 'events', 'reminders', 'lists', 'ask_member', 'show_ui',
   'web_search', 'weather', 'travel_time', 'make_image', 'follow_up',
   // G4b (v0.16): catalog product search, adults only (kids' list below leaves it out; SHOPPING.viewers).
-  'shop_search', 'ideas',
+  'shop_search', 'ideas', 'mega_creation',
 ] as const;
 export type Tool = (typeof TOOLS)[number];
 

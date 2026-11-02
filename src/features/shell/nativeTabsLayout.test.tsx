@@ -11,6 +11,7 @@ import * as WebLayout from '@/app/(tabs)/_layout.tsx';
 import { TAB_META } from './tabs';
 
 const mockTriggers: Record<string, unknown>[] = [];
+jest.mock('@/features/settings/DemoQuickMenu', () => ({ DemoQuickMenu: () => null }));
 jest.mock('@/ui/theme', () => ({ ...jest.requireActual('@/ui/theme'), useTheme: () => ({ role: 'admin' }) }));
 jest.mock('expo-router/native-tabs', () => {
   const Trigger = (props: Record<string, unknown> & { children?: ReactNode }) => {

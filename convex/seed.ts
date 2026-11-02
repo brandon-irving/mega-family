@@ -39,6 +39,9 @@ const emptyCounts = { sent: 0, answered: 0, ignored: 0, up: 0, down: 0 };
  * as an explicit map (not derived from `TABLES`) so adding a new table is a deliberate one-line addition
  * here too, not an accidental omission. */
 const FAMILY_OWNED_TABLES: readonly [TableNames, string][] = [
+  ['demoRuns', 'by_family'],
+  ['mailPlans', 'by_family'],
+  ['schedulingPreferences', 'by_family_member'],
   ['members', 'by_family'],
   ['relationships', 'by_family_from'],
   ['megas', 'by_family_owner'],
@@ -94,6 +97,8 @@ const FAMILY_OWNED_TABLES: readonly [TableNames, string][] = [
   ['oauthStates', 'by_family_member'],
   ['mailItems', 'by_family_member_found'],
   ['onboarding', 'by_family_member'],
+  ['assistantBriefs', 'by_family_member'],
+  ['megaDrafts', 'by_family_creator'],
   ['profilerRuns', 'by_family_member_day'],
 ];
 
@@ -456,87 +461,6 @@ export const deleteLiveCheckFamily = internalMutation({
   },
 });
 
-/** Demo / live check only (G4b): real prices rarely drop on cue, so this STAGES one — every active price watch's
- * baseline is set `percent` above its last checked live price and its last alert cleared — then runs the normal
- * price check, which finds the "drop" and sends the usual cards. The "was" price it shows is staged, not a real
- * past price: never use it outside a demo, and `seed.resetDemo` puts real baselines back. DEMO_MODE-gated.
- * `npx convex run seed:demoStagePriceDrop '{"percent":25}'`. */
-export const demoStagePriceDrop = internalMutation({
-  args: { percent: v.optional(v.number()) },
-  returns: v.number(),
-  handler: async (ctx, { percent }) => {
-    if (process.env[DEMO.envVar] !== 'true') throw new Error(`demoStagePriceDrop refuses to run unless ${DEMO.envVar}=true on this deployment`);
-    const family = (await ctx.db.query('families').take(1000)).find((f) => f.name === S.name);
-    if (!family) throw new Error('no sample family — run seed:resetDemo first');
-    const watches = await ctx.db
-      .query('priceWatches')
-      .withIndex('by_family_status', (q) => q.eq('familyId', family._id).eq('status', 'watching'))
-      .collect();
-    const pct = Math.min(90, Math.max(15, percent ?? 25));
-    for (const w of watches) await ctx.db.patch(w._id, { baselinePriceCents: Math.round(((w.lastPriceCents ?? w.baselinePriceCents) * (100 + pct)) / 100), alertedPriceCents: undefined });
-    if (watches.length) await ctx.scheduler.runAfter(0, internal.shopping.checkFamily, { familyId: family._id });
-    return watches.length;
-  },
-});
-
-/** Demo only (Screen 9 redesign): the sample family has no one left to invite, so this adds an unjoined
- * adult ("Grandparent") and kid ("Cousin", Admin's) — reusing them on a rerun — and returns a fresh invite
- * link for each, so the adult and kid join screens can be shown live. `npx convex run seed:sampleInvites`.
- * Not part of `resetDemo` (it changes who's in the family). DEMO_MODE-gated. */
-export const sampleInvites = internalMutation({
-  args: {},
-  returns: v.object({ adultUrl: v.string(), kidUrl: v.string() }),
-  handler: async (ctx) => {
-    if (process.env[DEMO.envVar] !== 'true') throw new Error(`sampleInvites refuses to run unless ${DEMO.envVar}=true on this deployment`);
-    const family = (await ctx.db.query('families').take(1000)).find((f) => f.name === S.name);
-    if (!family?.adminId) throw new Error('no sample family — run seed:resetDemo first');
-    const familyId = family._id;
-    const adminId = family.adminId;
-    const members = await ctx.db
-      .query('members')
-      .withIndex('by_family', (q) => q.eq('familyId', familyId))
-      .collect();
-    const now = await clock.now(ctx, familyId);
-
-    const person = async (name: string, role: 'adult' | 'kid') => {
-      const found = members.find((m) => m.name === name && !m.authId);
-      if (found) return found._id;
-      const id = await ctx.db.insert('members', { familyId, name, role, activities: [], hasMega: false });
-      if (role === 'kid') await ctx.db.insert('relationships', { familyId, from: adminId, to: id, kind: 'parent' });
-      return id;
-    };
-    const invite = async (memberId: Id<'members'>, mega: { name: string; look: { hex: string; sticker: 'star' | 'leaf' }; personality: 'calm' | 'cheerful' }) => {
-      const { token, hash } = await randomToken();
-      await ctx.db.insert('invites', { familyId, memberId, tokenHash: hash, expiresAt: now + LIMITS.invite.ttlHours * 3_600_000, invitedBy: adminId, mega });
-      return LINKS.join(token);
-    };
-    const adultUrl = await invite(await person('Grandparent', 'adult'), { name: 'Maple', look: { hex: COLORS.leaf, sticker: 'leaf' }, personality: 'calm' });
-    const kidUrl = await invite(await person('Cousin', 'kid'), { name: 'Sparky', look: { hex: COLORS.violet, sticker: 'star' }, personality: 'cheerful' });
-    return { adultUrl, kidUrl };
-  },
-});
-
-/** The full demo reset (STATUS.md -> Running things): stores the synthetic fractions worksheet in file
- * storage (a mutation can't), then rebuilds the sample family with it. `npx convex run seed:resetDemo`.
- * DEMO_MODE-gated through `resetSampleFamily`. */
-export const resetDemo = internalAction({
-  args: { weekOf: v.optional(v.string()) },
-  returns: v.object({ familyId: v.id('families'), members: v.record(v.string(), v.id('members')) }),
-  handler: async (ctx, args): Promise<{ familyId: Id<'families'>; members: Record<string, Id<'members'>> }> => {
-    const bytes = Uint8Array.from(atob(FRACTIONS_SHEET.base64), (c) => c.charCodeAt(0));
-    const homeworkStorageId = await ctx.storage.store(new Blob([bytes], { type: FRACTIONS_SHEET.contentType }));
-    const family = await ctx.runMutation(internal.seed.resetSampleFamily, { weekOf: args.weekOf, homeworkStorageId });
-    // G4: the seed has no made-up forecast (invariant 7); fetch the real one through the Weather port instead.
-    await ctx.scheduler.runAfter(0, internal.weather.pollFamily, { familyId: family.familyId, force: true });
-    // G4b: in real mode the sample product ref and watch give way to live catalog results (never invented
-    // prices); the holiday cache is refreshed from Nager.Date.
-    if (realAdaptersOn()) {
-      await ctx.scheduler.runAfter(0, internal.gifts.attachSampleProducts, { familyId: family.familyId });
-      await ctx.scheduler.runAfter(0, internal.holidays.refreshFamily, { familyId: family.familyId });
-    }
-    return family;
-  },
-});
 
 async function message(
   ctx: MutationCtx,

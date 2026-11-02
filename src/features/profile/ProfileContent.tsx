@@ -65,7 +65,7 @@ export function ProfileContent({ mega, role, statusLine, sharing, onRename, onOp
         <View style={{ flex: 1, minWidth: 0, gap: tokens.spacing.xs }}>
           <Text variant="headline">{mega.name}</Text>
           {statusLine ? <Text variant="caption" color="muted">{statusLine}</Text> : null}
-          <Button label="Customize" accessibilityLabel={C.lookLabel} variant="secondary" onPress={onOpenLookPersonality} style={{ alignSelf: 'flex-start' }} />
+          <Button label="Personalize my MEGA" accessibilityLabel={C.lookLabel} variant="secondary" onPress={onOpenLookPersonality} style={{ alignSelf: 'flex-start' }} />
         </View>
         {settingsAction}
       </View>

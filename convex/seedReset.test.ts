@@ -51,7 +51,7 @@ describe('resetSampleFamily avoids the collision and preserves a signed-in perso
     await t.mutation(internal.seed.sampleFamily, { weekOf: WEEK });
 
     const realUser = t.withIdentity({ subject: 'google-oauth2|real-user-123' });
-    await realUser.mutation(api.demo.signInAs, { as: 'admin' });
+    await t.run(async ctx => { const m = await ctx.db.query('members').withIndex('by_authId', q => q.eq('authId', 'sample:admin')).unique(); await ctx.db.patch(m!._id, { authId: 'google-oauth2|real-user-123' }); });
     const before = await realUser.query(api.me.get, {});
     expect(before!.member.name).toBe('Admin');
 

@@ -72,11 +72,12 @@ export type MessageListProps = {
   onLoadMore?: () => void;
   onAnswerBlock?: (messageId: Id<'messages'>, answer: BlockAnswer) => void;
   onReact?: (messageId: Id<'messages'>, reaction: Reaction | null) => void;
+  onReply?: (text: string) => void;
   onSaveIdea?: (messageId: Id<'messages'>) => Promise<unknown>;
   onChangeMemoryScope?: (memoryId: Id<'memories'>, scope: Scope) => void;
   onForgetMemory?: (memoryId: Id<'memories'>) => void;
-  onRespondRequest?: (requestId: string, accept: boolean) => void;
-  onAnswerNotification?: (notificationId: string, buttonId: string) => void;
+  onRespondRequest?: (requestId: string, accept: boolean) => Promise<unknown> | void;
+  onAnswerNotification?: (notificationId: string, buttonId: string) => Promise<unknown> | void;
   /** notificationId -> its resolved doc (see `@/data/useNotifications`), so a `{ kind: 'notification' }`
    * card can render real content instead of just the word "Notification" (G1 fix). */
   notificationsById?: Record<string, NotificationDoc>;
@@ -92,6 +93,8 @@ export type MessageListProps = {
   /** Extra room under the newest message (the list is inverted, so it's the content's top padding), e.g. a
    * parent's read-only kid chat above the tab bar (G4 UX review, Oct 28). */
   endPadding?: number;
+  /** Visual top inset beneath the floating header (the list is inverted). */
+  historyPadding?: number;
   /** CONTRACT §6: a deep-link tap (`mega://chat/<messageId>`) lands here once that message is loaded —
    * scrolls the inverted FlatList to it and briefly highlights the row (MessageRow's `highlighted`). If
    * it isn't in the first loaded page, `onLoadMore` is called repeatedly (bounded by
@@ -116,8 +119,9 @@ export function MessageList({
   megaById,
   onLoadMore,
   onAnswerBlock = noop,
-  onReact = noop,
+  onReact,
   onSaveIdea,
+  onReply,
   onChangeMemoryScope = noop,
   onForgetMemory = noop,
   onRespondRequest,
@@ -128,6 +132,7 @@ export function MessageList({
   emptyContent,
   streamingReply,
   endPadding,
+  historyPadding = 0,
   scrollToMessageId,
   paginationExhausted = false,
 }: MessageListProps) {
@@ -243,15 +248,18 @@ export function MessageList({
   }, [scrollToMessageId, messages, onLoadMore, paginationExhausted]);
 
   const getAnswerBlockCallback = useRowCallback<BlockAnswer>((id, answer) => onAnswerBlock(id as Id<'messages'>, answer));
-  const getReactCallback = useRowCallback<Reaction | null>((id, reaction) => onReact(id as Id<'messages'>, reaction));
+  const getReplyCallback = useRowCallback<string>((_id, text) => onReply?.(text));
+  const getReactCallback = useRowCallback<Reaction | null>((id, reaction) => onReact?.(id as Id<'messages'>, reaction));
   const getSaveIdeaCallback = useRowCallback<void, Promise<unknown>>((id) => onSaveIdea ? onSaveIdea(id as Id<'messages'>) : Promise.resolve());
-  const getRespondRequestCallback = useRowCallback<boolean>((requestId, accept) => onRespondRequest?.(requestId, accept));
-  const getAnswerNotificationCallback = useRowCallback<string>((notificationId, buttonId) => onAnswerNotification?.(notificationId, buttonId));
+  const getRespondRequestCallback = useRowCallback<boolean, Promise<unknown> | void>((requestId, accept) => onRespondRequest?.(requestId, accept));
+  const getAnswerNotificationCallback = useRowCallback<string, Promise<unknown> | void>((notificationId, buttonId) => onAnswerNotification?.(notificationId, buttonId));
   // Neither of these closes over anything row-specific (memoryId/scope are already the callback's own
   // args, not derived from `item`) — one stable wrapper for the whole list, not one per row.
   const stableChangeMemoryScope = useStableCallback((memoryId: string, scope: Scope) => onChangeMemoryScope(memoryId as Id<'memories'>, scope));
   const stableForgetMemory = useStableCallback((memoryId: string) => onForgetMemory(memoryId as Id<'memories'>));
   const canSaveIdea = !!onSaveIdea && !chipsReadOnly;
+  const canRespondRequest = !!onRespondRequest;
+  const canAnswerNotification = !!onAnswerNotification;
 
   // Stable across renders (useCallback, real deps) so FlatList/VirtualizedList's own per-cell memoization
   // isn't invalidated by a fresh `renderItem` identity every time MessageList re-renders for an unrelated
@@ -275,12 +283,13 @@ export function MessageList({
           isMine={mine}
           mega={mega}
           onAnswerBlock={getAnswerBlockCallback(item, item._id)}
-          onReact={getReactCallback(item, item._id)}
+          onReact={onReact ? getReactCallback(item, item._id) : undefined}
+          onReply={onReply ? getReplyCallback(item, item._id) : undefined}
           onSaveIdea={canSaveIdea ? getSaveIdeaCallback(item, item._id) : undefined}
           onChangeMemoryScope={stableChangeMemoryScope}
           onForgetMemory={stableForgetMemory}
-          onRespondRequest={requestId ? getRespondRequestCallback(item, requestId) : undefined}
-          onAnswerNotification={notificationId ? getAnswerNotificationCallback(item, notificationId) : undefined}
+          onRespondRequest={requestId && canRespondRequest ? getRespondRequestCallback(item, requestId) : undefined}
+          onAnswerNotification={notificationId && canAnswerNotification ? getAnswerNotificationCallback(item, notificationId) : undefined}
           notification={notificationId ? notificationsById?.[notificationId] : undefined}
           chipsReadOnly={chipsReadOnly}
           highlighted={item._id === highlightedId}
@@ -288,7 +297,7 @@ export function MessageList({
         />
       );
     },
-    [isMine, megaById, getAnswerBlockCallback, getReactCallback, canSaveIdea, getSaveIdeaCallback, stableChangeMemoryScope, stableForgetMemory, getRespondRequestCallback, getAnswerNotificationCallback, notificationsById, chipsReadOnly, highlightedId, scrollToMessageId],
+    [isMine, megaById, getAnswerBlockCallback, getReactCallback, getReplyCallback, onReply, onReact, canSaveIdea, canRespondRequest, canAnswerNotification, getSaveIdeaCallback, stableChangeMemoryScope, stableForgetMemory, getRespondRequestCallback, getAnswerNotificationCallback, notificationsById, chipsReadOnly, highlightedId, scrollToMessageId],
   );
 
   if (messages.length === 0 && !streamingReply) {
@@ -310,7 +319,7 @@ export function MessageList({
         data={messages}
         inverted
         keyExtractor={(m) => m._id}
-        contentContainerStyle={{ padding: tokens.spacing.lg, paddingTop: tokens.spacing.lg + (endPadding ?? 0) }}
+        contentContainerStyle={{ padding: tokens.spacing.lg, paddingTop: tokens.spacing.lg + (endPadding ?? 0), paddingBottom: tokens.spacing.lg + historyPadding }}
         ListHeaderComponent={streamingReply}
         ListFooterComponent={onLoadMore ? <Button label="Load earlier messages" variant="ghost" onPress={onLoadMore} /> : undefined}
         renderItem={renderItem}

@@ -10,6 +10,8 @@ import { ScrollView } from 'react-native';
 import { renderWithTheme } from '@/test/renderWithTheme';
 import MemberDetailRoute from '@/app/family/[memberId]';
 
+jest.mock('@/features/family/AssistantBriefPanel', () => ({ AssistantBriefPanel: () => null }));
+
 jest.mock('expo-router', () => ({ router: { back: jest.fn(), push: jest.fn() }, useLocalSearchParams: () => ({ memberId: 'members_admin' }) }));
 
 // Stands in for the real `family:kidThread` query: it would throw FORBIDDEN for anyone the viewer isn't
@@ -33,7 +35,7 @@ jest.mock('@/data/useFamily', () => ({
   useSetKidControls: () => jest.fn(),
   useKidThread: (id: string | null) => mockUseKidThread(id),
 }));
-jest.mock('@/data/useViewer', () => ({ useViewer: () => ({ isParentOf: mockParent ? ['members_admin'] : [] }) }));
+jest.mock('@/data/useViewer', () => ({ useViewer: () => ({ family: { timezone: 'America/New_York' }, member: { _id: 'members_admin', role: 'admin' }, isParentOf: mockParent ? ['members_admin'] : [] }) }));
 jest.mock('@/data/useMegaDirectory', () => ({ useMegaDirectory: () => ({}) }));
 jest.mock('@/features/family/MemberDetailContent', () => ({ MemberDetailContent: () => null }));
 

@@ -1,3 +1,4 @@
+import { demoRecorder } from '@/services/demoRecording';
 import { ActivityIndicator, Pressable, type PressableProps, type StyleProp, type ViewStyle } from 'react-native';
 import { readableOn } from '@shared/config/theme';
 import { useContentRect } from './contentRegistry';
@@ -62,6 +63,7 @@ export function Button({ label, variant = 'primary', pill = false, loading, acce
         style,
       ]}
       {...rest}
+      onPress={event => { demoRecorder.event('interaction.press', { label: accessibilityLabel ?? label }); rest.onPress?.(event); }}
     >
       {loading && <ActivityIndicator color={isPrimary || isInverse || isDanger ? ink : tokens.accent} />}
       <Text variant="label" style={[{ color: ink }, size ? { fontSize: size.fontSize, lineHeight: size.fontSize + 5 } : undefined]}>

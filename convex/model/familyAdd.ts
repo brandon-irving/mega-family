@@ -1,3 +1,5 @@
+import type { AgeGroup } from '../../shared/ageGroups';
+import { memberAgeGroup } from './memberAge';
 // G5 (CONTRACT v0.17 `family.add`): the admin adds a person (the onboarding family step, later Family → Add).
 // The member has no login until they redeem an invite; they get the same rows the seed gives its members
 // (settings, sharing or kid controls, profile), the relationship both ways (and, for a kid, a parent link from
@@ -76,17 +78,20 @@ export async function familyIsFull(ctx: QueryCtx | MutationCtx, familyId: Id<'fa
 export async function addFamilyMember(
   ctx: MutationCtx,
   admin: Doc<'members'>,
-  args: { name: string; role: 'adult' | 'kid'; relationship: Relationship; mega?: NewMega; birthday?: string },
+  args: { name: string; role: 'adult' | 'kid'; relationship: Relationship; mega?: NewMega; birthday?: string; ageGroup?: AgeGroup },
   now: number,
 ): Promise<Id<'members'>> {
   if (admin.role !== 'admin') fail('FORBIDDEN', 'admin only');
   const name = args.name.trim();
   if (!name || name.length > ONBOARDING.nameMaxLength) fail('VALIDATION', 'name');
   if (args.birthday !== undefined && !/^\d{4}-\d{2}-\d{2}$/.test(args.birthday)) fail('VALIDATION', 'birthday');
+  if (args.ageGroup && (args.role === 'adult') !== (args.ageGroup === 'adult')) fail('VALIDATION', 'Age group must match the member’s protected role.');
+  const ageGroup = args.birthday ? await memberAgeGroup(ctx, { ...args, familyId: admin.familyId }) : args.ageGroup;
+  if (ageGroup && ((args.role === 'adult') !== (ageGroup === 'adult') || (args.ageGroup && args.ageGroup !== ageGroup))) fail('VALIDATION', 'Birthday, age group, and protected role must agree.');
   const familyId = admin.familyId;
   if (await familyIsFull(ctx, familyId)) fail('VALIDATION', 'family is full');
 
-  const memberId = await ctx.db.insert('members', { familyId, name, role: args.role, birthday: args.birthday, activities: [], hasMega: false });
+  const memberId = await ctx.db.insert('members', { familyId, name, role: args.role, birthday: args.birthday, ageGroup: args.ageGroup, activities: [], hasMega: false });
   await ctx.db.insert('relationships', { familyId, from: memberId, to: admin._id, kind: args.relationship });
   await ctx.db.insert('relationships', { familyId, from: admin._id, to: memberId, kind: reciprocal(args.relationship) });
   if (KID_RELATIONSHIPS.includes(args.relationship)) {
@@ -124,7 +129,7 @@ export async function addFamilyMember(
       dailyMinutes: d.dailyMinutes,
       blockedTopics: [],
       tellsParents: { ...d.tellsParents },
-      parentsCanReadChat: d.parentsCanReadChat,
+      parentsCanReadChat: ageGroup === 'teen' ? false : d.parentsCanReadChat,
       webSearch: d.webSearch,
     });
   } else {

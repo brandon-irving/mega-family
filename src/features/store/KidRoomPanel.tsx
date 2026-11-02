@@ -105,8 +105,8 @@ export function KidRoomPanel({
         </View>
       </View>
       <View style={{ flexDirection: 'row', gap: 10 }}>
-        <Button label={STORE_COPY.decorate} variant="secondary" onPress={onDecorate} style={{ flex: 1 }} size={{ height: 54, fontSize: tokens.type.label.fontSize + 2 }} />
-        <Button label={STORE_COPY.openStore} onPress={onOpenStore} style={{ flex: 1 }} size={{ height: 54, fontSize: tokens.type.label.fontSize + 2 }} />
+        <Button label={STORE_COPY.decorate} variant="secondary" onPress={onDecorate} style={{ flex: 1 }} size={tokens.buttonSize} />
+        <Button label={STORE_COPY.openStore} onPress={onOpenStore} style={{ flex: 1 }} size={tokens.buttonSize} />
       </View>
     </View>
   );

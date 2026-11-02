@@ -2,6 +2,7 @@
 // mode ran off the screen ("Back to T…" cut off). Kids get one bar on every screen (canvas v33,
 // design/build/thread.html "Kid composer"): a 72pt Talk pill + a 72pt round keyboard toggle with a drawn
 // 28px icon; typing swaps in a full-width 72pt field (20px text) + a round mic to go back.
+import { Keyboard, Platform } from 'react-native';
 import { act, fireEvent, screen } from '@testing-library/react-native';
 import { COMPOSER_SIZES } from '@shared/config/theme';
 import { renderWithTheme } from '@/test/renderWithTheme';
@@ -24,15 +25,16 @@ describe('Composer (kid bar)', () => {
     expect(screen.queryByText('⌨')).toBeNull();
   });
 
-  test('typing mode: a full-width 72pt field at 20px that shrinks to fit, a round mic to go back, nothing else on the bar', async () => {
+  test('typing mode: the shared growing field and a mic to return to Talk', async () => {
     await renderWithTheme(<Composer megaName="Sunny" bigTalkButton onSend={noop} onOpenTalk={noop} />, { role: 'kid' });
     await fireEvent.press(screen.getByLabelText('Type instead'));
     const field = screen.getByLabelText('Message Sunny');
-    expect(styleOf(field)).toMatchObject({ flex: 1, minWidth: 0, height: K.height, fontSize: K.fontSize });
+    expect(styleOf(field)).toMatchObject({ minWidth: 0 });
+    expect(field.props.multiline).toBe(true);
     expect(field.props.placeholder).toBe('Type to Sunny…');
     expect(screen.queryByText('Back to Talk')).toBeNull();
     const back = screen.getByLabelText('Talk instead');
-    expect(styleOf(back).width).toBe(K.height);
+    expect(styleOf(back).width).toBeGreaterThanOrEqual(44);
     expect(screen.queryByLabelText('Attach')).toBeNull();
     await fireEvent.press(back);
     expect(screen.getByLabelText('Talk to Sunny')).toBeTruthy();
@@ -106,4 +108,70 @@ describe('owner, Oct 29 (Images 26/28): the grown-up composer bar has no backgro
     expect(bar.borderTopWidth).toBeUndefined();
     expect(styleOf(screen.getByTestId('composer-surface')).backgroundColor).toBeDefined();
   });
+});
+
+test('multiline input uses native intrinsic sizing without a fixed-height feedback loop', async () => {
+  await renderWithTheme(<Composer megaName="Teal" onSend={noop} onOpenTalk={noop} />);
+  const field = () => screen.getByLabelText('Message Teal');
+  const initial = styleOf(field());
+  expect(initial.height).toBeUndefined();
+  expect(initial.minHeight).toBeGreaterThan(0);
+  expect(initial.maxHeight).toBeGreaterThan(initial.minHeight as number);
+  expect(field().props.onContentSizeChange).toBeUndefined();
+  expect(field().props.scrollEnabled).toBe(true);
+  await fireEvent.changeText(field(), 'My name is Brandon, you’ll be Mega.\nAnother line\n');
+  expect(field().props.value).toBe('My name is Brandon, you’ll be Mega.\nAnother line\n');
+  expect(styleOf(field()).height).toBeUndefined();
+  expect(field().props.scrollEnabled).toBe(true);
+  await fireEvent.press(screen.getByLabelText('Send message'));
+  expect(field().props.value).toBe('');
+  expect(styleOf(field()).minHeight).toBe(initial.minHeight);
+});
+
+test('empty composer keeps input and both actions in one row and dismisses keyboard on send', async () => {
+  const dismiss = jest.spyOn(Keyboard, 'dismiss').mockImplementation(() => {});
+  try {
+    await renderWithTheme(<Composer megaName="Teal" onSend={noop} onOpenTalk={noop} onCamera={noop} />);
+    const row = screen.getByTestId('composer-row');
+    expect(styleOf(row).flexDirection).toBe('row');
+    const field = screen.getByLabelText('Message Teal');
+    expect(styleOf(field).flex).toBe(1);
+    const initial = styleOf(field).minHeight;
+    expect(styleOf(field).height).toBeUndefined();
+    await fireEvent.changeText(field, 'Hello');
+    await fireEvent.press(screen.getByLabelText('Send message'));
+    expect(dismiss).toHaveBeenCalledTimes(1);
+    expect(styleOf(screen.getByLabelText('Message Teal')).minHeight).toBe(initial);
+  } finally { dismiss.mockRestore(); }
+});
+
+test('while responding the action is an icon-only Stop and preserves typed text', async () => {
+  const onStop = jest.fn(); const onSend = jest.fn();
+  const result = await renderWithTheme(<Composer megaName="Teal" responding onStop={onStop} onSend={onSend} onOpenTalk={noop} />);
+  await fireEvent.changeText(screen.getByLabelText('Message Teal'), 'Next question');
+  expect(screen.queryByText('Stop response')).toBeNull();
+  expect(screen.queryByLabelText('Send message')).toBeNull();
+  await fireEvent.press(screen.getByLabelText('Stop response'));
+  expect(onStop).toHaveBeenCalledTimes(1);
+  expect(onSend).not.toHaveBeenCalled();
+  expect(screen.getByLabelText('Message Teal').props.value).toBe('Next question');
+  await result.unmount();
+});
+
+test('web Enter sends; Shift+Enter and composition retain the draft', async () => {
+  const previous = Platform.OS;
+  Object.defineProperty(Platform, 'OS', { configurable: true, value: 'web' });
+  try {
+    const onSend = jest.fn();
+    await renderWithTheme(<Composer megaName="Teal" onSend={onSend} onOpenTalk={noop} />);
+    const field = () => screen.getByLabelText('Message Teal');
+    await fireEvent.changeText(field(), 'Hello');
+    const preventDefault = jest.fn();
+    await fireEvent(field(), 'keyPress', { nativeEvent: { key: 'Enter', shiftKey: true }, preventDefault });
+    await fireEvent(field(), 'keyPress', { nativeEvent: { key: 'Enter', isComposing: true }, preventDefault });
+    expect(onSend).not.toHaveBeenCalled(); expect(preventDefault).not.toHaveBeenCalled();
+    await fireEvent(field(), 'keyPress', { nativeEvent: { key: 'Enter' }, preventDefault });
+    expect(onSend).toHaveBeenCalledWith('Hello'); expect(preventDefault).toHaveBeenCalledTimes(1);
+    expect(field().props.value).toBe('');
+  } finally { Object.defineProperty(Platform, 'OS', { configurable: true, value: previous }); }
 });

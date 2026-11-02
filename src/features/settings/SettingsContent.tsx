@@ -18,6 +18,7 @@ export type Notify = { loudKinds: NotificationKind[]; quietHours: { start: strin
 
 export type SettingsContentProps = {
   role: Role;
+  canConnect?: boolean;
   megaName: string;
   theme: ThemeName;
   accent: Accent;
@@ -62,7 +63,7 @@ export function loudText(kinds: NotificationKind[]): string {
   return labels.map((l, i) => (i ? l.toLowerCase() : l)).join(', ');
 }
 
-export function SettingsContent({ role, megaName, theme, accent, accentHex, wallpaper, notify, email, parentCode, memberCount, connectedCount, parentsCanReadChat, on }: SettingsContentProps) {
+export function SettingsContent({ canConnect, role, megaName, theme, accent, accentHex, wallpaper, notify, email, parentCode, memberCount, connectedCount, parentsCanReadChat, on }: SettingsContentProps) {
   const tokens = useTokens();
   const [codeShown, setCodeShown] = useState(false);
   const kid = role === 'kid';
@@ -117,7 +118,7 @@ export function SettingsContent({ role, megaName, theme, accent, accentHex, wall
         </SettingsSection>
       ) : null}
 
-      {kid ? (
+      {kid && !canConnect ? (
         <SettingsSection>
           <LinkRow label={U.places} onPress={on.openPlaces} />
         </SettingsSection>

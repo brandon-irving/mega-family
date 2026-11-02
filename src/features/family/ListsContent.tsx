@@ -87,7 +87,7 @@ function ListCard({ list, onAddItem, onCheckItem, onRemoveItem }: { list: ListSu
       {list.items.map((item) => <View key={item._id} style={{ flexDirection: 'row', alignItems: 'center', gap: tokens.spacing.xs }}>
         <Pressable onPress={() => void run(item._id, () => onCheckItem(item._id, !item.checked))} disabled={!!busy} accessibilityRole="checkbox" accessibilityState={{ checked: item.checked, disabled: !!busy }} accessibilityLabel={item.text} style={{ flex: 1, minHeight: tokens.touchTarget, flexDirection: 'row', alignItems: 'center', gap: tokens.spacing.sm }}>
           <View style={{ width: 22, height: 22, borderRadius: 6, borderWidth: 1, borderColor: tokens.line, alignItems: 'center', justifyContent: 'center', backgroundColor: item.checked ? tokens.accent : 'transparent' }}>
-            {item.checked ? <Text style={{ color: readableOn(tokens.accent), fontSize: 14 }}>✓</Text> : null}
+            {item.checked ? <Text variant="label" style={{ color: readableOn(tokens.accent) }}>✓</Text> : null}
           </View>
           <Text style={{ flex: 1, textDecorationLine: item.checked ? 'line-through' : 'none' }}>{item.text}</Text>
         </Pressable>

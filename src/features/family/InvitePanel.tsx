@@ -1,10 +1,12 @@
+import { DemoInviteButton } from './DemoInviteButton';
+import { AssistantBriefPanel } from './AssistantBriefPanel';
 // An unjoined member's invite (G5 UX review, Oct 29; board OnboardInvite): the QR code, the link, when it stops
 // working, Send invite link (the share sheet; on web, where there may be none, it copies), Copy link and New
 // code. Used by the chat's "Invite sent" card and by the member's Family page. The server keeps only a hash of
 // each invite's token, so a link can't be read back later: the panel makes one when asked and remembers it for
 // this session (queryMemory, cleared on account switch). If the server can say an invite is already waiting
 // (`invites.forMember`, pending in the contract), that line shows above the button.
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Share, View } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import type { Id } from '@shared/domain/validators';
@@ -61,6 +63,8 @@ export function InvitePanelView({
     }
   };
 
+  if (status?.status === 'joined') return <Text color="muted">{name || 'This person'} has joined the family.</Text>;
+
   if (!invite) {
     return (
       <View style={{ gap: tokens.spacing.sm }}>
@@ -111,7 +115,8 @@ export function InvitePanelView({
 const memoryKey = (memberId: string) => `invite:${memberId}`;
 
 /** The live panel: makes the member's invite on request and keeps it for this session. */
-export function InvitePanel({ memberId, name }: { memberId: Id<'members'>; name?: string }) {
+export function InvitePanel({ memberId, name, showBrief = true }: { memberId: Id<'members'>; name?: string; showBrief?: boolean }) {
+  const tokens = useTokens();
   const viewer = useViewer();
   const members = useFamilyMembers();
   const who = name ?? members?.find((m) => m.member._id === memberId)?.member.name ?? '';
@@ -121,7 +126,10 @@ export function InvitePanel({ memberId, name }: { memberId: Id<'members'>; name?
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const making = useRef(false);
   const make = async () => {
+    if (making.current) return;
+    making.current = true;
     setBusy(true);
     setError(null);
     try {
@@ -131,11 +139,14 @@ export function InvitePanel({ memberId, name }: { memberId: Id<'members'>; name?
     } catch (e) {
       setError(errorCopyFor(e));
     } finally {
+      making.current = false;
       setBusy(false);
     }
   };
 
   return (
+    <View style={{ gap: tokens.spacing.md }}>
+    {showBrief ? <AssistantBriefPanel memberId={memberId} name={who} /> : null}
     <InvitePanelView
       name={who}
       invite={invite}
@@ -146,5 +157,7 @@ export function InvitePanel({ memberId, name }: { memberId: Id<'members'>; name?
       onCreate={() => void make()}
       onRegenerate={() => void make()}
     />
+    {invite && waiting?.status !== 'joined' && <DemoInviteButton url={invite.url} />}
+    </View>
   );
 }

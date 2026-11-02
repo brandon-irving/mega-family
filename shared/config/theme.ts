@@ -158,18 +158,18 @@ export const TYPE_SCALE: Record<TypeScaleKey, TypeStyle> = {
   caption: { fontSize: 12, lineHeight: 16, fontWeight: '400' },
   body: { fontSize: 16, lineHeight: 22, fontWeight: '400' },
   label: { fontSize: 14, lineHeight: 18, fontWeight: '600' },
-  title: { fontSize: 20, lineHeight: 26, fontWeight: '700' },
-  headline: { fontSize: 24, lineHeight: 30, fontWeight: '700' },
-  display: { fontSize: 32, lineHeight: 38, fontWeight: '700' },
+  title: { fontSize: 18, lineHeight: 24, fontWeight: '700' },
+  headline: { fontSize: 22, lineHeight: 28, fontWeight: '700' },
+  display: { fontSize: 26, lineHeight: 32, fontWeight: '700' },
 };
 
 export const TYPE_SCALE_BIG: Record<TypeScaleKey, TypeStyle> = {
   caption: { fontSize: 14, lineHeight: 18, fontWeight: '500' },
   body: { fontSize: 19, lineHeight: 26, fontWeight: '500' },
   label: { fontSize: 17, lineHeight: 22, fontWeight: '700' },
-  title: { fontSize: 24, lineHeight: 30, fontWeight: '700' },
-  headline: { fontSize: 28, lineHeight: 34, fontWeight: '700' },
-  display: { fontSize: 36, lineHeight: 42, fontWeight: '700' },
+  title: { fontSize: 22, lineHeight: 28, fontWeight: '700' },
+  headline: { fontSize: 26, lineHeight: 32, fontWeight: '700' },
+  display: { fontSize: 30, lineHeight: 36, fontWeight: '700' },
 };
 
 /** Minimum touch target side, in points. Apple HIG / Material both land around 44–48. */
@@ -249,3 +249,28 @@ export const CTA_SIZES = {
 export function resolveButtonSizing(bigTargets: boolean): ButtonSize {
   return bigTargets ? BUTTON_SIZES.kid : BUTTON_SIZES.adult;
 }
+
+/** Preserve the MEGA hue while keeping white message text at WCAG AA contrast. */
+export function messageBubbleColors(accent: string, tone: 'owner' | 'assistant' = 'owner') {
+  const text = CONTRAST_TEXT.light;
+  const channels = [1, 3, 5].map(i => parseInt(accent.slice(i, i + 2), 16));
+  let background = tone === 'assistant' ? '#' + channels.map(c => Math.round(c * 0.55).toString(16).padStart(2, '0')).join('') : accent;
+  for (let factor = 0.95; contrastRatio(background, text) < 4.5 && factor >= 0; factor -= 0.05) {
+    background = '#' + channels.map(c => Math.round(c * factor).toString(16).padStart(2, '0')).join('');
+  }
+  return { background, text };
+}
+
+/** Consistent user bubbles regardless of theme or MEGA color. */
+export const USER_BUBBLE = { background: '#292D34', text: '#FFFFFF' } as const;
+
+/** Desktop web geometry; native and narrow web retain their existing layouts. */
+export const DESKTOP_LAYOUT = {
+  breakpoint: 960,
+  sidebarWidth: 240,
+  chatMaxWidth: 800,
+  contentMaxWidth: 920,
+  dialogMaxWidth: 760,
+  dialogMaxHeight: 880,
+  gutter: 32,
+} as const;

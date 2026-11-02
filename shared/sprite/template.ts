@@ -147,10 +147,10 @@ export const VIEWS: Record<'front' | 'back' | 'side', Part[]> = {
 };
 
 export type ViewName = 'front' | 'back' | 'side';
-export type FrameName = 'stand' | 'stepL' | 'stepR';
+export type FrameName = 'stand' | 'stepL' | 'stepR' | 'waveIn' | 'waveOut';
 
 /** Per-frame offsets by part group. A step lifts the body one pixel and one foot with it. */
-export const FRAMES: Record<ViewName, Record<FrameName, Record<string, [number, number]>>> = {
+export const FRAMES: Record<ViewName, Partial<Record<FrameName, Record<string, [number, number]>>>> = {
   front: { stand: {}, stepL: { body: [0, -1], legL: [0, -1] }, stepR: { body: [0, -1], legR: [0, -1] } },
   back: { stand: {}, stepL: { body: [0, -1], legL: [0, -1] }, stepR: { body: [0, -1], legR: [0, -1] } },
   side: {
@@ -234,4 +234,16 @@ export const STICKER_STANDINS: Record<string, { color: string; rows: string[] }>
   heart: { color: '#FF6B8B', rows: ['........', '.##..##.', '########', '########', '########', '.######.', '..####..', '...##...'] },
   leaf: { color: '#5BBF6A', rows: ['....####', '..######', '.#######', '.######.', '.#####..', '.###....', '##......', '#.......'] },
   bolt: { color: '#FFB020', rows: ['....###.', '...###..', '..###...', '.######.', '...###..', '..###...', '.##.....', '#.......'] },
+};
+
+/** Front-facing greeting poses. Draw last so the raised mitten stays in front of the shell. */
+export const WAVE_PARTS: Record<'waveIn' | 'waveOut', Part[]> = {
+  waveIn: [
+    part('armR', 'body', 'shell', { pattern: [22, 23, ['.....##', '....###', '..####.', '####...', '###....']] }),
+    part('mittenR', 'body', 'white', { round: [25, 20, 4, 4, 1] }),
+  ],
+  waveOut: [
+    part('armR', 'body', 'shell', { pattern: [22, 23, ['......##', '.....###', '...####.', '.####...', '###.....']] }),
+    part('mittenR', 'body', 'white', { round: [28, 19, 3, 5, 1] }),
+  ],
 };

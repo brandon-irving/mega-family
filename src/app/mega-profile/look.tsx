@@ -10,6 +10,7 @@ import { LoadingScreen } from '@/ui/LoadingScreen';
 import { Sheet } from '@/ui/Sheet';
 import { LookPersonalityContent } from '@/features/profile/LookPersonalityContent';
 import { wardrobeFor } from '@/features/profile/wardrobe';
+import { ROLES_CONFIG } from '@shared/config/roles';
 import { PROFILE_COPY } from '@shared/config/copy';
 
 export default function LookRoute() {
@@ -32,11 +33,11 @@ export default function LookRoute() {
   const owned = role === 'kid' && catalog.status === 'ok' ? catalog.data.items.filter((i) => i.owned).map((i) => i.id) : null;
   return (
     <Sheet title={PROFILE_COPY.lookTitle} onClose={() => router.back()}>
-      <LookPersonalityContent
+      <LookPersonalityContent characterMode name={ROLES_CONFIG[role].profile.rename ? viewer.mega.name : undefined}
         value={{ hex: look.hex, sticker: look.sticker, personality: viewer.mega.personality, antenna: look.antenna, eyes: look.eyes, eyeColor: look.eyeColor }}
         wardrobe={wardrobeFor(role, owned, look)}
-        onSave={async ({ hex, sticker, personality, antenna, eyes, eyeColor }) => {
-          await updateMega({ look: { hex, sticker, antenna, eyes, eyeColor }, personality });
+        onSave={async ({ hex, sticker, personality, antenna, eyes, eyeColor, name }) => {
+          await updateMega({ look: { hex, sticker, antenna, eyes, eyeColor }, personality, ...(name ? { name } : {}) });
           if (mounted.current) router.back();
         }}
       />

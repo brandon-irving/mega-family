@@ -19,6 +19,10 @@ export function useBeginOnboarding() {
   return useMutation(api.onboarding.begin);
 }
 
+export function useAddPerson() {
+  return useMutation(api.onboarding.addPerson);
+}
+
 export function useSkipOffer(): (offer: ConnectOffer) => Promise<null> {
   const skip = useMutation(api.onboarding.skip);
   return (offer) => skip({ offer });

@@ -1,117 +1,42 @@
+import { beginFamily, createFamily } from './model/familySetup';
+import { activeDraft } from './model/megaCreation';
 // CONTRACT §4 "Session and onboarding". `onboarding.start` (tests, demo) creates the family, its admin member,
 // their MEGA, default settings/sharing/profile and a thread in one step. G5 (v0.17): the app instead calls
 // `onboarding.begin`, which creates the same family with an unnamed admin and opens the onboarding chat (Screen
 // 13): "What should I call you?" → Gmail → a calendar → schedule links → the family step. The step machine lives
 // in convex/model/onboarding.ts; `chat.send` / `chat.start` / `chat.answerBlock` route into it while it runs.
-import { DEFAULT_THEME, FAMILY_MEGA_DEFAULTS, LIMITS, ROOM_DEFAULTS } from '../shared/config';
 import { fillCopy, G5_COPY } from '../shared/config/copy';
-import { ONBOARDING } from '../shared/config/onboarding';
 import { API } from '../shared/domain/api';
-import type { Doc, Id } from './_generated/dataModel';
-import { mutation, query, type MutationCtx } from './_generated/server';
+import { mutation, query } from './_generated/server';
 import { fail } from './model/errors';
 import { pick } from './model/define';
 import { onboardingRow, requireConnector } from './model/integrations';
-import { afterName, completeOffer, postStep, setName as setNameLogic } from './model/onboarding';
-import { randomDigits } from './model/random';
-import { postOwnMegaMessage } from './model/threads';
+import { afterName, completeOffer, postStep, stepIsShowing, setName as setNameLogic } from './model/onboarding';
+import { getOrCreateOwnThread, postOwnMegaMessage } from './model/threads';
 import { requireViewer, tryViewer } from './model/viewer';
 import { clock } from './ports/clock';
 
-const emptyProactive = { sent: 0, answered: 0, ignored: 0, up: 0, down: 0 };
-
-/** `shared/time.ts`'s helpers (and every event/reminder/clock computation downstream) call
- * `Intl.DateTimeFormat` with a family's stored timezone; an invalid IANA zone name throws a bare
- * `RangeError` wherever that later runs, not a `ConvexError` — so it's rejected once, here, at the door. */
-function isValidTimeZone(tz: string): boolean {
-  try {
-    Intl.DateTimeFormat(undefined, { timeZone: tz });
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-type NewFamily = { familyName: string; timezone: string; myName: string; megaName: string; look: Doc<'megas'>['look']; personality: Doc<'megas'>['personality'] };
-
-/** Everything a new family starts with (shared by `onboarding.start` and `onboarding.begin`): the family and its
- * clock, the admin, their MEGA and the family MEGA, default settings/sharing/profile, the thread and the rooms. */
-async function createFamily(ctx: MutationCtx, args: NewFamily): Promise<{ familyId: Id<'families'>; memberId: Id<'members'>; threadId: Id<'threads'>; now: number }> {
-  const identity = await ctx.auth.getUserIdentity();
-  if (!identity) fail('UNAUTHENTICATED');
-  const already = await ctx.db
-    .query('members')
-    .withIndex('by_authId', (q) => q.eq('authId', identity.subject))
-    .unique();
-  if (already) fail('VALIDATION', 'already a member of a family');
-  if (!isValidTimeZone(args.timezone)) fail('VALIDATION', 'invalid timezone');
-
-  const now = clock.bootstrap(); // the one wall-clock read outside ports/clock.ts's own adapter (see its docstring)
-  const familyId = await ctx.db.insert('families', {
-    name: args.familyName,
-    timezone: args.timezone,
-    parentCode: randomDigits(LIMITS.parentCodeDigits),
-    createdAt: now,
-  });
-  await ctx.db.insert('clocks', { familyId, mode: 'real', offsetMs: 0 });
-
-  const memberId = await ctx.db.insert('members', {
-    familyId,
-    name: args.myName,
-    role: 'admin',
-    authId: identity.subject,
-    activities: [],
-    hasMega: true,
-    joinedAt: now,
-  });
-  await ctx.db.patch(familyId, { adminId: memberId });
-
-  const megaId = await ctx.db.insert('megas', {
-    familyId,
-    kind: 'member',
-    ownerId: memberId,
-    name: args.megaName,
-    look: args.look,
-    personality: args.personality,
-    job: { station: 'charger', label: 'Resting', busy: false, since: now },
-  });
-  await ctx.db.insert('megas', {
-    familyId,
-    kind: 'family',
-    name: FAMILY_MEGA_DEFAULTS.name,
-    look: { hex: FAMILY_MEGA_DEFAULTS.hex, sticker: FAMILY_MEGA_DEFAULTS.sticker },
-    personality: FAMILY_MEGA_DEFAULTS.personality,
-    job: { station: 'charger', label: 'Resting', busy: false, since: now },
-  });
-
-  await ctx.db.insert('settings', {
-    familyId,
-    memberId,
-    theme: DEFAULT_THEME,
-    accent: 'theme',
-    wallpaper: null,
-    notify: { loudKinds: ['reminder', 'request'], quietHours: LIMITS.quietHours.adult, dailyCap: LIMITS.push.dailyCapAdult },
-    pushTokens: [],
-  });
-  await ctx.db.insert('sharing', { familyId, memberId, schedule: 'family', lists: 'family', hqActivity: 'family' });
-  await ctx.db.insert('profiles', {
-    familyId,
-    memberId,
-    callMe: args.myName,
-    basics: {},
-    routines: [],
-    places: [],
-    proactive: { reminder: { ...emptyProactive }, request: { ...emptyProactive }, tip: { ...emptyProactive }, update: { ...emptyProactive } },
-    checkQuestions: [],
-  });
-
-  const threadId = await ctx.db.insert('threads', { familyId, ownerId: memberId, megaIds: [megaId], lastAt: now });
-
-  await ctx.db.insert('rooms', { familyId, ...ROOM_DEFAULTS.hq, furniture: [] });
-  await ctx.db.insert('rooms', { familyId, ownerId: memberId, ...ROOM_DEFAULTS.member, furniture: [] });
-
-  return { familyId, memberId, threadId, now };
-}
+/** Reuse the family creation conversation after initial setup; repeated taps resume the same person. */
+export const addPerson = mutation({
+  ...pick(API.onboarding.addPerson),
+  handler: async ctx => {
+    const viewer = await requireViewer(ctx);
+    if (viewer.member.role !== 'admin') fail('FORBIDDEN');
+    const familyId = viewer.member.familyId;
+    const now = await clock.now(ctx, familyId);
+    const current = await onboardingRow(ctx, familyId, viewer.member._id);
+    const thread = await getOrCreateOwnThread(ctx, familyId, viewer.member._id, viewer.mega?._id ?? null, now);
+    if (await activeDraft(ctx, viewer.member)) return null;
+    if (current && current.step !== 'done') {
+      if (!await stepIsShowing(ctx, current, thread._id)) await postStep(ctx, current, now);
+      return null;
+    }
+    const id = current?._id ?? await ctx.db.insert('onboarding', { familyId, memberId: viewer.member._id, step: 'family', outcomes: {}, startedAt: now });
+    if (current) await ctx.db.patch(id, { step: 'family', family: undefined, personId: undefined, blockMessageId: undefined, finishedAt: undefined });
+    await postStep(ctx, (await ctx.db.get(id))!, now);
+    return null;
+  },
+});
 
 export const start = mutation({
   ...pick(API.onboarding.start),
@@ -129,11 +54,7 @@ export const start = mutation({
 export const begin = mutation({
   ...pick(API.onboarding.begin),
   handler: async (ctx, { timezone }) => {
-    const first = ONBOARDING.firstMega;
-    const { familyId, memberId, threadId, now } = await createFamily(ctx, { familyName: '', timezone, myName: '', megaName: first.name, look: { ...first.look }, personality: first.personality });
-    await ctx.db.patch(threadId, { startedAt: now });
-    const rowId = await ctx.db.insert('onboarding', { familyId, memberId, step: 'name', outcomes: {}, startedAt: now });
-    await postStep(ctx, (await ctx.db.get(rowId))!, now);
+    const { familyId, threadId } = await beginFamily(ctx, timezone);
     return { familyId, threadId };
   },
 });
@@ -168,7 +89,7 @@ export const skip = mutation({
   handler: async (ctx, { offer }) => {
     const viewer = await requireViewer(ctx);
     // v0.17b (C8): adults only, like every connect mutation.
-    requireConnector(viewer.member);
+    await requireConnector(ctx, viewer.member);
     const now = await clock.now(ctx, viewer.member.familyId);
     await completeOffer(ctx, { familyId: viewer.member.familyId, memberId: viewer.member._id, offer, outcome: 'skipped', now });
     return null;

@@ -1,6 +1,8 @@
 import { type ReactNode, useContext } from 'react';
 import { ScrollView, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 import { SafeAreaInsetsContext, SafeAreaView, type Edge } from 'react-native-safe-area-context';
+import { DESKTOP_LAYOUT } from '@shared/config/theme';
+import { useDesktopLayout } from './useDesktopLayout';
 import { useTokens } from './theme';
 
 /**
@@ -47,25 +49,28 @@ export type ScreenProps = {
    * edge-to-edge on wide desktop web, e.g. the homework live camera (HomeworkSnap), which was squeezed to
    * the cap with no way out — G6 review fix. */
   fullBleed?: boolean;
+  reading?: boolean;
   testID?: string;
 };
 
 /** The full-bleed background every screen sits on, in the theme's bg color, respecting safe areas. */
-export function Screen({ children, scroll = false, padded = true, presentation = 'full', fullBleed = false, testID }: ScreenProps) {
+export function Screen({ children, scroll = false, padded = true, presentation = 'full', fullBleed = false, reading = false, testID }: ScreenProps) {
   const tokens = useTokens();
+  const desktop = useDesktopLayout();
+  const pagePadding = desktop ? DESKTOP_LAYOUT.gutter : tokens.spacing.lg;
   const Container = scroll ? ScrollView : View;
   // G6 polish fix: desktop web ran content edge-to-edge past tokens.layout.contentMaxWidth (chat, HQ —
   // the Invite/QR sheet has the same fix in Sheet.tsx). Capping and centering it here, once, fixes every
   // Screen at once instead of a per-screen hack. `width: '100%'` is what makes a phone a no-op (it never
   // shrinks below a parent narrower than the cap); `maxWidth` is what caps a wider one. `fullBleed` skips
   // the cap (and the centering wrapper, so the content still fills the frame's full width).
-  const capped = fullBleed ? null : { width: '100%' as const, maxWidth: tokens.layout.contentMaxWidth };
+  const capped = fullBleed ? null : { width: '100%' as const, maxWidth: desktop ? (reading ? DESKTOP_LAYOUT.chatMaxWidth : DESKTOP_LAYOUT.contentMaxWidth) : tokens.layout.contentMaxWidth };
   const content = (
     <Container
       {...(scroll ? { keyboardDismissMode: 'on-drag' as const, keyboardShouldPersistTaps: 'handled' as const } : {})}
       testID={testID ? `${testID}-content` : undefined}
-      style={scroll ? [styles.fill, capped] : [styles.fill, capped, padded && { padding: tokens.spacing.lg }]}
-      contentContainerStyle={scroll ? (padded ? { padding: tokens.spacing.lg } : undefined) : undefined}
+      style={scroll ? [styles.fill, capped] : [styles.fill, capped, padded && { padding: pagePadding }]}
+      contentContainerStyle={scroll ? (padded ? { padding: pagePadding } : undefined) : undefined}
     >
       {children}
     </Container>

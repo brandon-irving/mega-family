@@ -1,5 +1,7 @@
 // Native tab bar (iOS/Android) — PLAN §Platforms. Tabs come from ROLES_CONFIG[role].tabs: kid sees
 // Chat · HQ, adult/admin see Chat · Ideas · HQ · Family.
+import { View } from 'react-native';
+import { DemoQuickMenu } from '@/features/settings/DemoQuickMenu';
 import { NativeTabs } from 'expo-router/native-tabs';
 import { useTheme } from '@/ui/theme';
 import { tabsForRole } from '@/features/shell/tabs';
@@ -11,6 +13,7 @@ export default function TabLayout() {
   const tabs = tabsForRole(role);
 
   return (
+    <View style={{ flex: 1 }}>
     <NativeTabs>
       {tabs.map(({ tab, route, label, sfSymbol, manualInsets }) => (
         <NativeTabs.Trigger key={tab} name={route} disableAutomaticContentInsets={manualInsets}>
@@ -19,5 +22,7 @@ export default function TabLayout() {
         </NativeTabs.Trigger>
       ))}
     </NativeTabs>
+    <DemoQuickMenu placement="floating" />
+    </View>
   );
 }

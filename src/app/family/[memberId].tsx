@@ -1,3 +1,4 @@
+import { AssistantBriefPanel } from '@/features/family/AssistantBriefPanel';
 // Member detail sheet (PLAN §4): Message / Visit room / Kid controls / read kid chat, and for someone who
 // hasn't joined yet, their invite (QR code + link; G5 UX review).
 import { useLocalSearchParams } from 'expo-router';
@@ -33,11 +34,12 @@ export default function MemberDetailRoute() {
   const kidThread = useKidThread(canReadThisKidThread ? id : null);
   const tokens = useTokens();
 
-  if (detail === undefined) return <LoadingScreen label="Loading member…" />;
-  if (!detail) return <LoadingScreen label="Member not found" />;
+  if (detail === undefined || viewer === undefined) return <LoadingScreen label="Loading member…" />;
+  if (!detail || !viewer) return <LoadingScreen label="Member not found" />;
 
   const profile = <>
       <MemberDetailContent
+        timezone={viewer.family.timezone}
         detail={detail}
         onMessage={() => router.toTab('/chat')}
         onVisitRoom={() => router.toTab(`/hq/${id}` as never)}
@@ -45,7 +47,8 @@ export default function MemberDetailRoute() {
         onOpenSearches={() => router.push(`/searches/${id}` as never)}
         onOpenRules={() => router.push(`/rules/${id}` as never)}
       />
-      {detail.member.joinedAt == null && (
+      {detail.member.joinedAt != null && viewer && viewer.member._id !== id && (viewer.member.role === 'admin' || viewer.isParentOf.includes(id)) ? <AssistantBriefPanel memberId={id} name={detail.member.name} joined /> : null}
+      {detail.member.joinedAt == null && viewer && (viewer.member.role === 'admin' || viewer.isParentOf.includes(id)) && (
         <>
           <Text variant="label" color="muted" style={{ marginTop: tokens.spacing.md, marginBottom: tokens.spacing.sm }}>
             {G5_FIX_COPY.inviteTitle}

@@ -1,3 +1,5 @@
+import { recordedAction } from '@/services/demoRecording';
+import { DemoSessionBar } from '@/features/settings/DemoSessionBar';
 // mega://join/<token> — the invite (Screen 9 boards, canvas v33). Owner, Oct 28: adults and kids get
 // different screens, picked from the invite itself (`invites.preview`), and the MEGA the admin made for the
 // person comes with it.
@@ -8,7 +10,7 @@
 //   Expired (LoginExpired), locked (LoginLocked), or a link that didn't work.
 // PLACEHOLDER (kid code): the KidCode board's keypad comes with onboarding (G5); until then the grown-up
 // types the code into a number field.
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { router } from '@/features/shell/navigation';
@@ -22,13 +24,14 @@ import { useDismiss } from '@/ui/dismiss';
 import { SIGNIN_SCENES } from '@/features/signin/scenes';
 import { Ledge, MegaLoader, Obstacle } from '@/features/walkers';
 import { api } from '@/data/api';
+import { MeetMega } from '@/features/signin/MeetMega';
 import { MegaBadge } from '@/ui/MegaBadge';
 import { MegaSprite } from '@/ui/MegaSprite';
 import { Text } from '@/ui/Text';
 import { useTokens } from '@/ui/theme';
 import { SIGNIN_COPY } from '@shared/config/copy';
 import { LIMITS } from '@shared/config/limits';
-import { FAMILY_MEGA_DEFAULTS, INVITE_MEGA_DEFAULTS, PERSONALITIES } from '@shared/config/looks';
+import { FAMILY_MEGA_DEFAULTS, PERSONALITIES } from '@shared/config/looks';
 import { CTA_SIZES } from '@shared/config/theme';
 import type { InvitePreview } from '@shared/domain/api';
 import type { ErrorCode } from '@shared/domain/enums';
@@ -41,6 +44,10 @@ const back = () => (router.canGoBack() ? router.back() : router.replace('/invite
 const toInvite = () => router.replace('/invite');
 
 export default function JoinRoute() {
+  return <View style={{ flex: 1 }}><DemoSessionBar /><JoinContent /></View>;
+}
+
+function JoinContent() {
   const { token } = useLocalSearchParams<{ token: string }>();
   const preview = useInvitePreview(token);
   // A RATE_LIMITED redeem locks the invite mid-visit, before the preview catches up.
@@ -57,18 +64,22 @@ export default function JoinRoute() {
 function useJoin(token: string, onLocked?: () => void) {
   // CONTRACT.md v0.5: invites.redeem is an action (its wrong-code counter commits even when the call fails).
   const redeem = useAction(api.invites.redeem);
+  const joining = useRef(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const join = async (extra: { parentCode?: string; mega?: InviteMega }) => {
+    if (joining.current) return;
+    joining.current = true;
     setBusy(true);
     setError(null);
     try {
-      await redeem({ token, ...extra });
+      await recordedAction('invite.redeem', redeem)({ token, ...extra });
       router.replace('/chat' as never);
     } catch (e) {
       if (codeOf(e) === 'RATE_LIMITED' && onLocked) onLocked();
       else setError(errorCopyFor(e));
     } finally {
+      joining.current = false;
       setBusy(false);
     }
   };
@@ -96,7 +107,7 @@ function AdultInvite({ token, preview }: { token: string; preview: Ok }) {
     );
 
   return (
-    <SignInFrame presentation="sheet" scene={SIGNIN_SCENES.adultInvite} busy={busy} testID="join-adult">
+    <SignInFrame presentation="sheet" walkers={false} scene={SIGNIN_SCENES.adultInvite} busy={busy} testID="join-adult">
       <BackButton onPress={back} />
       <Text variant="caption" color="muted" weight="600" style={[styles.eyebrow, { marginTop: tokens.spacing.sm }]}>
         {C.invitedBy(preview.inviterName)}
@@ -110,7 +121,7 @@ function AdultInvite({ token, preview }: { token: string; preview: Ok }) {
       <View style={styles.fill} />
       <Ledge id="card">
         <View style={[styles.card, { backgroundColor: tokens.surface, borderColor: tokens.line, borderRadius: tokens.radii.xl, padding: tokens.spacing.xl, gap: tokens.spacing.xs }]}>
-          <MegaSprite hex={mega.look.hex} sticker={mega.look.sticker} face="happy" scale={3} accessibilityLabel={mega.name} />
+          <MeetMega mega={mega} inviter={preview.inviterName} />
           <Text variant="headline" style={[styles.center, { marginTop: tokens.spacing.sm }]}>
             {mega.name}
           </Text>
@@ -139,7 +150,7 @@ function AdultInvite({ token, preview }: { token: string; preview: Ok }) {
       </Ledge>
       <View style={styles.fill} />
       {error ? <ErrorLine text={error} /> : null}
-      <Pill hero variant="inverse" label={C.keep} loading={busy} onPress={() => join(changed ? { mega } : {})} />
+      <Pill hero variant="inverse" label={busy ? "Opening our chat…" : C.keep} loading={busy} onPress={() => join(changed ? { mega } : {})} />
       <View style={{ marginTop: tokens.spacing.md }}>
         <Pill variant="outline" label={C.change} disabled={busy} onPress={() => setEditing(true)} />
       </View>
@@ -153,7 +164,6 @@ function AdultInvite({ token, preview }: { token: string; preview: Ok }) {
 /** "Change my MEGA": a name plus the existing look & personality picker (src/features/profile). */
 function ChangeMega({ mega, onBack, onSave }: { mega: InviteMega; onBack: () => void; onSave: (next: InviteMega) => void }) {
   const tokens = useTokens();
-  const [name, setName] = useState(mega.name);
   // Android back and Escape (web) step back out of the picker (owner, Oct 28: every overlay closes).
   useDismiss(onBack);
   return (
@@ -163,19 +173,9 @@ function ChangeMega({ mega, onBack, onSave }: { mega: InviteMega; onBack: () => 
         <Text variant="display" accessibilityRole="header" style={{ marginVertical: tokens.spacing.md }}>
           {C.changeTitle}
         </Text>
-        <Text variant="label" style={{ marginBottom: tokens.spacing.sm }}>
-          {C.nameLabel}
-        </Text>
-        <TextInput
-          value={name}
-          onChangeText={setName}
-          maxLength={INVITE_MEGA_DEFAULTS.maxNameLength}
-          accessibilityLabel={C.nameLabel}
-          style={{ color: tokens.text, backgroundColor: tokens.surface, borderColor: tokens.line, borderWidth: 1, borderRadius: tokens.radii.lg, paddingHorizontal: tokens.spacing.md, height: CTA_SIZES.normal.height, fontSize: tokens.type.body.fontSize, marginBottom: tokens.spacing.lg }}
-        />
-        <LookPersonalityContent
+        <LookPersonalityContent characterMode name={mega.name}
           value={{ hex: mega.look.hex, sticker: mega.look.sticker, personality: mega.personality }}
-          onSave={(v) => onSave({ name: name.trim() || mega.name, look: { ...mega.look, hex: v.hex, sticker: v.sticker }, personality: v.personality })}
+          onSave={(v) => onSave({ name: v.name || mega.name, look: { ...mega.look, hex: v.hex, sticker: v.sticker }, personality: v.personality })}
         />
       </ScrollView>
     </View>
@@ -191,7 +191,7 @@ function KidInvite({ token, preview, onLocked }: { token: string; preview: Ok; o
 
   if (step === 'code')
     return (
-      <SignInFrame presentation="sheet" scene={SIGNIN_SCENES.kidInvite} busy={busy} testID="join-kid-code">
+      <SignInFrame presentation="sheet" walkers={false} scene={SIGNIN_SCENES.kidInvite} busy={busy} testID="join-kid-code">
         <BackButton onPress={() => setStep('meet')} />
         <View style={[styles.fill, styles.middle]}>
           <MegaSprite hex={mega.look.hex} sticker={mega.look.sticker} face="happy" scale={3} accessibilityLabel={mega.name} />
@@ -233,7 +233,7 @@ function KidInvite({ token, preview, onLocked }: { token: string; preview: Ok; o
     );
 
   return (
-    <SignInFrame presentation="sheet" scene={SIGNIN_SCENES.kidInvite} testID="join-kid">
+    <SignInFrame presentation="sheet" walkers={false} scene={SIGNIN_SCENES.kidInvite} testID="join-kid">
       <BackButton onPress={back} />
       <Text variant="label" color="muted" weight="600" style={[styles.eyebrow, styles.center, { marginTop: tokens.spacing.sm }]}>
         {C.invitedBy(preview.inviterName)}
@@ -242,7 +242,7 @@ function KidInvite({ token, preview, onLocked }: { token: string; preview: Ok; o
         {C.kidTitle(mega.name)}
       </Text>
       <View style={[styles.fill, styles.middle]}>
-        <MegaSprite hex={mega.look.hex} sticker={mega.look.sticker} face="happy" scale={4} accessibilityLabel={mega.name} />
+        <MeetMega mega={mega} inviter={preview.inviterName} child />
         <Text variant="title" weight="400" style={[styles.center, { marginTop: tokens.spacing.md }]}>
           {C.kidBody(preview.inviterName, mega.name)}
         </Text>

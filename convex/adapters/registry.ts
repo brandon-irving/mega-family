@@ -1,3 +1,5 @@
+import { googleScheduling } from './googleScheduling';
+import type { MailScheduling } from '../ports/mailScheduling';
 // The one file that knows which adapter fills each model port (PLAN.md → Architecture "Rules":
 // "`adapters/registry.ts` is the only file that knows which vendor fills each port"). Feature code
 // (convex/agent/*, convex/talk.ts) imports `getChatModel()` / `getTranscriber()`, never an adapter directly.
@@ -210,3 +212,8 @@ export function __setCalendarSourceForTests(adapter: CalendarSource | null): voi
 export function __setIcsFetcherForTests(adapter: IcsFetcher | null): void {
   icsFetcherOverride = adapter;
 }
+
+let schedulingOverride: MailScheduling | null = null;
+const disabledScheduling: MailScheduling = { send: async () => ({ ok: false, uncertain: false }), watch: async () => null, hold: async () => ({ ok: false, uncertain: false }), draft: async () => ({ ok: false, uncertain: false }) };
+export function getMailScheduling(): MailScheduling { return schedulingOverride ?? (wantsRealAdapters() ? googleScheduling : disabledScheduling); }
+export function __setMailSchedulingForTests(value: MailScheduling | null) { schedulingOverride = value; }

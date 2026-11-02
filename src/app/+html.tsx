@@ -12,7 +12,7 @@
 // same trade a native splash screen already makes.
 import { ScrollViewStyleReset, useServerDocumentContext } from 'expo-router/html';
 import type { ReactNode } from 'react';
-import { DEFAULT_THEME, THEMES } from '@shared/config/theme';
+import { DEFAULT_THEME, THEMES, DESKTOP_LAYOUT } from '@shared/config/theme';
 
 const BG = THEMES[DEFAULT_THEME].bg;
 
@@ -35,6 +35,14 @@ export default function Root({ children }: { children: ReactNode }) {
             the browser paints, not something that arrives after expo-router's own CSS loads. */}
         <style id="expo-reset-bg" dangerouslySetInnerHTML={{ __html: `html, body, #root { background-color: ${BG}; }` }} />
 
+        <style dangerouslySetInnerHTML={{ __html: `
+          @media (min-width: ${DESKTOP_LAYOUT.breakpoint}px) {
+            #mega-composer-input { field-sizing: content; height: auto !important; resize: none; }
+            [role="button"]:focus-visible, [role="tab"]:focus-visible {
+              outline: 2px solid currentColor; outline-offset: -2px;
+            }
+          }
+        ` }} />
         {headNodes}
       </head>
       <body {...bodyAttributes}>

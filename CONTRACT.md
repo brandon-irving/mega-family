@@ -1,3 +1,7 @@
+# Current demo and age policy
+
+See [Demo Console](docs/demo-console.md). This supersedes historical demo instructions in the changelog below.
+
 # MEGA — Frontend ↔ Backend Contract
 
 **Status: v0.3, approved Oct 26.**
@@ -7,6 +11,8 @@ This is the agreement both build tracks follow. The backend owns `convex/`, the 
 ## Changelog
 | Version | Date | Change |
 |---|---|---|
+| 0.21 | Nov 1 | Demo reliability review: document reviewed scheduling replies, immediate availability sharing, request details and recipient-owned calendar retries. Reply content is bound to its preview; uncertain sends are not resent. Accepted shared meetings write each consenting participant’s connected calendar with stable event IDs. |
+| 0.20 | Oct 30 | User-requested assistant first-day briefing: creator suggestions, private recipient review/edit/rejection, explicit first-task start and optional request for creator help. Additive table/API/UI fields; existing invite paths preserved. |
 | 0.18a | Oct 29 | **Pending approval.** G8 backend, additive. `widgets.next` is `real` (`convex/model/widgetTimeline.ts`). **Rules as built:** events are what the viewer sees in the app (`canSeeEvent`), never another member's private-layer event even with the viewer in `who`; a **kid** additionally sees only events they're in or the whole family's (`who` empty), so a household event for other people (an adult's dinner, a pickup) stays off a kid's widget. Items are sorted by start (then title), `maxSoon` per entry; a new entry only when what the widget shows changes (enter at `start − soonWindowMinutes`, leave at `start + startedGraceMinutes`); identical neighbours are merged. `statement.short` = whole words up to `shortStatementChars`, trailing punctuation dropped, then "…". The plan ends with one `stale` entry at the horizon, or at the first change it had to drop when `maxEntries − 1` entries were used; a plan with nothing planned and nothing to say is a single `empty` entry. `stale` and `empty` carry no text (the app fills `G8_COPY`). No model calls, no new tables. |
 | 0.18 | Oct 29 | **Pending approval.** G8 contract, all additive. **§4:** `widgets.next` (q, any member, own data only) → `WidgetTimeline` (§6): the home/lock widget timeline the app writes into the `MegaNext` / `MegaTalk` kinds with expo-widgets `updateTimeline` (iOS). `widgets.timeline` (G3) stays for the Today screen and is unchanged. **§6:** `WidgetTimeline` = `{ generatedAt, mega, kid, entries: WidgetNextEntry[], talkLink }`; `WidgetNextEntry` = `{ at, kind: "soon" \| "statement" \| "empty" \| "stale", soon?: WidgetSoonItem[] (≤ WIDGET_TIMELINE.maxSoon), statement?: { text, short }, link }`; `WidgetSoonItem` = `{ title, startsAt, timeLabel, who: { name, hex }[], private }`. The widget computes "in 40 min" from `startsAt` and its entry date (the widget runtime can't fetch or read app state). `private` marks the viewer's own private-layer events; the lock screen shows `G8_COPY.widgetPrivate` with SwiftUI `privacySensitive` instead of the title. The last entry after `WIDGET_TIMELINE.horizonHours` is `stale` ("Open Teal for what's next"), because the frozen build has no background-refresh module: widgets refresh only while the app runs. Widget taps use the existing §6 links (`widgetURL`): `soon`/`empty`/`stale` → `mega://today`, `statement` → `mega://chat`, Talk → `mega://talk`. **No new functions** for the QR scan (it feeds the existing `invites.preview` / `invites.redeem` through `mega://join/<token>`), the homework viewfinder (`files.uploadUrl` → `homework.submit`, unchanged) or Paste (client only). **Config:** `WIDGET_TIMELINE` (shared/config/widgets.ts), `INVITE_SCAN` (auth.ts: only `mega://join/<48 hex>` or the bare token; anything else is refused and never opened), `HOMEWORK.capture` (quality, `exif: false`), `G8_COPY`. **Gaps (frozen native build):** no `accessoryInline` family (the Widgets board's inline line can't ship until a rebuild), no background widget refresh, Android widgets off. |
 | 0.17b | Oct 29 | **Pending approval.** G5 review fixes, all additive. **§2:** `integrations.syncingUntil?` (server-only sync lease, real time, `INTEGRATION_SYNC.leaseSeconds`: one sync per integration at a time; a sync that finds it held does nothing); `messages.ruleBlock?: "onboarding" \| "profiler"` (a block answered by rule — a repeat or stale answer to one is a no-op: no second answer bubble, no agent reply, `streamId` absent); `profilerRuns.status?: "running"` (the sweep's claim before it schedules a run). **§3:** the `reconnect` card gains `integrationIds?` — one card per lapse listing every integration on that Google grant (Gmail + Calendar), `integrationId` is the first. **§4 new:** `invites.forMember({ memberId })` (q, admin or that member's parent) → `{ status: 'none' } \| { status: 'joined' } \| { status: 'pending', expiresAt, invitedByName } \| { status: 'expired', expiresAt }` — the link itself can't be read back (only its hash is stored), so "Show invite" calls `invites.create` for a fresh one; `kidControls.mine()` (q) → a kid's own rules read-only (`KidControls` fields + `dailyCap`, their buzzes a day), `null` for adults; `kidControls.setDailyCap({ memberId, dailyCap })` (m, the kid's parents) sets the kid's `settings.notify.dailyCap` within `LIMITS.push.kidDailyCapRange` (VALIDATION outside it); **reconcile (G5 frontend):** `kidControls.mine` also returns `parents: string[]` (their parents' names, for "Set by …"), and `kidControls.dailyCap({ memberId })` (q, the kid's parents) → `{ dailyCap }` for the Rules stepper. **§4 changed shapes:** `integrations.addIcs` returns `reason?: "unreachable" \| "not_a_calendar" \| "too_large" \| "refused"` with `failure` (a malformed or private-address link is still VALIDATION / `G5_COPY.icsBad`); `megas.activity` items gain `decidedBy?` (`rule:…`, `model:…`, or `member`; the event's own, else `ACTIVITY.decidedByDefault[type]`). **§4 behavior:** `onboarding.skip` is FORBIDDEN for kids; `chat.start` mid-family-step re-shows the CURRENT sub-step's block (rebuilt if the posted one is gone) instead of restarting at "who", and the family block counts as showing while it exists unanswered; at `ONBOARDING.maxFamilyMembers` the family step says so (`G5_COPY.familyFull`) and offers only "Done for now" (`familyDoneForNow`); a denied/failed combined Gmail + Calendar consent marks BOTH offers failed. **Integrations:** schedule links — every hop re-checked (https/webcal only; no IP literal in a private, loopback, link-local, ULA, CGNAT or multicast range, incl. decimal/hex/octal/IPv4-mapped forms; no `localhost`, `.local`, `.internal`, … — config `ICS.blocked*`), redirects followed by hand (`ICS.maxRedirects`), body read as a stream and dropped past `ICS.maxBytes`, one `ICS.timeoutMs` deadline for every hop and the body; Gmail history is read to its last page before its `historyId` is used (past `GMAIL.historyMaxPages` pages or the queue's room → full resync, never a half-read cursor); bodies decoded in their declared charset; the sender's display name is cleaned and sits inside the untrusted fence (and in `mailItems.sourceLabel`); Calendar paging runs to the page with `nextSyncToken` even past `maxEvents` (`GOOGLE_CALENDAR.maxPages`), and a pass without a new token keeps the old one; sync config writes merge. **§7:** `ICS.maxRedirects` / `blockedHostnames` / `blockedHostSuffixes` / `blockedIpv4` / `blockedIpv6`, `ICS_FAILURE_REASONS`, `GMAIL.historyMaxPages`, `GOOGLE_CALENDAR.maxPages`, `INTEGRATION_SYNC.leaseSeconds`, `LIMITS.push.kidDailyCapRange`, `ACTIVITY.decidedByDefault`, `G5_COPY.familyFull` / `familyDoneForNow`. **§8:** `ClockPort.realNow()` is also used for the sync lease (a process guard, never family-facing). **Last fixes (Oct 29):** `invites.create`'s `qrPayload` is now the full join link (same as `url`, `mega://join/<token>`), so a phone's own camera opens MEGA; `invites.preview` / `.redeem` accept the bare token or the full link (with a trailing slash, query or fragment), one rule in `shared/inviteToken.ts` (`inviteTokenFrom`) shared with the app's paste box and G8's scanner. `megas.activity` `decidedBy` is `member:<memberId>` when the event's `payload.actorId` is a member of the viewer's family, else a bare `member` (the app shows "A family member"); `ACTIVITY.member` names the prefix. The learning event records `actorId`. |
@@ -73,6 +79,10 @@ Values that are config rather than enums (the id lists live in `shared/config/id
 Every row in a family-owned table has `familyId`, and every index starts with `familyId`. **No query may read across families.**
 
 ### Family and people
+**demoRuns**: `familyId`, `ownerAuthId`, `adminId`, `key`, `date`, `createdAt`, `active`, optional `workerAt`, `sender`, and `jobs[]` (stage, attempt, status, queuedAt, claimedAt?, sentAt?, messageId?, receivedAt?, sourceMessageId?, error?). Demo Console run ledger; backend-only worker claims, bounded jobs, exact recipient ids and no automatic resend.
+
+**demoProfiles**: `authId`, `originalMemberId: id(members)`, `demoMemberId: id(members)`, optional `testedMemberIds: id(members)[]`, optional `pendingInvite: { token, memberId, inviteId }`. Identity-owned switch state, indexed by authId; never exposed as a client-addressable record. Fresh demo runs use the normal onboarding factory, preserve the original family, and retain prior runs as development data. No integrations or data are copied.
+
 **families**: `name`, `timezone`, `adminId?: id(members)` (set right after the admin member is created), `parentCode: string` (5 digits; shown to the admin in Settings, so it's stored rather than hashed and only `family.parentCode` returns it), `createdAt`, `country?` (v0.16: ISO 3166-1 alpha-2 for public holidays; `HOLIDAYS.defaultCountry` when empty)
 
 **members**: `familyId`, `name`, `role: Role`, `authId?: string` (Better Auth user id; empty for the toddler), `birthday?: "YYYY-MM-DD"`, `grade?: string`, `activities: string[]`, `hasMega: boolean`, `joinedAt?`
@@ -96,7 +106,7 @@ Every row in a family-owned table has `familyId`, and every index starts with `f
 **settings**: `familyId`, `memberId`, `theme: ThemeName`, `accent: "theme" | "mega" | { hex: string }`, `wallpaper: { kind: "preset", id } | { kind: "photo", storageId } | { kind: "generated", imageId } | null`, `notify: { loudKinds: NotificationKind[], quietHours, dailyCap: number }`, `pushTokens: { token, platform: Platform }[]`
 
 ### Chat
-**threads**: `familyId`, `ownerId: id(members)` (one private thread per member to start), `megaIds: id(megas)[]` (the owner's MEGA plus any @'d), `lastAt`, `startedAt?` (v0.13b: when `chat.start` handled the first open)
+**threads**: `familyId`, `ownerId: id(members)` (one private thread per member to start), `megaIds: id(megas)[]` (the owner's MEGA plus any @'d), `lastAt`, `entranceSeenAt?` (first-meet presentation completed; fresh demo threads reset it), `startedAt?` (v0.13b: when `chat.start` handled the first open)
 
 **messages**: `familyId`, `threadId`, `at`, `author: { kind: "member", id } | { kind: "mega", id } | { kind: "system" }`, `via: Via`, `body: MessageBody` (§3), `streamId?: string` (while the reply is streaming), `chips: SaveChip[]`, `reaction?: Reaction`, `fromNotificationId?`
 - index: `by_family_thread_at`
@@ -229,6 +239,18 @@ Every row in a family-owned table has `familyId`, and every index starts with `f
 
 ---
 
+**megaDrafts**: Private conversational MEGA drafts, scoped by `familyId`, `creatorId`, and `threadId`. Stores accumulated person/brief/appearance data, revision, draft/review/created/cancelled state, current review message and created member ID. Confirmation must match the reviewed revision and is idempotent. No member or invitation is created while gathering information. Index: `by_family_creator`.
+
+**connectionSuggestions**: Private connection recommendations with familyId, ownerId, subjectId, providerId, reason, creator/own mode, pending/accepted/declined status, messageId, and timestamps. Creator acceptance only permits a proactive suggestion; the recipient alone consents to setup. Indexed by owner/subject, subject, and message within the family.
+
+**assistantBriefs**: `familyId`, `memberId`, `creatorId`, `proposed: { context, goal, firstTask, proactive }`, `approved?` (same shape), `status: "pending" | "accepted" | "declined"`, `step: "review" | "edit" | "fresh" | "ready" | "done"`, `blockMessageId?`, `helpRequested?`, `createdAt`, `updatedAt`. Indexed by family/member. `pendingRevision?` holds a recipient-authored revision awaiting acceptance. Creator reads only their original proposal and status; recipient edits remain private. Only accepted content informs the owner’s agent and proactive wording. No scheduled work or access grant is created by acceptance.
+
+**schedulingPreferences**: `familyId`, `memberId`, `enabled`, `autoCapture`, `availabilityFor: id(members)[]`, optional `availabilitySharing: private | family | custom`. Owner-only opt-in for adults and parent-approved teens. Family is an ongoing grant to current and future eligible members of the same family and can be selected while alone. Custom retains explicit recipients; legacy rows without a mode remain custom when nonempty, private otherwise. Availability permission exposes only slot checks, never private event details or authority to book another person's calendar.
+
+**mailContextSuggestions**: `familyId`, `ownerId`, `integrationId`, `sourceMessageId`, `location` (city/region only), `createdAt`, `status: pending | saved | dismissed`, `messageId?`. Unconfirmed, owner-only email context; never included in memory retrieval. One confirmation per member, with an explicit private save or dismissal.
+
+**mailPlans**: `familyId`, `ownerId`, `integrationId`, `threadId`, `sourceMessageId`, `sourceAt`, `sourceLabel`, `title`, `status`, `slots`, `participantIds`, `missing`, `durationAssumed`, `revision`, `createdAt`, `updatedAt`; optional `eventId`, `ownsEvent`, `selected`, `messageId`, calendar/draft operation state and provider IDs. Owner-only. One evolving plan per email thread; inbox receipt order and revision checks protect updates. No email body or address is stored here.
+
 ## 3. Messages and UI blocks (`shared/domain/messages`, `shared/domain/uiBlocks`)
 ```
 MessageBody =
@@ -240,6 +262,7 @@ MessageBody =
   | { type: "notice", text }                                        // "From a notification · 2m ago"
 
 UIBlock =
+  | { kind: "megaDraft", prompt, draftId, revision, data: { target, memberId?, name?, role?, relationship?, brief?, megaName, hex, sticker, personality } }
   | { kind: "choice", prompt, options: { id, label }[], multi: boolean, allowOther: boolean }
   | { kind: "toggle", prompt, label, value: boolean, preview?: "theme" }
   | { kind: "text", prompt, placeholder? }
@@ -296,6 +319,16 @@ This section is mirrored exactly by `shared/domain/api.ts`; `tests/contract.test
 
 **q** = query, **m** = mutation, **a** = action, **h** = HTTP route. In the "Day 1" column, **real** means it works against seeded data on day 1, and **stub** means it returns correctly shaped canned data until the backend track fills it in.
 
+### Assistant first-day brief
+
+| Function | Kind | Args → result |
+|---|---|---|
+| `onboarding.addPerson` | m | No args → null. Admin only; opens or resumes the existing family setup conversation without duplicating a person or its waiting block. |
+| `assistantBriefs.forMember` | q | `{ memberId }` → `{ proposed, status, helpRequested, canEdit }` or `null`; creator only, with admin/parent authorization. Never returns private recipient revisions. |
+| `assistantBriefs.save` | m | `{ memberId, brief: { context, goal, firstTask, proactive } }` → null. Before joining, or after an explicit help request; creator only. Each field ≤ 500 characters; a goal or first task is required. Revisions require recipient review again. |
+
+The creator’s family onboarding adds a skippable `brief` sub-step between details and appearance. `messages.ruleBlock` also supports `brief`. First-meet choices are transactional and idempotent through `chat.answerBlock`; a clear yes/no via `chat.send` also answers the review. Starting the accepted first task explicitly enters the existing agent pipeline. `fields` blocks support optional description/saveLabel/skipLabel, and field value/placeholder/multiline/maxLength. Briefing exchanges are excluded from agent history; only accepted content is supplied separately. Existing invitations with no brief keep their previous first-meet behavior.
+
 ### Session and onboarding
 | Function | Type | Args | Returns | Day 1 |
 |---|---|---|---|---|
@@ -310,9 +343,12 @@ This section is mirrored exactly by `shared/domain/api.ts`; `tests/contract.test
 ### Chat and talk
 | Function | Type | Args | Returns | Day 1 |
 |---|---|---|---|---|
+| `chat.entrance` | q | `{ profileKey }` | `{ pending }`; own fresh chat only, bounded history check | real |
+| `chat.finishEntrance` | m | `{ profileKey }` | null; idempotent own-chat presentation acknowledgement | real |
 | `chat.thread` | q | `{ paginationOpts }` | page of `Message` (newest first) | real |
 | `chat.send` | m | `{ text, mentions?: id(megas)[], via: "text" \| "voice", attachments?: storageId[] }` | `{ messageId, replyMessageId, streamId }` | real (G2: runs the agent loop) |
 | `chat.streamBody` | q | `{ streamId }` | `{ text, status }` | real (component) |
+| `chat.stop` | m | `{ streamId }` | `null` | real (owner-only, idempotent cooperative stop) |
 | `chat.answerBlock` | m | `{ messageId, answer: BlockAnswer, via: Via }` | `{ answerMessageId, streamId?: string }` (v0.8: `streamId` of the MEGA's follow-up reply, when there is one) | real (G2: feeds the answer back into the agent loop) |
 | `chat.react` | m | `{ messageId, reaction: Reaction \| null }` | `null` | real |
 | `chat.start` | m | `{}` (the caller's own thread) | `{ started: boolean }` | real (v0.13b: the MEGA's starter, once per thread) |
@@ -360,6 +396,7 @@ This section is mirrored exactly by `shared/domain/api.ts`; `tests/contract.test
 | `kidControls.setDailyCap` | m | `{ memberId, dailyCap }` (v0.17b; the kid's parents; `LIMITS.push.kidDailyCapRange`) | `null` | real |
 | `kidControls.dailyCap` | q | `{ memberId }` (v0.17b reconcile; the kid's parents, else FORBIDDEN) | `{ dailyCap }` (the range is `LIMITS.push.kidDailyCapRange`) | real |
 | `family.kidThread` | q | `{ memberId, paginationOpts }` (only if `parentsCanReadChat`) | page of `Message` | real |
+| `calendar.event` | q | `{ eventId }` | `{ event, timezone, ownerName? }` | real (visibility checked on every read) |
 | `calendar.range` | q | `{ from, to }` | `Event[]` | real |
 | `events.create` / `.update` / `.cancel` | m | event fields / `{ eventId, patch }` / `{ eventId }` | `id` / `null` / `null` | real |
 | `events.share` / `.unshare` | m | `{ eventId }` (v0.13; the event's owner only) | `null` (moves it between the owner's private layer and the household layer and writes a `shareActions` row) | real |
@@ -374,6 +411,8 @@ This section is mirrored exactly by `shared/domain/api.ts`; `tests/contract.test
 | `ideas.refreshGifts` | m | `{}` (adult; bounded import of eligible gifts) | null | real |
 | `lists.addItem` / `.check` / `.remove` | m | `{ listId, text }` / `{ itemId, checked }` / `{ itemId }` | `id` / `null` / `null` | real |
 | `requests.respond` | m | `{ requestId, accept: boolean }` | `null` | real (G3: real effects, idempotent) |
+| `requests.get` | q | `{ requestId }` | recipient-only request text, status, notification mirror and calendar operation state, or null | real |
+| `requests.syncCalendar` | m | `{ requestId }` | `null`; recipient-only retry of an already authorized calendar update, reusing the same event | real |
 
 ### HQ and rooms
 | Function | Type | Args | Returns | Day 1 |
@@ -396,7 +435,38 @@ This section is mirrored exactly by `shared/domain/api.ts`; `tests/contract.test
 |---|---|---|---|---|
 | `clock.get` | q | — | `{ now, mode }` | real |
 | `clock.jump` | m | `{ to: number }` (admin, demo flag on) | `null` (fires due jobs through the same code) | real |
-| `demo.signInAs` | m | `{ as: "admin" \| "partner" \| "twin1" \| "twin2" }` (requires a signed-in identity, anonymous is fine; demo flag on) | `null` (links the chosen sample member's authId to the caller, unlinking whichever member it was linked to before) | real |
+| `megaCreation.current` | q | `{}` | own active draft `{ draftId, data, revision, status }` or null | real |
+| `megaCreation.updateAppearance` | m | `{ draftId, revision, megaName, hex, sticker, personality }` | null; creator-owned revision-checked edit using chat validation | real |
+| `megaCreation.review` | m | `{ draftId, revision }` | null; posts finalize card after age/permission checks | real |
+| `megaCreation.personalize` | m | `{}` | null; opens own draft without replacing another draft | real |
+| `demo.testInvite` | m | `{ token, expectedMemberId }` | null; parks sandbox admin to open actual invite | real |
+| `demo.switchTester` | m | `{ memberId?, expectedMemberId: id or null }` | null; returns to sandbox admin or a previously redeemed test member | real |
+| `demo.profile` | q | `{}` | `null` or `{ active, canResume }` | real |
+| `demo.switchProfile` | m | `{ mode: "fresh" \| "resume" \| "return", expectedMemberId }` | `null` | real |
+
+`demo.profile()` returns null when unavailable, otherwise `{ active, canResume }` for the authenticated admin. `demo.switchProfile({ mode: "fresh" | "resume" | "return", expectedMemberId })` atomically relinks only that identity's saved profiles. Fresh/resume require DEMO_MODE; returning remains possible if it is disabled mid-demo. Stale member IDs are no-ops, so replayed presses cannot create multiple families. Kid/adult callers cannot use it. Switching remounts the app navigator and clears remembered query data.
+
+### Demo Console and age groups
+
+| Function | Kind | Args | Returns | Status |
+|---|---|---|---|---|
+| `demoConsole.state` | q | `{}` admin | Current run readiness and stage status, or null | real |
+| `demoConsole.start` | m | `{expectedMemberId}` admin, demo deployment | null | real |
+| `demoConsole.prepare` | m | `{runId}` owner admin | null | real |
+| `demoConsole.abandon` | m | `{runId, stage, expectedAttempt}` owner admin; close uncertain attempt without resend | null | real |
+| `demoConsole.trigger` | m | `{runId, stage, expectedAttempt}` owner admin | null | real |
+| `demoConsole.reset` | m | `{runId, mode: story or onboarding}` owner admin | null | real |
+| `demoConsole.cleanup` | a | `{runId}` owner admin; exact recorded Google artifact ids | null | real |
+| `demoCleanup.authorizeStart` | m | `{runId, persona, returnOrigin?}` owner admin | OAuth URL for the configured demo account; allowlisted return origin | real |
+| `demoCleanup.authorizeCode` | a | `{runId, persona, serverAuthCode}` owner admin | connection status after verifying the expected account | real |
+| `demoCleanup.clear` | a | `{runId}` owner admin | cleanup report; preflight all demo accounts before removing only test emails and owned demo artifacts | real |
+| `family.setAgeGroup` | m | `{memberId, ageGroup: child or teen or adult}` admin/parent, same family | null | real |
+| `family.requestConnections` | m | `{}` teen only; deduplicated request to parents’ own MEGA chats | null | real |
+| `family.approveConnections` | m | `{memberId, approved}` teen’s parent only | null | real |
+
+Age groups are independent of family authority. `members.ageGroup?`, `connectionsApprovedBy?`, `connectionsApprovedAt?` are additive. Birthday takes precedence: Child 0–12, Teen 13–17, Adult 18+. Legacy `kid` remains a protected membership permission, not an age label. Unknown legacy minors default Child. Parent/Guardian is represented by parent relationships; no admin rights are implied by age. Approved teens can connect their own accounts, manage their scheduling and explicitly share availability. Child connections remain forbidden. Revocation blocks callback, sync and scheduling. Google consent remains mandatory. Teens can ask their own parents for help, without automatic on-accept actions; other child protections remain.
+
+The sole current demo is Settings → Demo Console; see docs/demo-console.md. The sample picker, sample-invite service, staged-price service and seed.resetDemo are retired. Test fixture factories remain for automated tests only.
 
 ### Demo features (v0.13, gate GD; real since the GD backend)
 Who may call each is stated in its comment in `shared/domain/api.ts`; the rules in brief: kids act only on their own practice, chores, routines and Store; releases, chores, homework and gifts are adults; clash approval is the Admin; share suggestions are the owner's alone.
@@ -490,6 +560,25 @@ The onboarding chat (canvas Screen 13) is **server-driven**: MEGA's lines come f
 `DeviceEventInput = { externalId, calendarId, title, start, end?, allDay?, location? }` (what the app reads with expo-calendar `listEvents`).
 
 ---
+
+### Email scheduling
+
+| Function | Kind | Args | Result |
+|---|---|---|---|
+| `scheduling.preferences` | q | — | own settings, permissions, people and detection status |
+| `scheduling.setPreferences` | m | enabled, autoCapture, availabilityFor, availabilitySharing?, desiredWrites? | null |
+| `scheduling.setSharing` | m | availabilityFor, availabilitySharing? | null; persist the explicit Private, Family, or Custom availability policy |
+| `scheduling.previewReply` | a | planId, revision | reviewed recipient, subject and reply body; requires family acceptance |
+| `scheduling.sendReply` | a | planId, revision, to, subject, body | null; send the exact reviewed reply once, block uncertain retries |
+| `scheduling.get` | q | planId | owner-only plan with consented availability checks |
+| `scheduling.list` | q | — | owner's active email plans |
+| `scheduling.refresh` | a | planId | refresh authorized calendars |
+| `scheduling.hold` | a | planId, revision, start, end | approved tentative hold on caller's calendar only |
+| `scheduling.draft` | a | planId, revision | Gmail draft, never sent |
+| `scheduling.syncCalendar` | a | planId, revision | reconcile an approved external hold with a reviewed email change |
+| `scheduling.dismiss` | m | planId | dismiss; undo only owned local imports |
+
+The card `{kind: "mailPlan", planId}` is owner-only. `integrations.googleStart` accepts optional `scheduling: true` to request calendar event writes and Gmail draft access. Existing read-only connects retain their scopes. `/google/gmail/push` verifies Google's signed service-account JWT, persists a wakeup, then acknowledges. Polling remains a recovery path. Sharing availability does not alter the household-only clash checker or expose private events to it.
 
 ## 5. Push notifications
 - **Payload `data`** (every push): `{ v: 1, notificationId, kind: NotificationKind, threadId, messageId, answerToken?: string }`. `answerToken` (v0.11, additive) is an HMAC token scoped to this one notification + recipient, for `POST /push/answer` below — the only way to answer when the app has been killed and there's no signed-in session.
@@ -585,3 +674,39 @@ Members use generic labels: Admin (MEGA Teal), Partner (MEGA Coral), Twin 1 (MEG
 - `MessageBody` adds `{ type: 'file', storageId, name, mimeType }`.
 - `ideas.list` accepts optional `sort: 'newest' | 'oldest'`; ordering is applied before pagination. Text search keeps relevance ordering.
 - Today/widget informational statements must be within their candidate window, have no answer buttons, and be a tip or update. Newly delivered actionable statements create an in-app notification with answer buttons, without scheduling a push.
+
+### Fresh-demo chat regression (Oct 30)
+
+`chat.thread` accepts optional `profileKey` as a pagination cache key. It is checked against the authenticated member and never selects a different viewer. A stale profile subscription returns an empty completed page before using its old cursor. The client keys pages and optimistic inserts by this value.
+
+The first name question accepts ordinary conversation. Obvious short name replies keep the immediate path; other messages use the existing model adapter and spend guard to extract an explicitly stated owner name or give a conversational follow-up. The original message is retained, model failure gets a friendly name question, and the existing setter and offer flow apply an extracted name once.
+
+### Conversational onboarding and demo acceptance (Oct 31)
+After naming, new admins stay in ordinary chat with a question about their needs and an optional own-MEGA customization action. Legacy connection offers continue to work. Briefs need only one nonempty context/goal/task/proactive field; recipient consent still applies. Draft queries are creator-private; preview UI is separate from confirmation. Text messages use bubbles on both sides, no repeated speaker names, and light own-message text with AA contrast. Long press exposes copying, selection, quoted replies, and existing up/down reactions.
+
+The identity-owned demo session may temporarily have no member while it opens the real invite route. Only the sandbox admin can stage same-family, unclaimed invites. Real redemption (including parent-code checks) registers tested members; switching is restricted to those members and that sandbox admin. Return remains possible with DEMO_MODE off. `demo.profile` includes optional testing, pendingToken, currentName, and people during an active run. Joined membership remains durable while identities are parked. Real provider sign-in is not simulated by this helper.
+
+### Demo recording context and device diagnostics
+
+`demo.profile` optionally returns `recording: { runId, key, familyId }` only for the authenticated presenter’s active sandbox run while `DEMO_MODE=true`, including their pending invitation and previously tested personas. This metadata enables device-local diagnostics; it does not expose additional conversations or credentials. The existing chat permission checks still determine which messages the device can fetch.
+
+The client stores bounded per-run conversation snapshots and app interaction events, persists across reloads/resets, and offers explicit Copy/Share export in Demo Console. No log upload endpoint exists. Development-only inspector access is read-only. See `docs/demo-console.md` for retention, capture limits, and `npm run demo:logs` retrieval.
+
+
+Unified Google setup: chat and account entry points share Email & scheduling. Read permissions for Gmail and Calendar are requested together, with reviewed optional holds/drafts permissions. Family coordination grants availability visibility to current and future eligible family members; Choose people remains limited to selected members. Neither exposes email contents or event details. Family can be saved before other people join. Membership and teen approval are rechecked at access time. Revoking a teen's connection approval resets their outgoing sharing to Private. Partial Google grants remain partial. Members may carry `connectionRequest {at,status,messageIds}`; `messages.ruleBlock` also supports `connectionApproval` and `mailLocation` for owner-authorized, replay-safe answers. Parent approval does not itself grant OAuth or sharing. Scheduling preferences may record `desiredWrites` to preserve the user's setup choice separately from actual granted capabilities.
+
+
+### Proactive brief handoff (phase 2)
+The private assistant-brief record optionally stores `kickoffRevision` and `kickoff {prompt,task,emailReason}`. Accepting a brief queues a bounded, tool-free proposal action. A revision/state check rejects stale and duplicate results. The proposal is a suggestion, not an accepted fact or permission. Only a subsequent owner response starts work through the existing chat agent; no public API shape changes. Pending suggestions are abandoned when the owner continues in chat. Legacy ready menus upgrade on return. The creator's brief query does not expose these private fields.
+
+### Everyday chat and family polish (Nov 1)
+`family.add` accepts optional `ageGroup` (child/teen/adult), consistent with role. Omitting `mega` creates family context only: no assistant or invitation. `mega_rename` is an owner-only creation-tool operation that renames an existing adult/admin MEGA without creating a draft. First-contact extraction distinguishes the member name from an explicitly stated assistant name. Teen typography and text-first composer use adult sizing; role-based server permissions remain unchanged.
+
+### Response stopping (Nov 1)
+`chat.stop({streamId})` is owner-only and idempotent. `messages.stoppedAt` marks cooperative cancellation; stream reads finish with the retained partial text and a stopped notice. Late chunks/finalization are ignored and future agent steps and tool mutations are gated. Already-running provider requests may complete and incur usage; completed effects are not rolled back.
+
+### Proactive coordination (Nov 1)
+
+`PlanView.guidance?: string` is a live, owner-only availability explanation. It contains permitted member busy/free information, never another member's event title. Internal candidate sources add `mailPlan { planId, revision }`, `teenCalendar { eventId, start }`, and `connectionApproval { memberId, messageId, requestedAt }`. They use the existing update pipeline and generic lock-screen copy. Email plan and approval pushes reuse existing message IDs; delivery and send recheck source authorization and state. Teen-owned mail plans and share suggestions are narrowly eligible for updates without enabling general child tips.
+
+Future teen private events can suggest sharing once. First external-calendar import remains quiet; subsequent new events and email captures can suggest. Explicit sharing queues parent event cards only for relationship-linked parents with visibility; availability grants alone are insufficient. `calendar.event` provides live, visibility-checked card details; unshared events become unavailable to former viewers. No new public mutations, automatic sharing, bookings, or email sending.

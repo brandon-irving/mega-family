@@ -1,3 +1,10 @@
+import { recommendConnection } from './connectionRecommendations';
+import { migrateCreation } from './megaCreation';
+import { getOrCreateOwnThread } from './threads';
+import { MEGA_CREATION } from '../../shared/config/megaCreation';
+import { ASSISTANT_BRIEF } from '../../shared/config/assistantBrief';
+import { briefFieldsBlock } from '../../shared/assistantBrief';
+import { saveBrief } from './assistantBriefs';
 // G5 (CONTRACT v0.17): the onboarding chat (owner, Oct 28; canvas Screen 13 + Screen 5's family boards).
 // Server-driven and model-free: MEGA's lines are G5_COPY, the name is parsed by rule, every step is a row in
 // `onboarding`. Steps: name → gmail → calendar → ics → family → done. Each offer step moves on after a connect
@@ -40,6 +47,15 @@ export function parseName(raw: string): string | null {
   s = s.replace(/[.!?,;:]+$/g, '').trim();
   if (!s || s.length > ONBOARDING.nameMaxLength || /[\u0000-\u001f<>{}]/.test(s)) return null;
   return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+/** Only obvious short name replies use the no-model shortcut. Sentences stay conversational. */
+export function parseNameReply(raw: string): string | null {
+  const name = parseName(raw);
+  if (!name || /[?!]/.test(raw.trim().replace(/!$/, '')) || !/^[\p{L}\p{M} .’'\-]+$/u.test(name)) return null;
+  const words = name.toLowerCase().split(/\s+/);
+  if (words.length > ONBOARDING.nameReplyMaxWords || words.some(word => (ONBOARDING.nameReplyNonNames as readonly string[]).includes(word))) return null;
+  return name;
 }
 
 async function ownMega(ctx: MutationCtx, familyId: Id<'families'>, memberId: Id<'members'>): Promise<Doc<'megas'> | null> {
@@ -112,6 +128,8 @@ async function familyBlockFor(ctx: MutationCtx, row: Row): Promise<UIBlock> {
       return getsMegaChoice(f.name ?? person?.name ?? '');
     case 'details':
       return detailsBlock(person?.role === 'kid' || f.role === 'kid' ? 'kid' : 'adult');
+    case 'brief':
+      return briefFieldsBlock(fillCopy(ASSISTANT_BRIEF.creatorPrompt, { name: person?.name ?? '' }));
     case 'look':
       return person ? lookBlock(ctx, person) : whoChoice();
   }
@@ -131,16 +149,19 @@ export async function postStep(ctx: MutationCtx, row: Row, now: number): Promise
     case 'ics':
       await say(ctx, row, { type: 'card', card: { kind: 'connect', offer: STEP_OFFER[row.step]! } }, now);
       return;
-    case 'family':
-      // v0.17b (C2): a family step already under way re-shows ITS current block (a person half-added stays
-      // half-added, never restarted from "who"); only a fresh family step gets the intro and "who".
+    case 'family': {
       if (row.family) {
         await ask(ctx, row, await familyBlockFor(ctx, row), row.family, now);
         return;
       }
-      await say(ctx, row, text(G5_COPY.familyIntro), now);
-      await ask(ctx, row, whoChoice(), { step: 'who' }, now);
+      const member = await ctx.db.get(row.memberId);
+      if (!member) return;
+      const mega = await ownMega(ctx, row.familyId, row.memberId);
+      const thread = await getOrCreateOwnThread(ctx, row.familyId, row.memberId, mega?._id ?? null, now);
+      await migrateCreation(ctx, member, thread._id, now);
+      await say(ctx, row, text(MEGA_CREATION.start), now);
       return;
+    }
     case 'done':
       return;
   }
@@ -224,10 +245,14 @@ export async function setName(ctx: MutationCtx, member: Doc<'members'>, raw: str
 }
 
 /** After the name: "Nice to meet you" is the reply the caller posts (it's the streamed reply in `chat.send`);
- * this moves on to the first offer. */
-export async function afterName(ctx: MutationCtx, member: Doc<'members'>, now: number): Promise<void> {
+ * this opens ordinary conversation instead of an automatic connection or creation sequence. */
+export async function afterName(ctx: MutationCtx, member: Doc<'members'>, now: number, askAboutOwner = true): Promise<void> {
   const row = await onboardingRow(ctx, member.familyId, member._id);
-  if (row) await advance(ctx, row, now);
+  if (row) {
+    await ctx.db.patch(row._id, { step: 'done', finishedAt: now });
+    if (askAboutOwner) await say(ctx, row, text(G5_COPY.meetAdmin), now);
+    await recommendConnection(ctx, member, '', now + 1, { allowBaseline: true });
+  }
 }
 
 // ---------- the family step (Screen 5 boards, answered with chat.answerBlock) ----------
@@ -347,7 +372,14 @@ export async function answerFamilyBlock(ctx: MutationCtx, admin: Doc<'members'>,
           ...(activities.length ? { activities } : {}),
         });
       }
-      await askLook(ctx, row, (await ctx.db.get(person._id))!, now);
+      await ask(ctx, row, briefFieldsBlock(fillCopy(ASSISTANT_BRIEF.creatorPrompt, { name: person.name })), { ...f, step: 'brief' }, now);
+      return true;
+    }
+    case 'brief': {
+      const person = row.personId ? await ctx.db.get(row.personId) : null;
+      if (!person) fail('NOT_FOUND');
+      if (!answer.skipped) await saveBrief(ctx, admin, person, answer.fields ?? {}, now);
+      await askLook(ctx, row, person, now);
       return true;
     }
     case 'look': {

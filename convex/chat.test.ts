@@ -6,7 +6,7 @@
 import { register as registerPersistentTextStreaming } from '@convex-dev/persistent-text-streaming/test';
 import { convexTest } from 'convex-test';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
-import { makeFakeChatModel, textReply } from './adapters/fakeChatModel';
+import { makeFakeChatModel, textReply, toolCallReply } from './adapters/fakeChatModel';
 import { __setChatModelForTests } from './adapters/registry';
 import { KID_INTRO } from '../shared/config/starters';
 import { api, internal } from './_generated/api';
@@ -118,5 +118,46 @@ describe('chat.send → G6 #6b: the "Ready for tomorrow" chat-starter must groun
     expect(streamId).not.toBe(''); // talk mode always needs a readable stream to caption
     const reply = await t.run((ctx) => ctx.db.get(replyMessageId));
     expect(reply?.body.type).toBe('text'); // never the shortcut's routine card
+  });
+});
+
+describe('owner stops a reply', () => {
+  test('stop preserves partial text, rejects late chunks, and blocks queued generation', async () => {
+    const { t } = await seeded();
+    const owner = t.withIdentity({ subject: 'sample:admin' });
+    const result = await owner.mutation(api.chat.send, { text: 'Help with my week', via: 'text' });
+    await t.mutation(internal.chat.appendReplyChunk, { streamId: result.streamId, text: 'Here is a start', final: false });
+    await expect(t.withIdentity({ subject: 'sample:partner' }).mutation(api.chat.stop, { streamId: result.streamId })).rejects.toThrow();
+    await owner.mutation(api.chat.stop, { streamId: result.streamId });
+    await owner.mutation(api.chat.stop, { streamId: result.streamId });
+    expect(await t.mutation(internal.chat.appendReplyChunk, { streamId: result.streamId, text: 'Late response', final: true })).toBe(false);
+    expect(await t.mutation(internal.chat.finishReply, { replyMessageId: result.replyMessageId, text: 'Late response' })).toBe(false);
+    const model = vi.fn(() => textReply('Should not run'));
+    __setChatModelForTests(makeFakeChatModel(model));
+    await t.finishAllScheduledFunctions(vi.runAllTimers);
+    expect(model).not.toHaveBeenCalled();
+    expect(await owner.query(api.chat.streamBody, { streamId: result.streamId })).toEqual({ status: 'done', text: 'Here is a start\n\nResponse stopped.' });
+  });
+  test('stopping while a model call is running prevents its returned tools and final reply', async () => {
+    const { t, members } = await seeded();
+    const owner = t.withIdentity({ subject: 'sample:admin' });
+    const before = await t.run(ctx => ctx.db.query('megas').collect());
+    const result = await owner.mutation(api.chat.send, { text: 'Call yourself Orbit', via: 'text' });
+    __setChatModelForTests(makeFakeChatModel(async () => {
+      await owner.mutation(api.chat.stop, { streamId: result.streamId });
+      return toolCallReply([{ id: 'rename', name: 'mega_rename', arguments: { name: 'Orbit' } }]);
+    }));
+    await t.finishAllScheduledFunctions(vi.runAllTimers);
+    const after = await t.run(ctx => ctx.db.query('megas').collect());
+    expect(after.find(m => m.ownerId === members.admin)?.name).toBe(before.find(m => m.ownerId === members.admin)?.name);
+    expect(await owner.query(api.chat.streamBody, { streamId: result.streamId })).toEqual({ status: 'done', text: 'Response stopped.' });
+  });
+  test('stopping a completed reply does not replace it', async () => {
+    const { t } = await seeded(); const owner = t.withIdentity({ subject: 'sample:admin' });
+    const result = await owner.mutation(api.chat.send, { text: 'Hi', via: 'text' });
+    await t.finishAllScheduledFunctions(vi.runAllTimers);
+    const before = await owner.query(api.chat.streamBody, { streamId: result.streamId });
+    await owner.mutation(api.chat.stop, { streamId: result.streamId });
+    expect(await owner.query(api.chat.streamBody, { streamId: result.streamId })).toEqual(before);
   });
 });

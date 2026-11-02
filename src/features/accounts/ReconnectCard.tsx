@@ -7,14 +7,13 @@ import { useState } from 'react';
 import type { Id } from '@shared/domain/validators';
 import type { IntegrationView } from '@shared/domain/api';
 import { G5_COPY, G5_UI_COPY as U, fillCopy } from '@shared/config/copy';
-import { useAccountActions, useIntegrations } from '@/data/useAccounts';
-import { connectGoogle } from '@/services/googleConnect';
-import { useRunAction } from '@/features/shell/useRunAction';
+import { useIntegrations } from '@/data/useAccounts';
+import { router } from '@/features/shell/navigation';
 import { CardFallback } from '@/features/kids/CardFallback';
 import { IconCard } from '@/features/integrations/G4Card';
 import { CardActions } from '@/ui/ThreadCard';
 import { useTokens } from '@/ui/theme';
-import { googleProductsOf, reconnectWhat } from './accountFormat';
+import { reconnectWhat } from './accountFormat';
 
 export function ReconnectCardView({
   google,
@@ -70,10 +69,7 @@ export function coveredByCard(google: IntegrationView[], integrationId: Id<'inte
 
 export function ReconnectCard({ integrationId, integrationIds, megaName }: { integrationId: Id<'integrations'>; integrationIds?: Id<'integrations'>[]; megaName: string }) {
   const state = useIntegrations();
-  const actions = useAccountActions();
-  const { busy, run } = useRunAction();
   const [later, setLater] = useState(false);
-  const [failed, setFailed] = useState(false);
   if (state.status !== 'ok') return <CardFallback state={state} from={fillCopy(U.fromAccounts, { mega: megaName })} />;
   const google = state.data.filter((i) => i.kind === 'gmail' || i.kind === 'googleCalendar');
   const covered = coveredByCard(google, integrationId, integrationIds);
@@ -82,15 +78,9 @@ export function ReconnectCard({ integrationId, integrationIds, megaName }: { int
       google={covered}
       megaName={megaName}
       later={later}
-      busy={busy === 'reconnect'}
-      failed={failed}
-      onReconnect={() =>
-        void run('reconnect', async () => {
-          setFailed(false);
-          const result = await connectGoogle(googleProductsOf(covered.map((i) => i.kind)), actions);
-          if (result === 'failed') setFailed(true);
-        })
-      }
+      busy={false}
+      failed={false}
+      onReconnect={() => router.push('/scheduling')}
       onLater={() => setLater(true)}
     />
   );

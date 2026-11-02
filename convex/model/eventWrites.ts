@@ -4,6 +4,7 @@
 import type { Doc, Id } from '../_generated/dataModel';
 import type { MutationCtx } from '../_generated/server';
 import { addDays, zonedInstant } from '../../shared/time';
+import { notifyParentsOfTeenEvent } from './layers';
 import { detectClashes } from './clashes';
 import { sameFamilyMember } from './viewer';
 import { requireFamilyPlace } from './places';
@@ -23,6 +24,7 @@ export async function patchEvent(ctx: MutationCtx, event: Doc<'events'>, patch: 
   // `placeId: null` clears the saved place (v0.15); Convex removes a field patched to undefined.
   const clean = Object.fromEntries(Object.entries(patch).filter(([, v]) => v !== undefined).map(([k, v]) => [k, v === null ? undefined : v]));
   await ctx.db.patch(event._id, clean);
+  await notifyParentsOfTeenEvent(ctx, (await ctx.db.get(event._id))!, now);
   await calendarChanged(ctx, event.familyId, now);
 }
 

@@ -15,3 +15,9 @@ test('keeps profile and Today actions without a fabricated readiness status', as
   expect(onOpenProfile).toHaveBeenCalledTimes(1);
   expect(onOpenToday).toHaveBeenCalledTimes(1);
 });
+
+test('identifies the person during a demo switch without replacing the MEGA name', async () => {
+  await renderWithTheme(<ChatHeader mega={TEAL_INFO} demoPersonName="Lovie" todayCount={0} onOpenProfile={jest.fn()} onOpenToday={jest.fn()} />);
+  expect(screen.getByText('Lovie')).toBeTruthy();
+  expect(screen.getByText('Teal')).toBeTruthy();
+});

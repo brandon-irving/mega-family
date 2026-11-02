@@ -61,4 +61,15 @@ describe('useQueryState', () => {
     clearQueryMemory();
     expect((await renderHook(() => useQueryState(ref, { setId: 'x' }))).result.current).toEqual({ status: 'loading' });
   });
+  test('a completed draft returning null clears its cached preview immediately', async () => {
+    mockUseQueries.mockReturnValue({ q: { n: 1 } });
+    const { result, rerender } = await renderHook(() => useQueryState(ref, { setId: 'x' }));
+    mockUseQueries.mockReturnValue({ q: null });
+    await rerender(undefined);
+    expect(result.current).toEqual({ status: 'ok', data: null });
+    mockUseQueries.mockReturnValue({ q: undefined });
+    await rerender(undefined);
+    expect(result.current).toEqual({ status: 'ok', data: null });
+  });
+
 });

@@ -1,3 +1,6 @@
+import { PersonAvatar } from '@/ui/PersonAvatar';
+import { ageGroupAt, AGE_GROUP_LABELS } from '@shared/ageGroups';
+import { AgeGroupControls } from './AgeGroupControls';
 // Member detail sheet (PLAN §4): Message / Visit room / Kid controls (parents only) / read kid chat
 // (read-only). Kid controls: homework mode, quiet hours, daily minutes, blocked topics, what the
 // kid's MEGA tells parents, and "Parents can read chats" (on by default).
@@ -22,6 +25,7 @@ export type KidControlsPatch = Partial<{
 
 export type MemberDetailContentProps = {
   detail: MemberDetail;
+  timezone?: string;
   onMessage: () => void;
   onVisitRoom: () => void;
   onChangeKidControls: (patch: KidControlsPatch) => void;
@@ -31,7 +35,7 @@ export type MemberDetailContentProps = {
   onOpenRules?: () => void;
 };
 
-export function MemberDetailContent({ detail, onMessage, onVisitRoom, onChangeKidControls, onOpenSearches, onOpenRules }: MemberDetailContentProps) {
+export function MemberDetailContent({ detail, timezone = 'UTC', onMessage, onVisitRoom, onChangeKidControls, onOpenSearches, onOpenRules }: MemberDetailContentProps) {
   const tokens = useTokens();
   const { member, mega, kidControls, canReadChat } = detail;
   const isKid = member.role === 'kid';
@@ -39,8 +43,8 @@ export function MemberDetailContent({ detail, onMessage, onVisitRoom, onChangeKi
   return (
     <>
       <View style={{ alignItems: 'center', gap: tokens.spacing.sm, marginBottom: tokens.spacing.lg }}>
-        {mega && <MegaBadge hex={mega.look.hex} sticker={mega.look.sticker} face={faceFor(mega.personality)} size={64} />}
-        <Text variant="title">{member.name}</Text>
+        {mega ? <MegaBadge hex={mega.look.hex} sticker={mega.look.sticker} face={faceFor(mega.personality)} size={64} /> : <PersonAvatar size={64} />}
+        <Text variant="title">{member.name}</Text><Text color="muted">{AGE_GROUP_LABELS[ageGroupAt(member, new Date().getTime(), timezone)]}</Text>
         {detail.relationshipToViewer && (
           <Text color="muted" style={{ textTransform: 'capitalize' }}>
             Your {detail.relationshipToViewer}
@@ -53,10 +57,11 @@ export function MemberDetailContent({ detail, onMessage, onVisitRoom, onChangeKi
         <Button label="Visit room" variant="secondary" onPress={onVisitRoom} style={{ flex: 1 }} />
       </View>
 
+      {isKid && kidControls ? <AgeGroupControls member={member} timezone={timezone} /> : null}
       {isKid && kidControls && (
         <Card style={{ marginBottom: tokens.spacing.lg }}>
           <Text variant="label" style={{ marginBottom: tokens.spacing.md }}>
-            Kid controls
+            Family protections
           </Text>
           <Row label="Homework mode" value={kidControls.homeworkMode} onChange={(v) => onChangeKidControls({ homeworkMode: v })} />
           <Row label="Web search" value={kidControls.webSearch} onChange={(v) => onChangeKidControls({ webSearch: v })} />

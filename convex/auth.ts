@@ -42,7 +42,7 @@ export function appleOptions() {
 export function trustedOrigins(): string[] {
   const base = [`${IDENTITY.scheme}://`, 'https://appleid.apple.com', process.env.SITE_URL ?? ''].filter(Boolean);
   if (process.env[DEMO.envVar] !== 'true') return base;
-  return [...base, 'http://localhost:8081', 'http://localhost:19006', 'http://127.0.0.1:8081'];
+  return [...base, 'http://localhost:8081', 'http://localhost:8082', 'http://localhost:19006', 'http://127.0.0.1:8081', 'http://127.0.0.1:8082'];
 }
 
 // SITE_URL is the web app's own address (Convex Better Auth docs: React/Expo-web guides), e.g.

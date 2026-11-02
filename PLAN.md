@@ -1,3 +1,5 @@
+> Current demo workflow: [Settings → Demo Console](docs/demo-console.md). The three-person live Gmail scenario and age-group policy in that guide supersede historical demo, seeded-reset, and sample-sign-in instructions below.
+
 # MEGA — My Everyday Guidance Agent
 
 A proactive AI for the whole family. Each family member gets their own MEGA. All MEGAs share family context within privacy scopes, coordinate with each other, and reach people mostly through push notifications.

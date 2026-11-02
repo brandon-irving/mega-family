@@ -19,6 +19,7 @@ import {
   STORE_PART_COLORS,
   type ViewName,
   VIEWS,
+  WAVE_PARTS,
 } from './template';
 
 /** GD (CONTRACT v0.13 `megaLook`): `antenna`, `eyes` and `eyeColor` are optional Store parts; missing means
@@ -108,6 +109,9 @@ export function renderMega(spec: SpriteSpec, options: RenderOptions = {}): Pictu
   const { view = 'front', frame = 'stand', expression = 'open', badge = false } = options;
   const base: ViewName = view === 'right' || view === 'left' ? 'side' : view;
   let layers = layersFor(spec, base, expression);
+  if (!badge && base === 'front' && (frame === 'waveIn' || frame === 'waveOut')) {
+    layers = [...layers.filter(p => p.id !== 'armR' && p.id !== 'mittenR'), ...WAVE_PARTS[frame]];
+  }
   if (badge) layers = layers.filter(inBadge);
 
   const pal = palette(spec);

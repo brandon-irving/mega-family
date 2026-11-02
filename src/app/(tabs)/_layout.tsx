@@ -12,13 +12,24 @@
 // false), it keeps every visited tab's screen tree mounted — hidden, not unmounted — when switching
 // away, matching native tabs' own behavior.
 import { Tabs, TabList, TabSlot, TabTrigger, type TabTriggerSlotProps } from 'expo-router/ui';
-import { Pressable, useWindowDimensions, View } from 'react-native';
+import { Pressable, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text } from '@/ui/Text';
 import { useTheme, useTokens } from '@/ui/theme';
+import { DemoQuickMenu } from '@/features/settings/DemoQuickMenu';
 import { tabsForRole } from '@/features/shell/tabs';
 
-const WIDE_BREAKPOINT = 768;
+import { DESKTOP_LAYOUT } from '@shared/config/theme';
+import { useDesktopLayout } from '@/ui/useDesktopLayout';
+import { Glyph, type GlyphName } from '@/features/integrations/glyphs';
+import { router } from '@/features/shell/navigation';
+
+const NAV_ICONS: Record<string, GlyphName> = { chat: 'chat', ideas: 'bulb', hq: 'home', family: 'people' };
+const UTILITIES = [
+  { label: 'Today', icon: 'sun', route: '/today' },
+  { label: 'Connected accounts', icon: 'link', route: '/accounts' },
+  { label: 'Settings', icon: 'settings', route: '/settings' },
+] as const;
 
 // The tabs ErrorBoundary is shared with the native layout (src/features/shell/TabErrorBoundary.tsx).
 export { TabErrorBoundary as ErrorBoundary } from '@/features/shell/TabErrorBoundary';
@@ -26,8 +37,7 @@ export { TabErrorBoundary as ErrorBoundary } from '@/features/shell/TabErrorBoun
 export default function TabLayout() {
   const { role } = useTheme();
   const tokens = useTokens();
-  const { width } = useWindowDimensions();
-  const isWide = width >= WIDE_BREAKPOINT;
+  const isWide = useDesktopLayout();
   // Tab screens leave the bottom inset to the bar (src/ui/Screen.tsx 'tab'), so the bar keeps it above the
   // home indicator (iPhone Safari).
   const insets = useSafeAreaInsets();
@@ -46,23 +56,30 @@ export default function TabLayout() {
         <View
           style={
             isWide
-              ? { width: 220, borderRightWidth: 1, borderRightColor: tokens.line, paddingTop: tokens.spacing.xl, gap: tokens.spacing.xs }
+              ? { flexDirection: 'column', width: DESKTOP_LAYOUT.sidebarWidth, flexShrink: 0, borderRightWidth: 1, borderRightColor: tokens.line, backgroundColor: tokens.surface, padding: tokens.spacing.md, gap: tokens.spacing.xs }
               : { flexDirection: 'row', borderTopWidth: 1, borderTopColor: tokens.line, backgroundColor: tokens.surface, paddingBottom: insets.bottom }
           }
         >
+          {isWide && <View style={{ padding: tokens.spacing.md, paddingBottom: tokens.spacing.xl }}><Text variant="title" weight="700">MEGA</Text><Text variant="caption" color="muted">Your family, connected</Text></View>}
           {tabs.map(({ tab, route, label }) => (
             <TabTrigger key={tab} name={route} href={`/${route}` as never} asChild>
-              <TabBarButton label={label} wide={isWide} />
+              <TabBarButton label={label} icon={NAV_ICONS[tab]} wide={isWide} />
             </TabTrigger>
           ))}
+          {isWide && <View style={{ flex: 1 }} />}
+          {isWide && <View style={{ borderTopWidth: 1, borderTopColor: tokens.line, paddingTop: tokens.spacing.md, gap: tokens.spacing.xs }}>
+            {UTILITIES.filter(item => role !== 'kid' || item.route !== '/accounts').map(item => <Pressable key={item.route} accessibilityRole="button" onPress={() => router.push(item.route)} style={({ pressed, hovered }) => ({ flexDirection: 'row', alignItems: 'center', gap: tokens.spacing.md, minHeight: tokens.touchTarget, paddingHorizontal: tokens.spacing.md, borderRadius: tokens.radii.md, backgroundColor: pressed || hovered ? tokens.line : 'transparent' })}><Glyph name={item.icon} color={tokens.muted} size={20} /><Text variant="label" color="muted">{item.label}</Text></Pressable>)}
+          </View>}
+          {isWide && <DemoQuickMenu placement="sidebar" />}
         </View>
       </TabList>
-      <TabSlot style={{ flex: 1 }} />
+      <TabSlot style={{ flex: 1, minWidth: 0 }} />
+      {!isWide && <DemoQuickMenu placement="floating" />}
     </Tabs>
   );
 }
 
-type TabBarButtonProps = TabTriggerSlotProps & { label: string; wide: boolean };
+type TabBarButtonProps = TabTriggerSlotProps & { label: string; icon?: GlyphName; wide: boolean };
 
 /** The `asChild` target for each `TabTrigger`. `isFocused` is injected by `TabTrigger`; the rest
  * (`onPress`, `href` for a real web anchor, …) is spread straight onto `Pressable`, the same pattern the
@@ -70,7 +87,7 @@ type TabBarButtonProps = TabTriggerSlotProps & { label: string; wide: boolean };
  * `Pressable` — `TabTriggerSlotProps`' `Ref<View>` (from expo-router/ui's own react-native types) and
  * this RN version's `Pressable` ref type don't line up, and nothing here needs imperative access to the
  * host node. */
-function TabBarButton({ isFocused, label, wide, ref: _ref, ...props }: TabBarButtonProps) {
+function TabBarButton({ isFocused, label, icon, wide, ref: _ref, ...props }: TabBarButtonProps) {
   const tokens = useTokens();
   return (
     <Pressable
@@ -83,10 +100,11 @@ function TabBarButton({ isFocused, label, wide, ref: _ref, ...props }: TabBarBut
       hitSlop={{ top: tokens.hitSlop, bottom: tokens.hitSlop, left: tokens.hitSlop, right: tokens.hitSlop }}
       style={
         wide
-          ? { paddingVertical: tokens.spacing.md, paddingHorizontal: tokens.spacing.lg, backgroundColor: isFocused ? tokens.surface : 'transparent' }
+          ? { flexDirection: 'row', alignItems: 'center', gap: tokens.spacing.md, minHeight: tokens.touchTarget, borderRadius: tokens.radii.md, paddingVertical: tokens.spacing.sm, paddingHorizontal: tokens.spacing.md, backgroundColor: isFocused ? tokens.line : 'transparent' }
           : { flex: 1, alignItems: 'center', paddingVertical: tokens.spacing.sm, minHeight: tokens.touchTarget, justifyContent: 'center' }
       }
     >
+      {wide && icon && <Glyph name={icon} color={isFocused ? tokens.accent : tokens.muted} size={20} />}
       <Text variant="label" color={isFocused ? 'accent' : 'muted'}>
         {label}
       </Text>

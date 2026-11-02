@@ -1,3 +1,11 @@
+import { AddFamilyPerson } from '@/features/family/AddFamilyPerson';
+import { ModalSheet } from '@/ui/ModalSheet';
+import { FAMILY_EDITOR } from '@shared/config/familyEditor';
+import { useRef, useState } from 'react';
+import { useAddPerson } from '@/data/useOnboarding';
+import { useViewer } from '@/data/useViewer';
+import { errorCopyFor } from '@/data/errorCopy';
+import { Text } from '@/ui/Text';
 import { router } from '@/features/shell/navigation';
 import { useFamilyMembers, useComingUp, useNextFamilyEvent } from '@/data/useFamily';
 import { Screen } from '@/ui/Screen';
@@ -5,6 +13,19 @@ import { LoadingScreen } from '@/ui/LoadingScreen';
 import { FamilyContent } from '@/features/family/FamilyContent';
 
 export default function FamilyRoute() {
+  const viewer = useViewer();
+  const [addOpen, setAddOpen] = useState(false);
+  const addPerson = useAddPerson();
+  const adding = useRef(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const begin = async () => {
+    if (adding.current) return;
+    adding.current = true; setBusy(true); setError(null);
+    try { await addPerson({}); router.toTab('/chat'); }
+    catch (e) { setError(errorCopyFor(e)); }
+    finally { adding.current = false; setBusy(false); }
+  };
   const members = useFamilyMembers();
   const comingUp = useComingUp();
   const nextEvent = useNextFamilyEvent();
@@ -14,6 +35,8 @@ export default function FamilyRoute() {
   return (
     <Screen scroll presentation="tab">
       <FamilyContent
+        onAddPerson={viewer?.member.role === 'admin' ? () => setAddOpen(true) : undefined}
+        addingPerson={busy}
         members={members}
         comingUp={comingUp}
         nextEvent={nextEvent}
@@ -22,6 +45,8 @@ export default function FamilyRoute() {
         onOpenPlaces={() => router.push('/places' as never)}
         onOpenLists={() => router.push('/family/lists' as never)}
       />
+      {addOpen && <ModalSheet open title={FAMILY_EDITOR.title} closeLabel="Close" onClose={() => setAddOpen(false)}><AddFamilyPerson onDone={() => setAddOpen(false)} onCreateMega={() => { setAddOpen(false); void begin(); }} /></ModalSheet>}
+      {error ? <Text color="muted" accessibilityRole="alert">{error}</Text> : null}
     </Screen>
   );
 }

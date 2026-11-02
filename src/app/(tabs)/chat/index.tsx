@@ -1,3 +1,7 @@
+import { ageGroupAt } from '@shared/ageGroups';
+import { ChatEntrance } from '@/features/chat/ChatEntrance';
+import { CHAT_UX } from '@shared/config/chat';
+import { LiveMegaDraft } from '@/features/chat/LiveMegaDraft';
 // Chat keeps completed and streaming replies in one virtualized conversation.
 // Reads data only through the small hooks in src/data/.
 import { useCallback, useMemo, useState } from 'react';
@@ -11,10 +15,11 @@ import { ROLES_CONFIG } from '@shared/config/roles';
 import { CHAT_COPY, G5_COPY } from '@shared/config/copy';
 import { LINKS } from '@shared/domain/api';
 import { useViewer } from '@/data/useViewer';
+import { useDemoProfile } from '@/data/useDemoProfile';
 import { useOnboardingState } from '@/data/useOnboarding';
-import { useAnswerBlock, useChatThread, useReactToMessage, useSendMessage, useStartChat, useStreamBody } from '@/data/useChat';
+import { useStopResponse, useAnswerBlock, useChatThread, useReactToMessage, useSendMessage, useStartChat, useStreamBody } from '@/data/useChat';
 import { pendingMegaStreamId } from '@/features/chat/pendingStream';
-import { useToday, useAnswerNotification } from '@/data/useToday';
+import { useToday, useAnswerNotification, useRespondToRequest } from '@/data/useToday';
 import { useNotificationsFor } from '@/data/useNotifications';
 import { useChangeMemoryScope, useForgetMemory } from '@/data/useMega';
 import { useSaveMessageIdea } from '@/data/useIdeas';
@@ -41,17 +46,26 @@ import { TabBottomInset } from '@/ui/TabBottomInset';
 export default function ChatRoute() {
   const { messageId } = useLocalSearchParams<{ messageId?: string }>();
   const viewer = useViewer();
+  const { profile: demoProfile } = useDemoProfile();
   const thread = useChatThread();
   const today = useToday();
   const megaById = useMegaDirectory();
   const onboarding = useOnboardingState();
   const sendMessage = useSendMessage();
+  const stopResponse = useStopResponse();
+  const [sending, setSending] = useState(false);
+  const [headerLayout, setHeaderLayout] = useState<{ memberId: string; height: number } | null>(null);
+  const headerHeight = headerLayout?.memberId === viewer?.member._id ? headerLayout?.height : undefined;
+  const [stopping, setStopping] = useState(false);
+  const [stopError, setStopError] = useState<string | null>(null);
   const answerBlock = useAnswerBlock();
   const react = useReactToMessage();
   const changeMemoryScope = useChangeMemoryScope();
   const forgetMemory = useForgetMemory();
   const answerNotification = useAnswerNotification();
+  const respondToRequest = useRespondToRequest();
   const saveMessageIdea = useSaveMessageIdea();
+  const [replyTo, setReplyTo] = useState<string | null>(null);
   const [pendingStreamId, setPendingStreamId] = useState<string | null>(null);
   // The active reply follows whichever MEGA reply is still being written: the viewer's last send, or one
   // they didn't send (a block answer's follow-up, a kid's "Show me", the MEGA's own starter).
@@ -95,7 +109,7 @@ export default function ChatRoute() {
 
   const onSend = useCallback(
     async (text: string) => {
-      setSendError(null);
+      setSendError(null); setSending(true); setStopError(null);
       try {
         const result = await sendMessage({ text, via: 'text' });
         setPendingStreamId(result.streamId);
@@ -104,7 +118,7 @@ export default function ChatRoute() {
         // rolls that back on its own once the mutation throws, so there's nothing to undo here beyond
         // surfacing the friendly line + a retry.
         setSendError({ line: errorCopyFor(e), retryText: text });
-      }
+      } finally { setSending(false); }
     },
     [sendMessage],
   );
@@ -124,6 +138,16 @@ export default function ChatRoute() {
   const streamFailed = stream?.status === 'error' || stream?.status === 'timeout';
   const showStreamingReply = (writingStreamId ?? pendingStreamId) !== null && stream !== undefined && stream.status !== 'done' && !streamFailed;
 
+  const activeStreamId = writingStreamId ?? pendingStreamId;
+  const responding = sending || (!!activeStreamId && stream?.status !== 'done' && !streamFailed);
+  const stop = async () => {
+    if (!activeStreamId || stopping) return;
+    setStopping(true); setStopError(null);
+    try { await stopResponse({ streamId: activeStreamId }); }
+    catch (error) { setStopError(errorCopyFor(error)); }
+    finally { setStopping(false); }
+  };
+
   const mega = useMemo(() => (viewer?.mega ? megaInfo(viewer.mega) : null), [viewer]);
 
   if (viewer === undefined || thread.status === 'LoadingFirstPage') return <MegaLoader text={CHAT_COPY.opening} testID="chat-loading" />;
@@ -135,7 +159,7 @@ export default function ChatRoute() {
     );
   }
 
-  const bigTalkButton = ROLES_CONFIG[viewer.member.role].talkButton;
+  const bigTalkButton = ROLES_CONFIG[viewer.member.role].talkButton && ageGroupAt(viewer.member, new Date().getTime(), viewer.family.timezone) === 'child';
   const todayCount = today?.waitingOnYou.length ?? 0;
 
   return (
@@ -146,15 +170,18 @@ export default function ChatRoute() {
     // `manualInsets`); on web it's a plain flex view.
     <TabBottomInset>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding">
-        <Screen padded={false} presentation="tab">
-          <ChatHeader
+        <Screen reading padded={false} presentation="tab">
+          <ChatEntrance hasHistory={thread.results.some(message => message.author.kind === 'member')} key={viewer.member._id} memberId={viewer.member._id} mega={mega}>{({ avatarRef, onAvatarLayout }) => <>
+          <ChatHeader onHeightChange={height => setHeaderLayout(current => current?.memberId === viewer.member._id && current.height === height ? current : { memberId: viewer.member._id, height })} avatarRef={avatarRef} onAvatarLayout={onAvatarLayout}
             mega={mega}
+            demoPersonName={demoProfile?.active ? viewer.member.name : undefined}
             todayCount={todayCount}
             onOpenProfile={() => router.push('/mega-profile' as never)}
             onOpenToday={() => router.push(toPath(LINKS.today()) as never)}
           />
           <View style={{ flex: 1 }} accessibilityLabel={messageId ? `Scrolled to message ${messageId}` : undefined}>
-            <ChatThread
+            {headerHeight === undefined ? <MegaLoader text={CHAT_COPY.opening} testID="chat-measuring" /> : <ChatThread
+              historyPadding={headerHeight}
               messages={thread.results}
               viewerMemberId={viewer.member._id}
               viewerRole={viewer.member.role}
@@ -162,24 +189,30 @@ export default function ChatRoute() {
               onLoadMore={thread.status === 'CanLoadMore' ? () => thread.loadMore(30) : undefined}
               paginationExhausted={thread.status === 'Exhausted'}
               onAnswerBlock={(id, answer) => answerBlock(id, answer, 'text')}
+              onReply={setReplyTo}
               onReact={(id, reaction) => react({ messageId: id, reaction })}
               onSaveIdea={isAdultRole(viewer.member.role) ? (id) => saveMessageIdea({ messageId: id }) : undefined}
               onChangeMemoryScope={(memoryId, scope) => changeMemoryScope({ memoryId, scope })}
               onForgetMemory={(memoryId) => forgetMemory({ memoryId })}
+              onRespondRequest={(requestId, accept) => respondToRequest({ requestId: requestId as Id<'requests'>, accept })}
               onAnswerNotification={(notificationId, buttonId) => answerNotification({ notificationId: notificationId as Id<'notifications'>, buttonId, via: 'block' })}
               notificationsById={notificationsById}
-              streamingReply={showStreamingReply && stream ? <StreamingReply megaName={mega.name} text={stream.text} /> : undefined}
+              streamingReply={showStreamingReply && stream ? <StreamingReply megaHex={mega.hex} megaName={mega.name} text={stream.text} /> : undefined}
               scrollToMessageId={messageId as Id<'messages'> | undefined}
-            />
+            />}
           </View>
           {/* A streamed-reply failure has no text to resend (the message itself already sent fine) — just
               the friendly line, no retry button. */}
           {streamFailed && <RetryBanner label={streamStatusCopy(stream!.status as 'error' | 'timeout')} reducedMotion={reducedMotion} />}
           {sendError && <RetryBanner label={sendError.line} onRetry={onRetrySend} reducedMotion={reducedMotion} />}
-          <Composer
+          <LiveMegaDraft />
+          {stopError && <Text accessibilityRole="alert">{stopError}</Text>}
+          <Composer responding={responding} stopping={stopping} onStop={!sending && activeStreamId ? () => void stop() : undefined}
             megaName={mega.name}
             bigTalkButton={bigTalkButton}
-            onSend={onSend}
+            replyTo={replyTo}
+            onCancelReply={() => setReplyTo(null)}
+            onSend={text => { const quoted = replyTo ? `Replying to: “${replyTo.slice(0, CHAT_UX.maxQuotedCharacters)}”\n\n${text}` : text; setReplyTo(null); void onSend(quoted); }}
             onOpenTalk={() => router.push(toPath(LINKS.talk()) as never)}
             // GD (board KidsSnap): grown-ups can snap a worksheet for homework practice.
             onCamera={isAdultRole(viewer.member.role) ? attachments.open : undefined}
@@ -187,6 +220,7 @@ export default function ChatRoute() {
             placeholder={onboarding?.step === 'name' ? G5_COPY.namePlaceholder : undefined}
           />
           {attachments.sheets}
+          </>}</ChatEntrance>
         </Screen>
       </KeyboardAvoidingView>
     </TabBottomInset>

@@ -1,3 +1,4 @@
+import { canConnectAccountsAt } from '@shared/ageGroups';
 // One guard for the adult-only routes (G5 UX review, Oct 29): a kid who lands on one — a typed URL, a stale
 // deep link — is sent back to chat before the screen's own queries run, the way /homework always did. The
 // server refuses the calls regardless; this keeps a kid from ever seeing the adult page. `adminOnly` narrows
@@ -14,5 +15,13 @@ export function AdultOnly({ adminOnly = false, children }: { adminOnly?: boolean
   const role = viewer?.member.role;
   const allowed = role != null && (adminOnly ? role === 'admin' : isAdultRole(role));
   if (!allowed) return <Redirect href="/chat" />;
+  return <>{children}</>;
+}
+
+/** Connection permission is independent of adult-only family tools. */
+export function ConnectorOnly({ children }: { children: ReactNode }) {
+  const viewer = useViewer();
+  if (viewer === undefined) return <MegaLoader />;
+  if (!viewer || !canConnectAccountsAt(viewer.member, new Date().getTime(), viewer.family.timezone)) return <Redirect href="/chat" />;
   return <>{children}</>;
 }

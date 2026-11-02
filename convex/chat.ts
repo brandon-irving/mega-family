@@ -1,3 +1,11 @@
+import { answerConnectionRecommendation, answerConnectionRecommendationText, recommendConnection } from './model/connectionRecommendations';
+import { CHAT_UX } from '../shared/config/chat';
+import { answerMailLocation } from './model/mailContext';
+import { answerConnectionApproval } from './model/connectionApproval';
+import { activeDraft, migrateCreation, answerCreation, confirmDraft, resumeDraftConversation } from './model/megaCreation';
+import { isCreationConfirmation, MEGA_CREATION } from '../shared/config/megaCreation';
+import { answerBrief, answerBriefText, briefFor, startBrief, continueAfterBrief } from './model/assistantBriefs';
+import { ASSISTANT_BRIEF } from '../shared/config/assistantBrief';
 // CONTRACT §4 "Chat and talk". `chat.send` inserts the user's message plus an empty MEGA reply with a
 // persistent-text-streaming stream, then schedules `generateReply`. The reply is server-driven: the action
 // writes chunks with the component's addChunk mutation and every open client sees them through
@@ -9,7 +17,7 @@ import { PersistentTextStreaming, type StreamId } from '@convex-dev/persistent-t
 import { API } from '../shared/domain/api';
 import { components, internal } from './_generated/api';
 import type { Doc, Id } from './_generated/dataModel';
-import { internalAction, internalMutation, mutation, query, type MutationCtx } from './_generated/server';
+import { internalAction, internalMutation, internalQuery, mutation, query, type MutationCtx } from './_generated/server';
 import { describeBlockAnswer, requireReadableStream } from './model/chat';
 import { pick } from './model/define';
 import { fail } from './model/errors';
@@ -23,7 +31,7 @@ import { AGENT_COPY, fillCopy, G5_COPY } from '../shared/config/copy';
 import { ADULT_STARTER, KID_INTRO } from '../shared/config/starters';
 import { getOrCreateOwnThread } from './model/threads';
 import { onboardingRow } from './model/integrations';
-import { afterName as afterOnboardingName, answerFamilyBlock, postStep as postOnboardingStep, setName as setOnboardingName, stepIsShowing as onboardingStepIsShowing } from './model/onboarding';
+import { parseNameReply, afterName as afterOnboardingName, answerFamilyBlock, postStep as postOnboardingStep, setName as setOnboardingName, stepIsShowing as onboardingStepIsShowing } from './model/onboarding';
 import { answerCheckQuestion } from './model/profiler';
 import { runFor } from './model/routines';
 import { localDate } from '../shared/time';
@@ -44,6 +52,9 @@ export const thread = query({
   ...pick(API.chat.thread),
   handler: async (ctx, args) => {
     const viewer = await requireViewer(ctx);
+    // A live subscription may briefly retain the previous profile’s cursor during a demo switch.
+    // This is a cache key, never an authorization selector.
+    if (args.profileKey && args.profileKey !== viewer.member._id) return { page: [], isDone: true, continueCursor: '' };
     const own = await ctx.db
       .query('threads')
       .withIndex('by_family_owner', (q) => q.eq('familyId', viewer.member.familyId).eq('ownerId', viewer.member._id))
@@ -62,7 +73,7 @@ export const send = mutation({
   handler: async (ctx, args) => {
     const viewer = await requireViewer(ctx);
     const familyId = viewer.member.familyId;
-    const now = await clock.now(ctx, familyId);
+    let now = await clock.now(ctx, familyId);
 
     let thread = await ctx.db
       .query('threads')
@@ -72,6 +83,9 @@ export const send = mutation({
       const threadId = await ctx.db.insert('threads', { familyId, ownerId: viewer.member._id, megaIds: viewer.mega ? [viewer.mega._id] : [], lastAt: now });
       thread = (await ctx.db.get(threadId))!;
     }
+
+    // Keep replies after their prompts even when the demo clock is paused.
+    now = Math.max(now, thread.lastAt + 1);
 
     const familyMegas = await ctx.db
       .query('megas')
@@ -94,19 +108,73 @@ export const send = mutation({
       chips: [],
     });
 
-    // G5 (v0.17): while onboarding asks "What should I call you?", the text IS the name. No agent turn: MEGA's
-    // reply is the fixed "Nice to meet you" line, then the first connect card (convex/model/onboarding.ts).
+    // Names can arrive inside a full introduction. Keep the message and let the model interpret
+    // conversational replies; a validation error must never roll back an ordinary chat message.
     const onboarding = await onboardingRow(ctx, familyId, viewer.member._id);
     if (onboarding?.step === 'name' && viewer.mega) {
-      const name = await setOnboardingName(ctx, viewer.member, args.text, now);
+      const name = parseNameReply(args.text);
       const streamId = await streaming.createStream(ctx);
-      const text = fillCopy(G5_COPY.niceToMeet, { name });
+      const text = name ? fillCopy(G5_COPY.niceToMeet, { name }) : '';
       const replyMessageId = await ctx.db.insert('messages', { familyId, threadId: thread._id, at: now + 1, author: { kind: 'mega', id: viewer.mega._id }, via: 'text', body: { type: 'text', text }, streamId, chips: [] });
       await ctx.db.patch(thread._id, { lastAt: now + 1 });
-      await ctx.scheduler.runAfter(0, internal.chat.streamFixedText, { streamId, text });
-      await afterOnboardingName(ctx, viewer.member, now);
+      if (name) {
+        await setOnboardingName(ctx, viewer.member, name, now);
+        await ctx.scheduler.runAfter(0, internal.chat.streamFixedText, { streamId, text });
+        await afterOnboardingName(ctx, viewer.member, now + 1);
+      } else {
+        await ctx.scheduler.runAfter(0, internal.onboardingConversation.reply, { familyId, memberId: viewer.member._id, replyMessageId, userText: args.text });
+      }
       return { messageId, replyMessageId, streamId };
     }
+
+    const connectionAnswer = !args.attachments?.length && !args.files?.length
+      ? await answerConnectionRecommendationText(ctx, viewer.member, thread._id, args.text, now) : null;
+    if (connectionAnswer) {
+      const streamId = await streaming.createStream(ctx);
+      await ctx.db.patch(connectionAnswer.replyMessageId, { streamId });
+      await ctx.scheduler.runAfter(0, internal.chat.streamFixedText, { streamId, text: connectionAnswer.text });
+      return { messageId, replyMessageId: connectionAnswer.replyMessageId, streamId };
+    }
+    await migrateCreation(ctx, viewer.member, thread._id, now);
+    const draft = await activeDraft(ctx, viewer.member);
+    if (draft?.status === 'review' && isCreationConfirmation(args.text) && !args.attachments?.length && !args.files?.length) {
+      await confirmDraft(ctx, viewer.member, draft._id, draft.revision, now);
+      const streamId = await streaming.createStream(ctx);
+      const text = draft.data.target === 'self' ? MEGA_CREATION.created : MEGA_CREATION.inviteReady;
+      const replies = await ctx.db.query('messages').withIndex('by_family_thread_at', q => q.eq('familyId', familyId).eq('threadId', thread._id)).order('desc').take(5);
+      const reply = replies.find(m => m.ruleBlock === 'creation' && m.body.type === 'text');
+      if (!reply) fail('NOT_FOUND');
+      const replyMessageId = reply._id;
+      await ctx.db.patch(replyMessageId, { streamId });
+      await ctx.scheduler.runAfter(0, internal.chat.streamFixedText, { streamId, text });
+      return { messageId, replyMessageId, streamId };
+    }
+    if (draft?.status === 'review') await resumeDraftConversation(ctx, draft, now);
+    const brief = await briefFor(ctx, familyId, viewer.member._id);
+    if (brief && brief.step !== 'done' && viewer.mega) {
+      if (brief.step !== 'ready' && (args.attachments?.length || args.files?.length)) fail('VALIDATION', ASSISTANT_BRIEF.attachmentsLater);
+      if (brief.step !== 'edit') await startBrief(ctx, viewer.member, now);
+      const answered = !args.attachments?.length && !args.files?.length && await answerBriefText(ctx, viewer.member, args.text, now);
+      if (answered) {
+      const streamId = await streaming.createStream(ctx);
+      const recent = answered ? await ctx.db.query('messages').withIndex('by_family_thread_at', q => q.eq('familyId', familyId).eq('threadId', thread._id)).order('desc').take(4) : [];
+      const acknowledgement = recent.find(m => m.ruleBlock === 'brief' && m.body.type === 'text');
+      const text = acknowledgement?.body.type === 'text' ? acknowledgement.body.text : ASSISTANT_BRIEF.pendingHint;
+      let replyMessageId: Id<'messages'>;
+      if (acknowledgement) {
+        replyMessageId = acknowledgement._id;
+        await ctx.db.patch(replyMessageId, { streamId });
+      } else {
+        const at = Math.max(now + 1, (await ctx.db.get(thread._id))!.lastAt + 1);
+        replyMessageId = await ctx.db.insert('messages', { familyId, threadId: thread._id, at, author: { kind: 'mega', id: viewer.mega._id }, via: 'text', body: { type: 'text', text }, streamId, chips: [], ruleBlock: 'brief' });
+        await ctx.db.patch(thread._id, { lastAt: at });
+      }
+      await ctx.scheduler.runAfter(0, internal.chat.streamFixedText, { streamId, text });
+      return { messageId, replyMessageId, streamId };
+      }
+    }
+
+    if (brief?.step === 'ready') await continueAfterBrief(ctx, brief, args.text, now);
 
     // G6 #6b (web walkthrough, Oct 29): a kid's "Ready for tomorrow" chat-starter (KID_INTRO.rows, "Show
     // me") used to send a free-text question straight into the agent loop, which has no tool for a kid's own
@@ -196,7 +264,8 @@ export const streamBody = query({
   ...pick(API.chat.streamBody),
   handler: async (ctx, args) => {
     const viewer = await requireViewer(ctx);
-    await requireReadableStream(ctx, viewer, args.streamId);
+    const message = await requireReadableStream(ctx, viewer, args.streamId);
+    if (message.stoppedAt !== undefined) return { text: message.body.type === 'text' ? message.body.text : '', status: 'done' as const };
     return streaming.getStreamBody(ctx, args.streamId as StreamId);
   },
 });
@@ -214,7 +283,7 @@ export const answerBlock = mutation({
     // retry or replay is a no-op that returns the first answer and never starts an agent reply.
     if (message.ruleBlock && message.body.answeredWith !== undefined) return { answerMessageId: await firstAnswerTo(ctx, message) };
 
-    const now = await clock.now(ctx, viewer.member.familyId);
+    const now = Math.max(await clock.now(ctx, viewer.member.familyId), thread.lastAt + 1);
     const answerMessageId = await ctx.db.insert('messages', {
       familyId: viewer.member.familyId,
       threadId: thread._id,
@@ -225,14 +294,21 @@ export const answerBlock = mutation({
       body: { type: 'answer', blockMessageId: message._id, label: summarizeAnswer(message.body.block, args.answer), value: args.answer },
       chips: [],
     });
+    await ctx.db.patch(thread._id, { lastAt: now });
     await ctx.db.patch(message._id, { body: { ...message.body, answeredWith: args.answer } });
 
     // G5 (v0.17): the onboarding family step's blocks and the profiler's check questions are answered by rule,
     // not by an agent turn.
+    if (await answerConnectionRecommendation(ctx, viewer.member, message, args.answer, now)) return { answerMessageId };
+    if (await answerMailLocation(ctx, viewer.member, message, args.answer, now)) return { answerMessageId };
+    if (await answerConnectionApproval(ctx, viewer.member, message, args.answer, now)) return { answerMessageId };
+    if (await answerCreation(ctx, viewer.member, message, args.answer, now)) return { answerMessageId };
     if (await answerFamilyBlock(ctx, viewer.member, message, args.answer, now)) return { answerMessageId };
+    const briefAnswer = await answerBrief(ctx, viewer.member, message, args.answer, now);
+    if (briefAnswer && !briefAnswer.userText) return { answerMessageId };
     if (await answerCheckQuestion(ctx, viewer.member, message, args.answer, now)) return { answerMessageId };
     // A rule block no handler took (it has moved on, e.g. superseded after a resume) still never reaches the agent.
-    if (message.ruleBlock) return { answerMessageId };
+    if (message.ruleBlock && !briefAnswer?.userText) return { answerMessageId };
 
     // Feed the answer back into the agent loop (task brief: "chat.answerBlock should feed the answer back
     // into the loop"), as an ordinary turn from the same MEGA that asked — the member sees a real reply,
@@ -261,7 +337,7 @@ export const answerBlock = mutation({
         role: viewer.member.role,
         megaId: replyMegaId,
         threadId: thread._id,
-        userText: describeBlockAnswer(message.body.block, args.answer),
+        userText: briefAnswer?.userText ?? describeBlockAnswer(message.body.block, args.answer),
       });
     }
     // CONTRACT.md v0.8 (additive, pending approval): the reply's streamId, so talk mode can caption the
@@ -310,6 +386,10 @@ export const start = mutation({
     if (onboarding && onboarding.step !== 'done') {
       if (await onboardingStepIsShowing(ctx, onboarding, thread._id)) return { started: false };
       await postOnboardingStep(ctx, onboarding, now);
+      if (thread.startedAt === undefined) await ctx.db.patch(thread._id, { startedAt: now });
+      return { started: true };
+    }
+    if (await startBrief(ctx, viewer.member, now)) {
       if (thread.startedAt === undefined) await ctx.db.patch(thread._id, { startedAt: now });
       return { started: true };
     }
@@ -372,7 +452,7 @@ export const generateStarter = internalAction({
   handler: async (ctx, args) => {
     let text = '';
     try {
-      text = (await ctx.runAction(internal.agent.loop.runTurn, { familyId: args.familyId, memberId: args.memberId, role: args.role, megaId: args.megaId, threadId: args.threadId, userText: ADULT_STARTER.prompt })).text;
+      text = (await ctx.runAction(internal.agent.loop.runTurn, { familyId: args.familyId, memberId: args.memberId, role: args.role, megaId: args.megaId, threadId: args.threadId, userText: ADULT_STARTER.prompt, replyMessageId: args.replyMessageId })).text;
     } catch {
       text = ''; // over budget or the model is down: the config greeting still starts the chat
     }
@@ -382,9 +462,9 @@ export const generateStarter = internalAction({
     const words = text.split(' ');
     for (const [i, word] of words.entries()) {
       const final = i === words.length - 1;
-      await ctx.runMutation(components.persistentTextStreaming.lib.addChunk, { streamId: args.streamId as StreamId, text: final ? word : `${word} `, final });
+      if (!await ctx.runMutation(internal.chat.appendReplyChunk, { streamId: args.streamId, text: final ? word : `${word} `, final })) return null;
     }
-    await ctx.runMutation(internal.chat.finishReply, { replyMessageId: args.replyMessageId, text });
+    if (!await ctx.runMutation(internal.chat.finishReply, { replyMessageId: args.replyMessageId, text })) return null;
     await ctx.runMutation(internal.chat.postStarterQuestion, { familyId: args.familyId, threadId: args.threadId, megaId: args.megaId });
     return null;
   },
@@ -405,6 +485,9 @@ export const postStarterQuestion = internalMutation({
       chips: [],
     });
     await ctx.db.patch(args.threadId, { lastAt: now + 1 });
+    const thread = await ctx.db.get(args.threadId);
+    const member = thread && await ctx.db.get(thread.ownerId);
+    if (member && member.familyId === args.familyId) await recommendConnection(ctx, member, '', now + 2, { allowBaseline: true });
     return null;
   },
 });
@@ -433,14 +516,15 @@ export const generateReply = internalAction({
       megaId: args.megaId,
       threadId: args.threadId,
       userText: args.userText,
+      replyMessageId: args.replyMessageId,
     });
 
     const words = text.split(' ');
     for (const [i, word] of words.entries()) {
       const final = i === words.length - 1;
-      await ctx.runMutation(components.persistentTextStreaming.lib.addChunk, { streamId: args.streamId as StreamId, text: final ? word : `${word} `, final });
+      if (!await ctx.runMutation(internal.chat.appendReplyChunk, { streamId: args.streamId, text: final ? word : `${word} `, final })) return null;
     }
-    await ctx.runMutation(internal.chat.finishReply, { replyMessageId: args.replyMessageId, text });
+    if (!await ctx.runMutation(internal.chat.finishReply, { replyMessageId: args.replyMessageId, text })) return null;
 
     await ctx.scheduler.runAfter(0, internal.agent.writer.run, {
       familyId: args.familyId,
@@ -463,17 +547,78 @@ export const streamFixedText = internalAction({
   args: { streamId: v.string(), text: v.string() },
   returns: v.null(),
   handler: async (ctx, { streamId, text }) => {
-    await ctx.runMutation(components.persistentTextStreaming.lib.addChunk, { streamId: streamId as StreamId, text, final: true });
+    await ctx.runMutation(internal.chat.appendReplyChunk, { streamId, text, final: true });
     return null;
   },
 });
 
 export const finishReply = internalMutation({
   args: { replyMessageId: v.id('messages'), text: v.string() },
-  returns: v.null(),
+  returns: v.boolean(),
   handler: async (ctx, args) => {
     const message = await ctx.db.get(args.replyMessageId);
-    if (message?.body.type === 'text') await ctx.db.patch(message._id, { body: { ...message.body, text: args.text } });
+    if (!message || message.stoppedAt !== undefined || message.body.type !== 'text') return false;
+    await ctx.db.patch(message._id, { body: { ...message.body, text: args.text } });
+    return true;
+  },
+});
+
+/** Stop is owner-only even when a parent has read access to a child's stream. */
+export const stop = mutation({
+  ...pick(API.chat.stop),
+  handler: async (ctx, { streamId }) => {
+    const viewer = await requireViewer(ctx);
+    const message = await requireReadableStream(ctx, viewer, streamId);
+    const thread = await ctx.db.get(message.threadId);
+    if (thread?.ownerId !== viewer.member._id || message.author.kind !== 'mega') fail('FORBIDDEN');
+    if (message.stoppedAt !== undefined) return null;
+    const stream = await streaming.getStreamBody(ctx, streamId as StreamId);
+    if (stream.status === 'done' || stream.status === 'error' || stream.status === 'timeout') return null;
+    await ctx.db.patch(message._id, { stoppedAt: Date.now(), body: { type: 'text', text: stream.text.trim() ? `${stream.text.trim()}\n\nResponse stopped.` : 'Response stopped.' }, saveableIdea: false });
+    await ctx.runMutation(components.persistentTextStreaming.lib.addChunk, { streamId: streamId as StreamId, text: '', final: true });
+    return null;
+  },
+});
+export const isStopped = internalQuery({
+  args: { replyMessageId: v.id('messages') }, returns: v.boolean(),
+  handler: async (ctx, { replyMessageId }) => {
+    const message = await ctx.db.get(replyMessageId);
+    return !message || message.stoppedAt !== undefined;
+  },
+});
+/** The cancellation check and stream append share a transaction, so late chunks cannot reopen a reply. */
+export const appendReplyChunk = internalMutation({
+  args: { streamId: v.string(), text: v.string(), final: v.boolean() }, returns: v.boolean(),
+  handler: async (ctx, args) => {
+    const message = await ctx.db.query('messages').withIndex('by_streamId', q => q.eq('streamId', args.streamId)).unique();
+    if (!message || message.stoppedAt !== undefined) return false;
+    await ctx.runMutation(components.persistentTextStreaming.lib.addChunk, { ...args, streamId: args.streamId as StreamId });
+    return true;
+  },
+});
+
+// Presentation-only: never posts messages or marks the actual conversation as started.
+export const entrance = query({
+  ...pick(API.chat.entrance),
+  handler: async (ctx, { profileKey }) => {
+    const { member, mega } = await requireViewer(ctx);
+    if (profileKey !== member._id || !mega) return { pending: false };
+    const own = await ctx.db.query('threads').withIndex('by_family_owner', q => q.eq('familyId', member.familyId).eq('ownerId', member._id)).unique();
+    if (!own) return { pending: true };
+    if (own.entranceSeenAt !== undefined) return { pending: false };
+    const recent = await ctx.db.query('messages').withIndex('by_family_thread_at', q => q.eq('familyId', member.familyId).eq('threadId', own._id)).order('desc').take(CHAT_UX.entrance.maxHistory);
+    // Existing conversations must never be hidden by a newly shipped welcome animation.
+    return { pending: recent.length < CHAT_UX.entrance.maxHistory && !recent.some(m => m.author.kind === 'member') };
+  },
+});
+export const finishEntrance = mutation({
+  ...pick(API.chat.finishEntrance),
+  handler: async (ctx, { profileKey }) => {
+    const { member, mega } = await requireViewer(ctx);
+    if (profileKey !== member._id) fail('FORBIDDEN');
+    const now = await clock.now(ctx, member.familyId);
+    const own = await getOrCreateOwnThread(ctx, member.familyId, member._id, mega?._id ?? null, now);
+    if (own.entranceSeenAt === undefined) await ctx.db.patch(own._id, { entranceSeenAt: now });
     return null;
   },
 });

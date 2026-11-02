@@ -6,6 +6,7 @@ import { Platform } from 'react-native';
 import * as SystemUI from 'expo-system-ui';
 import { DEFAULT_THEME, DURATIONS, LAYOUT, RADII, resolveAccent, resolveButtonSizing, resolveSizing, SPACING, THEMES, type ButtonSize, type ThemeTokens } from '@shared/config/theme';
 import type { Role, ThemeName } from '@shared/domain/enums';
+import type { AgeGroup } from '@shared/ageGroups';
 import { ROLES_CONFIG } from '@shared/config/roles';
 
 export type Tokens = ThemeTokens & {
@@ -47,12 +48,14 @@ export function ThemeProvider({
   children,
   initialTheme = DEFAULT_THEME,
   initialRole = 'adult',
+  ageGroup,
   accent = 'mega',
   megaHex = THEMES[initialTheme].accent,
 }: {
   children: ReactNode;
   initialTheme?: ThemeName;
   initialRole?: Role;
+  ageGroup?: AgeGroup;
   accent?: 'theme' | 'mega' | { hex: string };
   megaHex?: string;
 }) {
@@ -67,7 +70,7 @@ export function ThemeProvider({
 
   const tokens = useMemo<Tokens>(() => {
     const base = THEMES[themeName];
-    const sizing = resolveSizing(ROLES_CONFIG[role].bigTargets);
+    const sizing = resolveSizing((ROLES_CONFIG[role].bigTargets && ageGroup !== 'teen'));
     return {
       ...base,
       accent: resolveAccent(themeName, accent, megaHex),
@@ -78,10 +81,10 @@ export function ThemeProvider({
       type: sizing.type,
       touchTarget: sizing.touchTarget,
       hitSlop: sizing.hitSlop,
-      bigTargets: ROLES_CONFIG[role].bigTargets,
-      buttonSize: resolveButtonSizing(ROLES_CONFIG[role].bigTargets),
+      bigTargets: (ROLES_CONFIG[role].bigTargets && ageGroup !== 'teen'),
+      buttonSize: resolveButtonSizing((ROLES_CONFIG[role].bigTargets && ageGroup !== 'teen')),
     };
-  }, [themeName, role, accent, megaHex]);
+  }, [themeName, role, accent, megaHex, ageGroup]);
 
   // G2 BLOCKER fix (white flash): app.config.ts bakes THEMES.midnight.bg into the native root view's
   // background (and the splash screen / Android adaptive icon) so the very first paint before any JS

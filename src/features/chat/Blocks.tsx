@@ -1,8 +1,13 @@
+import { ModalSheet } from '@/ui/ModalSheet';
+import { useRunAction } from '@/features/shell/useRunAction';
+import { MegaDraftPreview } from './MegaDraftPreview';
+import { MEGA_CREATION as C } from '@shared/config/megaCreation';
+import { FieldsForm } from '@/ui/FieldsForm';
 // Renders every Thread UI block kind (CONTRACT §3 / PLAN "Thread UI blocks"): choice, toggle, text,
 // number, date, fields, look, questions, invite, confirm. Pure presentational — takes the block and an
 // onAnswer callback, so it's testable from fixtures and reusable from both chat and the kid thread. The one
 // exception is the invite block, whose panel makes the invite code on request (G5 UX review).
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Switch, TextInput, View } from 'react-native';
 import type { BlockAnswer, UIBlock } from '@shared/domain/messages';
 import { summarizeAnswer } from '@shared/domain/answerLabel';
@@ -17,10 +22,15 @@ import { useTokens } from '@/ui/theme';
 import { MegaSprite } from '@/ui/MegaSprite';
 import { InvitePanel } from '@/features/family/InvitePanel';
 
-export type BlockProps = { block: UIBlock; onAnswer: (answer: BlockAnswer) => void };
+export type BlockProps = { block: UIBlock; onAnswer: (answer: BlockAnswer) => void; conversationOnly?: boolean };
 
-export function Block({ block, onAnswer }: BlockProps) {
+export function Block({ block, onAnswer, conversationOnly = false }: BlockProps) {
+  if (conversationOnly && ['text', 'number', 'date', 'fields', 'look', 'questions'].includes(block.kind)) {
+    return <View><Text>{'prompt' in block ? block.prompt : ''}</Text><Text variant="caption" color="muted">{C.inputHint}</Text></View>;
+  }
   switch (block.kind) {
+    case 'megaDraft':
+      return <MegaDraftBlock block={block} onAnswer={onAnswer} />;
     case 'choice':
       return <ChoiceBlock block={block} onAnswer={onAnswer} />;
     case 'toggle':
@@ -48,6 +58,8 @@ export function Block({ block, onAnswer }: BlockProps) {
 export function AnsweredBlock({ block, answer }: { block: UIBlock; answer: BlockAnswer }) {
   const tokens = useTokens();
   const label = summarizeAnswer(block, answer);
+  // The member's answer has its own message. Keep the MEGA's question in this row.
+  if (block.kind === 'choice') return <Text variant="body">{block.prompt}</Text>;
   return (
     <Text variant="body" style={{ color: tokens.muted, fontStyle: 'italic' }} accessibilityLabel={`Answered: ${label}`}>
       {label}
@@ -171,35 +183,7 @@ function DateBlock({ block, onAnswer }: { block: Extract<UIBlock, { kind: 'date'
 }
 
 function FieldsBlock({ block, onAnswer }: { block: Extract<UIBlock, { kind: 'fields' }>; onAnswer: (a: BlockAnswer) => void }) {
-  const [values, setValues] = useState<Record<string, string>>({});
-  const tokens = useTokens();
-  return (
-    <Card>
-      <Text variant="label" style={{ marginBottom: tokens.spacing.sm }}>
-        {block.prompt}
-      </Text>
-      <View style={{ gap: tokens.spacing.sm }}>
-        {block.fields.map((f) => (
-          <View key={f.id}>
-            <Text variant="caption" color="muted">
-              {f.label}
-            </Text>
-            <TextInput
-              value={values[f.id] ?? ''}
-              onChangeText={(t) => setValues((v) => ({ ...v, [f.id]: t }))}
-              keyboardType={f.type === 'number' ? 'number-pad' : 'default'}
-              style={{ color: tokens.text, borderColor: tokens.line, borderWidth: 1, borderRadius: tokens.radii.sm, padding: tokens.spacing.sm, minHeight: tokens.touchTarget }}
-              accessibilityLabel={f.label}
-            />
-          </View>
-        ))}
-      </View>
-      <View style={{ flexDirection: 'row', gap: tokens.spacing.sm, marginTop: tokens.spacing.sm }}>
-        <Button label="Skip" variant="ghost" onPress={() => onAnswer({ skipped: true })} />
-        <Button label="Save" onPress={() => onAnswer({ fields: values })} />
-      </View>
-    </Card>
-  );
+  return <Card><FieldsForm block={block} onAnswer={onAnswer} /></Card>;
 }
 
 function LookBlock({ block, onAnswer }: { block: Extract<UIBlock, { kind: 'look' }>; onAnswer: (a: BlockAnswer) => void }) {
@@ -295,9 +279,9 @@ function InviteBlock({ block }: { block: Extract<UIBlock, { kind: 'invite' }> })
   return (
     <Card>
       <Text variant="label" style={{ marginBottom: tokens.spacing.sm }}>
-        Invite sent
+        {C.inviteTitle}
       </Text>
-      <InvitePanel memberId={block.memberId} />
+      <InvitePanel memberId={block.memberId} showBrief={false} />
     </Card>
   );
 }
@@ -323,4 +307,32 @@ function ConfirmBlock({ block, onAnswer }: { block: Extract<UIBlock, { kind: 'co
       </View>
     </Card>
   );
+}
+
+function MegaDraftBlock({ block, onAnswer }: { block: Extract<UIBlock, { kind: 'megaDraft' }>; onAnswer: (answer: BlockAnswer) => void }) {
+  const tokens = useTokens();
+  const [confirmDiscard, setConfirmDiscard] = useState(false);
+  const { busy, error, run } = useRunAction();
+  const submitting = useRef(false);
+  const answer = async (value: 'confirm' | 'change' | 'cancel') => {
+    if (submitting.current) return;
+    submitting.current = true;
+    try { await run(value, async () => { await onAnswer({ value }); }); }
+    finally { submitting.current = false; }
+  };
+  const data = block.data;
+  return <Card style={{ gap: tokens.spacing.sm }}>
+    <Text variant="label">{block.prompt}</Text>
+    <MegaDraftPreview data={data} />
+    <Text variant="caption" color="muted">{C.appearance}</Text>
+    <Button label={C.confirm} loading={busy === 'confirm'} disabled={!!busy} onPress={() => answer('confirm')} />
+    <Button label={C.change} loading={busy === 'change'} disabled={!!busy} variant="secondary" onPress={() => answer('change')} />
+    <Button label={C.cancel} disabled={!!busy} variant="ghost" onPress={() => setConfirmDiscard(true)} />
+    {error && <Text accessibilityRole="alert">{error}</Text>}
+    {confirmDiscard && <ModalSheet open title={C.discardTitle} closeLabel={C.keepEditing} onClose={() => setConfirmDiscard(false)}>
+      <Text>{C.discardBody}</Text>
+      <Button label={C.keepEditing} onPress={() => setConfirmDiscard(false)} />
+      <Button label={C.discard} variant="secondary" onPress={() => { setConfirmDiscard(false); void answer('cancel'); }} />
+    </ModalSheet>}
+  </Card>;
 }
